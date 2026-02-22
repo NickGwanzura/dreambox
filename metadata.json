@@ -1,0 +1,8 @@
+{
+  "name": "Dreambox Deluxe",
+  "version": "1.9.25",
+  "description": "Premium billboard rental management system featuring inventory tracking, financial operations, and real-time analytics.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
