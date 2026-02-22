@@ -9,15 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lucide-react": "^0.555.0",
-    "react-dom": "^19.2.0",
-    "recharts": "^3.5.1",
-    "react": "^19.2.0",
+    "@google/genai": "^1.30.0",
+    "@supabase/supabase-js": "2.39.7",
+    "groq-sdk": "^0.37.0",
     "jspdf": "2.5.1",
     "jspdf-autotable": "3.8.2",
-    "@google/genai": "^1.30.0",
     "leaflet": "1.9.4",
-    "@supabase/supabase-js": "2.39.7"
+    "lucide-react": "^0.555.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.5.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

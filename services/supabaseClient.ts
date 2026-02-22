@@ -1,9 +1,35 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Access LocalStorage directly since this runs in the browser
-const supabaseUrl = localStorage.getItem('sb_url');
-const supabaseKey = localStorage.getItem('sb_key');
+declare var process: any;
+
+// Get Supabase credentials from environment variables or localStorage
+const getSupabaseUrl = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      return process.env.NEXT_PUBLIC_SUPABASE_URL;
+    }
+  } catch (e) {
+    // Ignore error if process is not defined
+  }
+  // Fallback to localStorage
+  return localStorage.getItem('sb_url');
+};
+
+const getSupabaseKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY) {
+      return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+    }
+  } catch (e) {
+    // Ignore error if process is not defined
+  }
+  // Fallback to localStorage
+  return localStorage.getItem('sb_key');
+};
+
+const supabaseUrl = getSupabaseUrl();
+const supabaseKey = getSupabaseKey();
 
 let client = null;
 
