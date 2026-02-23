@@ -66,6 +66,7 @@ export const Dashboard: React.FC = () => {
   const ledBillboards = billboards.filter(b => b.type === BillboardType.LED);
   const totalLedSlots = ledBillboards.reduce((acc, b) => acc + (b.totalSlots || 0), 0);
   const rentedLedSlots = ledBillboards.reduce((acc, b) => acc + (b.rentedSlots || 0), 0);
+  const digitalOccupancyRate = totalLedSlots > 0 ? Math.round((rentedLedSlots / totalLedSlots) * 100) : 0;
   
   const staticBillboards = billboards.filter(b => b.type === BillboardType.Static);
   const totalStaticSides = staticBillboards.length * 2;
@@ -75,6 +76,7 @@ export const Dashboard: React.FC = () => {
     if (b.sideBStatus === 'Rented') count++;
     return acc + count;
   }, 0);
+  const staticOccupancyRate = totalStaticSides > 0 ? Math.round((rentedStaticSides / totalStaticSides) * 100) : 0;
 
   const occupancyRate = Math.round(((rentedLedSlots + rentedStaticSides) / (totalLedSlots + totalStaticSides)) * 100) || 0;
 
@@ -82,7 +84,17 @@ export const Dashboard: React.FC = () => {
     { name: 'Occupied', value: rentedLedSlots + rentedStaticSides },
     { name: 'Available', value: (totalLedSlots + totalStaticSides) - (rentedLedSlots + rentedStaticSides) },
   ];
+  const digitalOccupancyData = [
+    { name: 'Occupied', value: rentedLedSlots },
+    { name: 'Available', value: totalLedSlots - rentedLedSlots },
+  ];
+  const staticOccupancyData = [
+    { name: 'Occupied', value: rentedStaticSides },
+    { name: 'Available', value: totalStaticSides - rentedStaticSides },
+  ];
   const OCCUPANCY_COLORS = ['#6366f1', '#e2e8f0']; // Indigo-500, Slate-200
+  const DIGITAL_COLORS = ['#3b82f6', '#e0e7ff']; // Blue-500, Indigo-100
+  const STATIC_COLORS = ['#ef4444', '#fee2e2']; // Red-500, Red-100
 
   const topClientsData = clients.map(client => {
       const clientRevenue = invoices
@@ -103,7 +115,7 @@ export const Dashboard: React.FC = () => {
       if(e) e.preventDefault();
       if(!aiQuery) return;
       setLoadingAi(true);
-      const context = `Revenue: $${totalRevenue}. Occupancy: ${occupancyRate}%. Active Contracts: ${activeContracts}. Expiring (30d): ${expiringContracts.length}. Overdue: ${overdueInvoices.length}. Top Client: ${topClientsData[0]?.name}. User Q: ${aiQuery}`;
+      const context = `Revenue: $${totalRevenue}. Overall Occupancy: ${occupancyRate}%. Digital: ${digitalOccupancyRate}%, Static: ${staticOccupancyRate}%. Active Contracts: ${activeContracts}. Expiring (30d): ${expiringContracts.length}. Overdue: ${overdueInvoices.length}. Top Client: ${topClientsData[0]?.name}. User Q: ${aiQuery}`;
       const result = await analyzeBusinessData(context);
       setAiResponse(result);
       setLoadingAi(false);
@@ -159,8 +171,8 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-slate-100 rounded-2xl shadow-sm group-hover:bg-slate-900 group-hover:text-white transition-all text-slate-600">
                 <DollarSign className="w-6 h-6" />
@@ -175,7 +187,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-indigo-50 rounded-2xl shadow-sm group-hover:bg-indigo-500 group-hover:text-white transition-all text-indigo-600">
                 <FileText className="w-6 h-6" />
@@ -188,22 +200,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-slate-100 rounded-2xl shadow-sm group-hover:bg-slate-900 group-hover:text-white transition-all text-slate-600">
-                <Activity className="w-6 h-6" />
-              </div>
-              <span className="text-xs font-bold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
-                {rentedLedSlots + rentedStaticSides} / {totalLedSlots + totalStaticSides}
-              </span>
-            </div>
-            <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Occupancy</p>
-                <h3 className="text-3xl font-black text-slate-900 tracking-tight">{occupancyRate}%</h3>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-slate-100 rounded-2xl shadow-sm group-hover:bg-slate-900 group-hover:text-white transition-all text-slate-600">
                 <Users className="w-6 h-6" />
@@ -215,6 +212,56 @@ export const Dashboard: React.FC = () => {
             <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Total Clients</p>
                 <h3 className="text-3xl font-black text-slate-900 tracking-tight">{clients.length}</h3>
+            </div>
+          </div>
+
+          {/* Overall Occupancy */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-slate-100 rounded-2xl shadow-sm group-hover:bg-slate-900 group-hover:text-white transition-all text-slate-600">
+                <Activity className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
+                {rentedLedSlots + rentedStaticSides} / {totalLedSlots + totalStaticSides}
+              </span>
+            </div>
+            <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Overall</p>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight">{occupancyRate}%</h3>
+            </div>
+          </div>
+
+          {/* Digital (LED) Occupancy */}
+          <div className="bg-blue-50 p-6 rounded-3xl shadow-sm border border-blue-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-blue-100 rounded-2xl shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all text-blue-600">
+                <Activity className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 bg-white text-blue-700 rounded-full border border-blue-200">
+                {totalLedSlots > 0 ? `${rentedLedSlots} / ${totalLedSlots}` : 'N/A'}
+              </span>
+            </div>
+            <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-400 mb-1">Digital (LED)</p>
+                <h3 className="text-3xl font-black text-blue-900 tracking-tight">{totalLedSlots > 0 ? digitalOccupancyRate : '—'}%</h3>
+                {totalLedSlots === 0 && <p className="text-xs text-blue-500 mt-2">No digital billboards</p>}
+            </div>
+          </div>
+
+          {/* Static Occupancy */}
+          <div className="bg-red-50 p-6 rounded-3xl shadow-sm border border-red-100 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-red-100 rounded-2xl shadow-sm group-hover:bg-red-600 group-hover:text-white transition-all text-red-600">
+                <Activity className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 bg-white text-red-700 rounded-full border border-red-200">
+                {totalStaticSides > 0 ? `${rentedStaticSides} / ${totalStaticSides}` : 'N/A'}
+              </span>
+            </div>
+            <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-red-400 mb-1">Static (Print)</p>
+                <h3 className="text-3xl font-black text-red-900 tracking-tight">{totalStaticSides > 0 ? staticOccupancyRate : '—'}%</h3>
+                {totalStaticSides === 0 && <p className="text-xs text-red-500 mt-2">No static billboards</p>}
             </div>
           </div>
         </div>
@@ -258,9 +305,9 @@ export const Dashboard: React.FC = () => {
         </div>
         
         {/* Secondary Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
              {/* Revenue by Town */}
-             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 lg:col-span-1">
                 <h3 className="text-lg font-bold text-slate-900 mb-6">Top Locations</h3>
                 <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
@@ -279,9 +326,9 @@ export const Dashboard: React.FC = () => {
                 </div>
              </div>
 
-             {/* Occupancy Donut */}
+             {/* Overall Occupancy Donut */}
              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Fleet Occupancy</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Overall Occupancy</h3>
                 <div className="h-64 relative z-10">
                     <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -308,6 +355,77 @@ export const Dashboard: React.FC = () => {
                         <span className="text-5xl font-black text-slate-900 tracking-tighter">{occupancyRate}%</span>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Occupied</span>
                     </div>
+                </div>
+             </div>
+
+             {/* Digital & Static Occupancy Split */}
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:grid-cols-1">
+                {/* Digital Occupancy */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-25 p-6 rounded-3xl shadow-sm border border-blue-100 relative overflow-hidden">
+                  <h3 className="text-sm font-bold text-slate-900 mb-4">Digital (LED)</h3>
+                  <div className="h-40 relative z-10">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={digitalOccupancyData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={60}
+                          startAngle={90}
+                          endAngle={-270}
+                          paddingAngle={4}
+                          dataKey="value"
+                          stroke="none"
+                          cornerRadius={6}
+                        >
+                          {digitalOccupancyData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={DIGITAL_COLORS[index % DIGITAL_COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <span className="text-3xl font-black text-blue-900">{digitalOccupancyRate}%</span>
+                        <span className="text-[10px] font-bold text-blue-500 uppercase block">{rentedLedSlots}/{totalLedSlots}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Static Occupancy */}
+                <div className="bg-gradient-to-br from-red-50 to-red-25 p-6 rounded-3xl shadow-sm border border-red-100 relative overflow-hidden">
+                  <h3 className="text-sm font-bold text-slate-900 mb-4">Static (Print)</h3>
+                  <div className="h-40 relative z-10">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={staticOccupancyData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={60}
+                          startAngle={90}
+                          endAngle={-270}
+                          paddingAngle={4}
+                          dataKey="value"
+                          stroke="none"
+                          cornerRadius={6}
+                        >
+                          {staticOccupancyData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={STATIC_COLORS[index % STATIC_COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <span className="text-3xl font-black text-red-900">{staticOccupancyRate}%</span>
+                        <span className="text-[10px] font-bold text-red-500 uppercase block">{rentedStaticSides}/{totalStaticSides}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
              </div>
         </div>

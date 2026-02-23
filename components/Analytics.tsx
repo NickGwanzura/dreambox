@@ -1,10 +1,11 @@
 import React from 'react';
-import { getInvoices, getExpenses, printingJobs, outsourcedBillboards, getFinancialTrends } from '../services/mockData';
+import { getInvoices, getExpenses, printingJobs, outsourcedBillboards, getFinancialTrends, getBillboards } from '../services/mockData';
 import { 
     AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
     PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Wallet, Activity } from 'lucide-react';
+import { BillboardType } from '../types';
 
 export const Analytics: React.FC = () => {
     // 1. Calculate Revenue
@@ -20,6 +21,23 @@ export const Analytics: React.FC = () => {
     const totalExpenses = operationalExpenses + printingExpenses + outsourcedPayouts;
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+    // 3. Calculate Occupancy Metrics
+    const billboards = getBillboards();
+    const ledBillboards = billboards.filter(b => b.type === BillboardType.LED);
+    const totalLedSlots = ledBillboards.reduce((acc, b) => acc + (b.totalSlots || 0), 0);
+    const rentedLedSlots = ledBillboards.reduce((acc, b) => acc + (b.rentedSlots || 0), 0);
+    const digitalOccupancyRate = totalLedSlots > 0 ? ((rentedLedSlots / totalLedSlots) * 100).toFixed(1) : '0';
+
+    const staticBillboards = billboards.filter(b => b.type === BillboardType.Static);
+    const totalStaticSides = staticBillboards.length * 2;
+    const rentedStaticSides = staticBillboards.reduce((acc, b) => {
+      let count = 0;
+      if (b.sideAStatus === 'Rented') count++;
+      if (b.sideBStatus === 'Rented') count++;
+      return acc + count;
+    }, 0);
+    const staticOccupancyRate = totalStaticSides > 0 ? ((rentedStaticSides / totalStaticSides) * 100).toFixed(1) : '0';
 
     const expenseBreakdown = [
         { name: 'Operational', value: operationalExpenses },
@@ -64,6 +82,29 @@ export const Analytics: React.FC = () => {
                         <span className="text-xs text-slate-400 font-medium">Margin</span>
                         <span className={`font-bold ${profitMargin >= 0 ? 'text-green-400' : 'text-red-400'}`}>{profitMargin.toFixed(1)}%</span>
                     </div>
+                </div>
+            </div>
+
+            {/* Occupancy Scorecards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-25 p-6 rounded-2xl shadow-sm border border-blue-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-blue-100 rounded-xl text-blue-600"><Activity size={20} /></div>
+                        <span className="text-xs font-bold px-3 py-1 bg-blue-600 text-white rounded-full">{totalLedSlots > 0 ? `${rentedLedSlots} / ${totalLedSlots}` : 'N/A'}</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Digital (LED) Occupancy</p>
+                    <h3 className="text-4xl font-extrabold text-blue-900 tracking-tight">{totalLedSlots > 0 ? digitalOccupancyRate : '—'}%</h3>
+                    <p className="text-xs text-blue-600 mt-2 font-medium">{totalLedSlots > 0 ? 'Slots booked out of total capacity' : 'No digital billboards'}</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-red-50 to-red-25 p-6 rounded-2xl shadow-sm border border-red-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 bg-red-100 rounded-xl text-red-600"><Activity size={20} /></div>
+                        <span className="text-xs font-bold px-3 py-1 bg-red-600 text-white rounded-full">{totalStaticSides > 0 ? `${rentedStaticSides} / ${totalStaticSides}` : 'N/A'}</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Static (Print) Occupancy</p>
+                    <h3 className="text-4xl font-extrabold text-red-900 tracking-tight">{totalStaticSides > 0 ? staticOccupancyRate : '—'}%</h3>
+                    <p className="text-xs text-red-600 mt-2 font-medium">{totalStaticSides > 0 ? 'Sides rented out of total sides' : 'No static billboards'}</p>
                 </div>
             </div>
 

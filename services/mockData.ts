@@ -397,6 +397,59 @@ export const deleteContract = (id: string) => {
     }
 };
 
+export const updateContract = (updated: Contract) => {
+    const oldContract = contracts.find(c => c.id === updated.id);
+    if (!oldContract) return;
+
+    contracts = contracts.map(c => c.id === updated.id ? updated : c);
+    saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
+    syncToSupabase('contracts', updated);
+
+    const billboard = billboards.find(b => b.id === updated.billboardId);
+    if (billboard) {
+        // First, revert old contract's billboard changes
+        if (oldContract.billboardId === updated.billboardId) {
+            // Same billboard, need to revert old status
+            if (billboard.type === BillboardType.Static) {
+                if (oldContract.side === 'A' || oldContract.details.includes('Side A')) { billboard.sideAStatus = 'Available'; billboard.sideAClientId = undefined; }
+                if (oldContract.side === 'B' || oldContract.details.includes('Side B')) { billboard.sideBStatus = 'Available'; billboard.sideBClientId = undefined; }
+                if (oldContract.side === 'Both') { billboard.sideAStatus = 'Available'; billboard.sideBStatus = 'Available'; billboard.sideAClientId = undefined; billboard.sideBClientId = undefined; }
+            } else if (billboard.type === BillboardType.LED) {
+                billboard.rentedSlots = Math.max(0, (billboard.rentedSlots || 0) - 1);
+            }
+        }
+
+        // Apply new contract's billboard changes
+        if (billboard.type === BillboardType.Static) {
+            if (updated.side === 'A' || updated.details.includes('Side A')) { billboard.sideAStatus = 'Rented'; billboard.sideAClientId = updated.clientId; }
+            if (updated.side === 'B' || updated.details.includes('Side B')) { billboard.sideBStatus = 'Rented'; billboard.sideBClientId = updated.clientId; }
+            if (updated.side === 'Both') { billboard.sideAStatus = 'Rented'; billboard.sideBStatus = 'Rented'; billboard.sideAClientId = updated.clientId; billboard.sideBClientId = updated.clientId; }
+        } else if (billboard.type === BillboardType.LED) {
+            billboard.rentedSlots = (billboard.rentedSlots || 0) + 1;
+        }
+        updateBillboard(billboard);
+    }
+
+    // Handle billboard change separately
+    if (oldContract.billboardId !== updated.billboardId) {
+        const oldBillboard = billboards.find(b => b.id === oldContract.billboardId);
+        if (oldBillboard) {
+            if (oldBillboard.type === BillboardType.Static) {
+                if (oldContract.side === 'A' || oldContract.details.includes('Side A')) { oldBillboard.sideAStatus = 'Available'; oldBillboard.sideAClientId = undefined; }
+                if (oldContract.side === 'B' || oldContract.details.includes('Side B')) { oldBillboard.sideBStatus = 'Available'; oldBillboard.sideBClientId = undefined; }
+                if (oldContract.side === 'Both') { oldBillboard.sideAStatus = 'Available'; oldBillboard.sideBStatus = 'Available'; oldBillboard.sideAClientId = undefined; oldBillboard.sideBClientId = undefined; }
+            } else if (oldBillboard.type === BillboardType.LED) {
+                oldBillboard.rentedSlots = Math.max(0, (oldBillboard.rentedSlots || 0) - 1);
+            }
+            updateBillboard(oldBillboard);
+        }
+    }
+
+    syncToCloudMirror();
+    logAction('Update Contract', `Modified contract ${updated.id}`);
+    notifyListeners();
+};
+
 export const addInvoice = (invoice: Invoice) => { invoices = [invoice, ...invoices]; saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); syncToSupabase('invoices', invoice); logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`); notifyListeners(); };
 export const markInvoiceAsPaid = (id: string) => { invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i); saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); const updated = invoices.find(i => i.id === id); if(updated) syncToSupabase('invoices', updated); logAction('Payment', `Marked Invoice #${id} as Paid`); notifyListeners(); };
 
