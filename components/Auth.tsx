@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { login, register, resetPassword } from '../services/authService';
+import { useToast } from './ToastProvider';
 import { RELEASE_NOTES } from '../services/mockData';
 import { User, Lock, Mail, ArrowRight, Loader2, CheckCircle, ArrowLeft, Sparkles, ShieldCheck, Trash2 } from 'lucide-react';
 
@@ -17,6 +18,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     const [successMessage, setSuccessMessage] = useState('');
     const [mounted, setMounted] = useState(false);
     
+    const { showToast } = useToast();
+
     // Form State
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -40,9 +43,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             if (mode === 'login') {
                 const user = await login(email, password);
                 if (user) {
+                    showToast('Signed in successfully', 'success');
                     onLogin();
                 } else {
                     setError('Invalid credentials');
+                    showToast('Invalid credentials', 'error');
                 }
             } else if (mode === 'register') {
                 if(!firstName || !lastName) {
@@ -52,14 +57,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 }
                 await register(firstName, lastName, email, password);
                 setSuccessMessage("Account created successfully! Your account is pending Administrator approval. You will be able to login once approved.");
+                showToast('Account created — pending administrator approval', 'success');
                 setMode('login'); // Switch to login screen to show message there
                 setPassword('');
             } else if (mode === 'forgot') {
                 await resetPassword(email);
                 setSuccessMessage('Recovery instructions sent to your email.');
+                showToast('Recovery instructions sent', 'info');
             }
         } catch (err: any) {
             setError(err.message || 'An error occurred');
+            showToast(err.message || 'An error occurred', 'error');
         } finally {
             setIsLoading(false);
         }

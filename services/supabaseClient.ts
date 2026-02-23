@@ -1,70 +1,88 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-declare var process: any;
-
-// Get Supabase credentials from environment variables or localStorage
-const getSupabaseUrl = () => {
+// Support both Vite and older NEXT_PUBLIC names, plus process.env for server-side
+const readEnv = (key: string) => {
   try {
-    if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      return process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // Vite exposes client envs on import.meta.env — access it safely
+    // @ts-ignore
+    if ((import.meta as any)?.env?.[key]) {
+      // @ts-ignore
+      return (import.meta as any).env[key];
     }
   } catch (e) {
-    // Ignore error if process is not defined
+    // ignore (import.meta may not be supported in some runtimes)
   }
-  // Fallback to localStorage
-  return localStorage.getItem('sb_url');
-};
 
-const getSupabaseKey = () => {
   try {
-    if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY) {
-      return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+    if (typeof process !== 'undefined' && (process as any).env && (process as any).env[key]) {
+      return (process as any).env[key];
     }
   } catch (e) {
-    // Ignore error if process is not defined
+    // ignore
   }
-  // Fallback to localStorage
-  return localStorage.getItem('sb_key');
+
+  // Browser-local fallback
+  if (typeof window !== 'undefined' && window.localStorage) {
+    if (key === 'VITE_SUPABASE_URL' || key === 'NEXT_PUBLIC_SUPABASE_URL' || key === 'SUPABASE_URL') {
+      return window.localStorage.getItem('sb_url');
+    }
+    if (key === 'VITE_SUPABASE_ANON_KEY' || key === 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY' || key === 'SUPABASE_KEY') {
+      return window.localStorage.getItem('sb_key');
+    }
+  }
+
+  return null;
 };
 
-const supabaseUrl = getSupabaseUrl();
-const supabaseKey = getSupabaseKey();
+const SUPABASE_URL_KEYS = ['VITE_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_URL'];
+const SUPABASE_KEY_KEYS = ['VITE_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY', 'SUPABASE_KEY', 'VITE_SUPABASE_KEY'];
 
-let client = null;
+const findFirst = (keys: string[]) => {
+  for (const k of keys) {
+    const v = readEnv(k);
+    if (v) return v;
+  }
+  return null;
+};
+
+const supabaseUrl = findFirst(SUPABASE_URL_KEYS);
+const supabaseKey = findFirst(SUPABASE_KEY_KEYS);
+
+let client: any = null;
 
 try {
-    if (supabaseUrl && supabaseKey) {
-        // Basic validation to prevent synchronous crashes in createClient
-        if (supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://')) {
-            client = createClient(supabaseUrl, supabaseKey);
-        } else {
-            console.warn("Supabase URL ignored: Must start with http:// or https://");
-        }
+  if (supabaseUrl && supabaseKey) {
+    if (supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://')) {
+      client = createClient(supabaseUrl, supabaseKey);
+    } else {
+      console.warn('Supabase URL ignored: Must start with http:// or https://');
     }
+  }
 } catch (e) {
-    console.error("Supabase initialization failed:", e);
-    // Keep client as null so the app continues to work in local-only mode
+  // don't crash the app if Supabase fails to initialize
+  // keep client as null so the app can operate in local-only mode
+  // eslint-disable-next-line no-console
+  console.error('Supabase initialization failed:', e);
 }
 
 export const supabase = client;
 
-export const isSupabaseConfigured = () => !!supabase;
+export const isSupabaseConfigured = () => !!supabaseUrl && !!supabaseKey;
 
-// Helper to check connection
 export const checkSupabaseConnection = async () => {
-    if (!supabase) return false;
-    try {
-        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
-        // PGRST116 (JSON result) or success (null error) means we hit the API. 
-        // A connection error usually comes as a network error or 400/404/500 object.
-        if (error && error.code !== 'PGRST116') { 
-             console.error("Supabase Connection Check Error:", error);
-             return false;
-        }
-        return true;
-    } catch (e) {
-        console.error("Supabase Connection Exception:", e);
-        return false;
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+    if (error && error.code !== 'PGRST116') {
+      // eslint-disable-next-line no-console
+      console.error('Supabase Connection Check Error:', error);
+      return false;
     }
+    return true;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('Supabase Connection Exception:', e);
+    return false;
+  }
 };

@@ -5,6 +5,8 @@ import {
   Menu, X, Bell, LogOut, Printer, Globe, PieChart, Wallet, ChevronRight, CheckSquare, Wrench, Database, RefreshCw
 } from 'lucide-react';
 import { getCurrentUser, logout } from '../services/authService';
+import { isSupabaseConfigured } from '../services/supabaseClient';
+import { useToast } from './ToastProvider';
 import { getSystemAlertCount, triggerAutoBackup, runAutoBilling, runMaintenanceCheck, triggerFullSync } from '../services/mockData';
 
 interface LayoutProps {
@@ -20,6 +22,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const [dbConnected, setDbConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const user = getCurrentUser();
+  const { showToast } = useToast();
 
   useEffect(() => {
     setAlertCount(getSystemAlertCount());
@@ -27,8 +30,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     runAutoBilling();
     runMaintenanceCheck(); // Check maintenance on load
     
-    // Check DB status
-    setDbConnected(!!localStorage.getItem('sb_url'));
+    // Check DB status (use supabase client detection)
+    setDbConnected(!!isSupabaseConfigured());
 
     const interval = setInterval(() => setAlertCount(getSystemAlertCount()), 10000);
     const backupInterval = setInterval(() => triggerAutoBackup(), 5 * 60 * 1000);
@@ -38,12 +41,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     // Aggressive Sync Interval (every 5 seconds) to pull remote changes rapidly
     // This creates the "real-time" feel for cross-user interaction
     const performSync = async () => {
-        if(dbConnected) {
-            setIsSyncing(true);
-            await triggerFullSync();
-            // Use a timeout to keep the "Syncing..." text visible for at least a moment to reassure user
-            setTimeout(() => setIsSyncing(false), 800);
-        }
+      if(dbConnected) {
+        setIsSyncing(true);
+        const ok = await triggerFullSync();
+        if (ok) showToast('Cloud sync complete', 'success'); else showToast('Cloud sync failed', 'error');
+        // Use a timeout to keep the "Syncing..." text visible for at least a moment to reassure user
+        setTimeout(() => setIsSyncing(false), 800);
+      }
     };
 
     const syncInterval = setInterval(performSync, 5000); // 5 Seconds Heartbeat

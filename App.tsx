@@ -17,6 +17,7 @@ import { Auth } from './components/Auth';
 import { ClientPortal } from './components/ClientPortal';
 import { PublicView } from './components/PublicView';
 import { getCurrentUser } from './services/authService';
+import { ToastProvider } from './components/ToastProvider';
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -118,7 +119,9 @@ const App: React.FC = () => {
   if (publicMode.active) {
       return (
           <ErrorBoundary>
-              <PublicView type={publicMode.type} billboardId={publicMode.id} />
+              <ToastProvider>
+                <PublicView type={publicMode.type} billboardId={publicMode.id} />
+              </ToastProvider>
           </ErrorBoundary>
       )
   }
@@ -127,7 +130,9 @@ const App: React.FC = () => {
   if (portalMode.active && portalMode.clientId) {
       return (
           <ErrorBoundary>
-              <ClientPortal clientId={portalMode.clientId} />
+              <ToastProvider>
+                <ClientPortal clientId={portalMode.clientId} />
+              </ToastProvider>
           </ErrorBoundary>
       );
   }
@@ -136,20 +141,24 @@ const App: React.FC = () => {
   if (!isAuthenticated) {
       return (
         <ErrorBoundary>
-            <Auth onLogin={() => setIsAuthenticated(true)} />
+            <ToastProvider>
+              <Auth onLogin={() => setIsAuthenticated(true)} />
+            </ToastProvider>
         </ErrorBoundary>
       );
   }
 
   return (
     <ErrorBoundary>
-        <Layout 
-            currentPage={currentPage} 
-            onNavigate={setCurrentPage}
-            onLogout={() => setIsAuthenticated(false)}
-        >
-          {renderPage()}
-        </Layout>
+        <ToastProvider>
+          <Layout 
+              currentPage={currentPage} 
+              onNavigate={setCurrentPage}
+              onLogout={() => setIsAuthenticated(false)}
+          >
+            {renderPage()}
+          </Layout>
+        </ToastProvider>
     </ErrorBoundary>
   );
 };
