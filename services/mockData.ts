@@ -399,7 +399,12 @@ export const deleteContract = (id: string) => {
 
 export const updateContract = (updated: Contract) => {
     const oldContract = contracts.find(c => c.id === updated.id);
-    if (!oldContract) return;
+    if (!oldContract) {
+        console.error('Contract not found for update:', updated.id);
+        return;
+    }
+
+    console.log('Updating contract:', oldContract.id, '->', updated);
 
     contracts = contracts.map(c => c.id === updated.id ? updated : c);
     saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
