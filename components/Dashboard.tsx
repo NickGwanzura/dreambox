@@ -69,7 +69,13 @@ export const Dashboard: React.FC = () => {
   const digitalOccupancyRate = totalLedSlots > 0 ? Math.round((rentedLedSlots / totalLedSlots) * 100) : 0;
   
   const staticBillboards = billboards.filter(b => b.type === BillboardType.Static);
-  const totalStaticSides = staticBillboards.length * 2;
+  // Count actual sides based on status fields (handles single-sided billboards correctly)
+  const totalStaticSides = staticBillboards.reduce((acc, b) => {
+    let count = 0;
+    if (b.sideAStatus) count++;  // Side A exists
+    if (b.sideBStatus) count++;  // Side B exists
+    return acc + count;
+  }, 0);
   const rentedStaticSides = staticBillboards.reduce((acc, b) => {
     let count = 0;
     if (b.sideAStatus === 'Rented') count++;
