@@ -93,7 +93,12 @@ export interface Contract {
   
   // Specific Tracking
   slotNumber?: number; 
-  side?: 'A' | 'B' | 'Both'; 
+  side?: 'A' | 'B' | 'Both';
+  
+  // Audit Trail
+  createdAt?: string; // ISO Date String
+  lastModifiedDate?: string; // ISO Date String
+  lastModifiedBy?: string;
 }
 
 export interface Invoice {

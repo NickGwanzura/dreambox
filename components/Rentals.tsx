@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, subscribe } from '../services/mockData';
+import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe } from '../services/mockData';
 import { generateContractPDF, generateActiveContractsPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, VAT_RATE, Invoice } from '../types';
-import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock } from 'lucide-react';
+import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw } from 'lucide-react';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -50,10 +50,13 @@ export const Rentals: React.FC = () => {
   const [rentals, setRentals] = useState<Contract[]>(getContracts());
   const [viewMode, setViewMode] = useState<'list' | 'gantt'>('list');
   const [selectedRental, setSelectedRental] = useState<Contract | null>(null);
+  const [editRental, setEditRental] = useState<Contract | null>(null);
+  const [renewRental, setRenewRental] = useState<Contract | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [rentalToDelete, setRentalToDelete] = useState<Contract | null>(null);
   const [aiProposal, setAiProposal] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Gantt State
   const [ganttDate, setGanttDate] = useState(new Date());
@@ -79,13 +82,17 @@ export const Rentals: React.FC = () => {
   const selectedBillboard = getBillboard(newRental.billboardId);
 
   // --- Dynamic Availability Check ---
-  const checkAvailability = (billboardId: string, side: 'A' | 'B' | 'Both', start: string, end: string) => {
+  const checkAvailability = (billboardId: string, side: 'A' | 'B' | 'Both', start: string, end: string, excludeContractId?: string) => {
       if (!start || !end || !billboardId) return true; // Assume available if dates not set to allow editing
       const billboard = getBillboard(billboardId);
       if (!billboard) return false;
 
       // Filter contracts for this billboard that are Active
-      const existingContracts = getContracts().filter(c => c.billboardId === billboardId && c.status === 'Active');
+      const existingContracts = getContracts().filter(c => 
+          c.billboardId === billboardId && 
+          c.status === 'Active' &&
+          (!excludeContractId || c.id !== excludeContractId)
+      );
       
       const newStart = new Date(start).getTime();
       const newEnd = new Date(end).getTime();
@@ -194,7 +201,8 @@ export const Rentals: React.FC = () => {
         status: 'Active',
         side: selectedBillboard?.type === BillboardType.Static ? newRental.side : undefined,
         slotNumber: selectedBillboard?.type === BillboardType.LED ? newRental.slotNumber : undefined,
-        details: detailText
+        details: detailText,
+        createdAt: new Date().toISOString()
     };
 
     addContract(rental);
@@ -224,6 +232,85 @@ export const Rentals: React.FC = () => {
     alert("Success! Rental Active & Initial Invoice Generated.");
   };
 
+  const handleEditSave = () => {
+      if (!editRental) return;
+      
+      // Validate dates don't cause double booking
+      if (!checkAvailability(editRental.billboardId, editRental.side || 'A', editRental.startDate, editRental.endDate, editRental.id)) {
+          setEditError('Selected dates overlap with an existing contract for this asset. Please choose different dates.');
+          return;
+      }
+      
+      setEditError(null);
+      
+      try {
+          const months = Math.max(1, Math.ceil((new Date(editRental.endDate).getTime() - new Date(editRental.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+          const subtotal = (editRental.monthlyRate * months) + editRental.installationCost + editRental.printingCost;
+          const vat = editRental.hasVat ? subtotal * VAT_RATE : 0;
+          
+          const updatedContract: Contract = {
+              ...editRental,
+              totalContractValue: subtotal + vat,
+              lastModifiedDate: new Date().toISOString(),
+              lastModifiedBy: 'Current User'
+          };
+          
+          updateContract(updatedContract);
+          setRentals([...getContracts()]);
+          setEditRental(null);
+          setSelectedRental(updatedContract);
+          
+          console.log('Contract updated successfully:', updatedContract.id);
+      } catch (error) {
+          console.error('Failed to update contract:', error);
+          alert('Failed to save contract changes. Please try again.');
+      }
+  };
+
+  const handleRenew = () => {
+      if (!renewRental) return;
+      
+      try {
+          const newStart = new Date(renewRental.endDate);
+          newStart.setDate(newStart.getDate() + 1);
+          
+          const newEnd = new Date(newStart);
+          newEnd.setFullYear(newEnd.getFullYear() + 1);
+          
+          // Check availability for renewed dates
+          if (!checkAvailability(renewRental.billboardId, renewRental.side || 'A', newStart.toISOString().split('T')[0], newEnd.toISOString().split('T')[0])) {
+              setEditError('Cannot renew: The next 12-month period overlaps with an existing contract. Please check availability.');
+              return;
+          }
+          
+          const months = 12;
+          const subtotal = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost;
+          const vat = renewRental.hasVat ? subtotal * VAT_RATE : 0;
+          
+          const renewedContract: Contract = {
+              ...renewRental,
+              id: `C-${Date.now().toString().slice(-4)}`,
+              startDate: newStart.toISOString().split('T')[0],
+              endDate: newEnd.toISOString().split('T')[0],
+              status: 'Active',
+              totalContractValue: subtotal + vat,
+              createdAt: new Date().toISOString(),
+              lastModifiedDate: new Date().toISOString(),
+              lastModifiedBy: 'Current User'
+          };
+          
+          addContract(renewedContract);
+          setRentals([...getContracts()]);
+          setRenewRental(null);
+          setSelectedRental(renewedContract);
+          
+          console.log('Contract renewed successfully:', renewedContract.id);
+      } catch (error) {
+          console.error('Failed to renew contract:', error);
+          alert('Failed to renew contract. Please try again.');
+      }
+  };
+
   const handleGenerateProposal = async () => {
     if (!newRental.clientId || !newRental.billboardId) { alert("Please select a Client and Billboard first."); return; }
     setIsGenerating(true);
@@ -239,6 +326,10 @@ export const Rentals: React.FC = () => {
           deleteContract(rentalToDelete.id);
           setRentalToDelete(null);
       }
+  };
+
+  const isContractExpired = (contract: Contract) => {
+      return new Date(contract.endDate) < new Date();
   };
 
   // --- Gantt Chart Helpers ---
@@ -379,6 +470,7 @@ export const Rentals: React.FC = () => {
                     <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
                         <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
                         <span>ID: {contract.id}</span>
+                        {contract.lastModifiedDate && <span className="text-slate-300">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
                     </div>
                     </div>
                 </div>
@@ -398,6 +490,14 @@ export const Rentals: React.FC = () => {
                         <button onClick={() => setSelectedRental(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
                             <Eye size={14} /> <span className="hidden sm:inline">View</span>
                         </button>
+                        <button onClick={() => { setEditRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                            <Edit size={14} /> <span className="hidden sm:inline">Edit</span>
+                        </button>
+                        {isContractExpired(contract) && (
+                            <button onClick={() => { setRenewRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1">
+                                <RotateCcw size={14} /> <span className="hidden sm:inline">Renew</span>
+                            </button>
+                        )}
                         <button onClick={() => { const client = getClient(contract.clientId); if(client) generateContractPDF(contract, client, getBillboardName(contract.billboardId)); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
                             <Download size={14} /> <span className="hidden sm:inline">PDF</span>
                         </button>
@@ -420,7 +520,7 @@ export const Rentals: React.FC = () => {
             </div>
         )}
       </div>
-      {/* ... (Create Modal and Details Modal code remains the same) ... */}
+      {/* Create Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[200] overflow-y-auto">
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsCreateModalOpen(false)} />
@@ -524,7 +624,8 @@ export const Rentals: React.FC = () => {
         </div>
       )}
 
-      {selectedRental && (
+      {/* View Modal */}
+      {selectedRental && !editRental && !renewRental && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10"><h3 className="text-xl font-bold text-slate-900">Contract Details</h3><button onClick={() => setSelectedRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button></div>
@@ -532,7 +633,72 @@ export const Rentals: React.FC = () => {
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-center"><div><p className="text-xs font-bold uppercase text-slate-400 mb-2">Lessee</p><h4 className="text-xl font-bold text-slate-900">{getClientName(selectedRental.clientId)}</h4></div></div>
                     <div className="grid grid-cols-2 gap-6"><div><p className="text-xs font-bold uppercase text-slate-400 mb-1">Asset</p><p className="font-medium text-slate-800">{getBillboardName(selectedRental.billboardId)}</p><p className="text-xs text-slate-500">{selectedRental.details}</p></div><div><p className="text-xs font-bold uppercase text-slate-400 mb-1">Duration</p><p className="font-medium text-slate-900">{selectedRental.startDate}</p><p className="text-xs text-slate-500">to {selectedRental.endDate}</p></div></div>
                     <div className="space-y-2 border-t border-slate-100 pt-4"><div className="flex justify-between text-sm"><span className="text-slate-500">Monthly Rate</span><span className="font-medium">${selectedRental.monthlyRate.toLocaleString()}</span></div><div className="flex justify-between text-sm"><span className="text-slate-500">Installation Fee</span><span className="font-medium">${selectedRental.installationCost.toLocaleString()}</span></div><div className="flex justify-between text-lg font-bold pt-2 text-slate-900"><span>Total Value</span><span>${selectedRental.totalContractValue.toLocaleString()}</span></div></div>
-                    <button onClick={() => { const client = getClient(selectedRental.clientId); if(client) generateContractPDF(selectedRental, client, getBillboardName(selectedRental.billboardId)); }} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all"><Download size={18} /> Download Contract PDF</button>
+                    {selectedRental.lastModifiedDate && <div className="bg-amber-50 p-4 rounded-xl border border-amber-100"><p className="text-xs text-amber-600 font-medium"><Edit size={12} className="inline mr-1"/> Last edited on {new Date(selectedRental.lastModifiedDate).toLocaleDateString()} by {selectedRental.lastModifiedBy || 'Unknown'}</p></div>}
+                    <div className="flex gap-3">
+                        <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
+                        <button onClick={() => { setSelectedRental(null); setEditRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Edit size={14} /> Edit</button>
+                        {isContractExpired(selectedRental) && <button onClick={() => { setSelectedRental(null); setRenewRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>}
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editRental && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white"><h3 className="text-xl font-bold text-slate-900">Edit Rental</h3><button onClick={() => setEditRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button></div>
+                <div className="p-8 space-y-6">
+                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-100"><p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Editing an Active rental. Asset assignment cannot be changed.</p></div>
+                    {editError && <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3"><AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" /><p className="text-sm text-red-700">{editError}</p></div>}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2"><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Status</label><select value={editRental.status} onChange={(e) => setEditRental({...editRental, status: e.target.value as 'Active' | 'Pending' | 'Expired'})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800"><option value="Active">Active</option><option value="Pending">Pending</option><option value="Expired">Expired</option></select></div>
+                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Start Date</label><input type="date" value={editRental.startDate} onChange={(e) => setEditRental({...editRental, startDate: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
+                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">End Date</label><input type="date" value={editRental.endDate} onChange={(e) => setEditRental({...editRental, endDate: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
+                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label><input type="number" value={editRental.monthlyRate} onChange={(e) => setEditRental({...editRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
+                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Installation Cost ($)</label><input type="number" value={editRental.installationCost} onChange={(e) => setEditRental({...editRental, installationCost: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
+                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Printing Cost ($)</label><input type="number" value={editRental.printingCost} onChange={(e) => setEditRental({...editRental, printingCost: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
+                        <div className="col-span-2"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editRental.hasVat} onChange={(e) => setEditRental({...editRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" /><span className="text-sm font-medium text-slate-600">Include VAT (15%)</span></label></div>
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={() => setEditRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                        <button onClick={handleEditSave} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Renew Modal */}
+      {renewRental && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center"><h3 className="text-xl font-bold text-slate-900">Renew Contract</h3><button onClick={() => setRenewRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button></div>
+                <div className="p-8 space-y-6">
+                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100"><p className="text-xs text-emerald-700 font-medium flex items-center gap-2"><RotateCcw size={14} /> Create a new 12-month contract based on this expired agreement.</p></div>
+                    {editError && <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3"><AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" /><p className="text-sm text-red-700">{editError}</p></div>}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <p className="text-xs font-bold uppercase text-slate-400 mb-2">Original Contract</p>
+                        <p className="text-sm text-slate-700">{getClientName(renewRental.clientId)} • {getBillboardName(renewRental.billboardId)}</p>
+                        <p className="text-xs text-slate-500 mt-1">{renewRental.startDate} to {renewRental.endDate}</p>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">New Start Date</label><input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500" /></div>
+                            <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">New End Date</label><input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500" /></div>
+                        </div>
+                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label><input type="number" value={renewRental.monthlyRate} onChange={(e) => setRenewRental({...renewRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
+                        <div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={renewRental.hasVat} onChange={(e) => setRenewRental({...renewRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" /><span className="text-sm font-medium text-slate-600">Include VAT (15%)</span></label></div>
+                        <div className="bg-slate-100 p-4 rounded-xl">
+                            <p className="text-xs font-bold uppercase text-slate-400 mb-1">New Total Value</p>
+                            <p className="text-2xl font-bold text-slate-900">${(() => { const months = 12; const subtotal = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost; const vat = renewRental.hasVat ? subtotal * VAT_RATE : 0; return (subtotal + vat).toLocaleString(); })()}</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={() => setRenewRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                        <button onClick={handleRenew} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew Contract</button>
+                    </div>
                 </div>
             </div>
         </div>
