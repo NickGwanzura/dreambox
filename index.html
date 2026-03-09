@@ -23,26 +23,62 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       // Global Error Handler for Startup Crashes
+      // XSS-SAFE: Uses DOM APIs instead of innerHTML to prevent injection
       window.addEventListener('error', function(event) {
         const root = document.getElementById('root');
         // Only take over if React hasn't rendered anything yet
         if (root && root.innerHTML.trim() === '') {
-           document.body.innerHTML = `
-             <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, sans-serif; text-align: center; background: #f8fafc; color: #334155; padding: 20px;">
-                <div style="background: #fee2e2; color: #ef4444; padding: 15px; border-radius: 50%; margin-bottom: 20px;">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                </div>
-                <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 10px; color: #0f172a;">Startup Failure</h1>
-                <p style="margin-bottom: 20px; max-width: 400px; line-height: 1.5;">The application encountered a critical error during initialization. This is likely due to invalid configuration settings.</p>
-                <div style="background: #e2e8f0; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; text-align: left; width: 100%; max-width: 600px; overflow-x: auto; margin-bottom: 30px;">
-                    ${event.message || 'Unknown Error'}
-                </div>
-                <button onclick="localStorage.clear(); window.location.reload()" style="background: #0f172a; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                    Reset Data & Reload
-                </button>
-                <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 15px;">Warning: This will clear local settings and cached data.</p>
-             </div>
-           `;
+           // Clear body safely
+           while (document.body.firstChild) {
+             document.body.removeChild(document.body.firstChild);
+           }
+           
+           // Create container
+           const container = document.createElement('div');
+           container.style.cssText = 'height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, sans-serif; text-align: center; background: #f8fafc; color: #334155; padding: 20px;';
+           
+           // Create icon
+           const iconWrapper = document.createElement('div');
+           iconWrapper.style.cssText = 'background: #fee2e2; color: #ef4444; padding: 15px; border-radius: 50%; margin-bottom: 20px;';
+           iconWrapper.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+           
+           // Create heading
+           const heading = document.createElement('h1');
+           heading.style.cssText = 'font-size: 1.5rem; font-weight: 700; margin-bottom: 10px; color: #0f172a;';
+           heading.textContent = 'Startup Failure';
+           
+           // Create description
+           const desc = document.createElement('p');
+           desc.style.cssText = 'margin-bottom: 20px; max-width: 400px; line-height: 1.5;';
+           desc.textContent = 'The application encountered a critical error during initialization. This is likely due to invalid configuration settings.';
+           
+           // Create error display (textContent prevents XSS)
+           const errorBox = document.createElement('div');
+           errorBox.style.cssText = 'background: #e2e8f0; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; text-align: left; width: 100%; max-width: 600px; overflow-x: auto; margin-bottom: 30px;';
+           errorBox.textContent = event.message || 'Unknown Error';
+           
+           // Create button
+           const button = document.createElement('button');
+           button.style.cssText = 'background: #0f172a; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);';
+           button.textContent = 'Reset Data & Reload';
+           button.onclick = function() {
+             localStorage.clear();
+             window.location.reload();
+           };
+           
+           // Create warning
+           const warning = document.createElement('p');
+           warning.style.cssText = 'font-size: 0.75rem; color: #94a3b8; margin-top: 15px;';
+           warning.textContent = 'Warning: This will clear local settings and cached data.';
+           
+           // Assemble
+           container.appendChild(iconWrapper);
+           container.appendChild(heading);
+           container.appendChild(desc);
+           container.appendChild(errorBox);
+           container.appendChild(button);
+           container.appendChild(warning);
+           document.body.appendChild(container);
         }
       });
 
@@ -82,7 +118,7 @@
               }
             },
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['Google Sans', 'sans-serif'],
             }
           }
         }
@@ -90,10 +126,17 @@
     </script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&display=swap');
+      
+      * {
+        font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
       
       body {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        letter-spacing: 0;
         background-color: #f8fafc;
         /* Cool/Indigo underlying gradients for Dreambox */
         background-image: 
@@ -113,6 +156,11 @@
           scrollbar-width: none;
       }
 
+      /* Google Sans Typography Helpers */
+      .font-sans {
+        font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      
       /* Glassmorphism Utilities */
       .glass {
         background: rgba(255, 255, 255, 0.85);
@@ -126,6 +174,11 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border-right: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      
+      /* Smooth transitions for theme */
+      .transition-smooth {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       .btn-gradient {

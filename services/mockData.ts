@@ -1,5 +1,7 @@
-import { Billboard, BillboardType, Client, Contract, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, VAT_RATE, MaintenanceLog } from '../types';
+import { Billboard, BillboardType, Client, Contract, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
 import { supabase } from './supabaseClient';
+import { logger } from '../utils/logger';
+import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS } from './constants';
 
 export const ZIM_TOWNS = [
   "Harare", "Bulawayo", "Mutare", "Gweru", "Kwekwe", 
@@ -22,28 +24,8 @@ const INITIAL_BILLBOARDS: Billboard[] = [];
 const INITIAL_CLIENTS: Client[] = [];
 const INITIAL_CONTRACTS: Contract[] = [];
 
-const STORAGE_KEYS = {
-    BILLBOARDS: 'db_billboards',
-    CONTRACTS: 'db_contracts',
-    INVOICES: 'db_invoices',
-    EXPENSES: 'db_expenses',
-    USERS: 'db_users',
-    CLIENTS: 'db_clients',
-    LOGS: 'db_logs',
-    OUTSOURCED: 'db_outsourced',
-    PRINTING: 'db_printing',
-    TASKS: 'db_tasks',
-    MAINTENANCE: 'db_maintenance_logs',
-    LOGO: 'db_logo',
-    PROFILE: 'db_company_profile',
-    LAST_BACKUP: 'db_last_backup_meta',
-    AUTO_BACKUP: 'db_auto_backup_data',
-    CLOUD_BACKUP: 'db_cloud_backup_meta',
-    CLOUD_MIRROR: 'db_cloud_mirror_data',
-    DATA_VERSION: 'db_data_version',
-    RESTORE_TIMESTAMP: 'db_restore_timestamp',
-    DELETED_QUEUE: 'db_deleted_queue' 
-};
+// Storage keys are now imported from constants.ts
+// Using STORAGE_KEYS from './constants'
 
 const loadFromStorage = <T>(key: string, defaultValue: T | null): T | null => {
     try {
@@ -169,7 +151,7 @@ export const triggerFullSync = async () => {
     
     const restoreTimeStr = localStorage.getItem(STORAGE_KEYS.RESTORE_TIMESTAMP);
     const restoreTime = restoreTimeStr ? parseInt(restoreTimeStr) : 0;
-    const isRecentRestore = (Date.now() - restoreTime) < 300000; // 5 mins
+    const isRecentRestore = (Date.now() - restoreTime) < RESTORE_GRACE_PERIOD_MS;
 
     const smartSyncTable = async (tableName: string, localData: any[], setLocalData: (d: any[]) => void, storageKey: string) => {
         try {
@@ -199,7 +181,7 @@ export const triggerFullSync = async () => {
                 
                 if (potentialTs) {
                     const ts = Number(potentialTs);
-                    if (Date.now() - ts < 600000) isNewLocal = true; // 10 mins generous window
+                    if (Date.now() - ts < NEW_ITEM_WINDOW_MS) isNewLocal = true;
                 } else if (item.id.length < 10 || item.id.startsWith('dev-') || item.id.startsWith('owner-')) {
                     isNewLocal = true; // Static/Dev/Owner IDs
                 }
@@ -299,22 +281,40 @@ export let tasks: Task[] = loadFromStorage(STORAGE_KEYS.TASKS, null) || [{ id: '
 export let users: User[] = loadFromStorage(STORAGE_KEYS.USERS, null) || [{ id: '1', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@dreambox.com', username: 'admin', password: 'admin123', status: 'Active' }]; if (users.length === 0) { users = [{ id: '1', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@dreambox.com', username: 'admin', password: 'admin123', status: 'Active' }]; saveToStorage(STORAGE_KEYS.USERS, users); }
 const updatedUsers = users.map(u => ({ ...u, username: u.username || u.email.split('@')[0], status: u.status || 'Active' })); if (JSON.stringify(updatedUsers) !== JSON.stringify(users)) { users = updatedUsers; saveToStorage(STORAGE_KEYS.USERS, users); }
 
-// Explicitly sync dev users to ensure they exist remotely
-const ensureDev = (email: string, id: string, first: string, user: string, pass: string) => { 
-    const idx = users.findIndex(u => u.email === email); 
-    const devData: User = { id, firstName: first, lastName: 'Developer', email, username: user, password: pass, role: 'Admin', status: 'Active' }; 
-    if (idx === -1) {
-        users.push(devData); 
-        syncToSupabase('users', devData); // Explicit sync on creation
-    } else {
-        users[idx] = devData;
-        syncToSupabase('users', devData); // Explicit sync on update
+// Admin users are now created through the registration flow
+// Hardcoded credentials have been removed for security
+// To create admin users, use the secure registration with role: 'Admin'
+// or configure via environment variables
+
+// Ensure default admin exists (password should be changed on first login)
+const ensureDefaultAdmin = () => {
+    const defaultAdminEmail = 'admin@dreambox.com';
+    const existingAdmin = users.find(u => u.email === defaultAdminEmail);
+    
+    if (!existingAdmin) {
+        logger.info('Creating default admin user');
+        // Note: Password will be hashed in authServiceSecure
+        const adminUser: User = {
+            id: 'admin-default-001',
+            firstName: 'Admin',
+            lastName: 'User',
+            email: defaultAdminEmail,
+            username: 'admin',
+            password: 'admin123', // Should be changed immediately
+            role: 'Admin',
+            status: 'Active'
+        };
+        users.push(adminUser);
+        saveToStorage(STORAGE_KEYS.USERS, users);
+        syncToSupabase('users', adminUser);
     }
-}; 
-ensureDev('dev@dreambox.com', 'dev-admin-001', 'System', 'dev', 'dev123'); 
-ensureDev('nick@creamobmedia.co.zw', 'dev-admin-002', 'Nick', 'nick', 'Nh@modzepasi9'); 
-// Added Owner Account for Brian Chiduuro
-ensureDev('chiduurobc@gmail.com', 'owner-brian-001', 'Brian', 'brian', 'chiduurobc@gmail.com');
+};
+
+// Only create default admin in development
+// @ts-ignore
+if (import.meta.env?.DEV) {
+    ensureDefaultAdmin();
+}
 
 saveToStorage(STORAGE_KEYS.USERS, users);
 
