@@ -5,7 +5,7 @@ import {
   Menu, X, Bell, LogOut, Printer, Globe, PieChart, Wallet, ChevronRight, CheckSquare, Wrench, Database, RefreshCw,
   Building2, Target
 } from 'lucide-react';
-import { getCurrentUser, logout } from '../services/authServiceSecure';
+import { getCurrentUser, signOut } from '../services/supabaseAuth';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { useToast } from './ToastProvider';
 import { 
@@ -157,8 +157,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
-  const handleLogout = () => { 
-    logout(); 
+  const handleLogout = async () => { 
+    await signOut(); 
     onLogout(); 
   };
 

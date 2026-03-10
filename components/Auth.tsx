@@ -1,6 +1,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { login, register, resetPassword, devLogin } from '../services/authServiceSecure';
+import { 
+  signIn, 
+  signUp, 
+  sendPasswordReset, 
+  resendVerificationEmail,
+  devLogin 
+} from '../services/supabaseAuth';
 import { useToast } from './ToastProvider';
 import { RELEASE_NOTES } from '../services/mockData';
 import { 
@@ -16,7 +22,7 @@ interface AuthProps {
     onLogin: () => void;
 }
 
-type AuthMode = 'login' | 'register' | 'forgot';
+type AuthMode = 'login' | 'register' | 'forgot' | 'verify-pending';
 
 export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     const [mode, setMode] = useState<AuthMode>('login');
@@ -25,6 +31,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     const [successMessage, setSuccessMessage] = useState('');
     const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [pendingEmail, setPendingEmail] = useState('');
+    const [isResending, setIsResending] = useState(false);
     
     const { showToast } = useToast();
 
@@ -82,26 +90,39 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             const sanitizedLastName = sanitizers.string(lastName);
 
             if (mode === 'login') {
-                const user = await login(sanitizedEmail, password);
-                if (user) {
+                const { user, error } = await signIn(sanitizedEmail, password);
+                if (error) {
+                    // Check for specific error types
+                    if (error.message.includes('verify your email')) {
+                        setPendingEmail(sanitizedEmail);
+                        setMode('verify-pending');
+                    } else {
+                        setError(error.message);
+                        showToast(error.message, 'error');
+                    }
+                } else if (user) {
                     showToast('Welcome back!', 'success');
                     onLogin();
-                } else {
-                    setError('Invalid email or password');
-                    showToast('Invalid credentials', 'error');
                 }
             } else if (mode === 'register') {
-                await register(sanitizedFirstName, sanitizedLastName, sanitizedEmail, password);
-                setSuccessMessage("Account created! Your account is pending administrator approval.");
-                showToast('Account created — pending approval', 'success');
-                setMode('login');
-                setPassword('');
-                setFirstName('');
-                setLastName('');
+                const { user, error } = await signUp(sanitizedFirstName, sanitizedLastName, sanitizedEmail, password);
+                if (error) {
+                    setError(error.message);
+                    showToast(error.message, 'error');
+                } else {
+                    setPendingEmail(sanitizedEmail);
+                    setMode('verify-pending');
+                    showToast('Verification email sent!', 'success');
+                }
             } else if (mode === 'forgot') {
-                await resetPassword(sanitizedEmail);
-                setSuccessMessage('Check your email for reset instructions.');
-                showToast('Reset email sent', 'info');
+                const { error } = await sendPasswordReset(sanitizedEmail);
+                if (error) {
+                    setError(error.message);
+                    showToast(error.message, 'error');
+                } else {
+                    setSuccessMessage('Check your email for reset instructions.');
+                    showToast('Reset email sent', 'info');
+                }
             }
         } catch (err: any) {
             const message = err instanceof ValidationError 
@@ -112,6 +133,24 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             logger.error('Auth error:', err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleResendVerification = async () => {
+        if (!pendingEmail) return;
+        
+        setIsResending(true);
+        try {
+            const { error } = await resendVerificationEmail(pendingEmail);
+            if (error) {
+                showToast(error.message, 'error');
+            } else {
+                showToast('Verification email resent!', 'success');
+            }
+        } catch (err: any) {
+            showToast(err.message || 'Failed to resend', 'error');
+        } finally {
+            setIsResending(false);
         }
     };
 
@@ -238,11 +277,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                             <h2 className="text-2xl font-bold text-white mb-1">
                                 {mode === 'login' ? 'Welcome back' : 
                                  mode === 'register' ? 'Create account' : 
+                                 mode === 'verify-pending' ? 'Verify your email' :
                                  'Reset password'}
                             </h2>
                             <p className="text-sm text-slate-500">
                                 {mode === 'login' ? 'Sign in to access your dashboard' : 
                                  mode === 'register' ? 'Get started with your free account' : 
+                                 mode === 'verify-pending' ? 'Check your inbox for the verification link' :
                                  'Enter your email to receive reset instructions'}
                             </p>
                         </div>
@@ -265,6 +306,39 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                 </div>
                             )}
 
+                            {/* Verify Pending State */}
+                            {mode === 'verify-pending' ? (
+                                <div className="text-center py-8">
+                                    <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <Mail className="w-10 h-10 text-indigo-500" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white mb-2">
+                                        Check your email
+                                    </h3>
+                                    <p className="text-sm text-slate-400 mb-6">
+                                        We've sent a verification link to<br />
+                                        <span className="text-indigo-400">{pendingEmail}</span>
+                                    </p>
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={handleResendVerification}
+                                            disabled={isResending}
+                                            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-medium text-sm transition-all disabled:opacity-50"
+                                        >
+                                            {isResending ? 'Sending...' : 'Resend verification email'}
+                                        </button>
+                                        <button
+                                            onClick={() => toggleMode('login')}
+                                            className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
+                                        >
+                                            Back to login
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-slate-600 mt-6">
+                                        After verifying, your account will still need admin approval
+                                    </p>
+                                </div>
+                            ) : (
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 {/* Name Fields */}
                                 {mode === 'register' && (
@@ -368,10 +442,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                      successMessage ? 'Email Sent' : 'Send Reset Link'}
                                 </LoadingButton>
                             </form>
+                            )}
 
-
-
-                            {/* Divider */}
+                            {/* Divider - Hide when in verify-pending mode */}
+                            {mode !== 'verify-pending' && (
                             <div className="mt-6 flex items-center gap-4">
                                 <div className="flex-1 h-px bg-white/10"></div>
                                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -379,8 +453,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                 </span>
                                 <div className="flex-1 h-px bg-white/10"></div>
                             </div>
+                            )}
 
-                            {/* Toggle Mode */}
+                            {/* Toggle Mode - Hide when in verify-pending mode */}
+                            {mode !== 'verify-pending' && (
                             <div className="mt-6">
                                 {mode === 'forgot' ? (
                                     <button 
@@ -396,19 +472,20 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                         className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2"
                                     >
                                         {mode === 'login' ? (
-                                            <>
+                                            <React.Fragment>
                                                 Create an account
                                                 <ArrowRight className="w-4 h-4" />
-                                            </>
+                                            </React.Fragment>
                                         ) : (
-                                            <>
+                                            <React.Fragment>
                                                 <ArrowLeft className="w-4 h-4" />
                                                 Sign in to existing account
-                                            </>
+                                            </React.Fragment>
                                         )}
                                     </button>
                                 )}
                             </div>
+                            )}
                         </div>
                     </div>
 

@@ -14,10 +14,11 @@ import { Payments } from './components/Payments';
 import { Tasks } from './components/Tasks';
 import { Maintenance } from './components/Maintenance';
 import { Auth } from './components/Auth';
+import { AuthCallback } from './components/AuthCallback';
 import { ClientPortal } from './components/ClientPortal';
 import { PublicView } from './components/PublicView';
 import { CRM } from './components/crm/CRM';
-import { getCurrentUser } from './services/authServiceSecure';
+import { getCurrentUser } from './services/supabaseAuth';
 import { ToastProvider } from './components/ToastProvider';
 import { FeatureErrorBoundary } from './components/error-boundaries/FeatureErrorBoundary';
 import { logger } from './utils/logger';
@@ -258,6 +259,18 @@ const App: React.FC = () => {
           <ErrorBoundary>
               <ToastProvider>
                 <ClientPortal clientId={portalMode.clientId} />
+              </ToastProvider>
+          </ErrorBoundary>
+      );
+  }
+
+  // Auth Callback Routing (Email verification, password reset)
+  const path = window.location.pathname;
+  if (path.startsWith('/auth/')) {
+      return (
+          <ErrorBoundary>
+              <ToastProvider>
+                <AuthCallback />
               </ToastProvider>
           </ErrorBoundary>
       );
