@@ -3,17 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 
 // Support both Vite and older NEXT_PUBLIC names, plus process.env for server-side
 const readEnv = (key: string) => {
+  // Priority 1: Vite environment variables (build-time)
   try {
-    // Vite exposes client envs on import.meta.env — access it safely
     // @ts-ignore
     if ((import.meta as any)?.env?.[key]) {
       // @ts-ignore
       return (import.meta as any).env[key];
     }
   } catch (e) {
-    // ignore (import.meta may not be supported in some runtimes)
+    // ignore
   }
 
+  // Priority 2: process.env (server-side)
   try {
     if (typeof process !== 'undefined' && (process as any).env && (process as any).env[key]) {
       return (process as any).env[key];
@@ -22,13 +23,27 @@ const readEnv = (key: string) => {
     // ignore
   }
 
-  // Browser-local fallback
+  // Priority 3: Browser localStorage (fallback - only if env vars not set)
+  // NOTE: We check if env var equivalent was already found above, so this is truly a fallback
   if (typeof window !== 'undefined' && window.localStorage) {
+    // Warn if localStorage has a different key than what was configured
+    const localUrl = window.localStorage.getItem('sb_url');
+    const localKey = window.localStorage.getItem('sb_key');
+    
+    if (localKey && localKey.startsWith('sb_publishable_')) {
+      console.warn('╔════════════════════════════════════════════════════════════════╗');
+      console.warn('║  WARNING: localStorage has old publishable key                 ║');
+      console.warn('║                                                                ║');
+      console.warn('║  Clear localStorage and refresh to use the new anon key:       ║');
+      console.warn('║  localStorage.clear(); location.reload();                      ║');
+      console.warn('╚════════════════════════════════════════════════════════════════╝');
+    }
+    
     if (key === 'VITE_SUPABASE_URL' || key === 'NEXT_PUBLIC_SUPABASE_URL' || key === 'SUPABASE_URL') {
-      return window.localStorage.getItem('sb_url');
+      return localUrl;
     }
     if (key === 'VITE_SUPABASE_ANON_KEY' || key === 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY' || key === 'SUPABASE_KEY') {
-      return window.localStorage.getItem('sb_key');
+      return localKey;
     }
   }
 
@@ -48,6 +63,16 @@ const findFirst = (keys: string[]) => {
 
 const supabaseUrl = findFirst(SUPABASE_URL_KEYS);
 const supabaseKey = findFirst(SUPABASE_KEY_KEYS);
+
+// Auto-clear bad keys from localStorage on load
+if (typeof window !== 'undefined' && window.localStorage) {
+  const storedKey = window.localStorage.getItem('sb_key');
+  if (storedKey && storedKey.startsWith('sb_publishable_')) {
+    console.warn('Clearing old publishable key from localStorage...');
+    window.localStorage.removeItem('sb_key');
+    window.localStorage.removeItem('sb_url');
+  }
+}
 
 let client: any = null;
 
