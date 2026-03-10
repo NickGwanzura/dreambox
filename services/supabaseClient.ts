@@ -54,6 +54,21 @@ let client: any = null;
 try {
   if (supabaseUrl && supabaseKey) {
     if (supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://')) {
+      // Warn if using publishable key instead of anon key
+      if (supabaseKey.startsWith('sb_publishable_')) {
+        console.error('╔════════════════════════════════════════════════════════════════╗');
+        console.error('║  SUPABASE AUTHENTICATION ERROR                                 ║');
+        console.error('║                                                                ║');
+        console.error('║  You are using a PUBLISHABLE key instead of an ANON key.       ║');
+        console.error('║  The publishable key cannot access the database.               ║');
+        console.error('║                                                                ║');
+        console.error('║  FIX: Get the ANON key from Supabase Dashboard:                ║');
+        console.error('║  Project Settings → API → anon public                          ║');
+        console.error('║                                                                ║');
+        console.error('║  Anon key format: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...      ║');
+        console.error('║  Publishable key: sb_publishable_... (WRONG - won\'t work)     ║');
+        console.error('╚════════════════════════════════════════════════════════════════╝');
+      }
       client = createClient(supabaseUrl, supabaseKey);
     } else {
       console.warn('Supabase URL ignored: Must start with http:// or https://');
@@ -70,13 +85,22 @@ export const supabase = client;
 
 export const isSupabaseConfigured = () => !!supabaseUrl && !!supabaseKey;
 
-export const checkSupabaseConnection = async () => {
+export const checkSupabaseConnection = async (): Promise<boolean> => {
   if (!supabase) return false;
   try {
     const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       // eslint-disable-next-line no-console
-      console.error('Supabase Connection Check Error:', error);
+      if (error.code === '401') {
+        console.error('Supabase 401 Error: Your API key is invalid or missing permissions.');
+        console.error('Make sure you are using the ANON key (starts with eyJhbGci), not a publishable key (sb_publishable_).');
+        console.error('See SUPABASE_401_FIX.md for instructions.');
+      } else if (error.code === 'PGRST116') {
+        // Table doesn't exist, but connection is valid
+        return true;
+      } else {
+        console.error('Supabase Connection Check Error:', error);
+      }
       return false;
     }
     return true;
@@ -85,4 +109,17 @@ export const checkSupabaseConnection = async () => {
     console.error('Supabase Connection Exception:', e);
     return false;
   }
+};
+
+// Validate that the key looks like a proper anon key
+export const isValidSupabaseKey = (key: string | null): boolean => {
+  if (!key) return false;
+  // Anon keys are JWT tokens that start with "eyJ" and have multiple segments
+  if (key.startsWith('sb_publishable_')) {
+    console.warn('WARNING: You are using a publishable key instead of an anon key.');
+    console.warn('Get the correct anon key from Supabase Dashboard → Settings → API');
+    return false;
+  }
+  // Valid JWT should start with eyJ and have 2 dots (3 segments)
+  return key.startsWith('eyJ') && key.split('.').length === 3;
 };
