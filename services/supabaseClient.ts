@@ -70,6 +70,28 @@ const readEnv = (key: string) => {
 const SUPABASE_URL_KEYS = ['VITE_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_URL'];
 const SUPABASE_KEY_KEYS = ['VITE_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_KEY', 'VITE_SUPABASE_KEY'];
 
+// Debug: Log what env vars are found (only first few chars for security)
+if (typeof window !== 'undefined') {
+  console.log('[Supabase] Checking environment variables...');
+  try {
+    // @ts-ignore
+    const viteUrl = (import.meta as any)?.env?.VITE_SUPABASE_URL;
+    // @ts-ignore
+    const viteKey = (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY;
+    // @ts-ignore
+    const nextUrl = (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_URL;
+    // @ts-ignore
+    const nextKey = (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    console.log('[Supabase] VITE_SUPABASE_URL:', viteUrl ? 'Found (' + viteUrl.substring(0, 20) + '...)' : 'Not found');
+    console.log('[Supabase] VITE_SUPABASE_ANON_KEY:', viteKey ? 'Found (' + viteKey.substring(0, 10) + '...)' : 'Not found');
+    console.log('[Supabase] NEXT_PUBLIC_SUPABASE_URL:', nextUrl ? 'Found (' + nextUrl.substring(0, 20) + '...)' : 'Not found');
+    console.log('[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY:', nextKey ? 'Found (' + nextKey.substring(0, 10) + '...)' : 'Not found');
+  } catch (e) {
+    console.error('[Supabase] Error checking env:', e);
+  }
+}
+
 const findFirst = (keys: string[]) => {
   for (const k of keys) {
     const v = readEnv(k);
