@@ -158,7 +158,10 @@ export const login = async (identifier: string, password: string): Promise<Omit<
     
     // Verify password (hash comparison)
     const passwordHash = await hashPassword(password);
-    const storedHash = user.password ? await hashPassword(user.password) : null;
+    // Support both hashed and legacy plaintext passwords during migration
+    const storedHash = user.password?.length === 64 
+      ? user.password  // Already hashed (64 hex chars = SHA-256)
+      : await hashPassword(user.password || '');  // Legacy plaintext, hash it
     
     // Also check against environment-configured admins
     const adminCreds = getAdminCredentials();
@@ -221,7 +224,7 @@ export const register = async (
     firstName: sanitizedFirst,
     lastName: sanitizedLast,
     email: sanitizedEmail,
-    password: passwordHash, // Store hash, not plaintext
+    password: passwordHash, // Store hash (64-char hex string)
     role: 'Staff',
     status: 'Pending'
   };
@@ -275,7 +278,10 @@ export const updateUserPassword = async (
   if (!user || !user.password) return false;
   
   const oldHash = await hashPassword(oldPassword);
-  const currentHash = await hashPassword(user.password);
+  // Support both hashed and legacy plaintext passwords
+  const currentHash = user.password.length === 64
+    ? user.password  // Already hashed
+    : await hashPassword(user.password);  // Legacy plaintext
   
   if (oldHash !== currentHash) {
     return false;

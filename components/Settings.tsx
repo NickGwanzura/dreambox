@@ -4,6 +4,7 @@ import { generateAppFeaturesPDF, generateUserManualPDF } from '../services/pdfGe
 import { Shield, Building, ScrollText, Download, Plus, X, Save, Phone, MapPin, Edit2, Trash2, AlertTriangle, Cloud, Upload, RefreshCw, Database, Clock, HardDrive, Sparkles, Loader2, CheckCircle, FileText, ChevronRight, Server, Wifi, Activity, Lock, Copy, FileCheck, Layers, Cpu, Code2, UserCheck, Users } from 'lucide-react';
 import { User as UserType, CompanyProfile } from '../types';
 import { isSupabaseConfigured, checkSupabaseConnection } from '../services/supabaseClient';
+import { DataSyncManager } from './DataSyncManager';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, placeholder = "", disabled = false }: any) => (
   <div className="group relative">
@@ -158,7 +159,7 @@ create table company_profile (
 `;
 
 export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'General' | 'Audit' | 'Data' | 'Database' | 'ReleaseNotes'>('General');
+  const [activeTab, setActiveTab] = useState<'General' | 'Audit' | 'Data' | 'Database' | 'Cloud' | 'ReleaseNotes'>('General');
   const [users, setUsers] = useState<UserType[]>(getUsers());
   const auditLogs = getAuditLogs();
   const [logoPreview, setLogoPreview] = useState(getCompanyLogo());
@@ -378,7 +379,7 @@ export const Settings: React.FC = () => {
   return (
     <>
       <div className="space-y-8 animate-fade-in">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">System Settings</h2><p className="text-slate-500 font-medium">Manage organization profile, users, and data</p></div><div className="flex bg-white rounded-full border border-slate-200 p-1 shadow-sm overflow-x-auto max-w-full"><button onClick={() => setActiveTab('General')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'General' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>General</button><button onClick={() => setActiveTab('Data')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Data' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Backup</button><button onClick={() => setActiveTab('Database')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Database' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Database</button><button onClick={() => setActiveTab('Audit')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Audit' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Audit Logs</button><button onClick={() => setActiveTab('ReleaseNotes')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'ReleaseNotes' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Release Notes</button></div></div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">System Settings</h2><p className="text-slate-500 font-medium">Manage organization profile, users, and data</p></div><div className="flex bg-white rounded-full border border-slate-200 p-1 shadow-sm overflow-x-auto max-w-full"><button onClick={() => setActiveTab('General')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'General' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>General</button><button onClick={() => setActiveTab('Data')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Data' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Backup</button><button onClick={() => setActiveTab('Database')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Database' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Database</button><button onClick={() => setActiveTab('Cloud')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Cloud' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Cloud Sync</button><button onClick={() => setActiveTab('Audit')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Audit' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Audit Logs</button><button onClick={() => setActiveTab('ReleaseNotes')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'ReleaseNotes' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Release Notes</button></div></div>
         {activeTab === 'General' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
             {/* ... (General Tab Content remains same) ... */}
@@ -606,6 +607,11 @@ export const Settings: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            </div>
+        )}
+        {activeTab === 'Cloud' && (
+            <div className="animate-fade-in max-w-4xl">
+                <DataSyncManager />
             </div>
         )}
         {activeTab === 'Audit' && (

@@ -310,11 +310,9 @@ const ensureDefaultAdmin = () => {
     }
 };
 
-// Only create default admin in development
-// @ts-ignore
-if (import.meta.env?.DEV) {
-    ensureDefaultAdmin();
-}
+// Create default admin if no users exist (works in both dev and production)
+// This ensures there's always an admin account to access the system
+ensureDefaultAdmin();
 
 saveToStorage(STORAGE_KEYS.USERS, users);
 
