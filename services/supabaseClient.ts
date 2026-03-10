@@ -1,6 +1,18 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+// AGGRESSIVE CLEANUP: Clear any old keys immediately on module load
+if (typeof window !== 'undefined' && window.localStorage) {
+  const keysToRemove = ['sb_key', 'sb_url', 'supabase_key', 'supabase_url'];
+  keysToRemove.forEach(k => {
+    const val = window.localStorage.getItem(k);
+    if (val && (val.includes('publishable') || val.startsWith('sb_publishable_'))) {
+      console.warn(`Removing old key ${k} from localStorage`);
+      window.localStorage.removeItem(k);
+    }
+  });
+}
+
 // Support both Vite and older NEXT_PUBLIC names, plus process.env for server-side
 const readEnv = (key: string) => {
   // Priority 1: Vite environment variables (build-time)
@@ -42,7 +54,12 @@ const readEnv = (key: string) => {
     if (key === 'VITE_SUPABASE_URL' || key === 'NEXT_PUBLIC_SUPABASE_URL' || key === 'SUPABASE_URL') {
       return localUrl;
     }
-    if (key === 'VITE_SUPABASE_ANON_KEY' || key === 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY' || key === 'SUPABASE_KEY') {
+    if (key === 'VITE_SUPABASE_ANON_KEY' || key === 'NEXT_PUBLIC_SUPABASE_ANON_KEY' || key === 'SUPABASE_KEY') {
+      // CRITICAL: Never use old publishable key from localStorage
+      if (localKey && localKey.startsWith('sb_publishable_')) {
+        console.error('REJECTING old publishable key from localStorage');
+        return null;
+      }
       return localKey;
     }
   }
@@ -51,7 +68,7 @@ const readEnv = (key: string) => {
 };
 
 const SUPABASE_URL_KEYS = ['VITE_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_URL'];
-const SUPABASE_KEY_KEYS = ['VITE_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY', 'SUPABASE_KEY', 'VITE_SUPABASE_KEY'];
+const SUPABASE_KEY_KEYS = ['VITE_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_KEY', 'VITE_SUPABASE_KEY'];
 
 const findFirst = (keys: string[]) => {
   for (const k of keys) {
