@@ -95,7 +95,7 @@ if (typeof window !== 'undefined') {
 const findFirst = (keys: string[]) => {
   for (const k of keys) {
     const v = readEnv(k);
-    if (v) return v;
+    if (v) return v.trim(); // Trim whitespace/newlines
   }
   return null;
 };
