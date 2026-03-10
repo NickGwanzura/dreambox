@@ -316,7 +316,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
           </div>
         </div>
       }
-      size="xl"
+      size="xxl"
       footer={
         <div className="flex justify-between w-full">
           <div className="flex gap-2">
@@ -366,23 +366,23 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                className={`relative flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all ${
                   activeTab === tab.id
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'bg-white text-slate-900 shadow-md ring-1 ring-slate-200'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                 }`}
               >
                 <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-indigo-600' : ''}`} />
                 <span>{tab.label}</span>
                 {tab.count > 0 && (
-                  <span className={`ml-1 px-1.5 py-0.5 text-[10px] rounded-full font-bold ${
+                  <span className={`ml-1 px-2 py-0.5 text-xs rounded-full font-bold ${
                     activeTab === tab.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {tab.count}
                   </span>
                 )}
                 {tab.badge && (
-                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full">
+                  <span className="absolute -top-1.5 -right-1 px-2 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[10px] font-bold rounded-full shadow-sm">
                     {tab.badge}
                   </span>
                 )}

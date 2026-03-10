@@ -11,7 +11,7 @@ interface AccessibleModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'full';
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   footer?: React.ReactNode;
@@ -37,6 +37,8 @@ export const AccessibleModal: React.FC<AccessibleModalProps> = ({
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-2xl',
+    xxl: 'max-w-4xl',
+    full: 'max-w-7xl',
   };
 
   // Store previously focused element and trap focus
@@ -124,10 +126,10 @@ export const AccessibleModal: React.FC<AccessibleModalProps> = ({
     >
       <div
         ref={contentRef}
-        className={`bg-white rounded-3xl shadow-2xl w-full ${sizeClasses[size]} border border-slate-100 overflow-hidden transform transition-all`}
+        className={`bg-white rounded-3xl shadow-2xl w-full ${sizeClasses[size]} border border-slate-100 overflow-hidden transform transition-all max-h-[90vh] flex flex-col`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100 flex-shrink-0">
           <h2 id="modal-title" className="text-xl font-bold text-slate-900">
             {title}
           </h2>
@@ -142,14 +144,14 @@ export const AccessibleModal: React.FC<AccessibleModalProps> = ({
           )}
         </div>
         
-        {/* Content */}
-        <div className="p-6">
+        {/* Content - scrollable */}
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
           {children}
         </div>
         
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
             {footer}
           </div>
         )}

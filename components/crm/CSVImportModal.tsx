@@ -153,7 +153,7 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Import CSV"
-      size="xl"
+      size="xxl"
       footer={
         <div className="flex justify-between w-full">
           <button
