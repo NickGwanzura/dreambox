@@ -316,7 +316,9 @@ ensureDefaultAdmin();
 
 saveToStorage(STORAGE_KEYS.USERS, users);
 
-let companyLogo = loadFromStorage(STORAGE_KEYS.LOGO, null) || 'https://via.placeholder.com/200x200?text=Dreambox';
+// Default logo as inline SVG (no external dependency)
+const DEFAULT_LOGO_SVG = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIiBmaWxsPSJub25lIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzNzNkYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyNCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPkRyZWFtYm94PC90ZXh0Pjwvc3ZnPg==';
+let companyLogo = loadFromStorage(STORAGE_KEYS.LOGO, null) || DEFAULT_LOGO_SVG;
 const DEFAULT_PROFILE: CompanyProfile = { name: "Dreambox Advertising", vatNumber: "VAT-DBX-001", regNumber: "REG-2026/DBX", email: "info@dreambox.co.zw", supportEmail: "support@dreambox.co.zw", phone: "+263 777 999 888", website: "www.dreambox.co.zw", address: "123 Creative Park, Borrowdale", city: "Harare", country: "Zimbabwe" };
 let companyProfile: CompanyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || DEFAULT_PROFILE;
 let lastBackupDate = loadFromStorage(STORAGE_KEYS.LAST_BACKUP, null) || 'Never'; let lastCloudBackup = loadFromStorage(STORAGE_KEYS.CLOUD_BACKUP, null) || 'Never';
