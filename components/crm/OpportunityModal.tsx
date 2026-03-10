@@ -6,7 +6,7 @@ import {
   PhoneCall, Mail as MailIcon, MessageSquare, Calendar as CalendarIcon,
   CheckCircle2, Target, Sparkles,
   LayoutList, ClipboardList, Activity, Zap, Globe, Briefcase,
-  FileDown
+  FileDown, ArrowRight, Clock, AlertCircle
 } from 'lucide-react';
 import { AccessibleModal } from '../ui/AccessibleModal';
 import { LoadingButton } from '../ui/LoadingButton';
@@ -179,6 +179,12 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
     let newStage: OpportunityStage = opportunity.stage;
     if (newStatus === 'contacted' && opportunity.status === 'new') {
       newStage = 'initial_contact';
+    } else if (newStatus === 'qualified') {
+      newStage = 'qualification';
+    } else if (newStatus === 'proposal') {
+      newStage = 'proposal_sent';
+    } else if (newStatus === 'negotiation') {
+      newStage = 'negotiation';
     } else if (newStatus === 'closed_won') {
       newStage = 'closed_won';
     } else if (newStatus === 'closed_lost') {
@@ -186,7 +192,27 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
     }
     
     updateOpportunityStatus(opportunity.id, newStatus, newStage);
-    showToast(`Status updated to ${newStatus}`, 'success');
+    showToast(`Status updated to ${newStatus.replace('_', ' ')}`, 'success');
+    
+    // Update local form data to reflect change
+    setFormData({ ...formData, status: newStatus, stage: newStage });
+  };
+
+  const handleFollowUpDateChange = (date: string) => {
+    if (!opportunity) return;
+    
+    updateCRMOpportunity({
+      ...opportunity,
+      nextFollowUpDate: date,
+    });
+    setFormData({ ...formData, nextFollowUpDate: date });
+    showToast('Follow-up date updated', 'success');
+  };
+
+  const quickSetFollowUp = (days: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    handleFollowUpDateChange(date.toISOString().split('T')[0]);
   };
 
   const handleLogCall = () => {
@@ -368,6 +394,96 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
         {/* Content */}
         {activeTab === 'details' && (
           <div className="space-y-6">
+            {/* Quick Actions Bar */}
+            {isEditing && opportunity && (
+              <div className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-6 text-white shadow-lg">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  {/* Status Quick Change */}
+                  <div className="flex-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-white/70 mb-3 block">
+                      Quick Status Change
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {STATUS_OPTIONS.filter(s => s.value !== 'closed_won' && s.value !== 'closed_lost').map((s) => (
+                        <button
+                          key={s.value}
+                          onClick={() => handleStatusChange(s.value)}
+                          disabled={opportunity.status === s.value}
+                          className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                            opportunity.status === s.value
+                              ? 'bg-white text-indigo-600 shadow-md'
+                              : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
+                          } disabled:cursor-default`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${s.color}`} />
+                            {s.label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => handleStatusChange('closed_won')}
+                        disabled={opportunity.status === 'closed_won'}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                          opportunity.status === 'closed_won'
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 border border-emerald-400/30'
+                        }`}
+                      >
+                        ✓ Mark as Won
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange('closed_lost')}
+                        disabled={opportunity.status === 'closed_lost'}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                          opportunity.status === 'closed_lost'
+                            ? 'bg-red-500 text-white'
+                            : 'bg-red-500/20 text-red-100 hover:bg-red-500/30 border border-red-400/30'
+                        }`}
+                      >
+                        ✕ Mark as Lost
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Next Follow-up */}
+                  <div className="lg:w-72">
+                    <label className="text-xs font-bold uppercase tracking-wider text-white/70 mb-3 block">
+                      Next Follow-up
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.nextFollowUpDate || ''}
+                      onChange={(e) => handleFollowUpDateChange(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/50 focus:bg-white/20 focus:border-white/40 outline-none transition-all mb-3"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => quickSetFollowUp(1)}
+                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors border border-white/10"
+                      >
+                        Tomorrow
+                      </button>
+                      <button
+                        onClick={() => quickSetFollowUp(3)}
+                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors border border-white/10"
+                      >
+                        3 Days
+                      </button>
+                      <button
+                        onClick={() => quickSetFollowUp(7)}
+                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors border border-white/10"
+                      >
+                        1 Week
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Lead Score Card */}
             {isEditing && leadScore && (
               <div className="p-6 rounded-3xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100">
@@ -585,25 +701,49 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
               </div>
             </Section>
 
-            {/* Status Update */}
+            {/* Follow-up & Notes Section */}
             {isEditing && opportunity && (
-              <Section title="Quick Status Update" icon={Zap}>
-                <div className="flex flex-wrap gap-2">
-                  {STATUS_OPTIONS.map((s) => (
-                    <button
-                      key={s.value}
-                      onClick={() => handleStatusChange(s.value)}
-                      disabled={opportunity.status === s.value}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        opportunity.status === s.value
-                          ? `${s.bgColor} text-slate-900 border-2 border-slate-300`
-                          : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className={`w-2 h-2 rounded-full ${s.color}`} />
-                      {s.label}
-                    </button>
-                  ))}
+              <Section title="Follow-up & Notes" icon={Clock}>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Next Follow-up Date">
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="date"
+                        value={formData.nextFollowUpDate || ''}
+                        onChange={(e) => handleFollowUpDateChange(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all"
+                      />
+                    </div>
+                  </FormField>
+                  <FormField label="Last Contact Date">
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="date"
+                        value={formData.lastContactDate || ''}
+                        onChange={(e) => {
+                          setFormData({ ...formData, lastContactDate: e.target.value });
+                          updateCRMOpportunity({ ...opportunity, lastContactDate: e.target.value });
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all"
+                      />
+                    </div>
+                  </FormField>
+                </div>
+                <div className="mt-4">
+                  <FormField label="Call Outcome / Notes">
+                    <textarea
+                      value={formData.callOutcomeNotes || ''}
+                      onChange={(e) => {
+                        setFormData({ ...formData, callOutcomeNotes: e.target.value });
+                        updateCRMOpportunity({ ...opportunity, callOutcomeNotes: e.target.value });
+                      }}
+                      rows={3}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all resize-none"
+                      placeholder="Enter notes from last call or meeting..."
+                    />
+                  </FormField>
                 </div>
               </Section>
             )}
