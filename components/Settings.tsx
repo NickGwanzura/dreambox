@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getUsers, addUser, updateUser, deleteUser, getAuditLogs, getCompanyLogo, setCompanyLogo, getCompanyProfile, updateCompanyProfile, RELEASE_NOTES, resetSystemData, createSystemBackup, restoreSystemBackup, getLastManualBackupDate, getAutoBackupStatus, getStorageUsage, simulateCloudSync, getLastCloudBackupDate, triggerFullSync, verifyDataIntegrity, syncToSupabase } from '../services/mockData';
+import { getUsers as getLocalUsers, addUser as addLocalUser, updateUser as updateLocalUser, deleteUser as deleteLocalUser, getAuditLogs, getCompanyLogo, setCompanyLogo, getCompanyProfile, updateCompanyProfile, RELEASE_NOTES, resetSystemData, createSystemBackup, restoreSystemBackup, getLastManualBackupDate, getAutoBackupStatus, getStorageUsage, simulateCloudSync, getLastCloudBackupDate, triggerFullSync, verifyDataIntegrity, syncToSupabase } from '../services/mockData';
+import { createUser, updateUserData, deleteUserData, approveUser, rejectUser, fetchAllUsers } from '../services/userManagement';
 import { generateAppFeaturesPDF, generateUserManualPDF } from '../services/pdfGenerator';
 import { Shield, Building, ScrollText, Download, Plus, X, Save, Phone, MapPin, Edit2, Trash2, AlertTriangle, Cloud, Upload, RefreshCw, Clock, HardDrive, Sparkles, Loader2, CheckCircle, FileText, ChevronRight, Server, Wifi, Activity, Lock, Copy, FileCheck, Layers, Cpu, Code2, UserCheck, Users, Database } from 'lucide-react';
 import { User as UserType, CompanyProfile } from '../types';
@@ -37,6 +38,17 @@ export const Settings: React.FC = () => {
   // Pending Approval State
   const [approvalUser, setApprovalUser] = useState<UserType | null>(null);
 
+  // Load users from Supabase on mount
+  useEffect(() => {
+      const loadUsers = async () => {
+          const { users: supabaseUsers, error } = await fetchAllUsers();
+          if (!error && supabaseUsers.length > 0) {
+              setUsers(supabaseUsers);
+          }
+      };
+      loadUsers();
+  }, []);
+
   useEffect(() => {
       if (activeTab === 'Data') {
           setBackupStatus({ manual: getLastManualBackupDate(), auto: getAutoBackupStatus(), storage: getStorageUsage(), cloud: getLastCloudBackupDate() });
@@ -66,40 +78,84 @@ export const Settings: React.FC = () => {
       alert("Company details updated successfully.");
   };
 
-  const handleAddUser = (e: React.FormEvent) => { 
-      e.preventDefault(); 
-      const user: UserType = { 
-          id: (users.length + 1).toString(), 
-          firstName: newUser.firstName!, 
-          lastName: newUser.lastName!, 
-          email: newUser.email!, 
-          username: newUser.username || newUser.email!.split('@')[0],
-          role: newUser.role as 'Admin' | 'Manager' | 'Staff', 
-          password: 'password123',
-          status: 'Active'
-      }; 
-      addUser(user); 
-      setUsers(getUsers()); 
-      setIsAddUserModalOpen(false); 
-      setNewUser({ firstName: '', lastName: '', email: '', username: '', role: 'Staff', status: 'Active' }); 
+  const [isUserLoading, setIsUserLoading] = useState(false);
+
+  const handleAddUser = async (e: React.FormEvent) => { 
+      e.preventDefault();
+      if (!newUser.email || !newUser.firstName || !newUser.lastName) return;
+      
+      setIsUserLoading(true);
+      
+      const { user, error } = await createUser({
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          email: newUser.email,
+          role: (newUser.role as 'Admin' | 'Manager' | 'Staff') || 'Staff',
+      });
+      
+      if (error) {
+          alert(`Error: ${error.message}`);
+      } else {
+          // Refresh user list from Supabase
+          const { users: freshUsers } = await fetchAllUsers();
+          setUsers(freshUsers.length > 0 ? freshUsers : getLocalUsers());
+          setIsAddUserModalOpen(false);
+          setNewUser({ firstName: '', lastName: '', email: '', username: '', role: 'Staff', status: 'Active' });
+      }
+      
+      setIsUserLoading(false);
   };
   
-  const handleEditUser = (e: React.FormEvent) => { e.preventDefault(); if (editingUser) { updateUser(editingUser); setUsers(getUsers()); setEditingUser(null); } };
-  const handleConfirmDelete = () => { if (userToDelete) { deleteUser(userToDelete.id); setUsers(getUsers()); setUserToDelete(null); } };
+  const handleEditUser = async (e: React.FormEvent) => { 
+      e.preventDefault(); 
+      if (editingUser) { 
+          const { error } = await updateUserData(editingUser.id, editingUser);
+          if (error) {
+              alert(`Error: ${error.message}`);
+          } else {
+              const { users: freshUsers } = await fetchAllUsers();
+              setUsers(freshUsers.length > 0 ? freshUsers : getLocalUsers());
+              setEditingUser(null);
+          }
+      } 
+  };
   
-  const handleApproveUser = (role: 'Admin' | 'Manager' | 'Staff') => {
+  const handleConfirmDelete = async () => { 
+      if (userToDelete) { 
+          const { error } = await deleteUserData(userToDelete.id);
+          if (error) {
+              alert(`Error: ${error.message}`);
+          } else {
+              const { users: freshUsers } = await fetchAllUsers();
+              setUsers(freshUsers.length > 0 ? freshUsers : getLocalUsers());
+              setUserToDelete(null);
+          }
+      } 
+  };
+  
+  const handleApproveUser = async (role: 'Admin' | 'Manager' | 'Staff') => {
       if (approvalUser) {
-          updateUser({ ...approvalUser, role, status: 'Active' });
-          setUsers(getUsers());
-          setApprovalUser(null);
+          const { error } = await approveUser(approvalUser.id, role);
+          if (error) {
+              alert(`Error: ${error.message}`);
+          } else {
+              const { users: freshUsers } = await fetchAllUsers();
+              setUsers(freshUsers.length > 0 ? freshUsers : getLocalUsers());
+              setApprovalUser(null);
+          }
       }
   };
 
-  const handleRejectUser = () => {
+  const handleRejectUser = async () => {
       if (approvalUser) {
-          deleteUser(approvalUser.id); // Or set to 'Rejected' if we want to keep record
-          setUsers(getUsers());
-          setApprovalUser(null);
+          const { error } = await rejectUser(approvalUser.id, false); // Set to Rejected, don't delete
+          if (error) {
+              alert(`Error: ${error.message}`);
+          } else {
+              const { users: freshUsers } = await fetchAllUsers();
+              setUsers(freshUsers.length > 0 ? freshUsers : getLocalUsers());
+              setApprovalUser(null);
+          }
       }
   };
 
@@ -308,7 +364,7 @@ export const Settings: React.FC = () => {
                             <MinimalInput label="Email Address" type="email" value={newUser.email} onChange={(e: any) => setNewUser({...newUser, email: e.target.value})} required />
                             <MinimalInput label="Username (Optional)" value={newUser.username} onChange={(e: any) => setNewUser({...newUser, username: e.target.value})} placeholder="Leave blank to use email prefix" />
                             <MinimalSelect label="Role" value={newUser.role} onChange={(e: any) => setNewUser({...newUser, role: e.target.value})} options={[{value: 'Admin', label: 'Administrator'},{value: 'Manager', label: 'Manager'},{value: 'Staff', label: 'Staff Member'}]} />
-                            <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all mt-4"><Save size={18} /> Create User Account</button>
+                            <button type="submit" disabled={isUserLoading} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed">{isUserLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} {isUserLoading ? 'Creating...' : 'Create User Account'}</button>
                         </form>
                     </div>
                 </div>
@@ -333,7 +389,7 @@ export const Settings: React.FC = () => {
                             <MinimalInput label="Email Address" type="email" value={editingUser.email} onChange={(e: any) => setEditingUser({...editingUser, email: e.target.value})} required />
                             <MinimalInput label="Username" value={editingUser.username} onChange={(e: any) => setEditingUser({...editingUser, username: e.target.value})} />
                             <MinimalSelect label="Role" value={editingUser.role} onChange={(e: any) => setEditingUser({...editingUser, role: e.target.value as any})} options={[{value: 'Admin', label: 'Administrator'},{value: 'Manager', label: 'Manager'},{value: 'Staff', label: 'Staff Member'}]} />
-                            <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all mt-4"><Save size={18} /> Update User</button>
+                            <button type="submit" disabled={isUserLoading} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed">{isUserLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} {isUserLoading ? 'Updating...' : 'Update User'}</button>
                         </form>
                     </div>
                 </div>
