@@ -6,20 +6,17 @@ import {
 } from 'recharts';
 import { 
   DollarSign, FileText, Activity, Users, Sparkles, TrendingUp, Bell, 
-  AlertTriangle, Calendar, ArrowRight, BrainCircuit, Newspaper, X,
+  AlertTriangle, Calendar, ArrowRight, Newspaper, X,
   MapPin, Building2, Zap, Target, CreditCard, TrendingDown, ChevronRight
 } from 'lucide-react';
 import { getContracts, getInvoices, getBillboards, getClients, getExpiringContracts, getOverdueInvoices, getUpcomingBillings, getFinancialTrends, subscribe } from '../services/mockData';
 import { BillboardType } from '../types';
-import { analyzeBusinessData, generateGreeting, fetchIndustryNews } from '../services/aiService';
+import { generateGreeting, fetchIndustryNews } from '../services/aiService';
 import { getCurrentUser } from '../services/authService';
 import { useSafeAsync } from '../utils/useSafeAsync';
 import { logger } from '../utils/logger';
 
 export const Dashboard: React.FC = () => {
-  const [aiQuery, setAiQuery] = useState('');
-  const [aiResponse, setAiResponse] = useState<string | null>(null);
-  const [loadingAi, setLoadingAi] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [news, setNews] = useState<Array<{ title: string; summary: string; source?: string; date?: string }>>([]);
   const [selectedNews, setSelectedNews] = useState<{ title: string; summary: string; source?: string; date?: string } | null>(null);
@@ -147,25 +144,6 @@ export const Dashboard: React.FC = () => {
   
   const financialTrends = useMemo(() => getFinancialTrends(), [refreshKey]);
 
-  // AI handler
-  const handleAskAI = useCallback(async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!aiQuery.trim()) return;
-    setLoadingAi(true);
-    try {
-      const context = `Revenue: $${metrics.totalRevenue}. Occupancy: ${metrics.occupancyRate}%. ` +
-        `Digital: ${metrics.digitalOccupancyRate}%, Static: ${metrics.staticOccupancyRate}%. ` +
-        `Active Contracts: ${metrics.activeContracts}. User Q: ${aiQuery}`;
-      const result = await analyzeBusinessData(context);
-      setAiResponse(result);
-    } catch (error) {
-      logger.error('AI query failed:', error);
-      setAiResponse('Unable to process your request. Please try again.');
-    } finally {
-      setLoadingAi(false);
-    }
-  }, [aiQuery, metrics]);
-
   const getClientName = useCallback((id: string) => clients.find(c => c.id === id)?.companyName || 'Unknown', [clients]);
 
   // Colors
@@ -215,40 +193,6 @@ export const Dashboard: React.FC = () => {
           icon={Building2}
           color="amber"
         />
-      </div>
-
-      {/* AI Assistant */}
-      <div className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-6 text-white shadow-lg shadow-indigo-200">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-            <BrainCircuit size={24} />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold">Dreambox AI Assistant</h2>
-            <p className="text-indigo-100 text-sm">Ask about revenue, occupancy, or business strategy</p>
-          </div>
-        </div>
-        <form onSubmit={handleAskAI} className="relative">
-          <input
-            type="text"
-            value={aiQuery}
-            onChange={(e) => setAiQuery(e.target.value)}
-            placeholder="What would you like to know about your business?"
-            className="w-full pl-4 pr-12 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-indigo-200 focus:outline-none focus:bg-white/20 transition-all"
-          />
-          <button
-            type="submit"
-            disabled={loadingAi}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
-          >
-            {loadingAi ? <Sparkles size={18} className="animate-spin" /> : <ArrowRight size={18} />}
-          </button>
-        </form>
-        {aiResponse && (
-          <div className="mt-4 p-4 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20">
-            <p className="text-sm leading-relaxed">{aiResponse}</p>
-          </div>
-        )}
       </div>
 
       <div className="grid xl:grid-cols-3 gap-6">
