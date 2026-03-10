@@ -544,4 +544,42 @@ export const getUpcomingBillings = () => { /* ... existing ... */ return []; };
 export const getExpiringContracts = () => { /* ... existing ... */ return []; };
 export const getOverdueInvoices = () => invoices.filter(i => i.status === 'Pending' || i.status === 'Overdue');
 export const getSystemAlertCount = () => 0;
-export const getFinancialTrends = () => { /* ... existing ... */ return []; };
+export const getFinancialTrends = () => {
+  // Calculate actual monthly revenue and expenses from invoices
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const currentMonth = new Date().getMonth();
+  
+  // Get last 6 months of data
+  const result = [];
+  for (let i = 5; i >= 0; i--) {
+    const monthIndex = (currentMonth - i + 12) % 12;
+    const year = new Date().getFullYear() - (currentMonth - i < 0 ? 1 : 0);
+    const monthName = months[monthIndex];
+    
+    // Get invoices for this month
+    const monthInvoices = invoices.filter(inv => {
+      const invDate = new Date(inv.date);
+      return invDate.getMonth() === monthIndex && 
+             invDate.getFullYear() === year &&
+             inv.type === 'Invoice';
+    });
+    
+    const monthExpenses = expenses.filter(exp => {
+      const expDate = new Date(exp.date);
+      return expDate.getMonth() === monthIndex && expDate.getFullYear() === year;
+    });
+    
+    const revenue = monthInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    const expenseTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const margin = revenue - expenseTotal;
+    
+    result.push({
+      name: monthName,
+      revenue: revenue,
+      margin: margin,
+      expenses: expenseTotal
+    });
+  }
+  
+  return result;
+};
