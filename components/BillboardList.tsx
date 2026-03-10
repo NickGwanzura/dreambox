@@ -86,112 +86,127 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
 
     const gradientClass = getPlaceholderGradient(billboard.id);
     const hasImage = hasValidImage(billboard.imageUrl);
+    
+    // Calculate display rate
+    const displayRate = billboard.type === 'Static' 
+        ? (billboard.sideARate || 0) 
+        : (billboard.ratePerSlot || 0);
 
     return (
-        <div className="group relative bg-white rounded-[2rem] shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 border border-slate-100 transition-all duration-500 flex flex-col h-full overflow-hidden hover:-translate-y-2">
-            {/* Image Header */}
-            <div className={`h-72 relative overflow-hidden cursor-zoom-in ${!hasImage ? gradientClass : 'bg-slate-100'}`} onClick={() => hasImage && onViewImage(billboard.imageUrl!)}>
+        <div className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-100 transition-all duration-300 flex flex-col h-full overflow-hidden">
+            {/* Image Header - Reduced height for better proportions */}
+            <div className={`h-48 relative overflow-hidden ${!hasImage ? gradientClass : 'bg-slate-100'}`}>
                 {hasImage ? (
                     <img 
                         src={billboard.imageUrl} 
                         alt={billboard.name} 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-zoom-in"
+                        onClick={() => onViewImage(billboard.imageUrl!)}
                         onError={(e) => {
-                            // Fallback if image fails to load even if URL looked valid
                             (e.target as HTMLImageElement).style.display = 'none';
                             (e.target as HTMLImageElement).parentElement?.classList.add(...gradientClass.split(' '));
                         }}
                     />
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-white/40 p-6 text-center">
-                        <ImageIcon size={48} strokeWidth={1} className="mb-3 opacity-50"/>
-                        <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50">No Visual</span>
+                        <ImageIcon size={40} strokeWidth={1} className="mb-2 opacity-50"/>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">No Image</span>
                     </div>
                 )}
                 
-                {/* Gradient Overlay for depth */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity duration-500"></div>
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/20 to-transparent"></div>
 
                 {/* Top Badges */}
-                <div className="absolute top-5 left-5 right-5 flex justify-between items-start pointer-events-none z-10">
+                <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
                     <div className="flex gap-2">
-                        <span className="flex items-center justify-center w-8 h-8 bg-white/10 backdrop-blur-md text-white font-bold text-xs rounded-full border border-white/20 shadow-lg">
+                        <span className="flex items-center justify-center w-7 h-7 bg-white/20 backdrop-blur-md text-white font-bold text-xs rounded-full border border-white/30">
                             {index}
                         </span>
                         {billboard.type === 'LED' && (
-                             <span className="flex items-center justify-center w-8 h-8 bg-indigo-500/80 backdrop-blur-md text-white rounded-full border border-white/20 shadow-lg" title="Digital LED">
-                                <Zap size={14} fill="currentColor"/>
+                             <span className="flex items-center justify-center w-7 h-7 bg-indigo-500/90 backdrop-blur-md text-white rounded-full border border-white/30" title="Digital LED">
+                                <Zap size={12} fill="currentColor"/>
                              </span>
                         )}
                     </div>
-                    <span className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-full backdrop-blur-xl shadow-lg border flex items-center gap-2 transition-colors ${isAvailable ? 'bg-emerald-500/90 text-white border-emerald-400/50' : isPartial ? 'bg-amber-500/90 text-white border-amber-400/50' : 'bg-rose-500/90 text-white border-rose-400/50'}`}>
+                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full shadow-md border flex items-center gap-1.5 ${isAvailable ? 'bg-emerald-500 text-white border-emerald-400' : isPartial ? 'bg-amber-500 text-white border-amber-400' : 'bg-rose-500 text-white border-rose-400'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-white animate-pulse' : 'bg-white'}`}></span>
-                        {isAvailable ? 'Open' : isPartial ? '1 Side Open' : 'Booked'}
+                        {isAvailable ? 'Open' : isPartial ? 'Partial' : 'Booked'}
                     </span>
+                </div>
+                
+                {/* Bottom Info Overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
+                    <h3 className="font-bold text-lg text-white leading-tight mb-1 truncate" title={billboard.name}>
+                        {billboard.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-xs text-white/80">
+                        <MapPin size={12} className="shrink-0"/> 
+                        <span className="truncate">{billboard.location}, {billboard.town}</span>
+                    </div>
                 </div>
             </div>
 
             {/* Content Body */}
-            <div className="p-6 sm:p-7 flex-1 flex flex-col relative bg-white">
-                
-                <div className="mb-6">
-                    <div className="flex justify-between items-start gap-4 mb-2">
-                        <h3 className="font-extrabold text-2xl text-slate-900 leading-tight tracking-tight group-hover:text-indigo-600 transition-colors line-clamp-2" title={billboard.name}>
-                            {billboard.name}
-                        </h3>
+            <div className="p-4 flex-1 flex flex-col bg-white">
+                {/* Rate & Type Row */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${billboard.type === 'LED' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-orange-50 text-orange-700 border border-orange-100'}`}>
+                            {billboard.type}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">ID: {billboard.id.slice(-4)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <MapPin size={14} className="text-indigo-500 shrink-0"/> 
-                        <span className="truncate">{billboard.location}, {billboard.town}</span>
-                    </div>
+                    {displayRate > 0 && (
+                        <span className="text-sm font-bold text-slate-900">
+                            ${displayRate.toLocaleString()}
+                            <span className="text-[10px] font-medium text-slate-400">/mo</span>
+                        </span>
+                    )}
                 </div>
 
-                {/* Premium Stats Grid */}
-                <div className="grid grid-cols-3 gap-4 py-5 border-t border-slate-50 mb-6">
-                    <div className="flex flex-col items-center justify-center text-center gap-1 group/stat hover:bg-slate-50 rounded-xl p-1 transition-colors">
-                        <span className="text-slate-400"><Car size={18}/></span>
+                {/* Stats Grid - Compact */}
+                <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 mb-4">
+                    <div className="flex flex-col items-center text-center">
+                        <span className="text-slate-400 mb-1"><Car size={16}/></span>
                         <span className="text-xs font-bold text-slate-700">{billboard.dailyTraffic ? (billboard.dailyTraffic / 1000).toFixed(0) + 'k' : '-'}</span>
-                        <span className="text-[9px] uppercase font-bold text-slate-300 tracking-wider">Views</span>
+                        <span className="text-[9px] text-slate-400">Views</span>
                     </div>
-                    <div className="flex flex-col items-center justify-center text-center gap-1 group/stat hover:bg-slate-50 rounded-xl p-1 transition-colors border-l border-r border-slate-50">
-                        <span className="text-slate-400"><Maximize2 size={18}/></span>
-                        <span className="text-xs font-bold text-slate-700">{billboard.width}x{billboard.height}</span>
-                        <span className="text-[9px] uppercase font-bold text-slate-300 tracking-wider">Meters</span>
+                    <div className="flex flex-col items-center text-center border-x border-slate-100">
+                        <span className="text-slate-400 mb-1"><Maximize2 size={16}/></span>
+                        <span className="text-xs font-bold text-slate-700">{billboard.width}×{billboard.height}</span>
+                        <span className="text-[9px] text-slate-400">Meters</span>
                     </div>
-                    <div className="flex flex-col items-center justify-center text-center gap-1 group/stat hover:bg-slate-50 rounded-xl p-1 transition-colors">
-                        <span className="text-slate-400"><Layers size={18}/></span>
-                        <span className="text-xs font-bold text-slate-700">{billboard.type === 'Static' ? '2 Sides' : `${billboard.totalSlots} Slots`}</span>
-                        <span className="text-[9px] uppercase font-bold text-slate-300 tracking-wider">Format</span>
+                    <div className="flex flex-col items-center text-center">
+                        <span className="text-slate-400 mb-1"><Layers size={16}/></span>
+                        <span className="text-xs font-bold text-slate-700">{billboard.type === 'Static' ? '2 Sides' : `${billboard.totalSlots || 0} Slots`}</span>
+                        <span className="text-[9px] text-slate-400">Format</span>
                     </div>
                 </div>
 
-                {/* AI Insight Pill */}
+                {/* AI Insight - Compact */}
                 {billboard.visibility && (
-                    <div className="mb-6 bg-gradient-to-r from-slate-50 to-white border border-slate-100 p-4 rounded-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-                        <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                            <Sparkles size={10} fill="currentColor"/> AI Analysis
+                    <div className="mb-4 bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                        <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider mb-1 flex items-center gap-1">
+                            <Sparkles size={9} fill="currentColor"/> AI Insight
                         </p>
-                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                        <p className="text-xs text-slate-600 leading-relaxed overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                             {billboard.visibility}
                         </p>
                     </div>
                 )}
 
-                {/* Action Bar */}
-                <div className="mt-auto flex items-center justify-between pt-4 gap-3">
-                    <span className="text-[10px] font-mono text-slate-300 bg-slate-50 px-2 py-1 rounded-md">ID: {billboard.id.slice(-4)}</span>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                        <button onClick={(e) => { e.stopPropagation(); onEdit(billboard); }} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Edit">
-                            <Edit2 size={18} strokeWidth={2}/>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); onShare(billboard); }} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Share Public Link">
-                            <Share2 size={18} strokeWidth={2}/>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); onDelete(billboard); }} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete">
-                            <Trash2 size={18} strokeWidth={2}/>
-                        </button>
-                    </div>
+                {/* Action Bar - Always visible */}
+                <div className="mt-auto flex items-center justify-end gap-1 pt-2">
+                    <button onClick={(e) => { e.stopPropagation(); onEdit(billboard); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit">
+                        <Edit2 size={16} strokeWidth={2}/>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); onShare(billboard); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Share">
+                        <Share2 size={16} strokeWidth={2}/>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(billboard); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                        <Trash2 size={16} strokeWidth={2}/>
+                    </button>
                 </div>
             </div>
         </div>
