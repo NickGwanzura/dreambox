@@ -5,7 +5,7 @@ import {
   Menu, X, Bell, LogOut, Printer, Globe, PieChart, Wallet, ChevronRight, CheckSquare, Wrench, Database, RefreshCw,
   Building2, Target
 } from 'lucide-react';
-import { getCurrentUser, logout } from '../services/authService';
+import { getCurrentUser, logout } from '../services/authServiceSecure';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { useToast } from './ToastProvider';
 import { 

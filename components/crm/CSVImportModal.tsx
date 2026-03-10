@@ -4,7 +4,7 @@ import { X, Upload, FileText, AlertCircle, CheckCircle2, Download } from 'lucide
 import { AccessibleModal } from '../ui/AccessibleModal';
 import { LoadingButton } from '../ui/LoadingButton';
 import { importCSV, CSVImportResult, CSVValidationError, parseCSV, validateCSVRow, checkForDuplicates } from '../../services/crmService';
-import { getCurrentUser } from '../../services/authService';
+import { getCurrentUser } from '../../services/authServiceSecure';
 import { useToast } from '../ToastProvider';
 import { logger } from '../../utils/logger';
 

@@ -12,7 +12,7 @@ import {
 import { getContracts, getInvoices, getBillboards, getClients, getExpiringContracts, getOverdueInvoices, getUpcomingBillings, getFinancialTrends, subscribe } from '../services/mockData';
 import { BillboardType } from '../types';
 import { generateGreeting, fetchIndustryNews } from '../services/aiService';
-import { getCurrentUser } from '../services/authService';
+import { getCurrentUser } from '../services/authServiceSecure';
 import { useSafeAsync } from '../utils/useSafeAsync';
 import { logger } from '../utils/logger';
 

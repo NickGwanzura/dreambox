@@ -15,7 +15,7 @@ import {
   importCSV,
   CSVImportResult
 } from '../../services/crmService';
-import { getCurrentUser } from '../../services/authService';
+import { getCurrentUser } from '../../services/authServiceSecure';
 import { CRMOpportunity, OpportunityStatus } from '../../types';
 import { useToast } from '../ToastProvider';
 import { logger } from '../../utils/logger';

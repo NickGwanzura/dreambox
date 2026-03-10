@@ -35,7 +35,7 @@ import {
   logCall,
   logEmail
 } from '../../services/crmService';
-import { getCurrentUser } from '../../services/authService';
+import { getCurrentUser } from '../../services/authServiceSecure';
 import { useToast } from '../ToastProvider';
 import { formatCurrency } from '../../utils/sanitizers';
 import { logger } from '../../utils/logger';

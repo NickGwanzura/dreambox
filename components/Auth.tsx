@@ -323,7 +323,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                             {mode === 'login' && (
                                                 <button 
                                                     type="button"
-                                                    onClick={() => toggleMode('forgot')}
+                                                    onClick={() => showToast('Password reset temporarily disabled. Contact admin@dreambox.com for assistance.', 'info')}
                                                     className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
                                                 >
                                                     Forgot password?
