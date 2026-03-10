@@ -36,9 +36,9 @@ export const AccessibleModal: React.FC<AccessibleModalProps> = ({
     sm: 'max-w-sm',
     md: 'max-w-md',
     lg: 'max-w-lg',
-    xl: 'max-w-2xl',
-    xxl: 'max-w-4xl',
-    full: 'max-w-7xl',
+    xl: 'max-w-2xl lg:max-w-3xl',
+    xxl: 'max-w-3xl lg:max-w-4xl xl:max-w-5xl',
+    full: 'max-w-5xl lg:max-w-6xl xl:max-w-7xl',
   };
 
   // Store previously focused element and trap focus
@@ -126,7 +126,7 @@ export const AccessibleModal: React.FC<AccessibleModalProps> = ({
     >
       <div
         ref={contentRef}
-        className={`bg-white rounded-3xl shadow-2xl w-full ${sizeClasses[size]} border border-slate-100 overflow-hidden transform transition-all max-h-[90vh] flex flex-col`}
+        className={`bg-white rounded-3xl shadow-2xl w-full ${sizeClasses[size]} border border-slate-100 overflow-hidden transform transition-all max-h-[85vh] lg:max-h-[90vh] flex flex-col`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100 flex-shrink-0">
