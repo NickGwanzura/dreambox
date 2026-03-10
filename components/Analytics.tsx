@@ -33,8 +33,11 @@ export const Analytics: React.FC = () => {
     const totalStaticSides = staticBillboards.length * 2;
     const rentedStaticSides = staticBillboards.reduce((acc, b) => {
       let count = 0;
-      if (b.sideAStatus === 'Rented') count++;
-      if (b.sideBStatus === 'Rented') count++;
+      // Default to 'Available' if status is not set
+      const sideA = b.sideAStatus || 'Available';
+      const sideB = b.sideBStatus || 'Available';
+      if (sideA === 'Rented') count++;
+      if (sideB === 'Rented') count++;
       return acc + count;
     }, 0);
     const staticOccupancyRate = totalStaticSides > 0 ? ((rentedStaticSides / totalStaticSides) * 100).toFixed(1) : '0';

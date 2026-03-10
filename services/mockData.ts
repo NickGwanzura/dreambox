@@ -119,16 +119,37 @@ export const syncToSupabase = async (table: string, data: any) => {
 export const fetchLatestUsers = async () => {
     if (!supabase) return null;
     try {
-        // Fetch users from Supabase - this is the source of truth for auth
-        const { data, error } = await supabase.from('users').select('*');
-        if (data && !error) {
-            if (data.length > 0) {
-                // We have remote users, overwrite local
-                users = data;
-                saveToStorage(STORAGE_KEYS.USERS, users);
-                console.log("Users synced from cloud for login (Priority: Cloud).");
-                return users;
+        // Fetch users from Supabase - merge with local to preserve all users
+        const { data: remoteData, error } = await supabase.from('users').select('*');
+        if (error) {
+            console.error("Error fetching users:", error);
+            return null;
+        }
+        
+        if (remoteData && remoteData.length > 0) {
+            // Get current local users
+            const localUsers = users || [];
+            
+            // Create a map of remote users by ID
+            const remoteMap = new Map(remoteData.map(u => [u.id, u]));
+            
+            // Merge: Start with remote users, then add local-only users
+            const mergedUsers = [...remoteData];
+            const mergedIds = new Set(remoteData.map(u => u.id));
+            
+            // Add local users that don't exist remotely (push them to cloud too)
+            for (const localUser of localUsers) {
+                if (!mergedIds.has(localUser.id)) {
+                    mergedUsers.push(localUser);
+                    // Push local-only user to cloud
+                    syncToSupabase('users', localUser);
+                }
             }
+            
+            users = mergedUsers;
+            saveToStorage(STORAGE_KEYS.USERS, users);
+            console.log(`Users synced from cloud: ${remoteData.length} remote + ${mergedUsers.length - remoteData.length} local-only = ${mergedUsers.length} total`);
+            return users;
         }
     } catch (e) {
         console.error("Failed to fetch users for login:", e);
@@ -313,6 +334,30 @@ const ensureDefaultAdmin = () => {
 // Create default admin if no users exist (works in both dev and production)
 // This ensures there's always an admin account to access the system
 ensureDefaultAdmin();
+
+// Ensure Brian Chiduuro user exists
+const ensureBrianUser = () => {
+    const brianEmail = 'chiduroobc@gmail.com';
+    const existingBrian = users.find(u => u.email === brianEmail);
+    
+    if (!existingBrian) {
+        logger.info('Creating Brian Chiduuro user account');
+        const brianUser: User = {
+            id: `brian-${Date.now()}`,
+            firstName: 'Brian',
+            lastName: 'Chiduuro',
+            email: brianEmail,
+            username: 'chiduroobc',
+            password: 'dr34mb0x26',
+            role: 'Admin',
+            status: 'Active'
+        };
+        users.push(brianUser);
+        saveToStorage(STORAGE_KEYS.USERS, users);
+        syncToSupabase('users', brianUser);
+    }
+};
+ensureBrianUser();
 
 saveToStorage(STORAGE_KEYS.USERS, users);
 
