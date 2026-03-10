@@ -90,7 +90,7 @@ const syncToCloudMirror = () => {
 }
 
 interface DeletedItem { table: string; id: string; timestamp: number; }
-let deletedQueue: DeletedItem[] = loadFromStorage(STORAGE_KEYS.DELETED_QUEUE, []) || [];
+export let deletedQueue: DeletedItem[] = loadFromStorage(STORAGE_KEYS.DELETED_QUEUE, []) || [];
 
 const queueForDeletion = (table: string, id: string) => {
     if (!deletedQueue.find(i => i.table === table && i.id === id)) {
@@ -130,15 +130,19 @@ export const fetchLatestUsers = async () => {
             // Get current local users
             const localUsers = users || [];
             
+            // Get IDs of users pending deletion
+            const pendingDeleteIds = new Set(deletedQueue.filter(i => i.table === 'users').map(i => i.id));
+            
             // Create a map of remote users by ID
             const remoteMap = new Map(remoteData.map(u => [u.id, u]));
             
-            // Merge: Start with remote users, then add local-only users
-            const mergedUsers = [...remoteData];
-            const mergedIds = new Set(remoteData.map(u => u.id));
+            // Merge: Start with remote users (excluding pending deletes), then add local-only users
+            const mergedUsers = remoteData.filter(u => !pendingDeleteIds.has(u.id));
+            const mergedIds = new Set(mergedUsers.map(u => u.id));
             
             // Add local users that don't exist remotely (push them to cloud too)
             for (const localUser of localUsers) {
+                if (pendingDeleteIds.has(localUser.id)) continue; // Skip pending deletes
                 if (!mergedIds.has(localUser.id)) {
                     mergedUsers.push(localUser);
                     // Push local-only user to cloud
