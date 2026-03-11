@@ -392,6 +392,7 @@ export const CRM: React.FC = () => {
               setSelectedOpportunity(opp);
               setShowOpportunityModal(true);
             }}
+            onOpportunityUpdated={() => setRefreshKey(k => k + 1)}
           />
         )}
         

@@ -1,8 +1,8 @@
 
-import React from 'react';
-import { MoreHorizontal, Calendar, DollarSign, Phone, Mail, Building2, MapPin, Layers, ArrowUpRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { MoreHorizontal, Calendar, DollarSign, Phone, Mail, Building2, MapPin, Layers, ArrowUpRight, GripVertical } from 'lucide-react';
 import { CRMOpportunity, OpportunityStatus, OpportunityStage } from '../../types';
-import { getCRMCompanyById, getCRMContactById } from '../../services/crmService';
+import { getCRMCompanyById, getCRMContactById, updateCRMOpportunity } from '../../services/crmService';
 import { formatCurrency } from '../../utils/sanitizers';
 import { calculateLeadScore } from '../../services/leadScoring';
 import { LeadScorePill } from './LeadScoreBadge';
@@ -10,6 +10,7 @@ import { LeadScorePill } from './LeadScoreBadge';
 interface CRMPipelineProps {
   opportunities: CRMOpportunity[];
   onSelectOpportunity: (opportunity: CRMOpportunity) => void;
+  onOpportunityUpdated?: () => void;
 }
 
 interface Column {
@@ -43,27 +44,101 @@ const STAGE_LABELS: Record<OpportunityStage, string> = {
 
 export const CRMPipeline: React.FC<CRMPipelineProps> = ({ 
   opportunities, 
-  onSelectOpportunity 
+  onSelectOpportunity,
+  onOpportunityUpdated 
 }) => {
+  const [draggedOpportunityId, setDraggedOpportunityId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<OpportunityStatus | null>(null);
+
   const getOpportunitiesByStatus = (status: OpportunityStatus) => 
     opportunities.filter(o => o.status === status);
 
   const getTotalValue = (status: OpportunityStatus) =>
     getOpportunitiesByStatus(status).reduce((sum, o) => sum + (o.estimatedValue || 0), 0);
 
+  const handleDragStart = (e: React.DragEvent, opportunityId: string) => {
+    setDraggedOpportunityId(opportunityId);
+    e.dataTransfer.effectAllowed = 'move';
+    // Set a custom drag image if needed
+    e.dataTransfer.setData('text/plain', opportunityId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedOpportunityId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: OpportunityStatus) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverColumn(status);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if we're actually leaving the column (not entering a child)
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDragOverColumn(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, newStatus: OpportunityStatus) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    
+    if (!draggedOpportunityId) return;
+
+    const opportunity = opportunities.find(o => o.id === draggedOpportunityId);
+    if (!opportunity || opportunity.status === newStatus) return;
+
+    // Update the opportunity status
+    const updatedOpportunity: CRMOpportunity = {
+      ...opportunity,
+      status: newStatus,
+      // Also update stage based on status
+      stage: getStageForStatus(newStatus, opportunity.stage),
+      lastModifiedDate: new Date().toISOString(),
+    };
+
+    updateCRMOpportunity(updatedOpportunity);
+    onOpportunityUpdated?.();
+    setDraggedOpportunityId(null);
+  };
+
+  const getStageForStatus = (status: OpportunityStatus, currentStage: OpportunityStage): OpportunityStage => {
+    // Map status to appropriate stage
+    const statusToStage: Record<OpportunityStatus, OpportunityStage> = {
+      new: 'new_lead',
+      contacted: 'initial_contact',
+      qualified: 'discovery_call',
+      proposal: 'proposal_sent',
+      negotiation: 'negotiation',
+      closed_won: 'closed_won',
+      closed_lost: 'closed_lost',
+    };
+    return statusToStage[status] || currentStage;
+  };
+
   return (
     <div className="flex gap-6 overflow-x-auto pb-4 min-h-[500px]">
       {COLUMNS.map((column) => {
         const columnOpportunities = getOpportunitiesByStatus(column.status);
         const totalValue = getTotalValue(column.status);
+        const isDragOver = dragOverColumn === column.status;
 
         return (
           <div 
             key={column.status}
             className="flex-shrink-0 w-80"
+            onDragOver={(e) => handleDragOver(e, column.status)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, column.status)}
           >
             {/* Column Header - Light Style */}
-            <div className={`mb-4 p-4 rounded-3xl ${column.bgColor} border-2 ${column.color} border-opacity-50`}>
+            <div className={`mb-4 p-4 rounded-3xl ${column.bgColor} border-2 ${column.color} border-opacity-50 transition-all duration-200 ${isDragOver ? 'ring-2 ring-indigo-400 ring-offset-2 scale-105' : ''}`}>
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-slate-900">{column.title}</h3>
@@ -80,21 +155,26 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({
             </div>
 
             {/* Cards */}
-            <div className="space-y-4">
+            <div className={`space-y-4 min-h-[200px] rounded-3xl transition-all duration-200 p-2 ${isDragOver ? 'bg-indigo-50/50 border-2 border-dashed border-indigo-300' : ''}`}>
               {columnOpportunities.map((opportunity) => (
                 <PipelineCard
                   key={opportunity.id}
                   opportunity={opportunity}
                   onClick={() => onSelectOpportunity(opportunity)}
+                  isDragging={draggedOpportunityId === opportunity.id}
+                  onDragStart={(e) => handleDragStart(e, opportunity.id)}
+                  onDragEnd={handleDragEnd}
                 />
               ))}
               
               {columnOpportunities.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                    <Building2 className="w-5 h-5 text-slate-400" />
+                <div className={`flex flex-col items-center justify-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl bg-white transition-all duration-200 ${isDragOver ? 'bg-indigo-50 border-indigo-300' : ''}`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${isDragOver ? 'bg-indigo-100' : 'bg-slate-100'}`}>
+                    <Building2 className={`w-5 h-5 ${isDragOver ? 'text-indigo-500' : 'text-slate-400'}`} />
                   </div>
-                  <p className="text-sm font-medium">No deals</p>
+                  <p className="text-sm font-medium">
+                    {isDragOver ? 'Drop here' : 'No deals'}
+                  </p>
                 </div>
               )}
             </div>
@@ -108,9 +188,18 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({
 interface PipelineCardProps {
   opportunity: CRMOpportunity;
   onClick: () => void;
+  isDragging: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }
 
-const PipelineCard: React.FC<PipelineCardProps> = ({ opportunity, onClick }) => {
+const PipelineCard: React.FC<PipelineCardProps> = ({ 
+  opportunity, 
+  onClick, 
+  isDragging,
+  onDragStart,
+  onDragEnd
+}) => {
   const company = getCRMCompanyById(opportunity.companyId);
   const primaryContact = getCRMContactById(opportunity.primaryContactId);
 
@@ -125,8 +214,11 @@ const PipelineCard: React.FC<PipelineCardProps> = ({ opportunity, onClick }) => 
 
   return (
     <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onClick={onClick}
-      className="group bg-white rounded-3xl p-5 border border-slate-200 hover:border-indigo-300 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1"
+      className={`group bg-white rounded-3xl p-5 border border-slate-200 hover:border-indigo-300 cursor-move transition-all duration-200 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 ${isDragging ? 'opacity-50 rotate-2 scale-95 shadow-2xl' : ''}`}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
@@ -143,9 +235,14 @@ const PipelineCard: React.FC<PipelineCardProps> = ({ opportunity, onClick }) => 
             </p>
           </div>
         </div>
-        <button className="text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all">
-          <ArrowUpRight className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <div className="text-slate-300 cursor-grab active:cursor-grabbing p-1 hover:text-slate-400 transition-colors">
+            <GripVertical className="w-4 h-4" />
+          </div>
+          <button className="text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all">
+            <ArrowUpRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Lead Score */}
