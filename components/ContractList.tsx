@@ -35,6 +35,13 @@ export const ContractList: React.FC = () => {
   const getBillboardName = (id: string) => billboards.find(b => b.id === id)?.name || 'Unknown';
   const getBillboard = (id: string) => getBillboards().find(b => b.id === id);
 
+  const handleDownload = (contract: Contract) => {
+    const client = getClient(contract.clientId);
+    if (client) {
+      generateContractPDF(contract, client, getBillboardName(contract.billboardId));
+    }
+  };
+
   // Check availability for edited dates
   const checkAvailabilityForEdit = (contract: Contract, newStart: string, newEnd: string): boolean => {
       const billboard = getBillboard(contract.billboardId);

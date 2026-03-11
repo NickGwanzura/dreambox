@@ -180,7 +180,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
     if (newStatus === 'contacted' && opportunity.status === 'new') {
       newStage = 'initial_contact';
     } else if (newStatus === 'qualified') {
-      newStage = 'qualification';
+      newStage = 'discovery_call';
     } else if (newStatus === 'proposal') {
       newStage = 'proposal_sent';
     } else if (newStatus === 'negotiation') {

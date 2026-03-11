@@ -191,7 +191,7 @@ export const AuthCallback: React.FC = () => {
       // Sign out and redirect to login
       await supabase!.auth.signOut();
       
-      setTimeout(() => navigate('/login'), 2000);
+      setTimeout(() => window.location.href = '/login', 2000);
     } catch (error: any) {
       showToast(error.message || 'Failed to update password', 'error');
     } finally {

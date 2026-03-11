@@ -20,6 +20,8 @@ interface State {
 }
 
 export class FeatureErrorBoundary extends React.Component<Props, State> {
+  state: State;
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };

@@ -23,7 +23,7 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
 
 export const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'General' | 'Audit' | 'Data' | 'ReleaseNotes'>('General');
-  const [users, setUsers] = useState<UserType[]>(getUsers());
+  const [users, setUsers] = useState<UserType[]>(getLocalUsers());
   const auditLogs = getAuditLogs();
   const [logoPreview, setLogoPreview] = useState(getCompanyLogo());
   const [profile, setProfile] = useState<CompanyProfile>(getCompanyProfile());
@@ -34,6 +34,8 @@ export const Settings: React.FC = () => {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [newUser, setNewUser] = useState<Partial<UserType>>({ firstName: '', lastName: '', email: '', username: '', role: 'Staff', status: 'Active' });
   const [backupStatus, setBackupStatus] = useState({ manual: getLastManualBackupDate(), auto: getAutoBackupStatus(), storage: getStorageUsage(), cloud: getLastCloudBackupDate() });
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Pending Approval State
   const [approvalUser, setApprovalUser] = useState<UserType | null>(null);

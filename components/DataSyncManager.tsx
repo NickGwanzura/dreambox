@@ -326,7 +326,7 @@ export const DataSyncManager: React.FC = () => {
             {Object.entries(dbStats.tables).map(([table, count]) => (
               <div key={table} className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100">
                 <div className="text-2xl font-bold text-slate-800">
-                  {count >= 0 ? count : '?'}
+                  {typeof count === 'number' && count >= 0 ? count : '?'}
                 </div>
                 <div className="text-xs text-slate-500 capitalize mt-1">
                   {table.replace(/_/g, ' ')}

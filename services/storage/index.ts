@@ -51,11 +51,12 @@ export {
 
 // Local storage helpers
 export {
-  getStorageItem,
-  setStorageItem,
-  removeStorageItem,
-  clearStorage,
-  getStorageSize,
+  loadFromStorage,
+  saveToStorage,
+  clearAllData,
+  getStorageUsage,
+  isStorageNearingLimit,
+  StorageError,
 } from './localStorage';
 
 // Re-export supabase client
