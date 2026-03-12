@@ -19,9 +19,10 @@ import {
   CRMTask,
   CRMTouchpoint
 } from '../../types';
-import { 
-  getCRMCompanyById, 
+import {
+  getCRMCompanyById,
   getCRMContactById,
+  getCRMOpportunityById,
   getTouchpointsByOpportunity,
   getTasksByOpportunity,
   addCRMCompany,
@@ -138,7 +139,17 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
     setIsSaving(true);
     try {
       if (isEditing && opportunity) {
-        updateCRMOpportunity(opportunity);
+        const currentOpportunity = getCRMOpportunityById(opportunity.id);
+        if (currentOpportunity) {
+          updateCRMOpportunity({
+            ...currentOpportunity,
+            ...formData,
+            // Preserve system fields
+            id: currentOpportunity.id,
+            createdAt: currentOpportunity.createdAt,
+            updatedAt: new Date().toISOString(),
+          });
+        }
         showToast('Opportunity updated', 'success');
       } else {
         const company = addCRMCompany(formData.company as CRMCompany);
@@ -201,8 +212,11 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
   const handleFollowUpDateChange = (date: string) => {
     if (!opportunity) return;
     
+    const currentOpportunity = getCRMOpportunityById(opportunity.id);
+    if (!currentOpportunity) return;
+    
     updateCRMOpportunity({
-      ...opportunity,
+      ...currentOpportunity,
       nextFollowUpDate: date,
     });
     setFormData({ ...formData, nextFollowUpDate: date });
@@ -723,8 +737,11 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                         type="date"
                         value={formData.lastContactDate || ''}
                         onChange={(e) => {
+                          const currentOpportunity = getCRMOpportunityById(opportunity.id);
+                          if (!currentOpportunity) return;
+                          
                           setFormData({ ...formData, lastContactDate: e.target.value });
-                          updateCRMOpportunity({ ...opportunity, lastContactDate: e.target.value });
+                          updateCRMOpportunity({ ...currentOpportunity, lastContactDate: e.target.value });
                         }}
                         className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all"
                       />
@@ -736,8 +753,11 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                     <textarea
                       value={formData.callOutcomeNotes || ''}
                       onChange={(e) => {
+                        const currentOpportunity = getCRMOpportunityById(opportunity.id);
+                        if (!currentOpportunity) return;
+                        
                         setFormData({ ...formData, callOutcomeNotes: e.target.value });
-                        updateCRMOpportunity({ ...opportunity, callOutcomeNotes: e.target.value });
+                        updateCRMOpportunity({ ...currentOpportunity, callOutcomeNotes: e.target.value });
                       }}
                       rows={3}
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none transition-all resize-none"
