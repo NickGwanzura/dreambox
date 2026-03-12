@@ -71,16 +71,7 @@ export const Dashboard: React.FC = () => {
     const totalRevenue = invoices.filter(i => i.type === 'Invoice').reduce((acc, curr) => acc + curr.total, 0);
     const activeContracts = contracts.filter(c => c.status === 'Active').length;
     
-    const ledBillboards = billboards.filter(b => b.type === BillboardType.LED);
-    const totalLedSlots = ledBillboards.reduce((acc, b) => acc + (b.totalSlots || 0), 0);
-    const rentedLedSlots = ledBillboards.reduce((acc, b) => acc + (b.rentedSlots || 0), 0);
-    const digitalOccupancyRate = totalLedSlots > 0 ? Math.round((rentedLedSlots / totalLedSlots) * 100) : 0;
-    
-    const staticBillboards = billboards.filter(b => b.type === BillboardType.Static);
-    // Each static billboard has 2 sides (Side A and Side B)
-    const totalStaticSides = staticBillboards.length * 2;
-    
-    // Calculate rented static sides based on ACTIVE contracts (not just status fields)
+    // Calculate active contracts with date validation
     const today = new Date();
     const activeContractsList = contracts.filter(c => 
       c.status === 'Active' && 
@@ -88,6 +79,21 @@ export const Dashboard: React.FC = () => {
       new Date(c.endDate) >= today
     );
     
+    // LED billboards - calculate from active contracts, not from rentedSlots field
+    const ledBillboards = billboards.filter(b => b.type === BillboardType.LED);
+    const totalLedSlots = ledBillboards.reduce((acc, b) => acc + (b.totalSlots || 0), 0);
+    // Count LED slots rented based on active contracts for this billboard
+    const rentedLedSlots = ledBillboards.reduce((acc, b) => {
+      const ledContracts = activeContractsList.filter(c => c.billboardId === b.id);
+      return acc + ledContracts.length;
+    }, 0);
+    const digitalOccupancyRate = totalLedSlots > 0 ? Math.round((rentedLedSlots / totalLedSlots) * 100) : 0;
+    
+    const staticBillboards = billboards.filter(b => b.type === BillboardType.Static);
+    // Each static billboard has 2 sides (Side A and Side B)
+    const totalStaticSides = staticBillboards.length * 2;
+    
+    // Calculate rented static sides based on ACTIVE contracts (not just status fields)
     const rentedStaticSides = staticBillboards.reduce((acc, b) => {
       let count = 0;
       // Check if there's an active contract for each side
