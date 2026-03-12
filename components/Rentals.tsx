@@ -345,7 +345,24 @@ export const Rentals: React.FC = () => {
       const billboards = getBillboards();
 
       return (
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+          <>
+            {/* Mobile Gantt Notice */}
+            <div className="lg:hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+              <div className="flex items-center gap-2 text-amber-800">
+                <AlertTriangle size={18} />
+                <span className="text-sm font-bold">Calendar View requires larger screen</span>
+              </div>
+              <p className="text-xs text-amber-600 mt-1">Please switch to List View or view on a tablet/desktop for the calendar visualization.</p>
+              <button 
+                onClick={() => setViewMode('list')} 
+                className="mt-3 px-4 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-colors"
+              >
+                Switch to List View
+              </button>
+            </div>
+
+            {/* Desktop Gantt Chart */}
+            <div className="hidden lg:block bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <div className="flex items-center gap-4">
                       <button onClick={() => setGanttDate(new Date(year, month - 1, 1))} className="p-1 hover:bg-slate-200 rounded text-xs font-bold">PREV</button>
@@ -422,9 +439,10 @@ export const Rentals: React.FC = () => {
                               </div>
                           );
                       })}
-                  </div>
-              </div>
           </div>
+          </div>
+        </>
+      );
       );
   };
 

@@ -176,7 +176,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
       {/* Sidebar */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-[100] w-72 transform transition-transform duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] lg:translate-x-0 lg:relative flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-[100] w-64 sm:w-72 transform transition-transform duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] lg:translate-x-0 lg:relative flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } bg-[#1e293b] shadow-2xl border-r border-slate-700/50 overflow-hidden`}
         aria-label="Main navigation"

@@ -123,7 +123,7 @@ export const ClientList: React.FC = () => {
         <div className="fixed inset-0 z-[200] overflow-y-auto">
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsAddModalOpen(false)} />
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-white/20">
+                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-sm md:max-w-md border border-white/20">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                         <h3 className="text-xl font-bold text-slate-900">Add New Client</h3>
                         <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} /></button>
@@ -148,7 +148,7 @@ export const ClientList: React.FC = () => {
         <div className="fixed inset-0 z-[200] overflow-y-auto">
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setEditingClient(null)} />
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-white/20">
+                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-sm md:max-w-lg border border-white/20">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                         <h3 className="text-xl font-bold text-slate-900">Edit Client Details</h3>
                         <button onClick={() => setEditingClient(null)} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} /></button>

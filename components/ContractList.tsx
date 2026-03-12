@@ -194,10 +194,50 @@ export const ContractList: React.FC = () => {
         <div className="flex justify-between items-center"><div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Contracts</h2><p className="text-slate-500 font-medium">Active agreements, billing cycles, and rental history</p></div><button className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2"><PlusIcon size={18} /> New Contract</button></div>
         <div className="grid gap-4">
           {contracts.map(contract => (
-            <div key={contract.id} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-6 group">
-              <div className="flex items-start gap-5"><div className="p-4 bg-indigo-50 rounded-2xl group-hover:bg-indigo-600 transition-colors group-hover:text-white text-indigo-600"><FileText className="w-6 h-6" /></div><div><h3 className="font-bold text-slate-900 text-lg">{getClientName(contract.clientId)}</h3><div className="flex items-center gap-2 text-sm text-slate-500 mt-1"><span className="font-medium text-slate-700">{getBillboardName(contract.billboardId)}</span><span className="text-slate-300">•</span><span className={`font-bold px-2 py-0.5 rounded text-xs ${contract.side === 'A' || contract.side === 'B' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>{contract.details}</span></div><div className="flex items-center gap-3 mt-3 text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap"><span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span><span className="flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm" title="Monthly Billing Cycle"><Clock size={12} /> Bill Day: {getBillingDayDisplay(contract)}</span><span>ID: {contract.id}</span>{contract.lastModifiedDate && <span className="text-slate-300">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}</div></div></div>
-              <div className="flex flex-col md:items-end gap-1 w-full md:w-auto pl-16 md:pl-0"><div className="flex items-center gap-2"><span className="text-sm text-slate-400 font-medium">Total Value:</span><span className="text-2xl font-bold text-slate-900 tracking-tight">${contract.totalContractValue.toLocaleString()}</span></div><div className="flex gap-2 text-[10px] text-slate-500 uppercase tracking-wide">{contract.monthlyRate > 0 && <span>${contract.monthlyRate}/mo</span>}{contract.installationCost > 0 && <span className="flex items-center gap-1 text-slate-400">+ Install</span>}{contract.printingCost > 0 && <span className="flex items-center gap-1 text-slate-400">+ Print</span>}{contract.hasVat && <span className="text-slate-400">+ VAT</span>}</div></div>
-              <div className="flex gap-2 w-full md:w-auto border-t md:border-t-0 border-slate-100 pt-5 md:pt-0 mt-2 md:mt-0 pl-16 md:pl-0 flex-wrap"><button onClick={() => setSelectedContract(contract)} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2"><Eye size={14} /> View</button><button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); }} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2"><Edit size={14} /> Edit</button>{isContractExpired(contract) && <button onClick={() => { setRenewContract({...contract}); setEditError(null); }} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-2"><RotateCcw size={14} /> Renew</button>}<button onClick={() => handleDownload(contract)} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-2 shadow-lg hover:shadow-slate-500/30"><Download size={14} /> PDF</button></div>
+            <div key={contract.id} className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group">
+              <div className="flex items-start gap-4 w-full md:w-auto">
+                <div className="p-3 sm:p-4 bg-indigo-50 rounded-2xl group-hover:bg-indigo-600 transition-colors group-hover:text-white text-indigo-600 shrink-0">
+                  <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{getClientName(contract.clientId)}</h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 mt-1">
+                    <span className="font-medium text-slate-700 truncate">{getBillboardName(contract.billboardId)}</span>
+                    <span className="hidden sm:inline text-slate-300">•</span>
+                    <span className={`font-bold px-2 py-0.5 rounded text-[10px] sm:text-xs w-fit ${contract.side === 'A' || contract.side === 'B' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>{contract.details}</span>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
+                    <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
+                    <span className="hidden sm:inline">ID: {contract.id}</span>
+                    {contract.lastModifiedDate && <span className="text-slate-300 hidden sm:inline">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col md:items-end gap-2 w-full md:w-auto md:pl-4">
+                <div className="flex flex-col md:items-end">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm text-slate-400 font-medium hidden sm:inline">Total Value:</span>
+                    <span className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">${contract.totalContractValue.toLocaleString()}</span>
+                  </div>
+                  <div className="flex gap-2 text-[10px] text-slate-500 uppercase tracking-wide">
+                    {contract.monthlyRate > 0 && <span>${contract.monthlyRate}/mo</span>}{contract.installationCost > 0 && <span className="flex items-center gap-1 text-slate-400">+ Install</span>}{contract.printingCost > 0 && <span className="flex items-center gap-1 text-slate-400">+ Print</span>}{contract.hasVat && <span className="text-slate-400">+ VAT</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 w-full md:w-auto border-t md:border-t-0 border-slate-100 pt-4 md:pt-0 flex-wrap">
+                <button onClick={() => setSelectedContract(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                  <Eye size={14} /> <span className="sm:hidden">View</span><span className="hidden sm:inline">View</span>
+                </button>
+                <button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                  <Edit size={14} /> <span className="sm:hidden">Edit</span><span className="hidden sm:inline">Edit</span>
+                </button>
+                {isContractExpired(contract) && <button onClick={() => { setRenewContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1">
+                  <RotateCcw size={14} /> <span className="sm:hidden">Renew</span><span className="hidden sm:inline">Renew</span>
+                </button>}
+                <button onClick={() => handleDownload(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
+                  <Download size={14} /> <span className="sm:hidden">PDF</span><span className="hidden sm:inline">PDF</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>

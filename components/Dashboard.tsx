@@ -209,9 +209,9 @@ export const Dashboard: React.FC = () => {
         />
       </div>
 
-      <div className="grid xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
-        <div className="xl:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           {/* Financial Chart */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-6">
