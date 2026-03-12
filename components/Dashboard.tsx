@@ -79,13 +79,22 @@ export const Dashboard: React.FC = () => {
     const staticBillboards = billboards.filter(b => b.type === BillboardType.Static);
     // Each static billboard has 2 sides (Side A and Side B)
     const totalStaticSides = staticBillboards.length * 2;
+    
+    // Calculate rented static sides based on ACTIVE contracts (not just status fields)
+    const today = new Date();
+    const activeContractsList = contracts.filter(c => 
+      c.status === 'Active' && 
+      new Date(c.startDate) <= today && 
+      new Date(c.endDate) >= today
+    );
+    
     const rentedStaticSides = staticBillboards.reduce((acc, b) => {
       let count = 0;
-      // Default to 'Available' if status is not set
-      const sideA = b.sideAStatus || 'Available';
-      const sideB = b.sideBStatus || 'Available';
-      if (sideA === 'Rented') count++;
-      if (sideB === 'Rented') count++;
+      // Check if there's an active contract for each side
+      const sideABooked = activeContractsList.some(c => c.billboardId === b.id && (c.side === 'A' || c.side === 'Both'));
+      const sideBBooked = activeContractsList.some(c => c.billboardId === b.id && (c.side === 'B' || c.side === 'Both'));
+      if (sideABooked) count++;
+      if (sideBBooked) count++;
       return acc + count;
     }, 0);
     const staticOccupancyRate = totalStaticSides > 0 ? Math.round((rentedStaticSides / totalStaticSides) * 100) : 0;
