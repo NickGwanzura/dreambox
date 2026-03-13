@@ -97,7 +97,24 @@ const notifyListeners = () => {
 
 // Persist to storage and optionally sync to Supabase
 const persist = (key: keyof CRMState, data: any[]) => {
-  saveToStorage(STORAGE_KEYS[key.toUpperCase() as keyof typeof STORAGE_KEYS], data);
+  // Map CRMState keys to correct STORAGE_KEYS
+  const storageKeyMap: Record<keyof CRMState, string> = {
+    companies: STORAGE_KEYS.CRM_COMPANIES,
+    contacts: STORAGE_KEYS.CRM_CONTACTS,
+    opportunities: STORAGE_KEYS.CRM_OPPORTUNITIES,
+    touchpoints: STORAGE_KEYS.CRM_TOUCHPOINTS,
+    tasks: STORAGE_KEYS.CRM_TASKS,
+    emailThreads: STORAGE_KEYS.CRM_EMAIL_THREADS,
+    callLogs: STORAGE_KEYS.CRM_CALL_LOGS,
+  };
+  
+  const storageKey = storageKeyMap[key];
+  if (storageKey) {
+    saveToStorage(storageKey, data);
+  } else {
+    logger.error(`Unknown storage key for: ${key}`);
+  }
+  
   state = { ...state, [key]: data };
   notifyListeners();
   
