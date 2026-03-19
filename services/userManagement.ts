@@ -272,10 +272,15 @@ export const fetchAllUsers = async (): Promise<{ users: User[]; error: Error | n
       }
     }
 
-    // Fire-and-forget cleanup of duplicate rows in Supabase
+    // Clean up duplicate rows in Supabase
     if (duplicateIds.length > 0) {
-      logger.warn(`Removing ${duplicateIds.length} duplicate user(s) from Supabase:`, duplicateIds);
-      supabase.from('users').delete().in('id', duplicateIds).then(() => {});
+      logger.warn(`Removing ${duplicateIds.length} duplicate user(s) from Supabase`);
+      const { error: delErr } = await supabase.from('users').delete().in('id', duplicateIds);
+      if (delErr) {
+        logger.error('Failed to delete duplicate users (RLS may be blocking):', delErr.message);
+      } else {
+        logger.info(`Cleaned up ${duplicateIds.length} duplicate user rows from Supabase`);
+      }
     }
 
     return { users: Array.from(seen.values()), error: null };

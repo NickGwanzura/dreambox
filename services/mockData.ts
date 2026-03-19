@@ -186,52 +186,83 @@ export const triggerFullSync = async () => {
             const { data: remoteData, error } = await supabase.from(tableName).select('*');
             if (error || !remoteData) return;
 
-            const remoteMap = new Map(remoteData.map(d => [d.id, d]));
             const pendingDeleteIds = new Set(deletedQueue.filter(i => i.table === tableName).map(i => i.id));
-            
-            // B. Initialize merged with Remote Data (Prioritize Cloud)
-            // Filter out things we are actively trying to delete
-            const mergedData = remoteData.filter(d => !pendingDeleteIds.has(d.id));
+
+            // B. For users: deduplicate remote data by email RIGHT HERE before merging.
+            //    Prefer stable IDs (shorter, non-timestamp) over generated timestamp IDs.
+            //    Delete the extras from Supabase immediately.
+            let deduplicatedRemote = remoteData;
+            if (tableName === 'users') {
+                const seenEmails = new Map<string, any>();
+                const staleIds: string[] = [];
+                // Sort: prefer short/stable IDs first so they win the "keep" slot
+                const sorted = [...remoteData].sort((a, b) => {
+                    const aTs = a.id.split('-').find((p: string) => p.length > 10 && !isNaN(Number(p)));
+                    const bTs = b.id.split('-').find((p: string) => p.length > 10 && !isNaN(Number(p)));
+                    if (!aTs && bTs) return -1; // a is stable, keep a
+                    if (aTs && !bTs) return 1;  // b is stable, keep b
+                    return 0;
+                });
+                for (const u of sorted) {
+                    const key = u.email?.toLowerCase();
+                    if (!key) { seenEmails.set(u.id, u); continue; }
+                    if (seenEmails.has(key)) {
+                        staleIds.push(u.id); // duplicate — mark for deletion
+                    } else {
+                        seenEmails.set(key, u);
+                    }
+                }
+                if (staleIds.length > 0) {
+                    logger.warn(`[Sync] Removing ${staleIds.length} duplicate user row(s) from Supabase`);
+                    const { error: delErr } = await supabase.from('users').delete().in('id', staleIds);
+                    if (delErr) logger.error('[Sync] Failed to delete duplicate users:', delErr.message);
+                    else logger.info(`[Sync] Deleted ${staleIds.length} duplicate user rows`);
+                }
+                deduplicatedRemote = Array.from(seenEmails.values());
+            }
+
+            const remoteMap = new Map(deduplicatedRemote.map(d => [d.id, d]));
+
+            // C. Initialize merged with deduplicated Remote Data
+            const mergedData = deduplicatedRemote.filter(d => !pendingDeleteIds.has(d.id));
             const mergedMap = new Set(mergedData.map(d => d.id));
 
-            // C. Handle Local Items NOT in Remote
+            // D. Handle Local Items NOT in Remote
             const localOnly = localData.filter(l => !remoteMap.has(l.id));
 
             for (const item of localOnly) {
                 if (pendingDeleteIds.has(item.id)) continue;
 
                 let isNewLocal = false;
-                
+
                 // Timestamp check - is this item newly created?
                 const parts = item.id.split('-');
                 const potentialTs = parts.find((p: string) => p.length > 10 && !isNaN(Number(p)));
-                
+
                 if (potentialTs) {
                     const ts = Number(potentialTs);
                     if (Date.now() - ts < NEW_ITEM_WINDOW_MS) isNewLocal = true;
-                } else if (item.id.length < 10 || item.id.startsWith('dev-') || item.id.startsWith('owner-')) {
-                    isNewLocal = true; // Static/Dev/Owner IDs
+                } else if (item.id.length < 10 || item.id.startsWith('dev-') || item.id.startsWith('owner-') || item.id.startsWith('brian-') || item.id.startsWith('admin-')) {
+                    isNewLocal = true; // Static/stable IDs
                 }
-                
+
                 if (isRecentRestore) isNewLocal = true;
-                if (tableName === 'users') isNewLocal = true; // Safety for users
 
                 if (isNewLocal) {
                     if (!mergedMap.has(item.id)) {
-                        // For users: also deduplicate by email to prevent dual-admin entries
+                        // For all tables: deduplicate by email before pushing
                         if (tableName === 'users') {
                             const emailAlreadyMerged = mergedData.some((m: any) => m.email?.toLowerCase() === item.email?.toLowerCase());
                             if (emailAlreadyMerged) continue;
                         }
                         mergedData.push(item);
-                        // Push new local item to cloud immediately
                         syncToSupabase(tableName, item);
                     }
                 }
-                // else: Item is old locally but missing remotely -> Assume deleted by other user. Drop it.
+                // else: Item is old locally but missing remotely -> dropped by remote delete.
             }
 
-            // D. Apply Changes if different
+            // E. Apply Changes if different
             if (JSON.stringify(localData) !== JSON.stringify(mergedData)) {
                 setLocalData(mergedData);
                 saveToStorage(storageKey, mergedData);
