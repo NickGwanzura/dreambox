@@ -421,16 +421,37 @@ export const Dashboard: React.FC = () => {
 
       {/* News Modal */}
       {selectedNews && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedNews(null)}>
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-xl" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-start mb-4">
-              <span className="text-xs font-bold text-indigo-600 uppercase bg-indigo-50 px-2 py-1 rounded">{selectedNews.source || 'News'}</span>
-              <button onClick={() => setSelectedNews(null)} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
-                <X size={20} className="text-slate-400" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedNews(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-start gap-3 shrink-0">
+              <div className="flex flex-wrap items-center gap-2">
+                {(() => {
+                  const catColors: Record<string, string> = {
+                    'Promo Launch': 'bg-emerald-50 text-emerald-700',
+                    'Industry': 'bg-indigo-50 text-indigo-700',
+                    'Regulation': 'bg-amber-50 text-amber-700',
+                    'Technology': 'bg-blue-50 text-blue-700',
+                  };
+                  const catStyle = catColors[(selectedNews as any).category] || 'bg-slate-100 text-slate-600';
+                  return <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${catStyle}`}>{(selectedNews as any).category || selectedNews.source || 'News'}</span>;
+                })()}
+                <span className="text-[10px] font-medium text-slate-400">{selectedNews.source}</span>
+                {selectedNews.date && <span className="text-[10px] text-slate-400">&bull; {selectedNews.date}</span>}
+              </div>
+              <button onClick={() => setSelectedNews(null)} className="shrink-0 p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                <X size={18} className="text-slate-400" />
               </button>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-3">{selectedNews.title}</h2>
-            <p className="text-sm text-slate-600 leading-relaxed">{selectedNews.summary}</p>
+            {/* Scrollable body */}
+            <div className="p-6 overflow-y-auto">
+              <h2 className="text-xl font-bold text-slate-900 leading-snug mb-4">{selectedNews.title}</h2>
+              <div className="space-y-3">
+                {selectedNews.summary.split(/\n\n+/).map((para, i) => (
+                  <p key={i} className="text-sm text-slate-600 leading-relaxed">{para.trim()}</p>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
