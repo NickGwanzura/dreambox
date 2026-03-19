@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { getInvoices, getContracts, clients, getBillboards, addInvoice, markInvoiceAsPaid, deleteInvoice } from '../services/mockData';
-import { generateInvoicePDF } from '../services/pdfGenerator';
-import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2 } from 'lucide-react';
-import { Invoice, VAT_RATE } from '../types';
+import { getInvoices, getContracts, clients, getBillboards, addInvoice, markInvoiceAsPaid, deleteInvoice, addContract } from '../services/mockData';
+import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
+import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText } from 'lucide-react';
+import { Invoice, Contract, BillboardType, VAT_RATE } from '../types';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
   <div className="group relative">
@@ -20,10 +20,10 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
   </div>
 );
 
-interface FinancialsProps { initialTab?: 'Invoices' | 'Quotations' | 'Receipts'; }
+interface FinancialsProps { initialTab?: 'Invoices' | 'Quotations' | 'Receipts' | 'Statements'; }
 
 export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' }) => {
-  const [activeTab, setActiveTab] = useState<'Invoices' | 'Quotations' | 'Receipts'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'Invoices' | 'Quotations' | 'Receipts' | 'Statements'>(initialTab);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>(getInvoices());
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +31,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const [formData, setFormData] = useState<Partial<Invoice>>({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '' });
   const [selectedInvoiceToPay, setSelectedInvoiceToPay] = useState('');
   const [hasVat, setHasVat] = useState(true);
+  const [convertingQuotation, setConvertingQuotation] = useState<Invoice | null>(null);
+  const [convertForm, setConvertForm] = useState({ billboardId: '', startDate: '', endDate: '' });
 
   useEffect(() => { setInvoices(getInvoices()); }, [activeTab, isModalOpen]);
 
@@ -67,6 +69,37 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       }
   };
 
+  const handleConvertToContract = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!convertingQuotation || !convertForm.billboardId || !convertForm.startDate || !convertForm.endDate) return;
+    const bb = getBillboards().find(b => b.id === convertForm.billboardId);
+    const monthlyRate = convertingQuotation.items[0]?.amount || 0;
+    const months = Math.max(1, Math.ceil((new Date(convertForm.endDate).getTime() - new Date(convertForm.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    const subtotal = monthlyRate * months;
+    const vatAmount = convertingQuotation.vatAmount > 0 ? subtotal * VAT_RATE : 0;
+    const contract: Contract = {
+      id: `C-${Date.now().toString().slice(-4)}`,
+      clientId: convertingQuotation.clientId,
+      billboardId: convertForm.billboardId,
+      startDate: convertForm.startDate,
+      endDate: convertForm.endDate,
+      monthlyRate,
+      installationCost: 0,
+      printingCost: 0,
+      hasVat: convertingQuotation.vatAmount > 0,
+      totalContractValue: subtotal + vatAmount,
+      status: 'Active',
+      details: bb?.type === BillboardType.LED ? 'Slot 1' : 'Side A',
+      createdAt: new Date().toISOString(),
+    };
+    addContract(contract);
+    deleteInvoice(convertingQuotation.id);
+    setInvoices(getInvoices());
+    setConvertingQuotation(null);
+    setConvertForm({ billboardId: '', startDate: '', endDate: '' });
+    alert(`Contract ${contract.id} created from Quotation #${convertingQuotation.id}`);
+  };
+
   const filteredDocs = invoices.filter(i => {
       let matchesType = false;
       if (activeTab === 'Invoices') matchesType = i.type === 'Invoice'; else if (activeTab === 'Quotations') matchesType = i.type === 'Quotation'; else if (activeTab === 'Receipts') matchesType = i.type === 'Receipt'; 
@@ -80,25 +113,55 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     <>
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : 'Financial Documents'}</h2><p className="text-slate-500 font-medium">Create invoices, manage VAT, and track payment history</p></div>
-          <div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64 hidden sm:block"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '' }); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>
+          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : 'Financial Documents'}</h2><p className="text-slate-500 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : 'Create invoices, manage VAT, and track payment history'}</p></div>
+          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64 hidden sm:block"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '' }); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
         </div>
         
         {/* Mobile-friendly tabs */}
-        <div className="border-b border-slate-200 overflow-x-auto no-scrollbar"><div className="flex gap-8 min-w-max">{(['Invoices', 'Quotations', 'Receipts'] as const).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === tab ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>{tab}{activeTab === tab && (<div className="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900" />)}</button>))}</div></div>
+        <div className="border-b border-slate-200 overflow-x-auto no-scrollbar"><div className="flex gap-8 min-w-max">{(['Invoices', 'Quotations', 'Receipts', 'Statements'] as const).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === tab ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>{tab}{activeTab === tab && (<div className="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900" />)}</button>))}</div></div>
         
-        <div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden">
+        {activeTab === 'Statements' && (() => {
+          const allInvoices = getInvoices();
+          const allContracts = getContracts();
+          const allBillboards = getBillboards();
+          const getBillboardName = (id: string) => allBillboards.find(b => b.id === id)?.name || id;
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-fade-in">
+              {clients.map(client => {
+                const clientInvoices = allInvoices.filter(i => i.clientId === client.id);
+                const totalBilled = clientInvoices.filter(i => i.type === 'Invoice').reduce((acc, i) => acc + i.total, 0);
+                const totalPaid = clientInvoices.filter(i => i.type === 'Receipt').reduce((acc, i) => acc + i.total, 0);
+                const outstanding = totalBilled - totalPaid;
+                const activeContracts = allContracts.filter(c => c.clientId === client.id && c.status === 'Active');
+                return (
+                  <div key={client.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-6 flex flex-col gap-4">
+                    <div><p className="font-bold text-slate-900 text-lg leading-tight">{client.companyName}</p><p className="text-xs text-slate-400 mt-0.5">{client.contactPerson} &bull; {client.email}</p></div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-slate-50 rounded-xl p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Billed</p><p className="text-base font-bold text-slate-800">${totalBilled.toLocaleString()}</p></div>
+                      <div className="bg-green-50 rounded-xl p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-green-500 mb-1">Paid</p><p className="text-base font-bold text-green-700">${totalPaid.toLocaleString()}</p></div>
+                      <div className={`rounded-xl p-3 ${outstanding > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}><p className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${outstanding > 0 ? 'text-red-400' : 'text-emerald-500'}`}>Balance</p><p className={`text-base font-bold ${outstanding > 0 ? 'text-red-600' : 'text-emerald-700'}`}>${outstanding.toLocaleString()}</p></div>
+                    </div>
+                    {activeContracts.length > 0 && <p className="text-xs text-indigo-500 font-medium">{activeContracts.length} active rental{activeContracts.length > 1 ? 's' : ''}</p>}
+                    <button onClick={() => generateStatementPDF(client, clientInvoices, activeContracts, getBillboardName)} className="mt-auto w-full py-2.5 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 transition-all"><FileText size={14} /> Generate Statement</button>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {activeTab !== 'Statements' && <div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-600 min-w-[600px] lg:min-w-[800px]">
               <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Actions</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{clients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${doc.status === 'Paid' ? 'bg-green-100 text-green-700' : doc.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button>{activeTab === 'Invoices' && doc.status === 'Pending' && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{clients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${doc.status === 'Paid' ? 'bg-green-100 text-green-700' : doc.status === 'Overdue' ? 'bg-red-100 text-red-700 animate-pulse' : doc.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button>{activeTab === 'Invoices' && doc.status === 'Pending' && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-400 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
       </div>
       {isModalOpen && (
         <div className="fixed inset-0 z-[200] overflow-y-auto">
@@ -131,6 +194,35 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                     </form>
                 </div>
             </div>
+        </div>
+      )}
+
+      {convertingQuotation && (
+        <div className="fixed inset-0 z-[200] overflow-y-auto">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setConvertingQuotation(null)} />
+          <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
+            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl sm:my-8 sm:w-full sm:max-w-lg border border-white/20">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                <div><h3 className="text-xl font-bold text-slate-900">Convert Quotation to Contract</h3><p className="text-xs text-slate-400 mt-0.5">QT #{convertingQuotation.id} — {clients.find(c => c.id === convertingQuotation.clientId)?.companyName}</p></div>
+                <button onClick={() => setConvertingQuotation(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+              </div>
+              <form onSubmit={handleConvertToContract} className="p-8 space-y-6">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">From Quotation</p>
+                  {convertingQuotation.items.map((item, i) => (
+                    <div key={i} className="flex justify-between text-sm"><span className="text-slate-600">{item.description}</span><span className="font-bold">${item.amount.toLocaleString()}</span></div>
+                  ))}
+                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200 mt-2"><span>Total</span><span>${convertingQuotation.total.toLocaleString()}</span></div>
+                </div>
+                <MinimalSelect label="Billboard" value={convertForm.billboardId} onChange={(e: any) => setConvertForm({...convertForm, billboardId: e.target.value})} options={[{value: '', label: 'Select Billboard...'}, ...getBillboards().map(b => ({value: b.id, label: `${b.name} (${b.town})`}))]} />
+                <div className="grid grid-cols-2 gap-6">
+                  <MinimalInput label="Start Date" type="date" value={convertForm.startDate} onChange={(e: any) => setConvertForm({...convertForm, startDate: e.target.value})} required />
+                  <MinimalInput label="End Date" type="date" value={convertForm.endDate} onChange={(e: any) => setConvertForm({...convertForm, endDate: e.target.value})} required />
+                </div>
+                <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl"><FileText size={18} /> Create Contract & Archive Quotation</button>
+              </form>
+            </div>
+          </div>
         </div>
       )}
     </>

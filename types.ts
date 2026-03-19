@@ -99,6 +99,7 @@ export interface Contract {
   createdAt?: string; // ISO Date String
   lastModifiedDate?: string; // ISO Date String
   lastModifiedBy?: string;
+  assignedTo?: string; // User name of the Sales Agent who closed this deal
 }
 
 export interface Invoice {
@@ -150,7 +151,7 @@ export interface User {
   id: string;
   firstName: string;
   lastName: string;
-  role: 'Admin' | 'Manager' | 'Staff';
+  role: 'Admin' | 'Manager' | 'Staff' | 'Sales Agent';
   email: string;
   username?: string; // Added for simplified login
   password?: string; // Added for Auth - NEVER store plaintext

@@ -4,7 +4,7 @@ import { getContracts, getBillboards, addContract, addInvoice, clients, deleteCo
 import { generateContractPDF, generateActiveContractsPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, VAT_RATE, Invoice } from '../types';
-import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw } from 'lucide-react';
+import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle } from 'lucide-react';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -62,8 +62,8 @@ export const Rentals: React.FC = () => {
   const [ganttDate, setGanttDate] = useState(new Date());
 
   const [newRental, setNewRental] = useState({
-    clientId: '', billboardId: '', side: 'A' as 'A' | 'B' | 'Both', slotNumber: 1, startDate: '', endDate: '', 
-    monthlyRate: 0, installationCost: 0, printingCost: 0, hasVat: true
+    clientId: '', billboardId: '', side: 'A' as 'A' | 'B' | 'Both', slotNumber: 1, startDate: '', endDate: '',
+    monthlyRate: 0, installationCost: 0, printingCost: 0, hasVat: true, assignedTo: ''
   });
 
   // Real-time Subscription
@@ -197,6 +197,7 @@ export const Rentals: React.FC = () => {
         installationCost: newRental.installationCost,
         printingCost: newRental.printingCost,
         hasVat: newRental.hasVat,
+        assignedTo: newRental.assignedTo || undefined,
         totalContractValue: subtotal + vat,
         status: 'Active',
         side: selectedBillboard?.type === BillboardType.Static ? newRental.side : undefined,
@@ -228,7 +229,7 @@ export const Rentals: React.FC = () => {
     addInvoice(initialInvoice);
     
     setIsCreateModalOpen(false);
-    setNewRental({ clientId: '', billboardId: '', side: 'A', slotNumber: 1, startDate: '', endDate: '', monthlyRate: 0, installationCost: 0, printingCost: 0, hasVat: true });
+    setNewRental({ clientId: '', billboardId: '', side: 'A', slotNumber: 1, startDate: '', endDate: '', monthlyRate: 0, installationCost: 0, printingCost: 0, hasVat: true, assignedTo: '' });
     alert("Success! Rental Active & Initial Invoice Generated.");
   };
 
@@ -439,10 +440,10 @@ export const Rentals: React.FC = () => {
                               </div>
                           );
                       })}
-          </div>
-          </div>
+                  </div>
+              </div>
+            </div>
         </>
-      );
       );
   };
 
@@ -488,7 +489,9 @@ export const Rentals: React.FC = () => {
                     <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
                         <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
                         <span>ID: {contract.id}</span>
+                        {contract.assignedTo && <span className="flex items-center gap-1 text-indigo-400"><UserCircle size={11}/> {contract.assignedTo}</span>}
                         {contract.lastModifiedDate && <span className="text-slate-300">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
+                        {(() => { const daysLeft = Math.ceil((new Date(contract.endDate).getTime() - Date.now()) / 86400000); return daysLeft > 0 && daysLeft <= 30 ? <span className="text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5 rounded">⚠ Expires in {daysLeft}d</span> : null; })()}
                     </div>
                     </div>
                 </div>
@@ -617,6 +620,7 @@ export const Rentals: React.FC = () => {
                                     <label className="text-sm font-medium text-slate-600">Include VAT (15%)</label>
                                 </div>
                             </div>
+                            <MinimalInput label="Assigned Sales Agent (Optional)" value={newRental.assignedTo} onChange={(e: any) => setNewRental({...newRental, assignedTo: e.target.value})} />
                             <button type="submit" disabled={selectedBillboard?.type === BillboardType.LED && digitalFull} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed">
                                 Generate Contract & Invoice
                             </button>
@@ -635,6 +639,11 @@ export const Rentals: React.FC = () => {
                             <button type="button" onClick={handleGenerateProposal} disabled={isGenerating} className="w-full py-3 bg-white border border-slate-200 text-slate-700 font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
                                 {isGenerating ? <RefreshCw size={16} className="animate-spin"/> : <Wand2 size={16} />} {isGenerating ? 'Drafting...' : 'Generate Proposal'}
                             </button>
+                            {aiProposal && (
+                              <a href={`https://wa.me/?text=${encodeURIComponent(aiProposal)}`} target="_blank" rel="noopener noreferrer" className="w-full py-3 bg-green-600 text-white font-bold uppercase tracking-wider rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                                <MessageCircle size={16} /> Send via WhatsApp
+                              </a>
+                            )}
                         </div>
                     </div>
                 </div>

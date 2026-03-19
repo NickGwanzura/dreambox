@@ -27,6 +27,7 @@ import { supabase } from './supabaseClient';
 import { STORAGE_KEYS, EMAIL_REGEX, PHONE_REGEX } from './constants';
 import { logger } from '../utils/logger';
 import { sanitizeString, generateId } from '../utils/sanitizers';
+import { logAction } from './mockData';
 
 // ==========================================
 // HELPER FUNCTIONS (defined first to avoid hoisting issues)
@@ -133,6 +134,53 @@ const syncToSupabase = async (table: string, data: any[]) => {
   }
 };
 
+/**
+ * Load all CRM data from Supabase and replace local state.
+ * Call this on CRM mount so all accounts share the same data.
+ */
+export const loadCRMFromSupabase = async (): Promise<void> => {
+  if (!supabase) return;
+
+  try {
+    const tables: (keyof CRMState)[] = ['companies', 'contacts', 'opportunities', 'touchpoints', 'tasks', 'emailThreads', 'callLogs'];
+
+    const results = await Promise.all(
+      tables.map(t => supabase.from(`crm_${t}`).select('*'))
+    );
+
+    const updates: Partial<CRMState> = {};
+    tables.forEach((t, i) => {
+      const { data, error } = results[i];
+      if (error) {
+        logger.error(`Supabase load error for crm_${t}:`, error);
+        return;
+      }
+      if (data && data.length > 0) {
+        updates[t] = data as any;
+        // Also update localStorage so offline reads stay fresh
+        const storageKeyMap: Record<keyof CRMState, string> = {
+          companies: STORAGE_KEYS.CRM_COMPANIES,
+          contacts: STORAGE_KEYS.CRM_CONTACTS,
+          opportunities: STORAGE_KEYS.CRM_OPPORTUNITIES,
+          touchpoints: STORAGE_KEYS.CRM_TOUCHPOINTS,
+          tasks: STORAGE_KEYS.CRM_TASKS,
+          emailThreads: STORAGE_KEYS.CRM_EMAIL_THREADS,
+          callLogs: STORAGE_KEYS.CRM_CALL_LOGS,
+        };
+        saveToStorage(storageKeyMap[t], data);
+      }
+    });
+
+    if (Object.keys(updates).length > 0) {
+      state = { ...state, ...updates };
+      notifyListeners();
+      logger.info('CRM state loaded from Supabase');
+    }
+  } catch (e) {
+    logger.error('loadCRMFromSupabase error:', e);
+  }
+};
+
 // ==========================================
 // COMPANY OPERATIONS
 // ==========================================
@@ -158,7 +206,8 @@ export const addCRMCompany = (company: Omit<CRMCompany, 'id' | 'createdAt' | 'up
   const updated = [...state.companies, newCompany];
   persist('companies', updated);
   logger.info('CRM Company added:', newCompany.name);
-  
+  logAction('CRM: Company Added', `Added company "${newCompany.name}"`);
+
   return newCompany;
 };
 
@@ -170,12 +219,20 @@ export const updateCRMCompany = (company: CRMCompany): void => {
 };
 
 export const deleteCRMCompany = (id: string): void => {
-  // Cascade delete contacts and opportunities
+  const target = state.companies.find(c => c.id === id);
   const contactsToDelete = state.contacts.filter(c => c.companyId === id);
   contactsToDelete.forEach(c => deleteCRMContact(c.id));
-  
+
+  const oppsToDelete = state.opportunities.filter(o => o.companyId === id);
+  oppsToDelete.forEach(o => deleteCRMOpportunity(o.id));
+
   const updated = state.companies.filter(c => c.id !== id);
   persist('companies', updated);
+  if (target) logAction('CRM: Company Deleted', `Removed company "${target.name}"`);
+
+  if (supabase) {
+    supabase.from('crm_companies').delete().eq('id', id).then(() => {});
+  }
 };
 
 // ==========================================
@@ -221,6 +278,10 @@ export const updateCRMContact = (contact: CRMContact): void => {
 export const deleteCRMContact = (id: string): void => {
   const updated = state.contacts.filter(c => c.id !== id);
   persist('contacts', updated);
+
+  if (supabase) {
+    supabase.from('crm_contacts').delete().eq('id', id).then(() => {});
+  }
 };
 
 // ==========================================
@@ -283,6 +344,8 @@ export const addCRMOpportunity = (
     });
   }
   
+  const companyName = getCompanyName(newOpportunity.companyId);
+  logAction('CRM: Lead Created', `New opportunity for "${companyName}" — status: ${newOpportunity.status}`);
   logger.info('CRM Opportunity added:', newOpportunity.id);
   return newOpportunity;
 };
@@ -311,17 +374,21 @@ export const updateCRMOpportunity = (opportunity: CRMOpportunity): void => {
     }];
   }
   
-  const updated = state.opportunities.map(o => 
-    o.id === opportunity.id 
-      ? { 
-          ...opportunity, 
+  const updated = state.opportunities.map(o =>
+    o.id === opportunity.id
+      ? {
+          ...opportunity,
           updatedAt: new Date().toISOString(),
           stageHistory,
           daysInCurrentStage: calculateDaysInStage(stageHistory, opportunity.stage),
-        } 
+        }
       : o
   );
-  
+
+  if (existing.status !== opportunity.status) {
+    logAction('CRM: Lead Status Changed', `"${getCompanyName(opportunity.companyId)}" moved from ${existing.status} → ${opportunity.status}`);
+  }
+
   persist('opportunities', updated);
 };
 
@@ -349,14 +416,23 @@ export const updateOpportunityStatus = (
 };
 
 export const deleteCRMOpportunity = (id: string): void => {
-  // Cascade delete related records
+  const target = state.opportunities.find(o => o.id === id);
   const updatedTouchpoints = state.touchpoints.filter(t => t.opportunityId !== id);
   const updatedTasks = state.tasks.filter(t => t.opportunityId !== id);
   const updatedOpportunities = state.opportunities.filter(o => o.id !== id);
-  
+
   persist('touchpoints', updatedTouchpoints);
   persist('tasks', updatedTasks);
   persist('opportunities', updatedOpportunities);
+  if (target) logAction('CRM: Lead Deleted', `Removed opportunity for "${getCompanyName(target.companyId)}"`);
+
+
+  // Hard-delete from Supabase so items don't reappear after cloud pull
+  if (supabase) {
+    supabase.from('crm_opportunities').delete().eq('id', id).then(() => {});
+    supabase.from('crm_touchpoints').delete().eq('opportunityId', id).then(() => {});
+    supabase.from('crm_tasks').delete().eq('opportunityId', id).then(() => {});
+  }
 };
 
 // ==========================================
@@ -384,7 +460,9 @@ export const addCRMTouchpoint = (
   
   const updated = [...state.touchpoints, newTouchpoint];
   persist('touchpoints', updated);
-  
+  const tpCompany = getCompanyName(getCRMOpportunityById(touchpoint.opportunityId)?.companyId || '');
+  logAction('CRM: Outreach Logged', `${touchpoint.type.replace(/_/g, ' ')} (${touchpoint.direction}) for "${tpCompany}"`);
+
   // Update opportunity stats
   const opportunity = getCRMOpportunityById(touchpoint.opportunityId);
   if (opportunity) {
@@ -510,7 +588,8 @@ export const addCRMTask = (task: Omit<CRMTask, 'id'>): CRMTask => {
   
   const updated = [...state.tasks, newTask];
   persist('tasks', updated);
-  
+  logAction('CRM: Task Created', `Task "${newTask.title}" due ${newTask.dueDate}`);
+
   return newTask;
 };
 
@@ -537,7 +616,8 @@ export const completeCRMTask = (
   );
   
   persist('tasks', updated);
-  
+  logAction('CRM: Task Completed', `Completed task "${task.title}"`);
+
   // Update opportunity's next follow-up if this was a follow-up task
   const opportunity = getCRMOpportunityById(task.opportunityId);
   if (opportunity && task.type === 'follow_up') {
@@ -865,6 +945,9 @@ export const importCSV = (
   });
   
   result.success = result.errors.length === 0;
+  if (result.imported > 0) {
+    logAction('CRM: CSV Imported', `Imported ${result.imported} leads, skipped ${result.skipped} duplicates`);
+  }
   return result;
 };
 

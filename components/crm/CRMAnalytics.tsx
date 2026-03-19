@@ -141,7 +141,7 @@ export const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ metrics }) => {
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
           <h3 className="text-lg font-bold text-slate-900 mb-6">Pipeline by Stage</h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={256}>
               <BarChart data={pipelineData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
@@ -173,7 +173,7 @@ export const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ metrics }) => {
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
           <h3 className="text-lg font-bold text-slate-900 mb-6">Conversion Funnel</h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={256}>
               <BarChart data={funnelData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
                 <XAxis type="number" stroke="#64748b" fontSize={12} />
@@ -205,7 +205,7 @@ export const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ metrics }) => {
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
           <h3 className="text-lg font-bold text-slate-900 mb-6">Deal Outcomes</h3>
           <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={192}>
               <PieChart>
                 <Pie
                   data={winLossData}

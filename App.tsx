@@ -188,9 +188,10 @@ const App: React.FC = () => {
               <ClientList />
             </FeatureErrorBoundary>
           );
-        case 'rentals': 
+        case 'rentals':
+        case 'contracts':
           return (
-            <FeatureErrorBoundary featureName="Rentals" onReset={() => setPageError(null)}>
+            <FeatureErrorBoundary featureName="Contracts" onReset={() => setPageError(null)}>
               <Rentals />
             </FeatureErrorBoundary>
           );

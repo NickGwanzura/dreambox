@@ -375,19 +375,44 @@ export const Dashboard: React.FC = () => {
 
           {/* Industry News */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Newspaper size={18} className="text-indigo-600" />
-              <h3 className="font-bold text-slate-900">Industry News</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Newspaper size={18} className="text-indigo-600" />
+                <h3 className="font-bold text-slate-900">Industry News</h3>
+              </div>
+              {news.length > 0 && (
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{news.length} stories</span>
+              )}
             </div>
-            <div className="space-y-4">
-              {news.length > 0 ? news.map((item, idx) => (
-                <div key={idx} className="cursor-pointer group" onClick={() => setSelectedNews(item)}>
-                  <span className="text-[10px] font-bold text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded">{item.source || 'News'}</span>
-                  <h4 className="text-sm font-medium text-slate-900 mt-1 group-hover:text-indigo-600 transition-colors">{item.title}</h4>
-                  <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{item.summary}</p>
+            <div className="space-y-3">
+              {news.length > 0 ? news.map((item, idx) => {
+                const catColors: Record<string, string> = {
+                  'Promo Launch': 'bg-emerald-50 text-emerald-700',
+                  'Industry': 'bg-indigo-50 text-indigo-700',
+                  'Regulation': 'bg-amber-50 text-amber-700',
+                  'Technology': 'bg-blue-50 text-blue-700',
+                };
+                const catStyle = catColors[(item as any).category] || 'bg-slate-100 text-slate-600';
+                return (
+                  <div key={idx} className="cursor-pointer group p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100" onClick={() => setSelectedNews(item)}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${catStyle}`}>{(item as any).category || item.source || 'News'}</span>
+                      <span className="text-[10px] text-slate-400">{item.date}</span>
+                    </div>
+                    <h4 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors leading-tight">{item.title}</h4>
+                    <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{item.summary}</p>
+                  </div>
+                );
+              }) : (
+                <div className="space-y-3">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="animate-pulse space-y-1.5 p-3">
+                      <div className="h-3 w-20 bg-slate-100 rounded-full" />
+                      <div className="h-4 w-full bg-slate-100 rounded" />
+                      <div className="h-3 w-3/4 bg-slate-100 rounded" />
+                    </div>
+                  ))}
                 </div>
-              )) : (
-                <p className="text-sm text-slate-400 italic">Loading news...</p>
               )}
             </div>
           </div>

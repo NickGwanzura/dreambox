@@ -141,22 +141,25 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     };
   }, [dbConnected, performSync]);
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'analytics', label: 'Profit & Analytics', icon: PieChart },
-    { id: 'crm', label: 'CRM & Outreach', icon: Target },
-    { id: 'billboards', label: 'Billboards', icon: Map },
-    { id: 'rentals', label: 'Rentals', icon: FileText },
-    { id: 'maintenance', label: 'Maintenance', icon: Wrench },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { id: 'outsourced', label: 'Outsourced', icon: Globe },
-    { id: 'payments', label: 'Payments', icon: Wallet },
-    { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'financials', label: 'Invoices & Quotes', icon: CreditCard },
-    { id: 'receipts', label: 'Receipts', icon: Receipt },
-    { id: 'expenses', label: 'Expenses', icon: Printer },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon },
+  const allMenuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
+    { id: 'analytics', label: 'Profit & Analytics', icon: PieChart, roles: ['Admin', 'Manager'] },
+    { id: 'crm', label: 'CRM & Outreach', icon: Target, roles: null },
+    { id: 'billboards', label: 'Billboards', icon: Map, roles: null },
+    { id: 'contracts', label: 'Contracts', icon: FileText, roles: null },
+    { id: 'maintenance', label: 'Maintenance', icon: Wrench, roles: ['Admin', 'Manager', 'Staff'] },
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare, roles: ['Admin', 'Manager', 'Staff'] },
+    { id: 'outsourced', label: 'Outsourced', icon: Globe, roles: ['Admin', 'Manager', 'Staff'] },
+    { id: 'payments', label: 'Payments', icon: Wallet, roles: ['Admin', 'Manager', 'Staff'] },
+    { id: 'clients', label: 'Clients', icon: Users, roles: ['Admin', 'Manager', 'Staff'] },
+    { id: 'financials', label: 'Invoices & Quotes', icon: CreditCard, roles: null },
+    { id: 'receipts', label: 'Receipts', icon: Receipt, roles: ['Admin', 'Manager', 'Staff'] },
+    { id: 'expenses', label: 'Expenses', icon: Printer, roles: ['Admin', 'Manager', 'Staff'] },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['Admin', 'Manager'] },
   ];
+
+  const userRole = user?.role || 'Staff';
+  const menuItems = allMenuItems.filter(item => !item.roles || item.roles.includes(userRole));
 
   const handleLogout = async () => { 
     await signOut(); 

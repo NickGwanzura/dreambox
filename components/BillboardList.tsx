@@ -611,22 +611,25 @@ export const BillboardList: React.FC = () => {
         ) : (
             <div className={`flex-1 overflow-y-auto pr-2 pb-20 ${viewMode === 'list' ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'}`}>
                 {filteredBillboards.map((b, idx) => {
-                    // ... (render billboard cards logic same as before)
                     const status = getAvailabilityStatus(b);
                     const isAvailable = status === 'Open';
                     const isPartial = status === 'Partial';
                     const gradientClass = getPlaceholderGradient(b.id);
                     const hasImage = hasValidImage(b.imageUrl);
+                    const displayRate = b.type === 'Static' ? (b.sideARate || 0) : (b.ratePerSlot || 0);
 
                     return viewMode === 'list' ? (
                          <div key={b.id} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-xl transition-all group hover:-translate-y-1">
-                             <div className="relative">
+                             <div className="relative shrink-0">
                                  <div className="absolute -top-2 -left-2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md z-10 border border-white/20">#{idx + 1}</div>
-                                 <div className={`w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-slate-100 shadow-sm relative group-hover:scale-105 transition-transform ${!hasImage ? gradientClass : ''}`}>
+                                 <div
+                                     className={`w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 shadow-sm relative group-hover:scale-105 transition-transform cursor-zoom-in ${!hasImage ? gradientClass : ''}`}
+                                     onClick={() => hasImage && setViewImage(b.imageUrl!)}
+                                 >
                                      {hasImage ? (
-                                         <img 
-                                            src={b.imageUrl} 
-                                            className="w-full h-full object-cover" 
+                                         <img
+                                            src={b.imageUrl}
+                                            className="w-full h-full object-cover"
                                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement?.classList.add(...gradientClass.split(' ')); }}
                                          />
                                      ) : ( <div className="w-full h-full flex items-center justify-center text-white/30"><ImageIcon size={28}/></div> )}
@@ -642,18 +645,21 @@ export const BillboardList: React.FC = () => {
                                  <p className="text-xs text-slate-500 font-medium flex items-center gap-1 truncate mb-2">
                                      <MapPin size={12} className="shrink-0 text-indigo-500"/> <span className="truncate">{b.location}, {b.town}</span>
                                  </p>
-                                 <div className="flex gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                                 <div className="flex flex-wrap gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wide">
                                      <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
                                      <span className="flex items-center gap-1"><Car size={10}/> {b.dailyTraffic ? (b.dailyTraffic/1000).toFixed(0)+'k' : '-'} Views</span>
+                                     {b.type === BillboardType.LED && <span className="flex items-center gap-1"><Layers size={10}/> {b.totalSlots || 0} Slots</span>}
                                  </div>
                              </div>
                              <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-50 sm:border-t-0 mt-2 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
                                  <div className="flex flex-col items-end mr-2">
                                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-1 ${b.type === BillboardType.LED ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>{b.type}</span>
+                                     {displayRate > 0 && <span className="text-sm font-bold text-slate-900">${displayRate.toLocaleString()}<span className="text-[10px] font-medium text-slate-400">/mo</span></span>}
                                      <span className="text-[10px] text-slate-400 font-mono">ID: {b.id.slice(-4)}</span>
                                  </div>
                                  <div className="flex gap-2">
                                      <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Edit"><Edit2 size={16}/></button>
+                                     <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Share"><Share2 size={16}/></button>
                                      <button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors" title="Delete"><Trash2 size={16}/></button>
                                  </div>
                              </div>

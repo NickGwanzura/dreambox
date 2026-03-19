@@ -137,19 +137,21 @@ export const fetchLatestUsers = async () => {
             const remoteMap = new Map(remoteData.map(u => [u.id, u]));
             
             // Merge: Start with remote users (excluding pending deletes), then add local-only users
-            const mergedUsers = remoteData.filter(u => !pendingDeleteIds.has(u.id));
-            const mergedIds = new Set(mergedUsers.map(u => u.id));
-            
+            const mergedUsers = remoteData.filter((u: any) => !pendingDeleteIds.has(u.id));
+            const mergedIds = new Set(mergedUsers.map((u: any) => u.id));
+            const mergedEmails = new Set(mergedUsers.map((u: any) => u.email?.toLowerCase()));
+
             // Add local users that don't exist remotely (push them to cloud too)
             for (const localUser of localUsers) {
                 if (pendingDeleteIds.has(localUser.id)) continue; // Skip pending deletes
-                if (!mergedIds.has(localUser.id)) {
+                if (!mergedIds.has(localUser.id) && !mergedEmails.has(localUser.email?.toLowerCase())) {
                     mergedUsers.push(localUser);
+                    mergedEmails.add(localUser.email?.toLowerCase());
                     // Push local-only user to cloud
                     syncToSupabase('users', localUser);
                 }
             }
-            
+
             users = mergedUsers;
             saveToStorage(STORAGE_KEYS.USERS, users);
             console.log(`Users synced from cloud: ${remoteData.length} remote + ${mergedUsers.length - remoteData.length} local-only = ${mergedUsers.length} total`);
@@ -216,19 +218,24 @@ export const triggerFullSync = async () => {
 
                 if (isNewLocal) {
                     if (!mergedMap.has(item.id)) {
+                        // For users: also deduplicate by email to prevent dual-admin entries
+                        if (tableName === 'users') {
+                            const emailAlreadyMerged = mergedData.some((m: any) => m.email?.toLowerCase() === item.email?.toLowerCase());
+                            if (emailAlreadyMerged) continue;
+                        }
                         mergedData.push(item);
                         // Push new local item to cloud immediately
-                        syncToSupabase(tableName, item); 
+                        syncToSupabase(tableName, item);
                     }
-                } 
+                }
                 // else: Item is old locally but missing remotely -> Assume deleted by other user. Drop it.
             }
 
             // D. Apply Changes if different
-            if (JSON.stringify(localData) !== JSON.stringify(mergedData)) { 
-                setLocalData(mergedData); 
-                saveToStorage(storageKey, mergedData); 
-                hasChanges = true; 
+            if (JSON.stringify(localData) !== JSON.stringify(mergedData)) {
+                setLocalData(mergedData);
+                saveToStorage(storageKey, mergedData);
+                hasChanges = true;
             }
 
         } catch (e) { console.error(`Sync error ${tableName}:`, e); }
@@ -343,11 +350,11 @@ ensureDefaultAdmin();
 const ensureBrianUser = () => {
     const brianEmail = 'chiduroobc@gmail.com';
     const existingBrian = users.find(u => u.email === brianEmail);
-    
+
     if (!existingBrian) {
         logger.info('Creating Brian Chiduuro user account');
         const brianUser: User = {
-            id: `brian-${Date.now()}`,
+            id: 'brian-chiduuro-001', // stable ID — prevents duplicate Supabase rows
             firstName: 'Brian',
             lastName: 'Chiduuro',
             email: brianEmail,
@@ -386,11 +393,68 @@ export const updateCompanyProfile = (profile: CompanyProfile) => { companyProfil
 export const createSystemBackup = () => { const now = new Date().toLocaleString(); lastBackupDate = now; saveToStorage(STORAGE_KEYS.LAST_BACKUP, lastBackupDate); syncToCloudMirror(); return JSON.stringify({ version: '1.9.25', timestamp: new Date().toISOString(), data: { billboards, contracts, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }, null, 2); };
 export const simulateCloudSync = async () => { await new Promise(resolve => setTimeout(resolve, 2000)); syncToCloudMirror(); if(supabase) await triggerFullSync(); lastCloudBackup = new Date().toLocaleString(); saveToStorage(STORAGE_KEYS.CLOUD_BACKUP, lastCloudBackup); logAction('System', 'Cloud backup completed successfully (Redundant Mirror)'); notifyListeners(); return lastCloudBackup; };
 export const getLastCloudBackupDate = () => lastCloudBackup; export const restoreDefaultBillboards = () => 0; export const triggerAutoBackup = () => { saveToStorage(STORAGE_KEYS.AUTO_BACKUP, { timestamp: new Date().toISOString(), data: { billboards, contracts, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }); syncToCloudMirror(); return new Date().toLocaleString(); };
-export const runAutoBilling = () => { /* ... existing ... */ return 0; };
+export const runAutoBilling = () => {
+  const today = new Date();
+  const yr = today.getFullYear();
+  const mo = String(today.getMonth() + 1).padStart(2, '0');
+  const monthPrefix = `${yr}-${mo}`;
+  let generated = 0;
+  contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today).forEach(contract => {
+    const alreadyBilled = invoices.some(i => i.contractId === contract.id && i.type === 'Invoice' && i.date.startsWith(monthPrefix));
+    if (!alreadyBilled) {
+      const subtotal = contract.monthlyRate;
+      const vatAmount = contract.hasVat ? subtotal * 0.15 : 0;
+      const inv: Invoice = {
+        id: `INV-AUTO-${contract.id}-${monthPrefix}`,
+        contractId: contract.id,
+        clientId: contract.clientId,
+        date: today.toISOString().split('T')[0],
+        items: [{ description: `Monthly Rental — ${mo}/${yr} (Contract ${contract.id})`, amount: subtotal }],
+        subtotal,
+        vatAmount,
+        total: subtotal + vatAmount,
+        status: 'Pending',
+        type: 'Invoice'
+      };
+      addInvoice(inv);
+      generated++;
+    }
+  });
+  return generated;
+};
 export const runMaintenanceCheck = () => 0; export const getAutoBackupStatus = () => { const autoBackup = loadFromStorage(STORAGE_KEYS.AUTO_BACKUP, null); return autoBackup ? new Date(autoBackup.timestamp).toLocaleString() : 'None'; }; export const getLastManualBackupDate = () => lastBackupDate;
-export const restoreSystemBackup = async (jsonString: string) => { /* ... existing ... */ return { success: false, count: 0 }; };
+export const restoreSystemBackup = async (jsonString: string) => {
+  try {
+    const backup = JSON.parse(jsonString);
+    const d = backup.data;
+    if (!d) return { success: false, count: 0 };
+    let count = 0;
+    if (Array.isArray(d.billboards))        { billboards = d.billboards;               saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards);         count += billboards.length; }
+    if (Array.isArray(d.contracts))         { contracts = d.contracts;                 saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);           count += contracts.length; }
+    if (Array.isArray(d.clients))           { clients = d.clients;                     saveToStorage(STORAGE_KEYS.CLIENTS, clients);               count += clients.length; }
+    if (Array.isArray(d.invoices))          { invoices = d.invoices;                   saveToStorage(STORAGE_KEYS.INVOICES, invoices);             count += invoices.length; }
+    if (Array.isArray(d.expenses))          { expenses = d.expenses;                   saveToStorage(STORAGE_KEYS.EXPENSES, expenses);             count += expenses.length; }
+    if (Array.isArray(d.users))             { users = d.users;                         saveToStorage(STORAGE_KEYS.USERS, users);                   count += users.length; }
+    if (Array.isArray(d.tasks))             { tasks = d.tasks;                         saveToStorage(STORAGE_KEYS.TASKS, tasks);                   count += tasks.length; }
+    if (Array.isArray(d.maintenanceLogs))   { maintenanceLogs = d.maintenanceLogs;     saveToStorage(STORAGE_KEYS.MAINTENANCE, maintenanceLogs);   count += maintenanceLogs.length; }
+    if (Array.isArray(d.outsourcedBillboards)) { outsourcedBillboards = d.outsourcedBillboards; saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); count += outsourcedBillboards.length; }
+    if (Array.isArray(d.auditLogs))         { auditLogs = d.auditLogs;                 saveToStorage(STORAGE_KEYS.LOGS, auditLogs); }
+    if (Array.isArray(d.printingJobs))      { printingJobs = d.printingJobs;           saveToStorage(STORAGE_KEYS.PRINTING, printingJobs); }
+    if (d.companyLogo)                      { companyLogo = d.companyLogo;             saveToStorage(STORAGE_KEYS.LOGO, companyLogo); }
+    if (d.companyProfile)                   { companyProfile = d.companyProfile;       saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); }
+    // Push restored data to Supabase
+    if (supabase) { await triggerFullSync(); }
+    logAction('System Restore', `Backup restored from ${backup.timestamp || 'unknown date'} — ${count} records`);
+    syncToCloudMirror();
+    notifyListeners();
+    return { success: true, count };
+  } catch (e) {
+    console.error('Restore failed:', e);
+    return { success: false, count: 0 };
+  }
+};
 
-export const logAction = (action: string, details: string) => { const log: AuditLogEntry = { id: `log-${Date.now()}`, timestamp: new Date().toLocaleString(), action, details, user: 'Current User' }; auditLogs = [log, ...auditLogs]; saveToStorage(STORAGE_KEYS.LOGS, auditLogs); };
+export const logAction = (action: string, details: string, userOverride?: string) => { let userName = userOverride || 'System'; try { const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER); if (stored) { const u = JSON.parse(stored); userName = u?.name || u?.email || 'Unknown'; } } catch (_) {} const log: AuditLogEntry = { id: `log-${Date.now()}`, timestamp: new Date().toLocaleString(), action, details, user: userName }; auditLogs = [log, ...auditLogs]; saveToStorage(STORAGE_KEYS.LOGS, auditLogs); notifyListeners(); };
 
 export const resetSystemData = () => { 
     // Preserve Supabase credentials to ensure connection is not lost
@@ -543,6 +607,7 @@ export const deleteInvoice = (id: string) => {
 };
 
 export const addExpense = (expense: Expense) => { expenses = [expense, ...expenses]; saveToStorage(STORAGE_KEYS.EXPENSES, expenses); syncToCloudMirror(); syncToSupabase('expenses', expense); logAction('Expense', `Recorded expense: ${expense.description} ($${expense.amount})`); notifyListeners(); };
+export const deleteExpense = (id: string) => { const target = expenses.find(e => e.id === id); if (target) { expenses = expenses.filter(e => e.id !== id); saveToStorage(STORAGE_KEYS.EXPENSES, expenses); syncToCloudMirror(); queueForDeletion('expenses', id); logAction('Expense Deleted', `Removed expense: ${target.description} ($${target.amount})`); notifyListeners(); } };
 export const addClient = (client: Client) => { clients = [...clients, client]; saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); syncToSupabase('clients', client); logAction('Create Client', `Added ${client.companyName}`); notifyListeners(); };
 export const updateClient = (updated: Client) => { clients = clients.map(c => c.id === updated.id ? updated : c); saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); syncToSupabase('clients', updated); logAction('Update Client', `Updated info for ${updated.companyName}`); notifyListeners(); };
 export const deleteClient = (id: string) => { const target = clients.find(c => c.id === id); if (target) { clients = clients.filter(c => c.id !== id); saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); queueForDeletion('clients', id); logAction('Delete Client', `Removed ${target.companyName}`); notifyListeners(); } };
@@ -559,14 +624,36 @@ export const addMaintenanceLog = (log: MaintenanceLog) => { maintenanceLogs = [l
 
 export const RELEASE_NOTES = [
     {
+        version: '1.9.29',
+        date: '17/03/2026',
+        title: 'User Dedup, Audit Logs & CRM Delete Fix',
+        features: [
+            'Fix: Audit logs now update in real-time without a page reload (notifyListeners added to logAction).',
+            'Fix: Duplicate users no longer appear after cloud sync — email-based deduplication applied during merge.',
+            'Fix: Deleted CRM opportunities/companies/contacts are now hard-deleted from Supabase, preventing them from reappearing after cloud sync.',
+            'Fix: CRM company delete now cascades to linked opportunities.',
+        ]
+    },
+    {
+        version: '1.9.28',
+        date: '17/03/2026',
+        title: 'Audit Logs, Billboard Views & Deploy',
+        features: [
+            'Fix: Audit logs now update in real-time — entries no longer require a page reload to appear.',
+            'Billboard List View: Added Share button, rate display, slot count, and clickable image zoom to match Card view.',
+            'Billboard Card View: Consistent feature parity with List view across all view modes.',
+            'CRM: Removed auto-seeding of sample deals — deleted deals no longer reappear after refresh.',
+            'Deploy: Application deployed to Vercel production environment.',
+        ]
+    },
+    {
         version: '1.9.25',
-        date: new Date().toLocaleDateString(),
+        date: '16/03/2026',
         title: 'New Admin Provision',
         features: [
             'User Mgmt: Added dedicated "Owner" account for Brian Chiduuro.',
             'Sync: New admin account automatically syncs to cloud database on initialization.',
             'Security: Hardcoded credentials are now part of the core "Glued" authentication set.',
-            'Version: 1.9.25 - Admin Access Update.'
         ]
     }
 ];
@@ -589,10 +676,52 @@ export const getPendingInvoices = () => invoices.filter(inv => inv.status === 'P
 export const getClientFinancials = (clientId: string) => { /* ... existing ... */ return { totalBilled: 0, totalPaid: 0, balance: 0 }; };
 export const getTransactions = (clientId: string) => invoices.filter(i => i.clientId === clientId && (i.type === 'Invoice' || i.type === 'Receipt')).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 export const getNextBillingDetails = (clientId: string) => { /* ... existing ... */ return null; };
-export const getUpcomingBillings = () => { /* ... existing ... */ return []; };
-export const getExpiringContracts = () => { /* ... existing ... */ return []; };
-export const getOverdueInvoices = () => invoices.filter(i => i.status === 'Pending' || i.status === 'Overdue');
-export const getSystemAlertCount = () => 0;
+export const getUpcomingBillings = () => {
+  const today = new Date();
+  const in30 = new Date(today);
+  in30.setDate(today.getDate() + 30);
+  const results: { clientName: string; amount: number; date: string; contractId: string; day: number }[] = [];
+  contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today).forEach(contract => {
+    // Billing day = same day-of-month as contract start
+    const startDay = new Date(contract.startDate).getDate();
+    // Find next billing date from today
+    const candidate = new Date(today.getFullYear(), today.getMonth(), startDay);
+    if (candidate < today) candidate.setMonth(candidate.getMonth() + 1);
+    if (candidate <= in30) {
+      const client = clients.find(c => c.id === contract.clientId);
+      const monthlyTotal = contract.hasVat ? contract.monthlyRate * 1.15 : contract.monthlyRate;
+      results.push({
+        clientName: client?.companyName || 'Unknown',
+        amount: Math.round(monthlyTotal),
+        date: candidate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+        contractId: contract.id,
+        day: startDay,
+      });
+    }
+  });
+  return results.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+};
+export const getExpiringContracts = () => {
+  const today = new Date();
+  const in30 = new Date(today);
+  in30.setDate(today.getDate() + 30);
+  return contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today && new Date(c.endDate) <= in30);
+};
+export const markOverdueInvoices = () => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  let changed = false;
+  invoices = invoices.map(inv => {
+    if (inv.status === 'Pending' && inv.type === 'Invoice' && new Date(inv.date) < cutoff) {
+      changed = true;
+      return { ...inv, status: 'Overdue' as const };
+    }
+    return inv;
+  });
+  if (changed) { saveToStorage(STORAGE_KEYS.INVOICES, invoices); notifyListeners(); }
+};
+export const getOverdueInvoices = () => { markOverdueInvoices(); return invoices.filter(i => i.status === 'Overdue' && i.type === 'Invoice'); };
+export const getSystemAlertCount = () => getExpiringContracts().length + invoices.filter(i => i.status === 'Overdue' && i.type === 'Invoice').length;
 export const getFinancialTrends = () => {
   // Calculate actual monthly revenue and expenses from invoices
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

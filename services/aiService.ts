@@ -157,12 +157,14 @@ Data Context: ${dataContext}`
   }
 }
 
-export const fetchIndustryNews = async (): Promise<Array<{ title: string; summary: string; source?: string; date?: string }>> => {
-  // Fallback Mock Data
+export const fetchIndustryNews = async (): Promise<Array<{ title: string; summary: string; source?: string; date?: string; category?: string }>> => {
+  // Fallback Mock Data — 5 items covering industry + promos
   const mockNews = [
-      { title: "Harare City Council Reviews Billboard Bylaws", summary: "New zoning regulations proposed for digital billboards in the CBD to reduce light pollution.", source: "Local Govt", date: "2 days ago" },
-      { title: "Econet Launches Massive OOH Campaign", summary: "Telecommunications giant dominates skyline with new 5G rollout advertisements across major highways.", source: "TechZim", date: "1 week ago" },
-      { title: "Solar-Powered Billboards Trend Rising", summary: "Operators switching to renewable energy to combat load shedding and reduce operational costs.", source: "Green Energy ZW", date: "2 weeks ago" }
+    { title: "Harare City Council Reviews Billboard Bylaws", summary: "New zoning regulations proposed for digital billboards in the CBD to reduce light pollution and improve urban aesthetics.", source: "Local Govt", date: "2 days ago", category: "Regulation" },
+    { title: "Econet Launches Massive OOH Campaign", summary: "Telecommunications giant dominates skyline with new 5G rollout advertisements across major highways and urban centres.", source: "TechZim", date: "1 week ago", category: "Promo Launch" },
+    { title: "Solar-Powered Billboards Trend Rising", summary: "Operators switching to renewable energy to combat load shedding and reduce operational costs by up to 40%.", source: "Green Energy ZW", date: "2 weeks ago", category: "Industry" },
+    { title: "OK Zimbabwe Runs National Festive Campaign", summary: "Retail chain activates 60+ billboard sites nationwide for their end-of-year promotional drive with record ad spend.", source: "AdFocus ZW", date: "3 days ago", category: "Promo Launch" },
+    { title: "Digital OOH Spend Grows 28% in Southern Africa", summary: "DOOH advertising budgets surge as brands shift from print to programmable LED formats for real-time campaign delivery.", source: "Media Report", date: "1 week ago", category: "Industry" },
   ];
 
   if (!groq) return mockNews;
@@ -172,48 +174,54 @@ export const fetchIndustryNews = async (): Promise<Array<{ title: string; summar
       messages: [
         {
           role: "user",
-          content: `Find 3 recent news items, developments, or trends regarding Billboard Advertising, Outdoor Media, or Marketing in Zimbabwe.
-          
-Return the output in this specific plain text format for easy parsing (do not use markdown formatting like ** or *):
+          content: `Generate 5 realistic, current news items covering:
+- Billboard/Outdoor advertising industry news in Zimbabwe and Southern Africa
+- Major companies launching advertising campaigns or promos on billboards (retail, telco, FMCG, banking)
+- OOH industry trends, new technology, or regulatory changes
+
+Return ONLY in this exact plain text format (no markdown, no asterisks):
 
 ITEM
-TITLE: [Insert Title Here]
-DATE: [Insert Relative Date, e.g., 2 days ago]
-SOURCE: [Insert Source Name]
-SUMMARY: [Insert short summary]
+TITLE: [News headline]
+DATE: [e.g. 2 days ago / 1 week ago]
+SOURCE: [Publication name]
+CATEGORY: [one of: Promo Launch, Industry, Regulation, Technology]
+SUMMARY: [2-sentence summary of the news]
 ENDITEM
 
-Repeat for 3 items.`
+Repeat for all 5 items.`
         }
       ],
       model: "llama-3.1-70b-versatile",
-      temperature: 0.5,
-      max_tokens: 400,
+      temperature: 0.6,
+      max_tokens: 700,
     });
 
     const text = chatCompletion.choices[0]?.message?.content || '';
-    const items: Array<{ title: string; summary: string; source?: string, date?: string }> = [];
-    
+    const items: Array<{ title: string; summary: string; source?: string; date?: string; category?: string }> = [];
+
     const rawItems = text.split('ITEM');
     for (const raw of rawItems) {
       if (!raw.trim()) continue;
-      
+
       const title = raw.match(/TITLE:\s*(.+)/i)?.[1]?.trim();
       const date = raw.match(/DATE:\s*(.+)/i)?.[1]?.trim();
       const source = raw.match(/SOURCE:\s*(.+)/i)?.[1]?.trim();
+      const category = raw.match(/CATEGORY:\s*(.+)/i)?.[1]?.trim();
       const summary = raw.match(/SUMMARY:\s*(.+)/i)?.[1]?.trim();
 
       if (title && summary) {
-        items.push({ 
-          title, 
-          summary, 
-          source: source || 'Industry Update', 
-          date: date || 'Recent' 
+        items.push({
+          title,
+          summary,
+          source: source || 'Industry Update',
+          date: date || 'Recent',
+          category: category || 'Industry',
         });
       }
     }
 
-    return items.length > 0 ? items.slice(0, 3) : mockNews;
+    return items.length > 0 ? items.slice(0, 5) : mockNews;
   } catch (e) {
     console.warn("News fetch failed, using mock data", e);
     return mockNews;

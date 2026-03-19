@@ -11,7 +11,7 @@ export type UserCreateData = {
   firstName: string;
   lastName: string;
   email: string;
-  role: 'Admin' | 'Manager' | 'Staff';
+  role: 'Admin' | 'Manager' | 'Staff' | 'Sales Agent';
   password?: string;
 };
 
@@ -187,7 +187,7 @@ export const deleteUserData = async (userId: string): Promise<{ error: Error | n
  */
 export const approveUser = async (
   userId: string,
-  role: 'Admin' | 'Manager' | 'Staff'
+  role: 'Admin' | 'Manager' | 'Staff' | 'Sales Agent'
 ): Promise<{ error: Error | null }> => {
   if (!supabase) {
     return { error: new Error('Supabase not configured') };
@@ -239,7 +239,9 @@ export const rejectUser = async (userId: string, deleteInstead: boolean = false)
 };
 
 /**
- * Fetch all users from database
+ * Fetch all users from database, deduplicated by email.
+ * If duplicate rows exist in Supabase (same email, different IDs),
+ * keeps the first encountered and deletes the extras.
  */
 export const fetchAllUsers = async (): Promise<{ users: User[]; error: Error | null }> => {
   if (!supabase) {
@@ -250,11 +252,33 @@ export const fetchAllUsers = async (): Promise<{ users: User[]; error: Error | n
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true }); // oldest first so we keep the canonical record
 
     if (error) throw error;
 
-    return { users: data || [], error: null };
+    const rows: User[] = data || [];
+
+    // Deduplicate by email — keep the first (oldest) row per email, delete the rest from Supabase
+    const seen = new Map<string, User>();
+    const duplicateIds: string[] = [];
+
+    for (const user of rows) {
+      const key = user.email?.toLowerCase();
+      if (!key) { seen.set(user.id, user); continue; }
+      if (seen.has(key)) {
+        duplicateIds.push(user.id); // mark newer duplicate for deletion
+      } else {
+        seen.set(key, user);
+      }
+    }
+
+    // Fire-and-forget cleanup of duplicate rows in Supabase
+    if (duplicateIds.length > 0) {
+      logger.warn(`Removing ${duplicateIds.length} duplicate user(s) from Supabase:`, duplicateIds);
+      supabase.from('users').delete().in('id', duplicateIds).then(() => {});
+    }
+
+    return { users: Array.from(seen.values()), error: null };
   } catch (error: any) {
     logger.error('Fetch users error:', error);
     return { users: [], error: new Error(error.message || 'Failed to fetch users') };

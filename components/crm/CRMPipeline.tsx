@@ -6,6 +6,7 @@ import { getCRMCompanyById, getCRMContactById, updateCRMOpportunity } from '../.
 import { formatCurrency } from '../../utils/sanitizers';
 import { calculateLeadScore } from '../../services/leadScoring';
 import { LeadScorePill } from './LeadScoreBadge';
+import { useToast } from '../ToastProvider';
 
 interface CRMPipelineProps {
   opportunities: CRMOpportunity[];
@@ -49,6 +50,7 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({
 }) => {
   const [draggedOpportunityId, setDraggedOpportunityId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<OpportunityStatus | null>(null);
+  const { showToast } = useToast();
 
   const getOpportunitiesByStatus = (status: OpportunityStatus) => 
     opportunities.filter(o => o.status === status);
@@ -106,6 +108,10 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({
     updateCRMOpportunity(updatedOpportunity);
     onOpportunityUpdated?.();
     setDraggedOpportunityId(null);
+
+    const company = getCRMCompanyById(opportunity.companyId);
+    const columnLabel = COLUMNS.find(c => c.status === newStatus)?.title ?? newStatus;
+    showToast(`${company?.name ?? 'Lead'} moved to ${columnLabel}`, 'success', 3500);
   };
 
   const getStageForStatus = (status: OpportunityStatus, currentStage: OpportunityStage): OpportunityStage => {

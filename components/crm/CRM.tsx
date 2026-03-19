@@ -6,16 +6,15 @@ import {
   LayoutGrid, List, Zap, ChevronDown, Building2,
   FileText, FileDown, MoreHorizontal, Printer
 } from 'lucide-react';
-import { 
-  getCRMOpportunities, 
+import {
+  getCRMOpportunities,
   getCRMPipelineMetrics,
   subscribe,
-  initializeSampleCRMData,
   exportToCSV,
   importCSV,
+  loadCRMFromSupabase,
   CSVImportResult
 } from '../../services/crmService';
-import { getCurrentUser } from '../../services/authServiceSecure';
 import { CRMOpportunity, OpportunityStatus } from '../../types';
 import { useToast } from '../ToastProvider';
 import { logger } from '../../utils/logger';
@@ -57,17 +56,11 @@ export const CRM: React.FC = () => {
   const [showPdfMenu, setShowPdfMenu] = useState(false);
   
   const { showToast } = useToast();
-  const currentUser = getCurrentUser();
-
-  // Initialize sample data if empty (dev only)
+  // Load shared data from Supabase on mount, then subscribe to local changes
   useEffect(() => {
-    if (currentUser) {
-      initializeSampleCRMData(currentUser.id);
-    }
-  }, [currentUser]);
-
-  // Subscribe to data changes
-  useEffect(() => {
+    loadCRMFromSupabase().then(() => {
+      showToast('CRM data synced from cloud', 'info', 3000);
+    }).catch(() => {});
     const unsubscribe = subscribe(() => {
       setRefreshKey(k => k + 1);
     });
