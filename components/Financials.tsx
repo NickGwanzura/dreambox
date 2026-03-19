@@ -137,14 +137,22 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
         {activeTab === 'Statements' && (() => {
           const company = getCompanyProfile();
           const logo = getCompanyLogo();
-          const allInvoices = getInvoices();
+          // Use React state (invoices) so re-renders trigger on subscribe updates
+          // Normalize total to number and type to lowercase for Supabase compatibility
+          const inv = (inv: any) => Number(inv.total) || Number(inv.subtotal) || 0;
+          const isInvoiceType = (i: any) => String(i.type || '').toLowerCase() === 'invoice';
+          const isReceiptType = (i: any) => String(i.type || '').toLowerCase() === 'receipt';
+          const isOverdueStatus = (i: any) => String(i.status || '').toLowerCase() === 'overdue';
+          // clientId might come back as client_id from Supabase depending on schema
+          const getClientId = (i: any) => i.clientId || i.client_id || '';
+
           const allContracts = getContracts();
           const allBillboards = getBillboards();
           const getBillboardName = (id: string) => allBillboards.find(b => b.id === id)?.name || id;
 
-          // Summary totals across all clients
-          const grandBilled = allInvoices.filter(i => i.type === 'Invoice').reduce((a, i) => a + i.total, 0);
-          const grandPaid = allInvoices.filter(i => i.type === 'Receipt').reduce((a, i) => a + i.total, 0);
+          // Portfolio totals from React invoices state
+          const grandBilled = invoices.filter(isInvoiceType).reduce((a, i) => a + inv(i), 0);
+          const grandPaid = invoices.filter(isReceiptType).reduce((a, i) => a + inv(i), 0);
           const grandOutstanding = grandBilled - grandPaid;
 
           return (
@@ -190,12 +198,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               {/* Per-client statement cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {allClients.map(client => {
-                  const clientInvoices = allInvoices.filter(i => i.clientId === client.id);
-                  const totalBilled = clientInvoices.filter(i => i.type === 'Invoice').reduce((acc, i) => acc + i.total, 0);
-                  const totalPaid = clientInvoices.filter(i => i.type === 'Receipt').reduce((acc, i) => acc + i.total, 0);
+                  const clientInvoices = invoices.filter(i => getClientId(i) === client.id);
+                  const totalBilled = clientInvoices.filter(isInvoiceType).reduce((acc, i) => acc + inv(i), 0);
+                  const totalPaid = clientInvoices.filter(isReceiptType).reduce((acc, i) => acc + inv(i), 0);
                   const outstanding = totalBilled - totalPaid;
-                  const activeContracts = allContracts.filter(c => c.clientId === client.id && c.status === 'Active');
-                  const overdueInvoices = clientInvoices.filter(i => i.status === 'Overdue').length;
+                  const activeContracts = allContracts.filter(c => (c.clientId || (c as any).client_id) === client.id && c.status === 'Active');
+                  const overdueCount = clientInvoices.filter(isOverdueStatus).length;
                   return (
                     <div key={client.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-6 flex flex-col gap-4">
                       <div className="flex items-start justify-between gap-2">
@@ -203,8 +211,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                           <p className="font-bold text-slate-900 text-lg leading-tight">{client.companyName}</p>
                           <p className="text-xs text-slate-400 mt-0.5">{client.contactPerson} &bull; {client.email}</p>
                         </div>
-                        {overdueInvoices > 0 && (
-                          <span className="shrink-0 px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-wider rounded-lg animate-pulse">{overdueInvoices} Overdue</span>
+                        {overdueCount > 0 && (
+                          <span className="shrink-0 px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-wider rounded-lg animate-pulse">{overdueCount} Overdue</span>
                         )}
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
