@@ -75,12 +75,44 @@ const addCompanyHeader = (doc: jsPDF): number => {
         doc.text(`VAT: ${profile.vatNumber}`, pageWidth - 14, startY, { align: 'right' });
         startY += lineHeight;
     }
-    
+
+    if(profile.website) {
+        doc.text(profile.website, pageWidth - 14, startY, { align: 'right' });
+        startY += lineHeight;
+    }
+
     // Draw a divider line
     doc.setDrawColor(226, 232, 240); // Slate 200
     doc.line(14, startY + 5, pageWidth - 14, startY + 5);
 
     return startY + 15; // Return Y position for next elements
+};
+
+// Adds a contact footer to every page of the document
+const addContactFooter = (doc: jsPDF) => {
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const pageCount = (doc as any).getNumberOfPages ? (doc as any).getNumberOfPages() : 1;
+
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        const footerY = pageHeight - 10;
+
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.4);
+        doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
+
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(150);
+
+        const contactLine = '54 Brooke Village, Borrowdale Brooke, Harare, Zimbabwe  |  +263 778 018 909  |  info@dreamboxadvertising.com  |  www.dreamboxadvertising.com';
+        doc.text(contactLine, pageWidth / 2, footerY, { align: 'center' });
+
+        if (pageCount > 1) {
+            doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, footerY, { align: 'right' });
+        }
+    }
 };
 
 export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
@@ -180,6 +212,7 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
     doc.text(`Total:`, totalsX, finalY + 31);
     doc.text(`$${(invoice.total || 0).toFixed(2)}`, 195, finalY + 31, { align: 'right' });
 
+    addContactFooter(doc);
     doc.save(`${invoice.type}_${invoice.id}.pdf`);
   } catch (error) {
     console.error("PDF Generation Error:", error);
@@ -324,6 +357,7 @@ export const generateContractPDF = (contract: Contract, client: Client, billboar
     doc.line(116, boxY + 22, 176, boxY + 22); 
     doc.text(client.companyName, 116, boxY + 27);
 
+    addContactFooter(doc);
     doc.save(`Contract_${contract.id}.pdf`);
   } catch (error) {
     console.error("PDF Generation Error:", error);
@@ -360,8 +394,8 @@ export const generateStatementPDF = (client: Client, transactions: Invoice[], ac
         doc.text(client.contactPerson, 18, currentY + 12);
         doc.text(client.email, 18, currentY + 18);
 
-        const totalBilled = transactions.filter(t => t.type === 'Invoice').reduce((acc, t) => acc + t.total, 0);
-        const totalPaid = transactions.filter(t => t.type === 'Receipt').reduce((acc, t) => acc + t.total, 0);
+        const totalBilled = transactions.filter(t => String(t.type || '').toLowerCase() === 'invoice').reduce((acc, t) => acc + (Number(t.total) || 0), 0);
+        const totalPaid = transactions.filter(t => String(t.type || '').toLowerCase() === 'receipt').reduce((acc, t) => acc + (Number(t.total) || 0), 0);
         const balance = totalBilled - totalPaid;
 
         doc.setFillColor(balance > 0 ? 254 : 240, balance > 0 ? 242 : 253, balance > 0 ? 242 : 244);
@@ -402,8 +436,8 @@ export const generateStatementPDF = (client: Client, transactions: Invoice[], ac
             t.date,
             t.type.toUpperCase(),
             t.id,
-            t.type === 'Invoice' ? `$${t.total.toFixed(2)}` : '-',
-            t.type === 'Receipt' ? `$${t.total.toFixed(2)}` : '-'
+            String(t.type || '').toLowerCase() === 'invoice' ? `$${(Number(t.total) || 0).toFixed(2)}` : '-',
+            String(t.type || '').toLowerCase() === 'receipt' ? `$${(Number(t.total) || 0).toFixed(2)}` : '-'
         ]);
         transactionRows.push(['', 'TOTALS', '', `$${totalBilled.toFixed(2)}`, `$${totalPaid.toFixed(2)}`]);
 
@@ -421,6 +455,7 @@ export const generateStatementPDF = (client: Client, transactions: Invoice[], ac
             }
         });
 
+        addContactFooter(doc);
         doc.save(`Statement_${client.companyName.replace(/\s/g, '_')}.pdf`);
     } catch (error) {
         console.error("PDF Generation Error:", error);
@@ -453,6 +488,7 @@ export const generateExpensesPDF = (expenses: Expense[]) => {
             columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
         });
 
+        addContactFooter(doc);
         doc.save('Expenses_Report.pdf');
     } catch (e) {
         alert("Failed to generate Expenses PDF");
@@ -484,6 +520,7 @@ export const generatePaymentSchedulePDF = (schedule: any[]) => {
             columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
         });
 
+        addContactFooter(doc);
         doc.save('Payment_Schedule.pdf');
     } catch (e) {
         alert("Failed to generate Schedule PDF");
@@ -528,6 +565,7 @@ export const generateActiveContractsPDF = (contracts: Contract[], getClientName:
             }
         });
 
+        addContactFooter(doc);
         doc.save('Active_Contracts_Register.pdf');
     } catch (e) {
         alert("Failed to generate Contracts PDF");
@@ -564,6 +602,7 @@ export const generateClientDirectoryPDF = (clients: Client[]) => {
             styles: { fontSize: 8 }
         });
 
+        addContactFooter(doc);
         doc.save('Client_Directory.pdf');
     } catch (e) {
         alert("Failed to generate Client PDF");
@@ -602,6 +641,7 @@ export const generateOutsourcedInventoryPDF = (billboards: OutsourcedBillboard[]
             columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
         });
 
+        addContactFooter(doc);
         doc.save('Outsourced_Inventory.pdf');
     } catch (e) {
         alert("Failed to generate Outsourced PDF");
@@ -644,6 +684,7 @@ export const generateAppFeaturesPDF = () => {
             columnStyles: { 0: { fontStyle: 'bold', width: 40 } }
         });
 
+        addContactFooter(doc);
         doc.save('Dreambox_Features_List.pdf');
     } catch (e) {
         console.error(e);
@@ -691,6 +732,7 @@ export const generateUserManualPDF = () => {
         doc.setTextColor(50);
         doc.text("Go to 'Rentals' > 'New Rental'. Select a Client and Billboard. The system automatically checks availability for the selected dates.", 14, y + 6, { maxWidth: 180 });
 
+        addContactFooter(doc);
         doc.save('Dreambox_User_Manual.pdf');
     } catch (e) {
         alert("Failed to generate Manual PDF");

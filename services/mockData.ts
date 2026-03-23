@@ -414,7 +414,7 @@ if (companyLogo && (companyLogo.includes('\\"') || companyLogo.includes('%22') |
   saveToStorage(STORAGE_KEYS.LOGO, companyLogo);
 }
 if (!companyLogo) companyLogo = DEFAULT_LOGO_SVG;
-const DEFAULT_PROFILE: CompanyProfile = { name: "Dreambox Advertising", vatNumber: "VAT-DBX-001", regNumber: "REG-2026/DBX", email: "info@dreambox.co.zw", supportEmail: "support@dreambox.co.zw", phone: "+263 777 999 888", website: "www.dreambox.co.zw", address: "123 Creative Park, Borrowdale", city: "Harare", country: "Zimbabwe" };
+const DEFAULT_PROFILE: CompanyProfile = { name: "Dreambox Advertising", vatNumber: "VAT-DBX-001", regNumber: "REG-2026/DBX", email: "info@dreamboxadvertising.com", supportEmail: "info@dreamboxadvertising.com", phone: "+263 778 018 909", website: "www.dreamboxadvertising.com", address: "54 Brooke Village, Borrowdale Brooke", city: "Harare", country: "Zimbabwe" };
 let companyProfile: CompanyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || DEFAULT_PROFILE;
 let lastBackupDate = loadFromStorage(STORAGE_KEYS.LAST_BACKUP, null) || 'Never'; let lastCloudBackup = loadFromStorage(STORAGE_KEYS.CLOUD_BACKUP, null) || 'Never';
 
