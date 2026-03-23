@@ -341,7 +341,7 @@ export let outsourcedBillboards: OutsourcedBillboard[] = loadFromStorage(STORAGE
 export let printingJobs: PrintingJob[] = loadFromStorage(STORAGE_KEYS.PRINTING, []) || [];
 export let maintenanceLogs: MaintenanceLog[] = loadFromStorage(STORAGE_KEYS.MAINTENANCE, []) || [];
 export let tasks: Task[] = loadFromStorage(STORAGE_KEYS.TASKS, null) || [{ id: 't1', title: 'Site Inspection: Airport Rd', description: 'Verify lighting functionality on Side A.', assignedTo: 'Admin User', priority: 'High', status: 'Todo', dueDate: new Date().toISOString().split('T')[0], createdAt: new Date().toISOString() }, { id: 't2', title: 'Call Delta Beverages', description: 'Follow up on contract renewal for Q3.', assignedTo: 'Manager', priority: 'Medium', status: 'In Progress', dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], createdAt: new Date().toISOString() }]; if (!localStorage.getItem(STORAGE_KEYS.TASKS)) saveToStorage(STORAGE_KEYS.TASKS, tasks);
-export let users: User[] = loadFromStorage(STORAGE_KEYS.USERS, null) || [{ id: '1', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@dreambox.com', username: 'admin', password: 'admin123', status: 'Active' }]; if (users.length === 0) { users = [{ id: '1', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@dreambox.com', username: 'admin', password: 'admin123', status: 'Active' }]; saveToStorage(STORAGE_KEYS.USERS, users); }
+export let users: User[] = loadFromStorage(STORAGE_KEYS.USERS, null) || [{ id: '1', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@dreambox.com', username: 'admin', password: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', status: 'Active' }]; if (users.length === 0) { users = [{ id: '1', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@dreambox.com', username: 'admin', password: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', status: 'Active' }]; saveToStorage(STORAGE_KEYS.USERS, users); }
 const updatedUsers = users.map(u => ({ ...u, username: u.username || u.email.split('@')[0], status: u.status || 'Active' })); if (JSON.stringify(updatedUsers) !== JSON.stringify(users)) { users = updatedUsers; saveToStorage(STORAGE_KEYS.USERS, users); }
 
 // Admin users are now created through the registration flow
@@ -363,7 +363,7 @@ const ensureDefaultAdmin = () => {
             lastName: 'User',
             email: defaultAdminEmail,
             username: 'admin',
-            password: 'admin123', // Should be changed immediately
+            password: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', // SHA-256 hash of default password
             role: 'Admin',
             status: 'Active'
         };
@@ -390,7 +390,7 @@ const ensureBrianUser = () => {
             lastName: 'Chiduuro',
             email: brianEmail,
             username: 'chiduroobc',
-            password: 'dr34mb0x26',
+            password: 'e4f0f97e289a66c2dda94ca7fd78fb58886cac140002dcf246dec0786e0ca7d3', // SHA-256 hash
             role: 'Admin',
             status: 'Active'
         };
@@ -431,7 +431,7 @@ export const runAutoBilling = () => {
   const monthPrefix = `${yr}-${mo}`;
   let generated = 0;
   contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today).forEach(contract => {
-    const alreadyBilled = invoices.some(i => i.contractId === contract.id && i.type === 'Invoice' && i.date.startsWith(monthPrefix));
+    const alreadyBilled = invoices.some(i => i.contractId === contract.id && String(i.type || '').toLowerCase() === 'invoice' && i.date.startsWith(monthPrefix));
     if (!alreadyBilled) {
       const subtotal = contract.monthlyRate;
       const vatAmount = contract.hasVat ? subtotal * 0.15 : 0;
@@ -703,9 +703,22 @@ export const getCompanyLogo = () => companyLogo;
 export const getCompanyProfile = () => companyProfile;
 export const findUser = (identifier: string) => { const term = identifier.toLowerCase().trim(); return users.find(u => u.email.toLowerCase() === term || (u.username && u.username.toLowerCase() === term)); };
 export const findUserByEmail = findUser;
-export const getPendingInvoices = () => invoices.filter(inv => inv.status === 'Pending' && inv.type === 'Invoice');
-export const getClientFinancials = (clientId: string) => { /* ... existing ... */ return { totalBilled: 0, totalPaid: 0, balance: 0 }; };
-export const getTransactions = (clientId: string) => invoices.filter(i => i.clientId === clientId && (i.type === 'Invoice' || i.type === 'Receipt')).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export const getPendingInvoices = () => invoices.filter(inv => inv.status === 'Pending' && String(inv.type || '').toLowerCase() === 'invoice');
+export const getClientFinancials = (clientId: string) => {
+  const clientInvoices = invoices.filter(i => (i.clientId || (i as any).client_id) === clientId);
+  const totalBilled = clientInvoices
+    .filter(i => String(i.type || '').toLowerCase() === 'invoice')
+    .reduce((sum, i) => sum + (Number(i.total) || Number(i.subtotal) || 0), 0);
+  const totalPaid = clientInvoices
+    .filter(i => String(i.type || '').toLowerCase() === 'receipt')
+    .reduce((sum, i) => sum + (Number(i.total) || Number(i.subtotal) || 0), 0);
+  return { totalBilled, totalPaid, balance: totalBilled - totalPaid };
+};
+export const getTransactions = (clientId: string) => invoices.filter(i => {
+  const id = i.clientId || (i as any).client_id;
+  const t = String(i.type || '').toLowerCase();
+  return id === clientId && (t === 'invoice' || t === 'receipt');
+}).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 export const getNextBillingDetails = (clientId: string) => { /* ... existing ... */ return null; };
 export const getUpcomingBillings = () => {
   const today = new Date();
@@ -743,7 +756,7 @@ export const markOverdueInvoices = () => {
   cutoff.setDate(cutoff.getDate() - 30);
   let changed = false;
   invoices = invoices.map(inv => {
-    if (inv.status === 'Pending' && inv.type === 'Invoice' && new Date(inv.date) < cutoff) {
+    if (inv.status === 'Pending' && String(inv.type || '').toLowerCase() === 'invoice' && new Date(inv.date) < cutoff) {
       changed = true;
       return { ...inv, status: 'Overdue' as const };
     }
@@ -751,8 +764,8 @@ export const markOverdueInvoices = () => {
   });
   if (changed) { saveToStorage(STORAGE_KEYS.INVOICES, invoices); notifyListeners(); }
 };
-export const getOverdueInvoices = () => { markOverdueInvoices(); return invoices.filter(i => i.status === 'Overdue' && i.type === 'Invoice'); };
-export const getSystemAlertCount = () => getExpiringContracts().length + invoices.filter(i => i.status === 'Overdue' && i.type === 'Invoice').length;
+export const getOverdueInvoices = () => { markOverdueInvoices(); return invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice'); };
+export const getSystemAlertCount = () => getExpiringContracts().length + invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice').length;
 export const getFinancialTrends = () => {
   // Calculate actual monthly revenue and expenses from invoices
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

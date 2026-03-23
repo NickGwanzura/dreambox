@@ -109,6 +109,8 @@ export interface Invoice {
   date: string;
   items: { description: string; amount: number }[];
   subtotal: number;
+  discountAmount?: number;
+  discountDescription?: string;
   vatAmount: number; // 0 if hasVat is false
   total: number;
   status: 'Paid' | 'Pending' | 'Overdue';

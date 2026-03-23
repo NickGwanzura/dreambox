@@ -5,15 +5,23 @@ import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerat
 import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe } from 'lucide-react';
 import { Invoice, Contract, BillboardType, VAT_RATE } from '../types';
 
-const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
+type InvoiceLineItem = Invoice['items'][number];
+
+const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => (
   <div className="group relative">
-    <input type={type} required={required} value={value} onChange={onChange} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent" />
+    <input type={type} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-400 disabled:cursor-not-allowed" />
     <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
-const MinimalSelect = ({ label, value, onChange, options }: any) => (
+const MinimalTextarea = ({ label, value, onChange, rows = 3, required = false, disabled = false }: any) => (
   <div className="group relative">
-    <select value={value} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer" >
+    <textarea rows={rows} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer w-full resize-none px-0 py-3 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-400 disabled:cursor-not-allowed" />
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-3 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
+  </div>
+);
+const MinimalSelect = ({ label, value, onChange, options, disabled = false }: any) => (
+  <div className="group relative">
+    <select value={value} disabled={disabled} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer disabled:text-slate-400 disabled:cursor-not-allowed" >
       {options.map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
     </select>
     <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</label>
@@ -32,8 +40,21 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const [formData, setFormData] = useState<Partial<Invoice>>({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '' });
   const [selectedInvoiceToPay, setSelectedInvoiceToPay] = useState('');
   const [hasVat, setHasVat] = useState(true);
+  const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
+  const [discountValue, setDiscountValue] = useState(0);
+  const [discountDescription, setDiscountDescription] = useState('');
   const [convertingQuotation, setConvertingQuotation] = useState<Invoice | null>(null);
   const [convertForm, setConvertForm] = useState({ billboardId: '', startDate: '', endDate: '' });
+
+  const getEmptyFormData = (): Partial<Invoice> => ({
+    clientId: '',
+    items: [],
+    date: new Date().toISOString().split('T')[0],
+    status: 'Pending',
+    contractId: '',
+    paymentMethod: 'Bank Transfer',
+    paymentReference: ''
+  });
 
   // Refresh data whenever tab changes, modal closes, or a data sync happens
   useEffect(() => {
@@ -60,18 +81,39 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const handleInvoiceSelect = (invoiceId: string) => {
       setSelectedInvoiceToPay(invoiceId);
       const invoice = getInvoices().find(i => i.id === invoiceId);
-      if (invoice) { setFormData({ ...formData, clientId: invoice.clientId, contractId: invoice.contractId, items: [{ description: `Payment for Invoice #${invoice.id}`, amount: invoice.total }] }); setHasVat(false); }
+      if (invoice) { setFormData({ ...formData, clientId: invoice.clientId, contractId: invoice.contractId, items: [{ description: `Payment for Invoice #${invoice.id}`, amount: invoice.total }] }); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); }
   };
-  const addItem = () => { if(newItem.description && newItem.amount > 0) { setFormData({ ...formData, items: [...(formData.items || []), newItem] }); setNewItem({ description: '', amount: 0 }); } };
+  const addItem = () => {
+      const trimmedDescription = newItem.description.trim();
+      if(trimmedDescription && newItem.amount > 0) {
+          setFormData({ ...formData, items: [...(formData.items || []), { description: trimmedDescription, amount: newItem.amount }] });
+          setNewItem({ description: '', amount: 0 });
+      }
+  };
+  const updateItem = (index: number, field: keyof InvoiceLineItem, value: string | number) => {
+      const updatedItems = [...(formData.items || [])];
+      updatedItems[index] = {
+          ...updatedItems[index],
+          [field]: field === 'amount' ? Number(value) || 0 : String(value),
+      };
+      setFormData({ ...formData, items: updatedItems });
+  };
+  const removeItem = (index: number) => {
+      setFormData({ ...formData, items: (formData.items || []).filter((_, itemIndex) => itemIndex !== index) });
+  };
+  const subtotal = formData.items?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
+  const rawDiscountAmount = discountType === 'percentage' ? subtotal * (discountValue / 100) : discountValue;
+  const discountAmount = Math.min(subtotal, Math.max(0, rawDiscountAmount || 0));
+  const taxableSubtotal = Math.max(0, subtotal - discountAmount);
+  const vatAmount = hasVat ? taxableSubtotal * VAT_RATE : 0;
+  const total = taxableSubtotal + vatAmount;
+  const receiptIsLinkedToInvoice = activeTab === 'Receipts' && !!selectedInvoiceToPay;
   const handleCreate = (e: React.FormEvent) => {
       e.preventDefault();
-      const subtotal = formData.items?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-      const vatAmount = hasVat ? subtotal * VAT_RATE : 0;
-      const total = subtotal + vatAmount;
-      const newDoc: Invoice = { id: `${activeTab === 'Quotations' ? 'QT' : activeTab === 'Receipts' ? 'RCT' : 'INV'}-${Date.now().toString().slice(-4)}`, clientId: formData.clientId!, date: formData.date!, items: formData.items || [], subtotal, vatAmount, total, status: activeTab === 'Receipts' ? 'Paid' : 'Pending', type: activeTab === 'Invoices' ? 'Invoice' : activeTab === 'Quotations' ? 'Quotation' : 'Receipt', contractId: formData.contractId, paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined, paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined };
+      const newDoc: Invoice = { id: `${activeTab === 'Quotations' ? 'QT' : activeTab === 'Receipts' ? 'RCT' : 'INV'}-${Date.now().toString().slice(-4)}`, clientId: formData.clientId!, date: formData.date!, items: formData.items || [], subtotal, discountAmount, discountDescription: discountAmount > 0 ? discountDescription.trim() || undefined : undefined, vatAmount, total, status: activeTab === 'Receipts' ? 'Paid' : 'Pending', type: activeTab === 'Invoices' ? 'Invoice' : activeTab === 'Quotations' ? 'Quotation' : 'Receipt', contractId: formData.contractId, paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined, paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined };
       addInvoice(newDoc);
       if (activeTab === 'Receipts' && selectedInvoiceToPay) { markInvoiceAsPaid(selectedInvoiceToPay); }
-      setInvoices(getInvoices()); setIsModalOpen(false); setFormData({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '' }); setSelectedInvoiceToPay(''); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+      setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
   };
   const downloadPDF = (doc: Invoice) => { const client = allClients.find(c => c.id === doc.clientId); if (client) { generateInvoicePDF(doc, client); } else { alert(`Could not generate PDF: Client data missing for ID ${doc.clientId}`); } };
   const initiatePayment = (invoice: Invoice) => { setActiveTab('Receipts'); setIsModalOpen(true); setTimeout(() => handleInvoiceSelect(invoice.id), 0); };
@@ -115,8 +157,9 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   };
 
   const filteredDocs = invoices.filter(i => {
+      const iType = String(i.type || '').toLowerCase();
       let matchesType = false;
-      if (activeTab === 'Invoices') matchesType = i.type === 'Invoice'; else if (activeTab === 'Quotations') matchesType = i.type === 'Quotation'; else if (activeTab === 'Receipts') matchesType = i.type === 'Receipt';
+      if (activeTab === 'Invoices') matchesType = iType === 'invoice'; else if (activeTab === 'Quotations') matchesType = iType === 'quotation'; else if (activeTab === 'Receipts') matchesType = iType === 'receipt';
       const searchLower = searchTerm.toLowerCase();
       const clientName = allClients.find(c => c.id === i.clientId)?.companyName.toLowerCase() || '';
       const matchesSearch = i.id.toLowerCase().includes(searchLower) || clientName.includes(searchLower) || (i.paymentReference && i.paymentReference.toLowerCase().includes(searchLower));
@@ -128,7 +171,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : 'Financial Documents'}</h2><p className="text-slate-500 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : 'Create invoices, manage VAT, and track payment history'}</p></div>
-          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64 hidden sm:block"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '' }); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
+          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64 hidden sm:block"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
         </div>
 
         {/* Mobile-friendly tabs */}
@@ -262,16 +305,63 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         {activeTab === 'Receipts' && (<div className="grid grid-cols-2 gap-6"><MinimalSelect label="Payment Method" value={formData.paymentMethod} onChange={(e: any) => setFormData({...formData, paymentMethod: e.target.value})} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash'},{value: 'Other', label: 'Other'}]}/><MinimalInput label="Reference Number" value={formData.paymentReference} onChange={(e: any) => setFormData({...formData, paymentReference: e.target.value})} /></div>)}
                         <div className="bg-slate-50 rounded-2xl p-6 space-y-4 border border-slate-100">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Line Items</h4>
-                            <div className="flex gap-3">
-                                <div className="flex-1"><MinimalInput label="Description" value={newItem.description} onChange={(e: any) => setNewItem({...newItem, description: e.target.value})} /></div>
-                                <div className="w-32"><MinimalInput label="Amount ($)" type="number" value={newItem.amount} onChange={(e: any) => setNewItem({...newItem, amount: Number(e.target.value)})} /></div>
-                                <button type="button" onClick={addItem} className="bg-slate-900 text-white rounded-xl px-4 mt-2 hover:bg-slate-800"><Plus size={18}/></button>
+                            <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-3 items-end">
+                                <div className="flex-1"><MinimalTextarea label="Description / Details" value={newItem.description} onChange={(e: any) => setNewItem({...newItem, description: e.target.value})} rows={3} /></div>
+                                <div><MinimalInput label="Amount ($)" type="number" value={newItem.amount} onChange={(e: any) => setNewItem({...newItem, amount: Number(e.target.value)})} /></div>
+                                <button type="button" onClick={addItem} className="bg-slate-900 text-white rounded-xl px-4 py-3 hover:bg-slate-800 flex items-center justify-center gap-2"><Plus size={18}/> Add</button>
                             </div>
-                            {formData.items && formData.items.length > 0 && (<div className="mt-4 space-y-2">{formData.items.map((item, idx) => (<div key={idx} className="flex justify-between text-sm bg-white p-3 rounded-lg border border-slate-200"><span>{item.description}</span><span className="font-bold">${item.amount}</span></div>))}</div>)}
+                            {formData.items && formData.items.length > 0 && (
+                              <div className="mt-4 space-y-3">
+                                {formData.items.map((item, idx) => (
+                                  <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Line Item {idx + 1}</span>
+                                      <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove line item">
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                    <MinimalTextarea label="Description / Details" value={item.description} onChange={(e: any) => updateItem(idx, 'description', e.target.value)} rows={3} />
+                                    <div className="w-full md:w-40">
+                                      <MinimalInput label="Amount ($)" type="number" value={item.amount} onChange={(e: any) => updateItem(idx, 'amount', e.target.value)} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                        </div>
+                        <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Discount</h4>
+                                {receiptIsLinkedToInvoice && <span className="text-[11px] font-medium text-slate-400">Locked for linked invoice receipts</span>}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-[180px_140px] gap-4">
+                                <MinimalSelect label="Discount Type" value={discountType} disabled={receiptIsLinkedToInvoice} onChange={(e: any) => setDiscountType(e.target.value)} options={[{ value: 'amount', label: 'Fixed Amount' }, { value: 'percentage', label: 'Percentage %' }]} />
+                                <MinimalInput label={discountType === 'percentage' ? 'Discount %' : 'Discount Amount ($)'} type="number" disabled={receiptIsLinkedToInvoice} value={discountValue} onChange={(e: any) => setDiscountValue(Number(e.target.value))} />
+                            </div>
+                            <MinimalInput label="Discount Note (Optional)" disabled={receiptIsLinkedToInvoice} value={discountDescription} onChange={(e: any) => setDiscountDescription(e.target.value)} />
+                            {receiptIsLinkedToInvoice && <p className="text-xs text-slate-400">To keep balances correct, linked receipts use the invoice amount exactly.</p>}
                         </div>
                         <div className="flex items-center gap-2">
                             <input type="checkbox" checked={hasVat} disabled={activeTab === 'Receipts' && !!selectedInvoiceToPay} onChange={e => setHasVat(e.target.checked)} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                             <label className="text-sm font-medium text-slate-600">Include VAT (15%)</label>
+                        </div>
+                        <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-slate-300">Subtotal</span>
+                                <span className="font-semibold">${subtotal.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-slate-300">Discount</span>
+                                <span className="font-semibold">-${discountAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-slate-300">VAT</span>
+                                <span className="font-semibold">${vatAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="pt-2 border-t border-slate-700 flex items-center justify-between">
+                                <span className="text-sm font-bold uppercase tracking-wider">Total</span>
+                                <span className="text-xl font-black">${total.toLocaleString()}</span>
+                            </div>
                         </div>
                         <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all"><Save size={18} /> Create {activeTab.slice(0, -1)}</button>
                     </form>

@@ -22,6 +22,10 @@ echo "Enter your Supabase Anon/Public Key (found in Supabase Dashboard > Setting
 read -p "VITE_SUPABASE_ANON_KEY: " supabase_key
 
 echo ""
+echo "Enter your Groq API Key (used by /api/ai for greetings, proposals, and news):"
+read -p "GROQ_API_KEY: " groq_api_key
+
+echo ""
 echo "Adding environment variables to Vercel..."
 
 # Add Supabase URL
@@ -30,8 +34,11 @@ npx vercel env add VITE_SUPABASE_URL production <<< "$supabase_url"
 # Add Supabase Key
 npx vercel env add VITE_SUPABASE_ANON_KEY production <<< "$supabase_key"
 
+# Add Groq API key
+npx vercel env add GROQ_API_KEY production <<< "$groq_api_key"
+
 echo ""
-echo "✅ Supabase environment variables added successfully!"
+echo "✅ Supabase and AI environment variables added successfully!"
 echo ""
 
 # Optional: Add admin credentials

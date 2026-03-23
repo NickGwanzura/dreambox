@@ -15,6 +15,13 @@ View your app in AI Studio: https://ai.studio/apps/drive/1ywfDf4-VW_WND9-XAilYdd
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set your environment variables in `.env.local`:
+   `VITE_SUPABASE_URL=...`
+   `VITE_SUPABASE_ANON_KEY=...`
+   `GROQ_API_KEY=...`
 3. Run the app:
    `npm run dev`
+
+## AI Setup
+
+The app's AI features call the server-side proxy at [`api/ai.ts`](/Users/itai/Desktop/SYS/dreambox/api/ai.ts), which expects `GROQ_API_KEY` to be available in the environment. On Vercel, add `GROQ_API_KEY` to your production environment before deploying.

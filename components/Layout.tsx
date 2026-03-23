@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { signOut } from '../services/supabaseAuth';
-import { isSupabaseConfigured } from '../services/supabaseClient';
+import { isSupabaseConfigured, checkSupabaseConnection } from '../services/supabaseClient';
 import { useToast } from './ToastProvider';
 import { 
   getSystemAlertCount, 
@@ -78,12 +78,30 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
   // Initialize and setup intervals
   useEffect(() => {
+    let isMounted = true;
+
     // Initial checks
     setAlertCount(getSystemAlertCount());
     triggerAutoBackup();
     runAutoBilling();
     runMaintenanceCheck();
-    setDbConnected(isSupabaseConfigured());
+
+    const initializeDatabaseState = async () => {
+      if (!isSupabaseConfigured()) {
+        if (isMounted) setDbConnected(false);
+        return;
+      }
+
+      const connected = await checkSupabaseConnection();
+      if (!isMounted) return;
+
+      setDbConnected(connected);
+      if (!connected) {
+        logger.warn('Supabase is configured but not reachable; running without realtime subscriptions');
+      }
+    };
+
+    initializeDatabaseState();
 
     // Setup intervals - store in ref for cleanup
     const alertInterval = setInterval(() => setAlertCount(getSystemAlertCount()), ALERT_CHECK_INTERVAL_MS);
@@ -111,6 +129,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     });
 
     return () => {
+      isMounted = false;
       // Clean up all intervals
       intervalsRef.current.forEach(clearInterval);
       intervalsRef.current = [];

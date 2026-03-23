@@ -28,6 +28,15 @@ type ChangeCallback<T> = (change: RealtimeChange<T>) => void;
 class RealtimeSyncService {
   private channels: Map<string, any> = new Map();
   private isEnabled: boolean = true;
+  private disabledReason: string | null = null;
+
+  private disableRealtime(reason: string): void {
+    if (!this.isEnabled) return;
+    this.isEnabled = false;
+    this.disabledReason = reason;
+    this.unsubscribeAll();
+    logger.warn(`Realtime sync disabled for this session: ${reason}`);
+  }
 
   /**
    * Subscribe to changes on a specific table
@@ -43,7 +52,7 @@ class RealtimeSyncService {
     }
 
     if (!this.isEnabled) {
-      logger.debug('Realtime sync is disabled');
+      logger.debug(`Realtime sync is disabled${this.disabledReason ? `: ${this.disabledReason}` : ''}`);
       return () => {};
     }
 
@@ -78,7 +87,12 @@ class RealtimeSyncService {
         if (status === 'SUBSCRIBED') {
           logger.info(`Subscribed to ${table} changes`);
         } else if (status === 'CHANNEL_ERROR') {
-          logger.error(`Failed to subscribe to ${table}`);
+          logger.warn(`Failed to subscribe to ${table}; falling back to non-realtime mode`);
+          this.disableRealtime(`channel error while subscribing to ${table}`);
+        } else if (status === 'TIMED_OUT') {
+          logger.warn(`Realtime subscription timed out for ${table}`);
+        } else if (status === 'CLOSED') {
+          logger.debug(`Realtime subscription closed for ${table}`);
         }
       });
 
@@ -116,6 +130,9 @@ class RealtimeSyncService {
    */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
+    if (enabled) {
+      this.disabledReason = null;
+    }
     if (!enabled) {
       this.unsubscribeAll();
     }

@@ -164,17 +164,21 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
     doc.text(`Subtotal:`, totalsX, finalY + 10);
     doc.text(`$${(invoice.subtotal || 0).toFixed(2)}`, 195, finalY + 10, { align: 'right' });
     
-    doc.text(`VAT (15%):`, totalsX, finalY + 15);
-    doc.text(`$${(invoice.vatAmount || 0).toFixed(2)}`, 195, finalY + 15, { align: 'right' });
+    const discountLabel = invoice.discountDescription ? `Discount (${invoice.discountDescription})` : 'Discount';
+    doc.text(discountLabel + ':', totalsX, finalY + 15);
+    doc.text(`-$${(invoice.discountAmount || 0).toFixed(2)}`, 195, finalY + 15, { align: 'right' });
+
+    doc.text(`VAT (15%):`, totalsX, finalY + 20);
+    doc.text(`$${(invoice.vatAmount || 0).toFixed(2)}`, 195, finalY + 20, { align: 'right' });
     
     doc.setDrawColor(200);
-    doc.line(totalsX, finalY + 18, 195, finalY + 18);
+    doc.line(totalsX, finalY + 23, 195, finalY + 23);
 
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
-    doc.text(`Total:`, totalsX, finalY + 26);
-    doc.text(`$${(invoice.total || 0).toFixed(2)}`, 195, finalY + 26, { align: 'right' });
+    doc.text(`Total:`, totalsX, finalY + 31);
+    doc.text(`$${(invoice.total || 0).toFixed(2)}`, 195, finalY + 31, { align: 'right' });
 
     doc.save(`${invoice.type}_${invoice.id}.pdf`);
   } catch (error) {
