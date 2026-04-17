@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { getBillboards, getCompanyLogo } from '../services/mockData';
 import { Billboard } from '../types';
 import L from 'leaflet';
@@ -12,17 +12,24 @@ interface PublicViewProps {
 
 export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => {
     const [billboard, setBillboard] = useState<Billboard | null>(null);
+    const [allBillboards, setAllBillboards] = useState<Billboard[]>([]);
     const mapRef = useRef<L.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const logo = getCompanyLogo();
 
     useEffect(() => {
+        const boards = getBillboards();
+        setAllBillboards(boards);
         if (type === 'billboard' && billboardId) {
-            const allBoards = getBillboards();
-            const found = allBoards.find(b => b.id === billboardId);
+            const found = boards.find(b => b.id === billboardId);
             setBillboard(found || null);
         }
     }, [type, billboardId]);
+
+    const otherBillboards = useMemo(
+        () => allBillboards.filter(b => b.id !== billboard?.id && b.coordinates),
+        [allBillboards, billboard?.id]
+    );
 
     useEffect(() => {
         // Initialize Map
@@ -41,13 +48,36 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
         }
 
         const map = mapRef.current;
-        const DefaultIcon = L.icon({ 
-            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', 
-            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', 
-            iconSize: [25, 41], 
-            iconAnchor: [12, 41], 
-            popupAnchor: [1, -34] 
+        const DefaultIcon = L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
         });
+        const FeaturedIcon = L.divIcon({
+            className: 'dreambox-featured-marker',
+            html: `<div style="width:22px;height:22px;border-radius:50%;background:#4f46e5;border:3px solid #fff;box-shadow:0 0 0 3px rgba(79,70,229,0.35),0 4px 10px rgba(15,23,42,0.35);"></div>`,
+            iconSize: [22, 22],
+            iconAnchor: [11, 11],
+            popupAnchor: [0, -12]
+        });
+        const OtherIcon = L.divIcon({
+            className: 'dreambox-other-marker',
+            html: `<div style="width:12px;height:12px;border-radius:50%;background:#94a3b8;border:2px solid #fff;box-shadow:0 2px 4px rgba(15,23,42,0.25);"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
+            popupAnchor: [0, -8]
+        });
+
+        const renderOtherPopup = (b: Billboard) => `
+            <div style="min-width:170px;">
+                <strong>${b.name}</strong><br/>
+                <span style="font-size:10px; color:#666;">${b.type} • ${b.width}x${b.height}m</span><br/>
+                <span style="font-size:10px; color:#666;">${b.location}, ${b.town}</span><br/>
+                <a href="?public=true&type=billboard&id=${b.id}" style="color:#6366f1; font-size:10px; text-decoration:none; font-weight:bold;">View Details &rarr;</a>
+            </div>
+        `;
 
         // Clear existing layers to prevent duplicates on re-render
         map.eachLayer((layer) => {
@@ -56,42 +86,44 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             }
         });
 
+        const boards = allBillboards;
+
         if (type === 'billboard' && billboard && billboard.coordinates) {
+            // Plot every other location as a muted secondary marker
+            boards.forEach(b => {
+                if (b.id === billboard.id || !b.coordinates) return;
+                L.marker([b.coordinates.lat, b.coordinates.lng], { icon: OtherIcon, zIndexOffset: 0 })
+                    .addTo(map)
+                    .bindPopup(renderOtherPopup(b));
+            });
+
             const { lat, lng } = billboard.coordinates;
-            // Fly to the specific billboard location
-            map.setView([lat, lng], 16);
-            
-            L.marker([lat, lng], { icon: DefaultIcon })
-             .addTo(map)
-             .bindPopup(`<b>${billboard.name}</b><br>${billboard.location}`)
-             .openPopup();
+            map.setView([lat, lng], 14);
+
+            L.marker([lat, lng], { icon: FeaturedIcon, zIndexOffset: 1000 })
+                .addTo(map)
+                .bindPopup(`<b>${billboard.name}</b><br>${billboard.location}`)
+                .openPopup();
         } else if (type === 'map') {
-            // Show all billboards
-            const allBoards = getBillboards();
-            if (allBoards.length > 0) {
-                const bounds = L.latLngBounds(allBoards.map(b => [b.coordinates.lat, b.coordinates.lng]));
+            if (boards.length > 0) {
+                const bounds = L.latLngBounds(
+                    boards.filter(b => b.coordinates).map(b => [b.coordinates.lat, b.coordinates.lng])
+                );
                 map.fitBounds(bounds, { padding: [50, 50] });
             }
 
-            allBoards.forEach(b => {
-                if(b.coordinates) {
+            boards.forEach(b => {
+                if (b.coordinates) {
                     L.marker([b.coordinates.lat, b.coordinates.lng], { icon: DefaultIcon })
-                     .addTo(map)
-                     .bindPopup(`
-                        <div style="min-width: 150px;">
-                            <strong>${b.name}</strong><br/>
-                            <span style="font-size:10px; color:#666;">${b.type} • ${b.width}x${b.height}m</span><br/>
-                            <a href="?public=true&type=billboard&id=${b.id}" style="color:#6366f1; font-size:10px; text-decoration:none; font-weight:bold;">View Details &rarr;</a>
-                        </div>
-                     `);
+                        .addTo(map)
+                        .bindPopup(renderOtherPopup(b));
                 }
             });
         }
 
-        // Cleanup function (optional, but good practice to invalidate size if container changes)
         map.invalidateSize();
 
-    }, [billboard, type]);
+    }, [billboard, type, allBillboards]);
 
     if (type === 'billboard' && !billboard) {
         return (
@@ -181,10 +213,65 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
                             <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative min-h-[300px]">
                                 <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-slate-100"></div>
+                                <div className="absolute top-4 left-4 z-[400] bg-white/95 backdrop-blur px-3 py-2 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 ring-2 ring-indigo-200"></span> This Site
+                                    </span>
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                        <span className="w-2 h-2 rounded-full bg-slate-400"></span> {otherBillboards.length} Other{otherBillboards.length === 1 ? '' : 's'}
+                                    </span>
+                                </div>
                                 <div className="absolute bottom-4 right-4 z-[400] bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-[10px] font-bold text-slate-500 shadow-sm border border-slate-200">
                                     {billboard.coordinates.lat.toFixed(4)}, {billboard.coordinates.lng.toFixed(4)}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Other locations grid shown under the featured billboard */}
+                {type === 'billboard' && billboard && otherBillboards.length > 0 && (
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 sm:p-8">
+                        <div className="flex items-end justify-between mb-6 flex-wrap gap-3">
+                            <div>
+                                <h2 className="text-xl font-black text-slate-900 leading-tight">More Locations</h2>
+                                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">Explore our full network of {allBillboards.length} sites</p>
+                            </div>
+                            <a href="?public=true&type=map" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-800 transition-colors">
+                                <Layers size={14}/> View Full Map
+                            </a>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {otherBillboards.slice(0, 6).map(b => (
+                                <a
+                                    key={b.id}
+                                    href={`?public=true&type=billboard&id=${b.id}`}
+                                    className="group block rounded-2xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all overflow-hidden"
+                                >
+                                    <div className="h-32 bg-slate-900 relative overflow-hidden">
+                                        {b.imageUrl ? (
+                                            <img src={b.imageUrl} alt={b.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-white/30">
+                                                <Maximize2 size={28}/>
+                                            </div>
+                                        )}
+                                        <span className="absolute top-2 right-2 bg-white/20 backdrop-blur text-white text-[9px] font-bold px-2 py-0.5 rounded-full border border-white/30">
+                                            {b.type}
+                                        </span>
+                                    </div>
+                                    <div className="p-4">
+                                        <div className="font-bold text-slate-900 text-sm leading-snug truncate">{b.name}</div>
+                                        <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium mt-1 truncate">
+                                            <MapPin size={11} className="text-indigo-500 shrink-0"/> {b.location}, {b.town}
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-3 pt-3 border-t border-slate-100">
+                                            <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
+                                            <span className="flex items-center gap-1"><Car size={10}/> {b.dailyTraffic ? (b.dailyTraffic / 1000).toFixed(0) + 'k' : '-'}</span>
+                                        </div>
+                                    </div>
+                                </a>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -195,7 +282,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                         <div ref={mapContainerRef} className="w-full h-full bg-slate-100 z-0"></div>
                         <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-3 rounded-2xl shadow-lg border border-slate-200">
                             <h2 className="font-bold text-slate-800 text-sm">Inventory Map</h2>
-                            <p className="text-xs text-slate-500 font-medium">{getBillboards().length} Locations</p>
+                            <p className="text-xs text-slate-500 font-medium">{allBillboards.length} Locations</p>
                         </div>
                     </div>
                 )}

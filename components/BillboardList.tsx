@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Billboard, BillboardType, Client, Contract } from '../types';
 import { getBillboards, addBillboard, updateBillboard, deleteBillboard, clients, ZIM_TOWNS, addClient, addContract, getClients, updateClient, getContracts, subscribe } from '../services/mockData';
 import { analyzeBillboardLocation } from '../services/aiService';
-import { MapPin, X, Edit2, Save, Plus, Image as ImageIcon, Map as MapIcon, Grid as GridIcon, Trash2, AlertTriangle, Share2, Eye, List as ListIcon, Search, Link2, Upload, Download, Layers, Users, Sparkles, RefreshCw, Car, ZoomIn, Maximize2, Hash, Zap, MousePointer2, FileText, Globe } from 'lucide-react';
+import { MapPin, X, Edit2, Save, Plus, Image as ImageIcon, Map as MapIcon, Grid as GridIcon, Trash2, AlertTriangle, Share2, Eye, List as ListIcon, Search, Link2, Upload, Download, Layers, Users, Sparkles, RefreshCw, Car, ZoomIn, Maximize2, Hash, Zap, MousePointer2, FileText, Globe, FileDown } from 'lucide-react';
+import { generateAvailabilitySheetPDF } from '../services/pdfGenerator';
 import L from 'leaflet';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
@@ -584,6 +585,8 @@ export const BillboardList: React.FC = () => {
                     <div className="w-[1px] h-6 bg-slate-200 mx-1"></div>
                     <button onClick={shareMap} className="p-2.5 rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-all" title="Share Public Map Link"><Globe size={18}/></button>
                 </div>
+
+                <button onClick={() => generateAvailabilitySheetPDF(billboards)} className="bg-gradient-to-r from-amber-500 to-amber-600 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2" title="Premium PDF of unoccupied sites and prices"><FileDown size={18} /> Availability PDF</button>
 
                 <button onClick={() => setIsAddModalOpen(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2"><Plus size={18} /> Add Billboard</button>
              </div>

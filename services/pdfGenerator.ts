@@ -1,8 +1,98 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard } from '../types';
+import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard, BillboardType } from '../types';
 import { getCompanyProfile, getCompanyLogo } from './mockData';
+
+type RGB = [number, number, number];
+
+const luminance = (c: RGB) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+const saturation = (c: RGB) => {
+    const mx = Math.max(...c), mn = Math.min(...c);
+    return mx === 0 ? 0 : (mx - mn) / mx;
+};
+const scaleRgb = (c: RGB, factor: number): RGB => [
+    Math.max(0, Math.min(255, Math.round(c[0] * factor))),
+    Math.max(0, Math.min(255, Math.round(c[1] * factor))),
+    Math.max(0, Math.min(255, Math.round(c[2] * factor)))
+];
+
+type LogoInfo = { pngDataUrl: string; width: number; height: number; primary: RGB; accent: RGB };
+
+const prepareLogoForPdf = (logoDataUrl?: string | null): Promise<LogoInfo | null> => {
+    return new Promise((resolve) => {
+        if (!logoDataUrl || !logoDataUrl.startsWith('data:image')) {
+            resolve(null);
+            return;
+        }
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                // Normalise to PNG for jsPDF (handles AVIF/WebP sources the browser decoded)
+                const normCanvas = document.createElement('canvas');
+                const maxSide = 512;
+                const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+                normCanvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+                normCanvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+                const normCtx = normCanvas.getContext('2d');
+                if (!normCtx) { resolve(null); return; }
+                normCtx.drawImage(img, 0, 0, normCanvas.width, normCanvas.height);
+                const pngDataUrl = normCanvas.toDataURL('image/png');
+
+                // Palette sampling on a smaller canvas
+                const size = 64;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { resolve(null); return; }
+                ctx.drawImage(img, 0, 0, size, size);
+                const data = ctx.getImageData(0, 0, size, size).data;
+
+                const buckets: Record<string, { r: number; g: number; b: number; count: number }> = {};
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+                    if (a < 200) continue;
+                    if (r > 240 && g > 240 && b > 240) continue; // near-white
+                    const key = `${r >> 5}-${g >> 5}-${b >> 5}`;
+                    if (!buckets[key]) buckets[key] = { r: 0, g: 0, b: 0, count: 0 };
+                    buckets[key].r += r;
+                    buckets[key].g += g;
+                    buckets[key].b += b;
+                    buckets[key].count += 1;
+                }
+
+                const top = Object.values(buckets)
+                    .filter(b => b.count > 5)
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 8)
+                    .map(b => [Math.round(b.r / b.count), Math.round(b.g / b.count), Math.round(b.b / b.count)] as RGB);
+
+                let primary: RGB = [15, 23, 42];
+                let accent: RGB = [202, 163, 73];
+
+                if (top.length > 0) {
+                    const darkCandidates = [...top].sort((a, b) => luminance(a) - luminance(b));
+                    primary = darkCandidates[0];
+                    if (luminance(primary) > 140) primary = scaleRgb(primary, 0.35);
+
+                    const accentCandidates = [...top].sort((a, b) => saturation(b) - saturation(a));
+                    for (const c of accentCandidates) {
+                        const dist = Math.hypot(c[0] - primary[0], c[1] - primary[1], c[2] - primary[2]);
+                        if (dist > 60) { accent = c; break; }
+                    }
+                }
+
+                resolve({ pngDataUrl, width: normCanvas.width, height: normCanvas.height, primary, accent });
+            } catch {
+                resolve(null);
+            }
+        };
+        img.onerror = () => resolve(null);
+        img.src = logoDataUrl;
+    });
+};
 
 // Helper to safely execute autoTable regardless of import structure
 const runAutoTable = (doc: any, options: any) => {
@@ -24,25 +114,41 @@ const runAutoTable = (doc: any, options: any) => {
     }
 };
 
-const addCompanyHeader = (doc: jsPDF): number => {
-    // IMPORTANT: Fetch profile here inside the function to get the latest state from LocalStorage
-    const profile = getCompanyProfile(); 
+// Memoised logo preparation — keyed by the raw data URL so re-uploads invalidate
+let _brandingCache: { key: string; value: LogoInfo | null } | null = null;
+
+const getPdfBranding = async (): Promise<LogoInfo | null> => {
     const logo = getCompanyLogo();
+    const key = logo || '';
+    if (_brandingCache && _brandingCache.key === key) return _brandingCache.value;
+    const value = await prepareLogoForPdf(logo);
+    _brandingCache = { key, value };
+    return value;
+};
+
+const addCompanyHeader = (doc: jsPDF, logoInfo?: LogoInfo | null): number => {
+    const profile = getCompanyProfile();
     const pageWidth = doc.internal.pageSize.width;
     let startY = 15;
 
-    // Logo (Top Left)
-    if (logo && logo.startsWith('data:image')) {
+    // Logo (Top Left) — aspect-preserving inside a 30mm x 22mm bounding box
+    if (logoInfo && logoInfo.pngDataUrl) {
+        const boxW = 30, boxH = 22;
+        const scale = Math.min(boxW / logoInfo.width, boxH / logoInfo.height);
+        const drawW = logoInfo.width * scale;
+        const drawH = logoInfo.height * scale;
+        const drawX = 14;
+        const drawY = 10 + (boxH - drawH) / 2;
         try {
-            // Assume square-ish logo, fit into 25x25 box
-            doc.addImage(logo, 'JPEG', 14, 10, 25, 25);
-        } catch (e) {
-            // Fallback for PNG or if compression fails
-            try {
-                 doc.addImage(logo, 'PNG', 14, 10, 25, 25);
-            } catch (err) {
-                console.warn("Could not add logo to PDF", err);
-            }
+            doc.addImage(logoInfo.pngDataUrl, 'PNG', drawX, drawY, drawW, drawH);
+        } catch (err) {
+            console.warn('Could not add logo to PDF', err);
+        }
+    } else {
+        const rawLogo = getCompanyLogo();
+        if (rawLogo && rawLogo.startsWith('data:image') && !rawLogo.startsWith('data:image/avif')) {
+            const fmt = rawLogo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+            try { doc.addImage(rawLogo, fmt, 14, 10, 25, 22); } catch { /* ignore */ }
         }
     }
 
@@ -115,10 +221,11 @@ const addContactFooter = (doc: jsPDF) => {
     }
 };
 
-export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
+export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
   try {
     const doc = new jsPDF();
-    let currentY = addCompanyHeader(doc);
+    const branding = await getPdfBranding();
+    let currentY = addCompanyHeader(doc, branding);
     
     doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
@@ -220,11 +327,12 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
   }
 };
 
-export const generateContractPDF = (contract: Contract, client: Client, billboardName: string) => {
+export const generateContractPDF = async (contract: Contract, client: Client, billboardName: string) => {
   try {
     const doc = new jsPDF();
     const profile = getCompanyProfile();
-    let currentY = addCompanyHeader(doc);
+    const branding = await getPdfBranding();
+    let currentY = addCompanyHeader(doc, branding);
 
     doc.setFontSize(22);
     doc.setTextColor(15, 23, 42);
@@ -365,10 +473,11 @@ export const generateContractPDF = (contract: Contract, client: Client, billboar
   }
 };
 
-export const generateStatementPDF = (client: Client, transactions: Invoice[], activeRentals: Contract[], billboardNameGetter: (id: string) => string) => {
+export const generateStatementPDF = async (client: Client, transactions: Invoice[], activeRentals: Contract[], billboardNameGetter: (id: string) => string) => {
     try {
         const doc = new jsPDF();
-        let currentY = addCompanyHeader(doc);
+        const branding = await getPdfBranding();
+        let currentY = addCompanyHeader(doc, branding);
 
         doc.setFontSize(20);
         doc.setTextColor(15, 23, 42);
@@ -463,10 +572,11 @@ export const generateStatementPDF = (client: Client, transactions: Invoice[], ac
     }
 };
 
-export const generateExpensesPDF = (expenses: Expense[]) => {
+export const generateExpensesPDF = async (expenses: Expense[]) => {
     try {
         const doc = new jsPDF();
-        let y = addCompanyHeader(doc);
+        const branding = await getPdfBranding();
+        let y = addCompanyHeader(doc, branding);
         
         doc.setFontSize(18);
         doc.setTextColor(15, 23, 42);
@@ -495,10 +605,11 @@ export const generateExpensesPDF = (expenses: Expense[]) => {
     }
 };
 
-export const generatePaymentSchedulePDF = (schedule: any[]) => {
+export const generatePaymentSchedulePDF = async (schedule: any[]) => {
     try {
         const doc = new jsPDF();
-        let y = addCompanyHeader(doc);
+        const branding = await getPdfBranding();
+        let y = addCompanyHeader(doc, branding);
         
         doc.setFontSize(18);
         doc.setTextColor(15, 23, 42);
@@ -527,10 +638,11 @@ export const generatePaymentSchedulePDF = (schedule: any[]) => {
     }
 };
 
-export const generateActiveContractsPDF = (contracts: Contract[], getClientName: (id: string) => string, getBillboardName: (id: string) => string) => {
+export const generateActiveContractsPDF = async (contracts: Contract[], getClientName: (id: string) => string, getBillboardName: (id: string) => string) => {
     try {
         const doc = new jsPDF('l'); // Landscape for more data
-        let y = addCompanyHeader(doc);
+        const branding = await getPdfBranding();
+        let y = addCompanyHeader(doc, branding);
         
         doc.setFontSize(18);
         doc.setTextColor(15, 23, 42);
@@ -572,10 +684,11 @@ export const generateActiveContractsPDF = (contracts: Contract[], getClientName:
     }
 };
 
-export const generateClientDirectoryPDF = (clients: Client[]) => {
+export const generateClientDirectoryPDF = async (clients: Client[]) => {
     try {
         const doc = new jsPDF();
-        let y = addCompanyHeader(doc);
+        const branding = await getPdfBranding();
+        let y = addCompanyHeader(doc, branding);
         
         doc.setFontSize(18);
         doc.setTextColor(15, 23, 42);
@@ -609,10 +722,11 @@ export const generateClientDirectoryPDF = (clients: Client[]) => {
     }
 };
 
-export const generateOutsourcedInventoryPDF = (billboards: OutsourcedBillboard[]) => {
+export const generateOutsourcedInventoryPDF = async (billboards: OutsourcedBillboard[]) => {
     try {
         const doc = new jsPDF();
-        let y = addCompanyHeader(doc);
+        const branding = await getPdfBranding();
+        let y = addCompanyHeader(doc, branding);
         
         doc.setFontSize(18);
         doc.setTextColor(15, 23, 42);
@@ -648,10 +762,269 @@ export const generateOutsourcedInventoryPDF = (billboards: OutsourcedBillboard[]
     }
 };
 
-export const generateAppFeaturesPDF = () => {
+type AvailabilityRow = {
+    siteName: string;
+    location: string;
+    type: 'Static' | 'LED';
+    size: string;
+    availability: string;
+    slotsFree: number;
+    dailyTraffic: number;
+    monthlyRate: number;
+};
+
+const formatCompactNumber = (n: number): string => {
+    if (!n || n <= 0) return '—';
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
+    return n.toLocaleString();
+};
+
+export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
+    try {
+        const doc = new jsPDF('l');
+        const pageWidth = doc.internal.pageSize.width;
+        const palette = await getPdfBranding();
+        const primary: RGB = palette?.primary || [15, 23, 42];
+        const accent: RGB = palette?.accent || [202, 163, 73];
+        const primarySoft: RGB = [
+            Math.round(primary[0] + (255 - primary[0]) * 0.85),
+            Math.round(primary[1] + (255 - primary[1]) * 0.85),
+            Math.round(primary[2] + (255 - primary[2]) * 0.85)
+        ];
+        let y = addCompanyHeader(doc, palette);
+
+        const rows: AvailabilityRow[] = [];
+        billboards.forEach(b => {
+            const sizeStr = b.width && b.height ? `${b.width}m x ${b.height}m` : '—';
+            const dailyTraffic = b.dailyTraffic || 0;
+            const locationStr = `${b.location}, ${b.town}`;
+
+            if (b.type === BillboardType.Static) {
+                const aFree = (b.sideAStatus || 'Available') === 'Available' && !b.sideAClientId;
+                const bFree = (b.sideBStatus || 'Available') === 'Available' && !b.sideBClientId;
+                if (aFree) {
+                    rows.push({ siteName: b.name, location: locationStr, type: 'Static', size: sizeStr, availability: 'Side A', slotsFree: 1, dailyTraffic, monthlyRate: b.sideARate || 0 });
+                }
+                if (bFree) {
+                    rows.push({ siteName: b.name, location: locationStr, type: 'Static', size: sizeStr, availability: 'Side B', slotsFree: 1, dailyTraffic, monthlyRate: b.sideBRate || 0 });
+                }
+            } else {
+                const total = b.totalSlots || 0;
+                const free = total - (b.rentedSlots || 0);
+                if (free > 0) {
+                    rows.push({ siteName: b.name, location: locationStr, type: 'LED', size: sizeStr, availability: `${free} of ${total} slots`, slotsFree: free, dailyTraffic, monthlyRate: b.ratePerSlot || 0 });
+                }
+            }
+        });
+
+        // Traffic aggregates — de-duplicate per site so one site with two open sides
+        // doesn't double-count its daily impression number.
+        const siteTraffic = new Map<string, number>();
+        rows.forEach(r => {
+            if (!siteTraffic.has(r.siteName)) siteTraffic.set(r.siteName, r.dailyTraffic);
+        });
+        const totalDailyTraffic = Array.from(siteTraffic.values()).reduce((acc, n) => acc + n, 0);
+        const monthlyImpressions = totalDailyTraffic * 30;
+        const sitesWithTraffic = Array.from(siteTraffic.values()).filter(n => n > 0).length;
+        const avgDailyTraffic = sitesWithTraffic > 0 ? Math.round(totalDailyTraffic / sitesWithTraffic) : 0;
+
+        // Premium title band — uses brand primary + accent from logo
+        doc.setFillColor(primary[0], primary[1], primary[2]);
+        doc.rect(14, y - 5, pageWidth - 28, 24, 'F');
+        doc.setFillColor(accent[0], accent[1], accent[2]);
+        doc.rect(14, y - 5, 4, 24, 'F');
+
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text('AVAILABLE INVENTORY', 24, y + 5);
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(203, 213, 225);
+        doc.text('Unoccupied Sites & Monthly Rates', 24, y + 12);
+
+        doc.setFontSize(8);
+        doc.setTextColor(203, 213, 225);
+        doc.text(`Generated ${new Date().toLocaleDateString()}`, pageWidth - 18, y + 5, { align: 'right' });
+        doc.text(`${rows.length} opening${rows.length === 1 ? '' : 's'} listed`, pageWidth - 18, y + 12, { align: 'right' });
+
+        y += 28;
+
+        // KPI cards
+        const uniqueSites = new Set(rows.map(r => r.siteName)).size;
+        const staticFaces = rows.filter(r => r.type === 'Static').length;
+        const ledSlotsOpen = rows.filter(r => r.type === 'LED').reduce((acc, r) => acc + r.slotsFree, 0);
+        const monthlyPotential = rows.reduce((acc, r) => acc + r.monthlyRate * r.slotsFree, 0);
+
+        const kpis = [
+            { label: 'SITES AVAILABLE', value: String(uniqueSites) },
+            { label: 'STATIC FACES', value: String(staticFaces) },
+            { label: 'LED SLOTS OPEN', value: String(ledSlotsOpen) },
+            { label: 'DAILY IMPRESSIONS', value: formatCompactNumber(totalDailyTraffic) },
+            { label: 'MONTHLY REACH', value: formatCompactNumber(monthlyImpressions) },
+            { label: 'MONTHLY POTENTIAL', value: `$${monthlyPotential.toLocaleString()}` }
+        ];
+
+        const cardCount = kpis.length;
+        const cardGap = 3;
+        const cardWidth = (pageWidth - 28 - cardGap * (cardCount - 1)) / cardCount;
+        kpis.forEach((kpi, idx) => {
+            const x = 14 + idx * (cardWidth + cardGap);
+            doc.setFillColor(primarySoft[0], primarySoft[1], primarySoft[2]);
+            doc.setDrawColor(primary[0], primary[1], primary[2]);
+            doc.roundedRect(x, y, cardWidth, 18, 2, 2, 'FD');
+            doc.setFillColor(accent[0], accent[1], accent[2]);
+            doc.rect(x, y, 2, 18, 'F');
+            doc.setFontSize(6.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(primary[0], primary[1], primary[2]);
+            doc.text(kpi.label, x + 4, y + 6);
+            doc.setFontSize(13);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(primary[0], primary[1], primary[2]);
+            doc.text(kpi.value, x + 4, y + 14);
+        });
+        y += 26;
+
+        if (rows.length === 0) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(100, 116, 139);
+            doc.text('All sites are currently booked. No inventory to list.', pageWidth / 2, y + 20, { align: 'center' });
+        } else {
+            const tableRows = rows.map(r => [
+                r.siteName,
+                r.location,
+                r.type,
+                r.size,
+                r.availability,
+                r.dailyTraffic > 0 ? r.dailyTraffic.toLocaleString() : '—',
+                r.dailyTraffic > 0 ? formatCompactNumber(r.dailyTraffic * 30) : '—',
+                `$${r.monthlyRate.toLocaleString()}`
+            ]);
+
+            runAutoTable(doc, {
+                startY: y,
+                head: [['Site', 'Location', 'Type', 'Size', 'Availability', 'Daily Views', 'Monthly Impr.', 'Monthly Rate']],
+                body: tableRows,
+                theme: 'grid',
+                headStyles: { fillColor: primary, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', cellPadding: 5 },
+                styles: { fontSize: 9, cellPadding: 4, textColor: [30, 41, 59] },
+                alternateRowStyles: { fillColor: primarySoft },
+                columnStyles: {
+                    0: { fontStyle: 'bold' },
+                    5: { halign: 'right' },
+                    6: { halign: 'right' },
+                    7: { halign: 'right', fontStyle: 'bold', textColor: accent }
+                },
+                foot: [[
+                    'NETWORK TOTALS',
+                    `${uniqueSites} site${uniqueSites === 1 ? '' : 's'}`,
+                    '',
+                    '',
+                    `${staticFaces + ledSlotsOpen} opening${(staticFaces + ledSlotsOpen) === 1 ? '' : 's'}`,
+                    totalDailyTraffic.toLocaleString(),
+                    formatCompactNumber(monthlyImpressions),
+                    `$${monthlyPotential.toLocaleString()}`
+                ]],
+                footStyles: { fillColor: primary, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold', halign: 'right' }
+            });
+        }
+
+        const finalY = (doc as any).lastAutoTable?.finalY || y + 10;
+        doc.setDrawColor(accent[0], accent[1], accent[2]);
+        doc.setLineWidth(0.6);
+        doc.line(14, finalY + 8, pageWidth - 14, finalY + 8);
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(100, 116, 139);
+        doc.text(
+            `Rates shown are monthly and exclude VAT (15%) and production/printing. To reserve, contact us using the details below.`,
+            14, finalY + 14
+        );
+        const trafficNote = rows.length > 0 && totalDailyTraffic > 0
+            ? `Traffic estimates are per-site daily impressions from traffic surveys; monthly reach = daily views × 30. Network average: ${avgDailyTraffic.toLocaleString()} views/day per site.`
+            : `Traffic estimates are derived from on-site surveys; monthly reach = daily views × 30.`;
+        doc.text(trafficNote, 14, finalY + 19);
+
+        // Premium "Contact Us" block
+        const pageHeight = doc.internal.pageSize.height;
+        const contactBlockHeight = 34;
+        let contactY = finalY + 26;
+        if (contactY + contactBlockHeight > pageHeight - 20) {
+            doc.addPage();
+            contactY = 20;
+        }
+
+        doc.setFillColor(primary[0], primary[1], primary[2]);
+        doc.rect(14, contactY, pageWidth - 28, contactBlockHeight, 'F');
+        doc.setFillColor(accent[0], accent[1], accent[2]);
+        doc.rect(14, contactY, 4, contactBlockHeight, 'F');
+
+        // Logo inside the contact band (right side) — aspect-preserving
+        if (palette && palette.pngDataUrl) {
+            try {
+                const boxW = 26, boxH = 26;
+                const scale = Math.min(boxW / palette.width, boxH / palette.height);
+                const drawW = palette.width * scale;
+                const drawH = palette.height * scale;
+                const logoX = pageWidth - 14 - boxW + (boxW - drawW) / 2;
+                const logoY = contactY + (contactBlockHeight - drawH) / 2;
+                doc.addImage(palette.pngDataUrl, 'PNG', logoX, logoY, drawW, drawH);
+            } catch {
+                // ignore logo render failure
+            }
+        }
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text('CONTACT US', 24, contactY + 9);
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(accent[0], accent[1], accent[2]);
+        doc.text('OUR OFFICES', 24, contactY + 16);
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(226, 232, 240);
+        doc.text('54 Brooke Village, Borrowdale Brooke, Harare, Zimbabwe', 24, contactY + 22);
+
+        const col2X = 24 + (pageWidth - 28) * 0.45;
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(accent[0], accent[1], accent[2]);
+        doc.text('CALL US', col2X, contactY + 16);
+        doc.text('EMAIL US', col2X + 55, contactY + 16);
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(226, 232, 240);
+        doc.text('+263 778 018 909', col2X, contactY + 22);
+        doc.text('info@dreamboxadvertising.com', col2X + 55, contactY + 22);
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(203, 213, 225);
+        doc.text('www.dreamboxadvertising.com', 24, contactY + 29);
+
+        addContactFooter(doc);
+        doc.save(`Availability_Sheet_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+        console.error('Availability PDF Error:', e);
+        alert('Failed to generate Availability PDF.');
+    }
+};
+
+export const generateAppFeaturesPDF = async () => {
     try {
         const doc = new jsPDF();
-        let y = addCompanyHeader(doc);
+        const branding = await getPdfBranding();
+        let y = addCompanyHeader(doc, branding);
 
         doc.setFontSize(22);
         doc.setTextColor(15, 23, 42);
