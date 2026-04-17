@@ -12,7 +12,7 @@
   --animate-fade-in: fadeIn 0.5s ease-out forwards;
   --animate-float: float 6s ease-in-out infinite;
 
-  --font-sans: 'Google Sans', sans-serif;
+  --font-sans: 'Geist', sans-serif;
 
   @keyframes blob {
     0% { transform: translate(0px, 0px) scale(1); }
