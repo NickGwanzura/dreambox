@@ -1,5 +1,5 @@
 import { Billboard, BillboardType, Client, Contract, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
-import { supabase } from './supabaseClient';
+import { api, isConfigured } from './apiClient';
 import { logger } from '../utils/logger';
 import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS } from './constants';
 
@@ -11,9 +11,9 @@ export const ZIM_TOWNS = [
 // --- Global Subscription System for Real-time Updates ---
 const listeners = new Set<() => void>();
 
-export const subscribe = (listener: () => void) => {
+export const subscribe = (listener: () => void): () => void => {
     listeners.add(listener);
-    return () => listeners.delete(listener);
+    return () => { listeners.delete(listener); };
 };
 
 const notifyListeners = () => {
@@ -97,214 +97,91 @@ const queueForDeletion = (table: string, id: string) => {
         deletedQueue.push({ table, id, timestamp: Date.now() });
         saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
     }
-    deleteFromSupabase(table, id);
+    deleteFromApi(table, id);
 };
 
-const deleteFromSupabase = async (table: string, id: string) => {
-    if (!supabase) return;
+const deleteFromApi = async (table: string, id: string) => {
+    if (!isConfigured()) return;
     try {
-        const { error } = await supabase.from(table).delete().eq('id', id);
-        if (error) { console.error(`Supabase Delete Error (${table}):`, error); } else {
-            deletedQueue = deletedQueue.filter(i => !(i.table === table && i.id === id));
-            saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
-        }
-    } catch (e) { console.error(`Supabase Exception (${table}):`, e); }
-}
+        await api.delete(`/api/${table}`, { id });
+        deletedQueue = deletedQueue.filter(i => !(i.table === table && i.id === id));
+        saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
+    } catch (e) { console.error(`API Delete Error (${table}):`, e); }
+};
 
-export const syncToSupabase = async (table: string, data: any) => {
-    if (!supabase) return;
-    try { const { error } = await supabase.from(table).upsert(data); if (error) console.error(`Supabase Sync Error (${table}):`, error); } catch (e) { console.error(`Supabase Exception (${table}):`, e); }
+export const syncToNeon = async (table: string, data: any) => {
+    if (!isConfigured()) return;
+    try {
+        if (data.id) {
+            await api.put(`/api/${table}`, data, { id: data.id });
+        } else {
+            await api.post(`/api/${table}`, data);
+        }
+    } catch (e) { console.error(`API Sync Error (${table}):`, e); }
 };
 
 export const fetchLatestUsers = async () => {
-    if (!supabase) return null;
+    if (!isConfigured()) return null;
     try {
-        // Fetch users from Supabase - merge with local to preserve all users
-        const { data: remoteData, error } = await supabase.from('users').select('*');
-        if (error) {
-            console.error("Error fetching users:", error);
-            return null;
-        }
-        
+        const remoteData = await api.get<any[]>('/api/users');
         if (remoteData && remoteData.length > 0) {
-            // Get current local users
-            const localUsers = users || [];
-            
-            // Get IDs of users pending deletion
-            const pendingDeleteIds = new Set(deletedQueue.filter(i => i.table === 'users').map(i => i.id));
-            
-            // Create a map of remote users by ID
-            const remoteMap = new Map(remoteData.map(u => [u.id, u]));
-            
-            // Merge: Start with remote users (excluding pending deletes), then add local-only users
-            const mergedUsers = remoteData.filter((u: any) => !pendingDeleteIds.has(u.id));
-            const mergedIds = new Set(mergedUsers.map((u: any) => u.id));
-            const mergedEmails = new Set(mergedUsers.map((u: any) => u.email?.toLowerCase()));
-
-            // Add local users that don't exist remotely (push them to cloud too)
-            for (const localUser of localUsers) {
-                if (pendingDeleteIds.has(localUser.id)) continue; // Skip pending deletes
-                if (!mergedIds.has(localUser.id) && !mergedEmails.has(localUser.email?.toLowerCase())) {
-                    mergedUsers.push(localUser);
-                    mergedEmails.add(localUser.email?.toLowerCase());
-                    // Push local-only user to cloud
-                    syncToSupabase('users', localUser);
-                }
-            }
-
-            users = mergedUsers;
+            users = remoteData;
             saveToStorage(STORAGE_KEYS.USERS, users);
-            console.log(`Users synced from cloud: ${remoteData.length} remote + ${mergedUsers.length - remoteData.length} local-only = ${mergedUsers.length} total`);
+            console.log(`Users synced from API: ${remoteData.length} total`);
             return users;
         }
     } catch (e) {
-        console.error("Failed to fetch users for login:", e);
+        console.error("Failed to fetch users:", e);
     }
     return null;
 };
 
 export const triggerFullSync = async () => {
-    if (!supabase) return false;
+    if (!isConfigured()) return false;
     let hasChanges = false;
-    
-    // 1. Flush Deletions
+
+    // Flush deletions
     if (deletedQueue.length > 0) {
         const remaining: DeletedItem[] = [];
         for (const item of deletedQueue) {
-            try { const { error } = await supabase.from(item.table).delete().eq('id', item.id); if (error) remaining.push(item); } catch (e) { remaining.push(item); }
+            try { await api.delete(`/api/${item.table}`, { id: item.id }); }
+            catch (e) { remaining.push(item); }
         }
         if (deletedQueue.length !== remaining.length) { deletedQueue = remaining; saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue); }
     }
-    
-    const restoreTimeStr = localStorage.getItem(STORAGE_KEYS.RESTORE_TIMESTAMP);
-    const restoreTime = restoreTimeStr ? parseInt(restoreTimeStr) : 0;
-    const isRecentRestore = (Date.now() - restoreTime) < RESTORE_GRACE_PERIOD_MS;
 
-    const smartSyncTable = async (tableName: string, localData: any[], setLocalData: (d: any[]) => void, storageKey: string) => {
-        try {
-            // A. Fetch Remote (Source of Truth)
-            const { data: remoteData, error } = await supabase.from(tableName).select('*');
-            if (error || !remoteData) return;
-
-            const pendingDeleteIds = new Set(deletedQueue.filter(i => i.table === tableName).map(i => i.id));
-
-            // B. For users: deduplicate remote data by email RIGHT HERE before merging.
-            //    Prefer stable IDs (shorter, non-timestamp) over generated timestamp IDs.
-            //    Delete the extras from Supabase immediately.
-            let deduplicatedRemote = remoteData;
-            if (tableName === 'users') {
-                const seenEmails = new Map<string, any>();
-                const staleIds: string[] = [];
-                // Sort: prefer short/stable IDs first so they win the "keep" slot
-                const sorted = [...remoteData].sort((a, b) => {
-                    const aTs = a.id.split('-').find((p: string) => p.length > 10 && !isNaN(Number(p)));
-                    const bTs = b.id.split('-').find((p: string) => p.length > 10 && !isNaN(Number(p)));
-                    if (!aTs && bTs) return -1; // a is stable, keep a
-                    if (aTs && !bTs) return 1;  // b is stable, keep b
-                    return 0;
-                });
-                for (const u of sorted) {
-                    const key = u.email?.toLowerCase();
-                    if (!key) { seenEmails.set(u.id, u); continue; }
-                    if (seenEmails.has(key)) {
-                        staleIds.push(u.id); // duplicate — mark for deletion
-                    } else {
-                        seenEmails.set(key, u);
-                    }
-                }
-                if (staleIds.length > 0) {
-                    logger.warn(`[Sync] Removing ${staleIds.length} duplicate user row(s) from Supabase`);
-                    const { error: delErr } = await supabase.from('users').delete().in('id', staleIds);
-                    if (delErr) logger.error('[Sync] Failed to delete duplicate users:', delErr.message);
-                    else logger.info(`[Sync] Deleted ${staleIds.length} duplicate user rows`);
-                }
-                deduplicatedRemote = Array.from(seenEmails.values());
-            }
-
-            const remoteMap = new Map(deduplicatedRemote.map(d => [d.id, d]));
-
-            // C. Initialize merged with deduplicated Remote Data
-            const mergedData = deduplicatedRemote.filter(d => !pendingDeleteIds.has(d.id));
-            const mergedMap = new Set(mergedData.map(d => d.id));
-
-            // D. Handle Local Items NOT in Remote
-            const localOnly = localData.filter(l => !remoteMap.has(l.id));
-
-            for (const item of localOnly) {
-                if (pendingDeleteIds.has(item.id)) continue;
-
-                let isNewLocal = false;
-
-                // Timestamp check - is this item newly created?
-                const parts = item.id.split('-');
-                const potentialTs = parts.find((p: string) => p.length > 10 && !isNaN(Number(p)));
-
-                if (potentialTs) {
-                    const ts = Number(potentialTs);
-                    if (Date.now() - ts < NEW_ITEM_WINDOW_MS) isNewLocal = true;
-                } else if (item.id.length < 10 || item.id.startsWith('dev-') || item.id.startsWith('owner-') || item.id.startsWith('brian-') || item.id.startsWith('admin-')) {
-                    isNewLocal = true; // Static/stable IDs
-                }
-
-                if (isRecentRestore) isNewLocal = true;
-
-                if (isNewLocal) {
-                    if (!mergedMap.has(item.id)) {
-                        // For all tables: deduplicate by email before pushing
-                        if (tableName === 'users') {
-                            const emailAlreadyMerged = mergedData.some((m: any) => m.email?.toLowerCase() === item.email?.toLowerCase());
-                            if (emailAlreadyMerged) continue;
-                        }
-                        mergedData.push(item);
-                        syncToSupabase(tableName, item);
-                    }
-                }
-                // else: Item is old locally but missing remotely -> dropped by remote delete.
-            }
-
-            // E. Apply Changes if different
-            if (JSON.stringify(localData) !== JSON.stringify(mergedData)) {
-                setLocalData(mergedData);
-                saveToStorage(storageKey, mergedData);
-                hasChanges = true;
-            }
-
-        } catch (e) { console.error(`Sync error ${tableName}:`, e); }
-    };
+    const tables: { apiPath: string; setter: (d: any[]) => void; storageKey: string }[] = [
+        { apiPath: 'billboards',    setter: (d) => { billboards = d; },       storageKey: STORAGE_KEYS.BILLBOARDS },
+        { apiPath: 'clients',       setter: (d) => { clients = d; },          storageKey: STORAGE_KEYS.CLIENTS },
+        { apiPath: 'contracts',     setter: (d) => { contracts = d; },        storageKey: STORAGE_KEYS.CONTRACTS },
+        { apiPath: 'invoices',      setter: (d) => { invoices = d; },         storageKey: STORAGE_KEYS.INVOICES },
+        { apiPath: 'expenses',      setter: (d) => { expenses = d; },         storageKey: STORAGE_KEYS.EXPENSES },
+        { apiPath: 'users',         setter: (d) => { users = d; },            storageKey: STORAGE_KEYS.USERS },
+        { apiPath: 'tasks',         setter: (d) => { tasks = d; },            storageKey: STORAGE_KEYS.TASKS },
+        { apiPath: 'maintenance',   setter: (d) => { maintenanceLogs = d; },  storageKey: STORAGE_KEYS.MAINTENANCE },
+        { apiPath: 'outsourced',    setter: (d) => { outsourcedBillboards = d; }, storageKey: STORAGE_KEYS.OUTSOURCED },
+        { apiPath: 'printing-jobs', setter: (d) => { printingJobs = d; },  storageKey: STORAGE_KEYS.PRINTING },
+    ];
 
     try {
-        await Promise.all([
-            smartSyncTable('billboards', billboards, (d) => billboards = d, STORAGE_KEYS.BILLBOARDS),
-            smartSyncTable('clients', clients, (d) => clients = d, STORAGE_KEYS.CLIENTS),
-            smartSyncTable('contracts', contracts, (d) => contracts = d, STORAGE_KEYS.CONTRACTS),
-            smartSyncTable('invoices', invoices, (d) => invoices = d, STORAGE_KEYS.INVOICES),
-            smartSyncTable('expenses', expenses, (d) => expenses = d, STORAGE_KEYS.EXPENSES),
-            smartSyncTable('users', users, (d) => users = d, STORAGE_KEYS.USERS),
-            smartSyncTable('tasks', tasks, (d) => tasks = d, STORAGE_KEYS.TASKS),
-            smartSyncTable('maintenance_logs', maintenanceLogs, (d) => maintenanceLogs = d, STORAGE_KEYS.MAINTENANCE)
-        ]);
-        
-        // Profile Sync
-        const { data: profileData } = await supabase.from('company_profile').select('*').single();
-        if (profileData) {
-            if (isRecentRestore) { 
-                const payload = { ...companyProfile, id: 'profile_v1', logo: companyLogo }; 
-                await supabase.from('company_profile').upsert(payload); 
-            } else if (JSON.stringify(profileData) !== JSON.stringify(companyProfile)) { 
-                // Remote profile is different -> Update local to match remote
-                companyProfile = profileData; 
-                saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); 
-                if (profileData.logo) { 
-                    companyLogo = profileData.logo; 
-                    saveToStorage(STORAGE_KEYS.LOGO, companyLogo); 
-                } 
-                hasChanges = true; 
+        await Promise.all(tables.map(async ({ apiPath, setter, storageKey }) => {
+            try {
+                const remoteData = await api.get<any[]>(`/api/${apiPath}`);
+                if (remoteData) { setter(remoteData); saveToStorage(storageKey, remoteData); hasChanges = true; }
+            } catch (e) { console.error(`Sync error ${apiPath}:`, e); }
+        }));
+
+        // Profile sync
+        try {
+            const profileData = await api.get('/api/company-profile');
+            if (profileData && Object.keys(profileData).length > 0) {
+                const { logo, ...rest } = profileData;
+                companyProfile = rest;
+                saveToStorage(STORAGE_KEYS.PROFILE, companyProfile);
+                if (logo) { companyLogo = logo; saveToStorage(STORAGE_KEYS.LOGO, companyLogo); }
+                hasChanges = true;
             }
-        } else if (companyProfile) { 
-            // Remote missing -> Push local
-            const payload = { ...companyProfile, id: 'profile_v1', logo: companyLogo }; 
-            await supabase.from('company_profile').upsert(payload); 
-        }
+        } catch (e) { console.error('Profile sync error:', e); }
 
         if (hasChanges) notifyListeners();
         return true;
@@ -312,22 +189,20 @@ export const triggerFullSync = async () => {
 };
 
 export const verifyDataIntegrity = async () => {
-    if (!supabase) return null;
-    const report = { billboards: { local: billboards.length, remote: 0 }, clients: { local: clients.length, remote: 0 }, contracts: { local: contracts.length, remote: 0 }, invoices: { local: invoices.length, remote: 0 }, users: { local: users.length, remote: 0 }, };
+    if (!isConfigured()) return null;
+    const report = { billboards: { local: billboards.length, remote: 0 }, clients: { local: clients.length, remote: 0 }, contracts: { local: contracts.length, remote: 0 }, invoices: { local: invoices.length, remote: 0 }, users: { local: users.length, remote: 0 } };
     try {
-        const results = await Promise.all([
-            supabase.from('billboards').select('*', { count: 'exact', head: true }),
-            supabase.from('clients').select('*', { count: 'exact', head: true }),
-            supabase.from('contracts').select('*', { count: 'exact', head: true }),
-            supabase.from('invoices').select('*', { count: 'exact', head: true }),
-            supabase.from('users').select('*', { count: 'exact', head: true }),
+        const [b, c, co, i, u] = await Promise.all([
+            api.get<any[]>('/api/billboards'), api.get<any[]>('/api/clients'),
+            api.get<any[]>('/api/contracts'), api.get<any[]>('/api/invoices'), api.get<any[]>('/api/users'),
         ]);
-        report.billboards.remote = results[0].count || 0; report.clients.remote = results[1].count || 0; report.contracts.remote = results[2].count || 0; report.invoices.remote = results[3].count || 0; report.users.remote = results[4].count || 0;
+        report.billboards.remote = b?.length || 0; report.clients.remote = c?.length || 0;
+        report.contracts.remote = co?.length || 0; report.invoices.remote = i?.length || 0; report.users.remote = u?.length || 0;
         return report;
     } catch (e) { return null; }
 };
 
-if (supabase) { setTimeout(() => triggerFullSync(), 500); }
+if (isConfigured()) { setTimeout(() => triggerFullSync(), 500); }
 export const getStorageUsage = () => { let total = 0; for (const key in localStorage) { if (localStorage.hasOwnProperty(key) && key.startsWith('db_')) { total += (localStorage[key].length * 2); } } return (total / 1024).toFixed(2); };
 
 // --- Entity Exports & Initialization ---
@@ -341,67 +216,11 @@ export let outsourcedBillboards: OutsourcedBillboard[] = loadFromStorage(STORAGE
 export let printingJobs: PrintingJob[] = loadFromStorage(STORAGE_KEYS.PRINTING, []) || [];
 export let maintenanceLogs: MaintenanceLog[] = loadFromStorage(STORAGE_KEYS.MAINTENANCE, []) || [];
 export let tasks: Task[] = loadFromStorage(STORAGE_KEYS.TASKS, null) || [{ id: 't1', title: 'Site Inspection: Airport Rd', description: 'Verify lighting functionality on Side A.', assignedTo: 'Admin User', priority: 'High', status: 'Todo', dueDate: new Date().toISOString().split('T')[0], createdAt: new Date().toISOString() }, { id: 't2', title: 'Call Delta Beverages', description: 'Follow up on contract renewal for Q3.', assignedTo: 'Manager', priority: 'Medium', status: 'In Progress', dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], createdAt: new Date().toISOString() }]; if (!localStorage.getItem(STORAGE_KEYS.TASKS)) saveToStorage(STORAGE_KEYS.TASKS, tasks);
-export let users: User[] = loadFromStorage(STORAGE_KEYS.USERS, null) || [{ id: '1', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@dreambox.com', username: 'admin', password: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', status: 'Active' }]; if (users.length === 0) { users = [{ id: '1', firstName: 'Admin', lastName: 'User', role: 'Admin', email: 'admin@dreambox.com', username: 'admin', password: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', status: 'Active' }]; saveToStorage(STORAGE_KEYS.USERS, users); }
+export let users: User[] = loadFromStorage(STORAGE_KEYS.USERS, null) || [];
 const updatedUsers = users.map(u => ({ ...u, username: u.username || u.email.split('@')[0], status: u.status || 'Active' })); if (JSON.stringify(updatedUsers) !== JSON.stringify(users)) { users = updatedUsers; saveToStorage(STORAGE_KEYS.USERS, users); }
 
-// Admin users are now created through the registration flow
-// Hardcoded credentials have been removed for security
-// To create admin users, use the secure registration with role: 'Admin'
-// or configure via environment variables
-
-// Ensure default admin exists (password should be changed on first login)
-const ensureDefaultAdmin = () => {
-    const defaultAdminEmail = 'admin@dreambox.com';
-    const existingAdmin = users.find(u => u.email === defaultAdminEmail);
-    
-    if (!existingAdmin) {
-        logger.info('Creating default admin user');
-        // Note: Password will be hashed in authServiceSecure
-        const adminUser: User = {
-            id: 'admin-default-001',
-            firstName: 'Admin',
-            lastName: 'User',
-            email: defaultAdminEmail,
-            username: 'admin',
-            password: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', // SHA-256 hash of default password
-            role: 'Admin',
-            status: 'Active'
-        };
-        users.push(adminUser);
-        saveToStorage(STORAGE_KEYS.USERS, users);
-        syncToSupabase('users', adminUser);
-    }
-};
-
-// Create default admin if no users exist (works in both dev and production)
-// This ensures there's always an admin account to access the system
-ensureDefaultAdmin();
-
-// Ensure Brian Chiduuro user exists
-const ensureBrianUser = () => {
-    const brianEmail = 'chiduroobc@gmail.com';
-    const existingBrian = users.find(u => u.email === brianEmail);
-
-    if (!existingBrian) {
-        logger.info('Creating Brian Chiduuro user account');
-        const brianUser: User = {
-            id: 'brian-chiduuro-001', // stable ID — prevents duplicate Supabase rows
-            firstName: 'Brian',
-            lastName: 'Chiduuro',
-            email: brianEmail,
-            username: 'chiduroobc',
-            password: 'e4f0f97e289a66c2dda94ca7fd78fb58886cac140002dcf246dec0786e0ca7d3', // SHA-256 hash
-            role: 'Admin',
-            status: 'Active'
-        };
-        users.push(brianUser);
-        saveToStorage(STORAGE_KEYS.USERS, users);
-        syncToSupabase('users', brianUser);
-    }
-};
-ensureBrianUser();
-
-saveToStorage(STORAGE_KEYS.USERS, users);
+// Admin users are created through the registration flow or migration scripts.
+// No hardcoded credentials are shipped in the frontend bundle.
 
 // Default logo as inline SVG (no external dependency)
 const DEFAULT_LOGO_SVG = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIiBmaWxsPSJub25lIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzNzNkYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyNCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPkRyZWFtYm94PC90ZXh0Pjwvc3ZnPg==';
@@ -414,15 +233,35 @@ if (companyLogo && (companyLogo.includes('\\"') || companyLogo.includes('%22') |
   saveToStorage(STORAGE_KEYS.LOGO, companyLogo);
 }
 if (!companyLogo) companyLogo = DEFAULT_LOGO_SVG;
-const DEFAULT_PROFILE: CompanyProfile = { name: "Dreambox Advertising", vatNumber: "VAT-DBX-001", regNumber: "REG-2026/DBX", email: "info@dreamboxadvertising.com", supportEmail: "info@dreamboxadvertising.com", phone: "+263 778 018 909", website: "www.dreamboxadvertising.com", address: "54 Brooke Village, Borrowdale Brooke", city: "Harare", country: "Zimbabwe" };
+const DEFAULT_PROFILE: CompanyProfile = {
+    name: "Dreambox Advertising",
+    vatNumber: "VAT-DBX-001",
+    regNumber: "REG-2026/DBX",
+    email: "info@dreamboxadvertising.com",
+    supportEmail: "info@dreamboxadvertising.com",
+    phone: "+263 778 018 909",
+    website: "www.dreamboxadvertising.com",
+    address: "54 Brooke Village, Borrowdale Brooke",
+    city: "Harare",
+    country: "Zimbabwe",
+    bankName: "",
+    bankAccountName: "",
+    bankAccountNumber: "",
+    bankBranch: "",
+    bankSwift: "",
+    paymentTerms: "Payment due within 14 days of invoice date.",
+    senderEmail: "",
+    senderName: "Dreambox CRM",
+    emailSignature: "",
+};
 let companyProfile: CompanyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || DEFAULT_PROFILE;
 let lastBackupDate = loadFromStorage(STORAGE_KEYS.LAST_BACKUP, null) || 'Never'; let lastCloudBackup = loadFromStorage(STORAGE_KEYS.CLOUD_BACKUP, null) || 'Never';
 
 // ... (Other getters/setters/helpers remain same)
-export const setCompanyLogo = (url: string) => { companyLogo = url; saveToStorage(STORAGE_KEYS.LOGO, companyLogo); if(supabase) syncToSupabase('company_profile', { ...companyProfile, id: 'profile_v1', logo: url }); notifyListeners(); };
-export const updateCompanyProfile = (profile: CompanyProfile) => { companyProfile = profile; saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); if(supabase) syncToSupabase('company_profile', { ...profile, id: 'profile_v1', logo: companyLogo }); logAction('Settings Update', 'Updated company profile details'); notifyListeners(); };
+export const setCompanyLogo = (url: string) => { companyLogo = url; saveToStorage(STORAGE_KEYS.LOGO, companyLogo); syncToNeon('company-profile', { ...companyProfile, id: 'profile_v1', logo: url }); notifyListeners(); };
+export const updateCompanyProfile = (profile: CompanyProfile) => { companyProfile = profile; saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); syncToNeon('company-profile', { ...profile, id: 'profile_v1', logo: companyLogo }); logAction('Settings Update', 'Updated company profile details'); notifyListeners(); };
 export const createSystemBackup = () => { const now = new Date().toLocaleString(); lastBackupDate = now; saveToStorage(STORAGE_KEYS.LAST_BACKUP, lastBackupDate); syncToCloudMirror(); return JSON.stringify({ version: '1.9.25', timestamp: new Date().toISOString(), data: { billboards, contracts, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }, null, 2); };
-export const simulateCloudSync = async () => { await new Promise(resolve => setTimeout(resolve, 2000)); syncToCloudMirror(); if(supabase) await triggerFullSync(); lastCloudBackup = new Date().toLocaleString(); saveToStorage(STORAGE_KEYS.CLOUD_BACKUP, lastCloudBackup); logAction('System', 'Cloud backup completed successfully (Redundant Mirror)'); notifyListeners(); return lastCloudBackup; };
+export const simulateCloudSync = async () => { await new Promise(resolve => setTimeout(resolve, 2000)); syncToCloudMirror(); await triggerFullSync(); lastCloudBackup = new Date().toLocaleString(); saveToStorage(STORAGE_KEYS.CLOUD_BACKUP, lastCloudBackup); logAction('System', 'Cloud backup completed successfully'); notifyListeners(); return lastCloudBackup; };
 export const getLastCloudBackupDate = () => lastCloudBackup; export const restoreDefaultBillboards = () => 0; export const triggerAutoBackup = () => { saveToStorage(STORAGE_KEYS.AUTO_BACKUP, { timestamp: new Date().toISOString(), data: { billboards, contracts, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }); syncToCloudMirror(); return new Date().toLocaleString(); };
 export const runAutoBilling = () => {
   const today = new Date();
@@ -473,8 +312,7 @@ export const restoreSystemBackup = async (jsonString: string) => {
     if (Array.isArray(d.printingJobs))      { printingJobs = d.printingJobs;           saveToStorage(STORAGE_KEYS.PRINTING, printingJobs); }
     if (d.companyLogo)                      { companyLogo = d.companyLogo;             saveToStorage(STORAGE_KEYS.LOGO, companyLogo); }
     if (d.companyProfile)                   { companyProfile = d.companyProfile;       saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); }
-    // Push restored data to Supabase
-    if (supabase) { await triggerFullSync(); }
+    await triggerFullSync();
     logAction('System Restore', `Backup restored from ${backup.timestamp || 'unknown date'} — ${count} records`);
     syncToCloudMirror();
     notifyListeners();
@@ -487,27 +325,19 @@ export const restoreSystemBackup = async (jsonString: string) => {
 
 export const logAction = (action: string, details: string, userOverride?: string) => { let userName = userOverride || 'System'; try { const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER); if (stored) { const u = JSON.parse(stored); userName = u?.name || u?.email || 'Unknown'; } } catch (_) {} const log: AuditLogEntry = { id: `log-${Date.now()}`, timestamp: new Date().toLocaleString(), action, details, user: userName }; auditLogs = [log, ...auditLogs]; saveToStorage(STORAGE_KEYS.LOGS, auditLogs); notifyListeners(); };
 
-export const resetSystemData = () => { 
-    // Preserve Supabase credentials to ensure connection is not lost
-    const sbUrl = localStorage.getItem('sb_url');
-    const sbKey = localStorage.getItem('sb_key');
-    
-    localStorage.clear(); 
-    
-    if (sbUrl) localStorage.setItem('sb_url', sbUrl);
-    if (sbKey) localStorage.setItem('sb_key', sbKey);
-    
-    window.location.reload(); 
+export const resetSystemData = () => {
+    localStorage.clear();
+    window.location.reload();
 };
 
-export const addBillboard = (billboard: Billboard) => { billboards = [...billboards, billboard]; saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards); syncToCloudMirror(); syncToSupabase('billboards', billboard); logAction('Create Billboard', `Added ${billboard.name} (${billboard.type})`); notifyListeners(); };
-export const updateBillboard = (updated: Billboard) => { billboards = billboards.map(b => b.id === updated.id ? updated : b); saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards); syncToCloudMirror(); syncToSupabase('billboards', updated); logAction('Update Billboard', `Updated details for ${updated.name}`); notifyListeners(); };
+export const addBillboard = (billboard: Billboard) => { billboards = [...billboards, billboard]; saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards); syncToCloudMirror(); syncToNeon('billboards', billboard); logAction('Create Billboard', `Added ${billboard.name} (${billboard.type})`); notifyListeners(); };
+export const updateBillboard = (updated: Billboard) => { billboards = billboards.map(b => b.id === updated.id ? updated : b); saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards); syncToCloudMirror(); syncToNeon('billboards', updated); logAction('Update Billboard', `Updated details for ${updated.name}`); notifyListeners(); };
 export const deleteBillboard = (id: string) => { const target = billboards.find(b => b.id === id); if (target) { billboards = billboards.filter(b => b.id !== id); saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards); syncToCloudMirror(); queueForDeletion('billboards', id); logAction('Delete Billboard', `Removed ${target.name} from inventory`); notifyListeners(); } };
 
 export const addContract = (contract: Contract) => { 
     contracts = [...contracts, contract]; 
     saveToStorage(STORAGE_KEYS.CONTRACTS, contracts); 
-    syncToSupabase('contracts', contract);
+    syncToNeon('contracts', contract);
     const billboard = billboards.find(b => b.id === contract.billboardId);
     if(billboard) {
         if(billboard.type === BillboardType.Static) {
@@ -560,7 +390,7 @@ export const updateContract = (updated: Contract) => {
 
     contracts = contracts.map(c => c.id === updated.id ? updated : c);
     saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
-    syncToSupabase('contracts', updated);
+    syncToNeon('contracts', updated);
 
     const billboard = billboards.find(b => b.id === updated.billboardId);
     if (billboard) {
@@ -607,8 +437,8 @@ export const updateContract = (updated: Contract) => {
     notifyListeners();
 };
 
-export const addInvoice = (invoice: Invoice) => { invoices = [invoice, ...invoices]; saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); syncToSupabase('invoices', invoice); logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`); notifyListeners(); };
-export const markInvoiceAsPaid = (id: string) => { invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i); saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); const updated = invoices.find(i => i.id === id); if(updated) syncToSupabase('invoices', updated); logAction('Payment', `Marked Invoice #${id} as Paid`); notifyListeners(); };
+export const addInvoice = (invoice: Invoice) => { invoices = [invoice, ...invoices]; saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); syncToNeon('invoices', invoice); logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`); notifyListeners(); };
+export const markInvoiceAsPaid = (id: string) => { invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i); saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); const updated = invoices.find(i => i.id === id); if(updated) syncToNeon('invoices', updated); logAction('Payment', `Marked Invoice #${id} as Paid`); notifyListeners(); };
 
 export const deleteInvoice = (id: string) => {
     const target = invoices.find(i => i.id === id);
@@ -624,7 +454,7 @@ export const deleteInvoice = (id: string) => {
                  const invoice = invoices.find(i => i.id === linkedInvoiceId);
                  if (invoice) {
                      invoice.status = 'Pending';
-                     syncToSupabase('invoices', invoice);
+                     syncToNeon('invoices', invoice);
                  }
              }
         }
@@ -637,23 +467,69 @@ export const deleteInvoice = (id: string) => {
     }
 };
 
-export const addExpense = (expense: Expense) => { expenses = [expense, ...expenses]; saveToStorage(STORAGE_KEYS.EXPENSES, expenses); syncToCloudMirror(); syncToSupabase('expenses', expense); logAction('Expense', `Recorded expense: ${expense.description} ($${expense.amount})`); notifyListeners(); };
+export const addExpense = (expense: Expense) => { expenses = [expense, ...expenses]; saveToStorage(STORAGE_KEYS.EXPENSES, expenses); syncToCloudMirror(); syncToNeon('expenses', expense); logAction('Expense', `Recorded expense: ${expense.description} ($${expense.amount})`); notifyListeners(); };
 export const deleteExpense = (id: string) => { const target = expenses.find(e => e.id === id); if (target) { expenses = expenses.filter(e => e.id !== id); saveToStorage(STORAGE_KEYS.EXPENSES, expenses); syncToCloudMirror(); queueForDeletion('expenses', id); logAction('Expense Deleted', `Removed expense: ${target.description} ($${target.amount})`); notifyListeners(); } };
-export const addClient = (client: Client) => { clients = [...clients, client]; saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); syncToSupabase('clients', client); logAction('Create Client', `Added ${client.companyName}`); notifyListeners(); };
-export const updateClient = (updated: Client) => { clients = clients.map(c => c.id === updated.id ? updated : c); saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); syncToSupabase('clients', updated); logAction('Update Client', `Updated info for ${updated.companyName}`); notifyListeners(); };
+export const addClient = (client: Client) => { clients = [...clients, client]; saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); syncToNeon('clients', client); logAction('Create Client', `Added ${client.companyName}`); notifyListeners(); };
+export const updateClient = (updated: Client) => { clients = clients.map(c => c.id === updated.id ? updated : c); saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); syncToNeon('clients', updated); logAction('Update Client', `Updated info for ${updated.companyName}`); notifyListeners(); };
 export const deleteClient = (id: string) => { const target = clients.find(c => c.id === id); if (target) { clients = clients.filter(c => c.id !== id); saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); queueForDeletion('clients', id); logAction('Delete Client', `Removed ${target.companyName}`); notifyListeners(); } };
-export const addUser = (user: User) => { users = [...users, user]; saveToStorage(STORAGE_KEYS.USERS, users); syncToCloudMirror(); syncToSupabase('users', user); logAction('User Mgmt', `Added user ${user.email} (Status: ${user.status})`); notifyListeners(); };
-export const updateUser = (updated: User) => { users = users.map(u => u.id === updated.id ? updated : u); saveToStorage(STORAGE_KEYS.USERS, users); syncToCloudMirror(); syncToSupabase('users', updated); logAction('User Mgmt', `Updated user ${updated.email}`); notifyListeners(); };
+export const addUser = (user: User) => { users = [...users, user]; saveToStorage(STORAGE_KEYS.USERS, users); syncToCloudMirror(); syncToNeon('users', user); logAction('User Mgmt', `Added user ${user.email} (Status: ${user.status})`); notifyListeners(); };
+export const updateUser = (updated: User) => { users = users.map(u => u.id === updated.id ? updated : u); saveToStorage(STORAGE_KEYS.USERS, users); syncToCloudMirror(); syncToNeon('users', updated); logAction('User Mgmt', `Updated user ${updated.email}`); notifyListeners(); };
 export const deleteUser = (id: string) => { users = users.filter(u => u.id !== id); saveToStorage(STORAGE_KEYS.USERS, users); syncToCloudMirror(); queueForDeletion('users', id); logAction('User Mgmt', `Deleted user ID ${id}`); notifyListeners(); };
-export const addOutsourcedBillboard = (b: OutsourcedBillboard) => { outsourcedBillboards = [...outsourcedBillboards, b]; saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); logAction('Outsourcing', `Added outsourced unit ${b.billboardId}`); notifyListeners(); };
-export const updateOutsourcedBillboard = (updated: OutsourcedBillboard) => { outsourcedBillboards = outsourcedBillboards.map(b => b.id === updated.id ? updated : b); saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); notifyListeners(); };
-export const deleteOutsourcedBillboard = (id: string) => { outsourcedBillboards = outsourcedBillboards.filter(b => b.id !== id); saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); notifyListeners(); };
-export const addTask = (task: Task) => { tasks = [task, ...tasks]; saveToStorage(STORAGE_KEYS.TASKS, tasks); syncToCloudMirror(); syncToSupabase('tasks', task); logAction('Task Created', `New task: ${task.title}`); notifyListeners(); };
-export const updateTask = (updated: Task) => { tasks = tasks.map(t => t.id === updated.id ? updated : t); saveToStorage(STORAGE_KEYS.TASKS, tasks); syncToCloudMirror(); syncToSupabase('tasks', updated); notifyListeners(); };
+export const getPrintingJobs = () => printingJobs || [];
+export const addPrintingJob = (job: PrintingJob) => { printingJobs = [job, ...printingJobs]; saveToStorage(STORAGE_KEYS.PRINTING, printingJobs); syncToCloudMirror(); syncToNeon('printing-jobs', job); logAction('Printing', `New print job: ${job.description} ($${job.chargedAmount})`); notifyListeners(); };
+export const addOutsourcedBillboard = (b: OutsourcedBillboard) => { outsourcedBillboards = [...outsourcedBillboards, b]; saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); syncToNeon('outsourced', b); logAction('Outsourcing', `Added outsourced unit ${b.billboardId}`); notifyListeners(); };
+export const updateOutsourcedBillboard = (updated: OutsourcedBillboard) => { outsourcedBillboards = outsourcedBillboards.map(b => b.id === updated.id ? updated : b); saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); syncToNeon('outsourced', updated); notifyListeners(); };
+export const deleteOutsourcedBillboard = (id: string) => { outsourcedBillboards = outsourcedBillboards.filter(b => b.id !== id); saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); queueForDeletion('outsourced', id); notifyListeners(); };
+export const addTask = (task: Task) => { tasks = [task, ...tasks]; saveToStorage(STORAGE_KEYS.TASKS, tasks); syncToCloudMirror(); syncToNeon('tasks', task); logAction('Task Created', `New task: ${task.title}`); notifyListeners(); };
+export const updateTask = (updated: Task) => { tasks = tasks.map(t => t.id === updated.id ? updated : t); saveToStorage(STORAGE_KEYS.TASKS, tasks); syncToCloudMirror(); syncToNeon('tasks', updated); notifyListeners(); };
 export const deleteTask = (id: string) => { const target = tasks.find(t => t.id === id); if(target) { tasks = tasks.filter(t => t.id !== id); saveToStorage(STORAGE_KEYS.TASKS, tasks); syncToCloudMirror(); queueForDeletion('tasks', id); logAction('Task Deleted', `Removed task: ${target.title}`); notifyListeners(); } };
-export const addMaintenanceLog = (log: MaintenanceLog) => { maintenanceLogs = [log, ...maintenanceLogs]; saveToStorage(STORAGE_KEYS.MAINTENANCE, maintenanceLogs); syncToSupabase('maintenance_logs', log); const billboard = billboards.find(b => b.id === log.billboardId); if (billboard) { billboard.lastMaintenanceDate = log.date; updateBillboard(billboard); } syncToCloudMirror(); logAction('Maintenance', `Logged maintenance for ${billboard?.name || log.billboardId}`); notifyListeners(); };
+export const addMaintenanceLog = (log: MaintenanceLog) => { maintenanceLogs = [log, ...maintenanceLogs]; saveToStorage(STORAGE_KEYS.MAINTENANCE, maintenanceLogs); syncToNeon('maintenance', log); const billboard = billboards.find(b => b.id === log.billboardId); if (billboard) { billboard.lastMaintenanceDate = log.date; updateBillboard(billboard); } syncToCloudMirror(); logAction('Maintenance', `Logged maintenance for ${billboard?.name || log.billboardId}`); notifyListeners(); };
 
 export const RELEASE_NOTES = [
+    {
+        version: '1.13.0',
+        date: '16/04/2026',
+        title: 'Send Contracts, Invoices & Quotes via Email',
+        features: [
+            'Email: Send contracts directly to clients with full details — billboard, period, rates, and total value.',
+            'Email: Send invoices, quotations, and receipts to clients with line-item breakdown and payment info.',
+            'Email: Branded dark-theme HTML emails with status badges, document details, and company footer.',
+            'Contracts: New "Email" button next to PDF download on every contract card.',
+            'Financials: New send button on every invoice, quotation, and receipt row in the documents table.',
+            'Payments: New "Email" button on invoice cards to send directly from the payments view.',
+            'API: New POST /api/documents/send-email endpoint with auth and document type validation.',
+        ]
+    },
+    {
+        version: '1.12.0',
+        date: '16/04/2026',
+        title: 'Dashboard Expenses & Automated Expense Reports',
+        features: [
+            'Dashboard: New "Expenses This Month" KPI card with month-over-month change tracking.',
+            'Dashboard: Expense breakdown by category with horizontal bar chart showing Maintenance, Printing, Electricity, Labor, and Other.',
+            'Dashboard: Recent Expenses panel showing the 5 most recent expense entries.',
+            'Cron: Automated expense breakdown email sent to Brian every 3 days with full category breakdown and line items.',
+            'Cron: Secure /api/cron/expense-report endpoint with CRON_SECRET authentication.',
+            'Cron: Internal scheduler runs automatically on server boot — no external cron service needed.',
+        ]
+    },
+    {
+        version: '1.11.0',
+        date: '16/04/2026',
+        title: 'Security Hardening & User Management Improvements',
+        features: [
+            'Security: Enforced strong password policy (8+ chars, uppercase, lowercase, number, special character) across all flows.',
+            'Security: Password reset form now shows live validation checklist so users know exactly what\'s required.',
+            'Security: Sent password reset emails to all active users following security policy upgrade.',
+            'Admin: New "Send Password Reset" button in user management table — admins can trigger resets for any user.',
+            'Admin: Self-deletion protection — admins can no longer delete their own account.',
+            'Admin: Last-admin guard — prevents demoting, deactivating, or deleting the last admin account.',
+            'Admin: Email uniqueness now validated when editing a user, with a clear error message.',
+            'Admin: UUID validation on all user API endpoints for safer request handling.',
+            'Fix: Bulk invite name parsing improved — handles emails like john.doe@, john_doe@, and john-doe@ correctly.',
+            'Fix: Removed broken resetUserPassword function, replaced with working admin reset flow.',
+        ]
+    },
     {
         version: '1.9.29',
         date: '17/03/2026',
@@ -661,7 +537,7 @@ export const RELEASE_NOTES = [
         features: [
             'Fix: Audit logs now update in real-time without a page reload (notifyListeners added to logAction).',
             'Fix: Duplicate users no longer appear after cloud sync — email-based deduplication applied during merge.',
-            'Fix: Deleted CRM opportunities/companies/contacts are now hard-deleted from Supabase, preventing them from reappearing after cloud sync.',
+            'Fix: Deleted CRM opportunities/companies/contacts are now hard-deleted from Neon, preventing them from reappearing after cloud sync.',
             'Fix: CRM company delete now cascades to linked opportunities.',
         ]
     },
@@ -783,7 +659,7 @@ export const getFinancialTrends = () => {
       const invDate = new Date(inv.date);
       return invDate.getMonth() === monthIndex && 
              invDate.getFullYear() === year &&
-             inv.type === 'Invoice';
+             String(inv.type || '').toLowerCase() === 'invoice';
     });
     
     const monthExpenses = expenses.filter(exp => {

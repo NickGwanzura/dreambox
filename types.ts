@@ -149,15 +149,47 @@ export interface Expense {
   reference?: string;
 }
 
+/**
+ * Granular per-feature permissions.
+ * null on a field means fall back to role defaults.
+ * Admins always have full access regardless of permissions field.
+ */
+export interface UserPermissions {
+  billboards?: 'none' | 'read' | 'write';
+  contracts?: 'none' | 'read' | 'write';
+  invoices?: 'none' | 'read' | 'write';
+  clients?: 'none' | 'read' | 'write';
+  expenses?: 'none' | 'read' | 'write';
+  crm?: 'none' | 'read' | 'write';
+  reports?: 'none' | 'read';
+  maintenance?: 'none' | 'read' | 'write';
+  printing?: 'none' | 'read' | 'write';
+  tasks?: 'none' | 'read' | 'write';
+}
+
+export interface LoginHistoryEntry {
+  id: string;
+  ip?: string;
+  userAgent?: string;
+  success: boolean;
+  reason?: string;
+  createdAt: string;
+}
+
 export interface User {
   id: string;
   firstName: string;
   lastName: string;
   role: 'Admin' | 'Manager' | 'Staff' | 'Sales Agent';
   email: string;
-  username?: string; // Added for simplified login
-  password?: string; // Added for Auth - NEVER store plaintext
-  status: 'Active' | 'Pending' | 'Rejected'; // Security status
+  username?: string;
+  password?: string; // NEVER store plaintext — only used transiently
+  status: 'Active' | 'Pending' | 'Rejected' | 'Inactive';
+  mustResetPassword?: boolean;
+  lastLoginAt?: string;
+  lastLoginIp?: string;
+  permissions?: UserPermissions | null;
+  createdAt?: string;
 }
 
 /**
@@ -197,6 +229,17 @@ export interface CompanyProfile {
     address: string;
     city: string;
     country: string;
+    // Banking / payment details — rendered on invoices & emails
+    bankName?: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+    bankBranch?: string;
+    bankSwift?: string;
+    paymentTerms?: string;
+    // Outgoing email configuration
+    senderEmail?: string;        // e.g. noreply@crm.yourcompany.com (must be verified in Resend)
+    senderName?: string;         // e.g. "Dreambox CRM"
+    emailSignature?: string;     // free-text footer appended to outbound emails
 }
 
 /**

@@ -1,0 +1,508 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+
+model User {
+  id                   String           @id @default(uuid())
+  firstName            String
+  lastName             String
+  email                String           @unique
+  username             String?
+  passwordHash         String
+  role                 UserRole         @default(Staff)
+  status               UserStatus       @default(Pending)
+  mustResetPassword    Boolean          @default(false)
+  // Account lockout
+  failedLoginAttempts  Int              @default(0)
+  lockedUntil          DateTime?
+  // Activity tracking
+  lastLoginAt          DateTime?
+  lastLoginIp          String?
+  // Granular permissions (JSON, null = use role defaults)
+  permissions          Json?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  loginHistory         LoginHistory[]
+
+  @@map("users")
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip        String?
+  userAgent String?
+  success   Boolean
+  reason    String?  // e.g. "wrong_password", "account_locked"
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("login_history")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+model RateLimit {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  attempts  Int      @default(1)
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@map("rate_limits")
+}
+
+enum UserRole {
+  Admin
+  Manager
+  Staff
+  SalesAgent @map("Sales Agent")
+}
+
+enum UserStatus {
+  Active
+  Pending
+  Rejected
+  Inactive
+}
+
+// ============================================================
+// CORE TABLES
+// ============================================================
+
+model Billboard {
+  id                  String      @id @default(uuid())
+  name                String
+  location            String
+  town                String
+  type                BillboardType
+  width               Float
+  height              Float
+  imageUrl            String?
+  coordinatesLat      Float?
+  coordinatesLng      Float?
+  visibility          String?
+  dailyTraffic        Int?
+  sideARate           Float?
+  sideBRate           Float?
+  sideAStatus         SlotStatus?
+  sideBStatus         SlotStatus?
+  sideAClientId       String?
+  sideBClientId       String?
+  ratePerSlot         Float?
+  totalSlots          Int?
+  rentedSlots         Int?
+  lastMaintenanceDate String?
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@map("billboards")
+}
+
+model Client {
+  id            String       @id @default(uuid())
+  companyName   String
+  contactPerson String
+  email         String
+  phone         String
+  status        ClientStatus @default(Active)
+  billingDay    Int?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("clients")
+}
+
+model Contract {
+  id                 String         @id @default(uuid())
+  clientId           String
+  billboardId        String
+  startDate          String
+  endDate            String
+  monthlyRate        Float
+  installationCost   Float
+  printingCost       Float
+  hasVat             Boolean        @default(false)
+  totalContractValue Float
+  status             ContractStatus @default(Pending)
+  details            String
+  slotNumber         Int?
+  side               String?
+  createdAt          String?
+  lastModifiedDate   String?
+  lastModifiedBy     String?
+  assignedTo         String?
+  dbCreatedAt        DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([clientId])
+  @@index([billboardId])
+  @@map("contracts")
+}
+
+model Invoice {
+  id                  String        @id @default(uuid())
+  contractId          String?
+  clientId            String
+  date                String
+  items               Json
+  subtotal            Float
+  discountAmount      Float?
+  discountDescription String?
+  vatAmount           Float
+  total               Float
+  status              InvoiceStatus @default(Pending)
+  type                InvoiceType   @default(Invoice)
+  paymentMethod       String?
+  paymentReference    String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([contractId])
+  @@map("invoices")
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  category    ExpenseCategory
+  description String
+  amount      Float
+  date        String
+  reference   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("expenses")
+}
+
+model Task {
+  id                 String       @id @default(uuid())
+  title              String
+  description        String
+  assignedTo         String
+  priority           TaskPriority
+  status             TaskStatus   @default(Todo)
+  dueDate            String
+  createdAt          String
+  relatedBillboardId String?
+  dbCreatedAt        DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@map("tasks")
+}
+
+model MaintenanceLog {
+  id          String          @id @default(uuid())
+  billboardId String
+  date        String
+  type        MaintenanceType
+  description String
+  cost        Float
+  performedBy String
+  nextDueDate String
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([billboardId])
+  @@map("maintenance_logs")
+}
+
+model OutsourcedBillboard {
+  id            String           @id @default(uuid())
+  billboardId   String
+  billboardName String?
+  mediaOwner    String
+  ownerContact  String
+  monthlyPayout Float
+  contractStart String
+  contractEnd   String
+  status        OutsourcedStatus @default(Active)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([billboardId])
+  @@map("outsourced_billboards")
+}
+
+model PrintingJob {
+  id              String   @id @default(uuid())
+  clientId        String
+  billboardId     String?
+  date            String
+  description     String
+  dimensions      String
+  pvcCost         Float
+  inkCost         Float
+  electricityCost Float
+  operatorCost    Float
+  weldingCost     Float
+  totalCost       Float
+  chargedAmount   Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([clientId])
+  @@map("printing_jobs")
+}
+
+model CompanyProfile {
+  id                String  @id @default("profile_v1")
+  name              String
+  vatNumber         String?
+  regNumber         String?
+  email             String?
+  supportEmail      String?
+  phone             String?
+  website           String?
+  address           String?
+  city              String?
+  country           String?
+  logo              String?
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankBranch        String?
+  bankSwift         String?
+  paymentTerms      String?
+  senderEmail       String?
+  senderName        String?
+  emailSignature    String?
+
+  @@map("company_profile")
+}
+
+// ============================================================
+// CRM TABLES
+// ============================================================
+
+model CRMCompany {
+  id            String   @id @default(uuid())
+  name          String
+  industry      String?
+  website       String?
+  streetAddress String?
+  city          String?
+  country       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("crm_companies")
+}
+
+model CRMContact {
+  id          String   @id @default(uuid())
+  companyId   String
+  fullName    String
+  jobTitle    String?
+  phone       String?
+  email       String?
+  linkedinUrl String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("crm_contacts")
+}
+
+model CRMOpportunity {
+  id                 String   @id @default(uuid())
+  companyId          String
+  primaryContactId   String
+  secondaryContactId String?
+  locationInterest   String?
+  billboardType      String?
+  campaignDuration   String?
+  estimatedValue     Float?
+  actualValue        Float?
+  status             String
+  stage              String
+  leadSource         String?
+  lastContactDate    String?
+  nextFollowUpDate   String?
+  callOutcomeNotes   String?
+  numberOfAttempts   Int      @default(0)
+  assignedTo         String?
+  createdBy          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  closedAt           String?
+  closedReason       String?
+  daysInCurrentStage Int      @default(0)
+  stageHistory       Json     @default("[]")
+
+  @@index([companyId])
+  @@index([primaryContactId])
+  @@map("crm_opportunities")
+}
+
+model CRMTouchpoint {
+  id              String   @id @default(uuid())
+  opportunityId   String
+  type            String
+  direction       String
+  subject         String?
+  content         String?
+  clientResponse  String?
+  outcome         String?
+  sentiment       String?
+  durationSeconds Int?
+  createdBy       String
+  createdAt       DateTime @default(now())
+
+  @@index([opportunityId])
+  @@map("crm_touchpoints")
+}
+
+model CRMTask {
+  id              String   @id @default(uuid())
+  opportunityId   String
+  type            String
+  title           String
+  description     String?
+  dueDate         String
+  status          String
+  priority        String
+  assignedTo      String
+  completedBy     String?
+  completedAt     String?
+  completionNotes String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([opportunityId])
+  @@map("crm_tasks")
+}
+
+model CRMEmailThread {
+  id             String   @id @default(uuid())
+  opportunityId  String
+  contactId      String
+  subject        String
+  messages       Json     @default("[]")
+  status         String
+  lastActivityAt String
+  sentCount      Int      @default(0)
+  openCount      Int      @default(0)
+  clickCount     Int      @default(0)
+  replyCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([opportunityId])
+  @@index([contactId])
+  @@map("crm_email_threads")
+}
+
+model CRMCallLog {
+  id              String   @id @default(uuid())
+  opportunityId   String
+  contactId       String
+  phoneNumber     String
+  direction       String
+  startedAt       String
+  endedAt         String?
+  durationSeconds Int
+  outcome         String
+  notes           String?
+  recordingUrl    String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+
+  @@index([opportunityId])
+  @@index([contactId])
+  @@map("crm_call_logs")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum BillboardType {
+  Static
+  LED
+}
+
+enum SlotStatus {
+  Available
+  Rented
+  Maintenance
+}
+
+enum ClientStatus {
+  Active
+  Inactive
+}
+
+enum ContractStatus {
+  Active
+  Pending
+  Expired
+}
+
+enum InvoiceStatus {
+  Paid
+  Pending
+  Overdue
+}
+
+enum InvoiceType {
+  Invoice
+  Quotation
+  Receipt
+}
+
+enum ExpenseCategory {
+  Maintenance
+  Printing
+  Electricity
+  Labor
+  Other
+}
+
+enum TaskPriority {
+  Low
+  Medium
+  High
+}
+
+enum TaskStatus {
+  Todo
+  InProgress @map("In Progress")
+  Done
+}
+
+enum MaintenanceType {
+  Routine
+  Repair
+  Emergency
+  Inspection
+}
+
+enum OutsourcedStatus {
+  Active
+  Inactive
+}
