@@ -548,8 +548,8 @@ export const Settings: React.FC = () => {
                 <h3 className="text-lg font-bold text-slate-800 mb-6">Branding & Identity</h3>
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl mb-6 bg-slate-50/50 hover:bg-slate-50 transition-colors">
                   <div className="text-center relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <div className="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden shadow-md border-4 border-white group-hover:scale-105 transition-transform">
-                      <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                    <div className="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden shadow-md border-4 border-white group-hover:scale-105 transition-transform p-2">
+                      <img src={logoPreview} alt="Logo" className="max-w-full max-h-full object-contain" />
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-black/50 text-white text-xs font-bold px-2 py-1 rounded">Change</div></div>
                     <p className="text-sm font-medium text-slate-600">Company Logo</p>

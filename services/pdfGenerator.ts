@@ -1065,10 +1065,11 @@ export const generateAppFeaturesPDF = async () => {
     }
 };
 
-export const generateUserManualPDF = () => {
+export const generateUserManualPDF = async () => {
      try {
         const doc = new jsPDF();
-        let y = addCompanyHeader(doc);
+        const branding = await getPdfBranding();
+        let y = addCompanyHeader(doc, branding);
 
         doc.setFontSize(22);
         doc.setTextColor(15, 23, 42);

@@ -141,7 +141,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             {/* Public Header */}
             <div className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 px-6 py-4 flex justify-between items-center shadow-sm">
                 <div className="flex items-center gap-3">
-                    {logo ? <img src={logo} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-slate-100"/> : <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">D</div>}
+                    {logo ? <img src={logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain bg-white border border-slate-100 p-1"/> : <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">D</div>}
                     <div>
                         <h1 className="text-lg font-bold text-slate-900 leading-tight">Dreambox Locations</h1>
                         <p className="text-xs text-slate-500">Public Asset Viewer</p>

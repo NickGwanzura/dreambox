@@ -216,7 +216,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 flex items-center justify-between gap-4 shadow-lg">
                 <div className="flex items-center gap-4">
                   {logo && logo.startsWith('data:image') ? (
-                    <img src={logo} alt="Logo" className="w-14 h-14 rounded-xl object-cover border-2 border-white/20 shadow-md bg-white/10" />
+                    <img src={logo} alt="Logo" className="w-14 h-14 rounded-xl object-contain border-2 border-white/20 shadow-md bg-white p-1.5" />
                   ) : (
                     <div className="w-14 h-14 bg-indigo-500 rounded-xl flex items-center justify-center text-white font-black text-2xl shadow-md border-2 border-white/20">
                       {company.name.charAt(0)}
