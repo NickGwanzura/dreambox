@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { getExpenses, addExpense, deleteExpense, printingJobs, getClients } from '../services/mockData';
+import { getExpenses, addExpense, deleteExpense, printingJobs, getClients, addPrintingJob, getPrintingJobs } from '../services/mockData';
 import { generateExpensesPDF } from '../services/pdfGenerator';
 import { Printer, TrendingDown, Plus, BarChart3, Scissors, Droplets, Zap, User, X, Save, Download, Trash2 } from 'lucide-react';
 import { PrintingJob, Expense } from '../types';
@@ -29,7 +29,29 @@ export const Expenses: React.FC = () => {
   const [newExpense, setNewExpense] = useState<Partial<Expense>>({ category: 'Maintenance', description: '', amount: 0, date: new Date().toISOString().split('T')[0], reference: '' });
 
   const getClientName = (id: string) => getClients().find(c => c.id === id)?.companyName || 'Unknown';
-  const handleAddJob = (e: React.FormEvent) => { e.preventDefault(); setIsAddJobModalOpen(false); alert("Job Added! (Simulated)"); };
+  const handleAddJob = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newJob.clientId || !newJob.description) { alert('Client and description are required'); return; }
+    const totalCost = calculateTotalJobCost();
+    const job: PrintingJob = {
+      id: `PJ-${Date.now()}`,
+      clientId: newJob.clientId!,
+      billboardId: newJob.billboardId,
+      date: new Date().toISOString().split('T')[0],
+      description: newJob.description!,
+      dimensions: newJob.dimensions || '',
+      pvcCost: newJob.pvcCost || 0,
+      inkCost: newJob.inkCost || 0,
+      electricityCost: newJob.electricityCost || 0,
+      operatorCost: newJob.operatorCost || 0,
+      weldingCost: newJob.weldingCost || 0,
+      totalCost,
+      chargedAmount: newJob.chargedAmount || 0,
+    };
+    addPrintingJob(job);
+    setIsAddJobModalOpen(false);
+    setNewJob({ clientId: '', description: '', dimensions: '', pvcCost: 0, inkCost: 0, electricityCost: 0, operatorCost: 0, weldingCost: 0, chargedAmount: 0 });
+  };
   const handleAddExpense = (e: React.FormEvent) => { e.preventDefault(); const expense: Expense = { id: `EXP-${Date.now()}`, category: newExpense.category as any, description: newExpense.description || '', amount: newExpense.amount || 0, date: newExpense.date || new Date().toISOString(), reference: newExpense.reference }; addExpense(expense); setGeneralExpenses(getExpenses()); setIsAddExpenseModalOpen(false); setNewExpense({ category: 'Maintenance', description: '', amount: 0, date: new Date().toISOString().split('T')[0], reference: '' }); };
   const exportExpenseReport = () => { const clients = getClients(); const csvRows = clients.map(client => { const jobs = printingJobs.filter(j => j.clientId === client.id); if (jobs.length === 0) return null; const totalSpent = jobs.reduce((acc, curr) => acc + curr.chargedAmount, 0); const totalCost = jobs.reduce((acc, curr) => acc + curr.totalCost, 0); const profit = totalSpent - totalCost; const margin = totalSpent > 0 ? ((profit / totalSpent) * 100).toFixed(2) : '0'; return `"${client.companyName}",${jobs.length},${totalSpent},${totalCost},${profit},${margin}`; }).filter(row => row !== null).join("\n"); if (!csvRows) { alert("No data to export."); return; } const blob = new Blob(["Client,Total Jobs,Total Billed,Total Internal Cost,Net Profit,Margin %\n" + csvRows], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.setAttribute('download', `printing_expenses_report_${new Date().toISOString().slice(0,10)}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); };
   const calculateTotalJobCost = () => { return (newJob.pvcCost || 0) + (newJob.inkCost || 0) + (newJob.electricityCost || 0) + (newJob.operatorCost || 0) + (newJob.weldingCost || 0); };

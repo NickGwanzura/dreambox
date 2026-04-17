@@ -5,9 +5,8 @@ import {
   Menu, X, Bell, LogOut, Printer, Globe, PieChart, Wallet, ChevronRight, CheckSquare, Wrench, Database, RefreshCw,
   Building2, Target
 } from 'lucide-react';
-import { getCurrentUser } from '../services/authServiceSecure';
-import { signOut } from '../services/supabaseAuth';
-import { isSupabaseConfigured, checkSupabaseConnection } from '../services/supabaseClient';
+import { getCurrentUser, signOut } from '../services/authService';
+import { isConfigured as isNeonConfigured, checkConnection as checkNeonConnection } from '../services/apiClient';
 import { useToast } from './ToastProvider';
 import { 
   getSystemAlertCount, 
@@ -17,7 +16,7 @@ import {
   triggerFullSync,
   subscribe
 } from '../services/mockData';
-import { realtimeSync } from '../services/storage/realtimeSync';
+// Realtime subscriptions removed — sync is handled by neonSyncManager polling
 import { logger } from '../utils/logger';
 import { 
   ALERT_CHECK_INTERVAL_MS,
@@ -40,10 +39,82 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const [dbConnected, setDbConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  
-  const user = getCurrentUser();
+  const [user, setUser] = useState<Awaited<ReturnType<typeof getCurrentUser>>>(
+    () => {
+      try { const cached = localStorage.getItem('billboard_user'); return cached ? JSON.parse(cached) : null; } catch { return null; }
+    }
+  );
+
   const { showToast } = useToast();
-  
+  const sidebarRef = useRef<HTMLElement>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchCurrentX = useRef<number | null>(null);
+
+  useEffect(() => {
+    getCurrentUser().then(u => { if (u) setUser(u); });
+  }, []);
+
+  // Body scroll lock when sidebar is open on mobile
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [sidebarOpen]);
+
+  // Focus trap when sidebar is open
+  useEffect(() => {
+    if (!sidebarOpen || !sidebarRef.current) return;
+
+    const sidebar = sidebarRef.current;
+    const focusableEls = sidebar.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstEl = focusableEls[0];
+    const lastEl = focusableEls[focusableEls.length - 1];
+
+    firstEl?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setSidebarOpen(false); return; }
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) { e.preventDefault(); lastEl?.focus(); }
+      } else {
+        if (document.activeElement === lastEl) { e.preventDefault(); firstEl?.focus(); }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
+
+  // Swipe-to-close gesture
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchCurrentX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchStartX.current !== null && touchCurrentX.current !== null) {
+      const diff = touchStartX.current - touchCurrentX.current;
+      if (diff > 80) setSidebarOpen(false);
+    }
+    touchStartX.current = null;
+    touchCurrentX.current = null;
+  }, []);
+
   // Use refs for intervals to properly clean up
   const intervalsRef = useRef<NodeJS.Timeout[]>([]);
 
@@ -87,17 +158,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     runMaintenanceCheck();
 
     const initializeDatabaseState = async () => {
-      if (!isSupabaseConfigured()) {
+      if (!isNeonConfigured()) {
         if (isMounted) setDbConnected(false);
         return;
       }
 
-      const connected = await checkSupabaseConnection();
+      const connected = await checkNeonConnection();
       if (!isMounted) return;
 
       setDbConnected(connected);
       if (!connected) {
-        logger.warn('Supabase is configured but not reachable; running without realtime subscriptions');
+        logger.warn('Neon is configured but not reachable; running in offline mode');
       }
     };
 
@@ -138,27 +209,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     };
   }, [performSync]);
 
-  // Setup Supabase Realtime subscriptions
-  useEffect(() => {
-    if (!dbConnected) return;
-
-    logger.info('Setting up Supabase Realtime subscriptions');
-    
-    // Subscribe to all relevant tables
-    const unsubscribers = [
-      realtimeSync.subscribe('billboards', () => performSync(false)),
-      realtimeSync.subscribe('clients', () => performSync(false)),
-      realtimeSync.subscribe('contracts', () => performSync(false)),
-      realtimeSync.subscribe('invoices', () => performSync(false)),
-      realtimeSync.subscribe('tasks', () => performSync(false)),
-    ];
-
-    return () => {
-      logger.debug('Cleaning up realtime subscriptions');
-      unsubscribers.forEach(unsub => unsub());
-      realtimeSync.unsubscribeAll();
-    };
-  }, [dbConnected, performSync]);
+  // Realtime subscriptions removed — sync is handled by neonSyncManager auto-sync polling
 
   const allMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
@@ -197,11 +248,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       )}
 
       {/* Sidebar */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-[100] w-64 sm:w-72 transform transition-transform duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] lg:translate-x-0 lg:relative flex flex-col ${
+      <aside
+        ref={sidebarRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={`fixed inset-y-0 left-0 z-[100] w-[85vw] max-w-72 transform transition-transform duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] lg:translate-x-0 lg:w-72 lg:max-w-none lg:relative flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } bg-[#1e293b] shadow-2xl border-r border-slate-700/50 overflow-hidden`}
         aria-label="Main navigation"
+        role="dialog"
+        aria-modal={sidebarOpen ? 'true' : undefined}
       >
         {/* Background Gradients */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#1e293b] to-slate-950 z-0"></div>
@@ -218,9 +275,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                 <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">Advertising</span>
              </div>
           </div>
-          <button 
-            onClick={() => setSidebarOpen(false)} 
-            className="lg:hidden text-slate-400 hover:text-white transition-colors p-1"
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-slate-400 hover:text-white transition-colors p-2.5 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Close menu"
           >
             <X size={24} />
@@ -257,46 +314,46 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="relative z-10 p-6 bg-[#0f1219]/80 backdrop-blur-md border-t border-white/[0.06] shrink-0">
-           <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/10 transition-colors cursor-pointer group">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center text-sm font-bold border border-indigo-500/30 text-indigo-300">
+        <div className="relative z-10 p-4 bg-[#0f1219]/80 backdrop-blur-md border-t border-white/[0.06] shrink-0">
+           <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/10 transition-colors cursor-pointer group">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center text-sm font-bold border border-indigo-500/30 text-indigo-300 shrink-0">
                   {user?.firstName?.charAt(0) || 'U'}
               </div>
               <div className="flex-1 min-w-0">
                  <p className="text-sm font-semibold text-slate-200 truncate group-hover:text-indigo-400 transition-colors">{user?.firstName || 'User'}</p>
-                 <p className="text-[10px] text-slate-500 truncate uppercase tracking-wider">{user?.role || 'Guest'}</p>
+                 <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-[10px] text-slate-500 truncate uppercase tracking-wider">{user?.role || 'Guest'}</p>
+                    <span className="text-[10px] text-slate-700">·</span>
+                    <button
+                      onClick={() => performSync(true)}
+                      disabled={isSyncing || !dbConnected}
+                      className={`flex items-center gap-1 text-[10px] font-medium transition-colors ${
+                        dbConnected ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-slate-500'
+                      } ${isSyncing ? 'cursor-wait' : 'cursor-pointer'}`}
+                      title={lastSyncTime ? `Last sync: ${lastSyncTime.toLocaleTimeString()}` : 'Click to sync'}
+                    >
+                        {dbConnected ? (
+                            isSyncing ? (
+                                <RefreshCw size={9} className="animate-spin text-emerald-400" />
+                            ) : (
+                                <Database size={9} />
+                            )
+                        ) : (
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                        )}
+                        {dbConnected ? (isSyncing ? 'Syncing...' : 'Connected') : 'Local'}
+                    </button>
+                    <span className="text-[10px] font-mono text-slate-700 ml-auto">v{APP_VERSION}</span>
+                 </div>
               </div>
-              <button 
-                onClick={handleLogout} 
-                className="text-slate-500 hover:text-red-400 transition-colors p-2 hover:bg-white/5 rounded-lg" 
+              <button
+                onClick={handleLogout}
+                className="text-slate-500 hover:text-red-400 transition-colors p-2.5 hover:bg-white/5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
                 title="Logout"
                 aria-label="Logout"
               >
                  <LogOut size={18} />
               </button>
-           </div>
-           
-           <div className="flex items-center justify-between text-[10px] text-slate-600 py-1 px-1">
-              <button 
-                onClick={() => performSync(true)}
-                disabled={isSyncing || !dbConnected}
-                className={`flex items-center gap-1.5 font-medium transition-colors ${
-                  dbConnected ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-slate-500'
-                } ${isSyncing ? 'cursor-wait' : 'cursor-pointer'}`}
-                title={lastSyncTime ? `Last sync: ${lastSyncTime.toLocaleTimeString()}` : 'Click to sync'}
-              >
-                  {dbConnected ? (
-                      isSyncing ? (
-                          <RefreshCw size={10} className="animate-spin text-emerald-400" />
-                      ) : (
-                          <Database size={10} />
-                      )
-                  ) : (
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
-                  )} 
-                  {dbConnected ? (isSyncing ? 'Syncing...' : 'Connected') : 'Local'}
-              </button>
-              <span className="font-mono opacity-50">v{APP_VERSION}</span>
            </div>
         </div>
       </aside>
@@ -316,7 +373,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
              >
                <Menu size={24} />
              </button>
-             <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight capitalize truncate max-w-[150px] sm:max-w-none">
+             <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight capitalize truncate flex-1 min-w-0 sm:flex-none">
                {currentPage.replace('-', ' ')}
              </h1>
           </div>

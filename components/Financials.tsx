@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { getInvoices, getContracts, getClients, getBillboards, addInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe } from '../services/mockData';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
-import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe } from 'lucide-react';
+import { sendDocumentEmail } from '../services/documentEmail';
+import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe, Send } from 'lucide-react';
 import { Invoice, Contract, BillboardType, VAT_RATE } from '../types';
 
 type InvoiceLineItem = Invoice['items'][number];
@@ -62,7 +63,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     setAllClients(getClients());
   }, [activeTab, isModalOpen]);
 
-  // Subscribe to live data changes (Supabase sync)
+  // Subscribe to live data changes (Neon sync)
   useEffect(() => {
     const unsubscribe = subscribe(() => {
       setInvoices(getInvoices());
@@ -116,6 +117,17 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
   };
   const downloadPDF = (doc: Invoice) => { const client = allClients.find(c => c.id === doc.clientId); if (client) { generateInvoicePDF(doc, client); } else { alert(`Could not generate PDF: Client data missing for ID ${doc.clientId}`); } };
+  const [sendingDocId, setSendingDocId] = useState<string | null>(null);
+  const handleSendDoc = async (doc: Invoice) => {
+    const client = allClients.find(c => c.id === doc.clientId);
+    if (!client) { alert('Client not found'); return; }
+    if (!confirm(`Send ${doc.type.toLowerCase()} to ${client.companyName} (${client.email})?`)) return;
+    setSendingDocId(doc.id);
+    const { error, to } = await sendDocumentEmail(doc.type.toLowerCase() as any, doc.id);
+    setSendingDocId(null);
+    if (error) { alert(`Failed: ${error.message}`); }
+    else { alert(`${doc.type} sent to ${to}`); }
+  };
   const initiatePayment = (invoice: Invoice) => { setActiveTab('Receipts'); setIsModalOpen(true); setTimeout(() => handleInvoiceSelect(invoice.id), 0); };
 
   const handleDelete = (doc: Invoice) => {
@@ -181,12 +193,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           const company = getCompanyProfile();
           const logo = getCompanyLogo();
           // Use React state (invoices) so re-renders trigger on subscribe updates
-          // Normalize total to number and type to lowercase for Supabase compatibility
+          // Normalize total to number and type to lowercase for Neon compatibility
           const inv = (inv: any) => Number(inv.total) || Number(inv.subtotal) || 0;
           const isInvoiceType = (i: any) => String(i.type || '').toLowerCase() === 'invoice';
           const isReceiptType = (i: any) => String(i.type || '').toLowerCase() === 'receipt';
           const isOverdueStatus = (i: any) => String(i.status || '').toLowerCase() === 'overdue';
-          // clientId might come back as client_id from Supabase depending on schema
+          // clientId might come back as client_id from Neon depending on schema
           const getClientId = (i: any) => i.clientId || i.client_id || '';
 
           const allContracts = getContracts();
@@ -245,7 +257,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                   const totalBilled = clientInvoices.filter(isInvoiceType).reduce((acc, i) => acc + inv(i), 0);
                   const totalPaid = clientInvoices.filter(isReceiptType).reduce((acc, i) => acc + inv(i), 0);
                   const outstanding = totalBilled - totalPaid;
-                  const activeContracts = allContracts.filter(c => (c.clientId || (c as any).client_id) === client.id && c.status === 'Active');
+                  const activeContracts = allContracts.filter(c => (c.clientId || (c as any).client_id) === client.id && String(c.status || '').toLowerCase() === 'active');
                   const overdueCount = clientInvoices.filter(isOverdueStatus).length;
                   return (
                     <div key={client.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-6 flex flex-col gap-4">
@@ -282,7 +294,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Actions</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${doc.status === 'Paid' ? 'bg-green-100 text-green-700' : doc.status === 'Overdue' ? 'bg-red-100 text-red-700 animate-pulse' : doc.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button>{activeTab === 'Invoices' && doc.status === 'Pending' && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} disabled={sendingDocId === doc.id} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50" title="Send via Email"><Send size={16} /></button>{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'pending' && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-400 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
@@ -299,7 +311,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
                     </div>
                     <form onSubmit={handleCreate} className="p-8 space-y-6">
-                        {activeTab === 'Receipts' && (<div className="p-4 bg-green-50 rounded-xl border border-green-100 mb-2"><MinimalSelect label="Link to Pending Invoice" value={selectedInvoiceToPay} onChange={(e: any) => handleInvoiceSelect(e.target.value)} options={[{value: '', label: 'Select Invoice to Pay...'}, ...getInvoices().filter(i => i.status === 'Pending' && i.type === 'Invoice').map(i => ({ value: i.id, label: `Inv #${i.id} - $${i.total} (${allClients.find(c => c.id === i.clientId)?.companyName})`}))]}/></div>)}
+                        {activeTab === 'Receipts' && (<div className="p-4 bg-green-50 rounded-xl border border-green-100 mb-2"><MinimalSelect label="Link to Pending Invoice" value={selectedInvoiceToPay} onChange={(e: any) => handleInvoiceSelect(e.target.value)} options={[{value: '', label: 'Select Invoice to Pay...'}, ...getInvoices().filter(i => String(i.status || '').toLowerCase() === 'pending' && String(i.type || '').toLowerCase() === 'invoice').map(i => ({ value: i.id, label: `Inv #${i.id} - $${i.total} (${allClients.find(c => c.id === i.clientId)?.companyName})`}))]}/></div>)}
                         {activeTab !== 'Receipts' && (<div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 mb-2"><MinimalSelect label="Link to Active Rental (Optional)" value={formData.contractId} onChange={(e: any) => handleRentalSelect(e.target.value)} options={[{value: '', label: 'Select Rental to Auto-fill...'}, ...getContracts().map(c => { const cl = allClients.find(x => x.id === c.clientId); const billboard = getBillboards().find(b => b.id === c.billboardId); return {value: c.id, label: `${cl?.companyName} - ${billboard?.name} (${c.details})`};})]}/></div>)}
                         <div className="grid grid-cols-2 gap-6"><MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]}/><MinimalInput label="Date" type="date" value={formData.date} onChange={(e: any) => setFormData({...formData, date: e.target.value})} /></div>
                         {activeTab === 'Receipts' && (<div className="grid grid-cols-2 gap-6"><MinimalSelect label="Payment Method" value={formData.paymentMethod} onChange={(e: any) => setFormData({...formData, paymentMethod: e.target.value})} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash'},{value: 'Other', label: 'Other'}]}/><MinimalInput label="Reference Number" value={formData.paymentReference} onChange={(e: any) => setFormData({...formData, paymentReference: e.target.value})} /></div>)}

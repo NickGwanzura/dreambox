@@ -64,8 +64,7 @@ export const STORAGE_KEYS = {
   RESTORE_TIMESTAMP: 'db_restore_timestamp',
   DELETED_QUEUE: 'db_deleted_queue',
   CURRENT_USER: 'billboard_user',
-  SB_URL: 'sb_url',
-  SB_KEY: 'sb_key',
+  AUTH_TOKEN: 'db_auth_token',
   
   // CRM System
   CRM_COMPANIES: 'db_crm_companies',

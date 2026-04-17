@@ -21,7 +21,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Simple hash function for client-side password comparison
- * NOTE: In production, use Supabase Auth or similar which handles proper hashing
+ * NOTE: In production, use a proper auth provider which handles server-side hashing
  */
 async function hashPassword(password: string): Promise<string> {
   // Use SubtleCrypto for hashing if available

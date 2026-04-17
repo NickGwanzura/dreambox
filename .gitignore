@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 
 .vercel
+
+/generated/prisma
+
+.env
+.env.local
+.env.*.local
+
+# Server build output (derived from tsc -p tsconfig.server.json)
+dist-server/

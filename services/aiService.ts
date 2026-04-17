@@ -1,4 +1,5 @@
 import { Billboard, Client } from "../types";
+import { getToken } from "./apiClient";
 import { logger } from "../utils/logger";
 
 type AIOptions = {
@@ -43,9 +44,13 @@ async function callAI(
     ...(opts.response_format ? { response_format: opts.response_format } : {}),
   };
 
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch('/api/ai', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -242,7 +247,7 @@ ENDITEM
 
 Repeat exactly this format for all 5 items.`,
       }],
-      { temperature: 0.65, max_tokens: 1200 }
+      { temperature: 0.65, max_tokens: 2000 }
     );
 
     const items: Array<{ title: string; summary: string; source?: string; date?: string; category?: string }> = [];

@@ -1,53 +1,33 @@
 /**
- * Supabase Storage & Sync Module
- * Centralized exports for all Supabase-related functionality
+ * Storage & Sync Module
+ * Centralized exports for storage and Neon API sync functionality
  */
 
-// Core helpers
+// Core Neon API helpers
 export {
   // Connection
+  checkNeonHealth,
+  waitForNeon,
+
+  // Legacy aliases (deprecated)
   checkSupabaseHealth,
   waitForSupabase,
-  
+
   // Generic fetch
   fetchAll,
   fetchById,
-  fetchByField,
-  searchRecords,
-  
-  // Entity-specific fetch
-  fetchUsersFromSupabase,
-  fetchBillboardsFromSupabase,
-  fetchClientsFromSupabase,
-  fetchContractsFromSupabase,
-  fetchInvoicesFromSupabase,
-  fetchTasksFromSupabase,
-  fetchMaintenanceLogsFromSupabase,
-  fetchExpensesFromSupabase,
-  
-  // Realtime
-  subscribeToTable,
-  unsubscribeAll,
-  
-  // Bulk operations
-  bulkInsert,
-  bulkUpdate,
-  bulkDelete,
-  
-  // Sync & backup
+  upsertRecord,
+  deleteRecord,
+
+  // Backup & stats
   exportAllData,
-  importAllData,
   getDatabaseStats,
-  
-  // React hooks
-  useSupabaseQuery,
-  useSupabaseRealtime,
-  
+
   // Types
   type SyncOptions,
   type SyncResult,
   type RealtimeCallbacks,
-} from './supabaseHelpers';
+} from './neonHelpers';
 
 // Local storage helpers
 export {
@@ -59,5 +39,11 @@ export {
   StorageError,
 } from './localStorage';
 
-// Re-export supabase client
-export { supabase, isSupabaseConfigured, checkSupabaseConnection } from '../supabaseClient';
+// Re-export API client
+export {
+  isConfigured as isNeonConfigured,
+  checkConnection as checkNeonConnection,
+  // Legacy aliases (deprecated)
+  isConfigured as isSupabaseConfigured,
+  checkConnection as checkSupabaseConnection,
+} from '../apiClient';

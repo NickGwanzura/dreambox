@@ -1,5 +1,5 @@
 import React from 'react';
-import { getInvoices, getExpenses, printingJobs, outsourcedBillboards, getFinancialTrends, getBillboards } from '../services/mockData';
+import { getInvoices, getExpenses, printingJobs, outsourcedBillboards, getFinancialTrends, getBillboards, getContracts } from '../services/mockData';
 import { 
     AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
     PieChart, Pie, Cell, Legend
@@ -10,7 +10,7 @@ import { BillboardType } from '../types';
 export const Analytics: React.FC = () => {
     // 1. Calculate Revenue
     const totalRevenue = getInvoices()
-        .filter(i => i.type === 'Invoice')
+        .filter(i => String(i.type || '').toLowerCase() === 'invoice')
         .reduce((acc, curr) => acc + curr.total, 0);
     
     // 2. Calculate Expenses
@@ -31,13 +31,17 @@ export const Analytics: React.FC = () => {
 
     const staticBillboards = billboards.filter(b => b.type === BillboardType.Static);
     const totalStaticSides = staticBillboards.length * 2;
+    const activeContractsList = getContracts().filter(c => String(c.status || '').toLowerCase() === 'active');
     const rentedStaticSides = staticBillboards.reduce((acc, b) => {
-      let count = 0;
-      // Default to 'Available' if status is not set
-      const sideA = b.sideAStatus || 'Available';
-      const sideB = b.sideBStatus || 'Available';
-      if (sideA === 'Rented') count++;
-      if (sideB === 'Rented') count++;
+      const billboardContracts = activeContractsList.filter(c => c.billboardId === b.id);
+      const sideA = billboardContracts.some(c => c.side === 'A' || c.side === 'Both');
+      const sideB = billboardContracts.some(c => c.side === 'B' || c.side === 'Both');
+      let count = (sideA ? 1 : 0) + (sideB ? 1 : 0);
+      const nullSideCount = billboardContracts.filter(c => !c.side).length;
+      if (nullSideCount > 0) {
+        const remaining = 2 - count;
+        count = Math.min(2, count + Math.min(nullSideCount, remaining));
+      }
       return acc + count;
     }, 0);
     const staticOccupancyRate = totalStaticSides > 0 ? ((rentedStaticSides / totalStaticSides) * 100).toFixed(1) : '0';

@@ -12,7 +12,7 @@ import {
   subscribe,
   exportToCSV,
   importCSV,
-  loadCRMFromSupabase,
+  loadCRMFromAPI,
   CSVImportResult
 } from '../../services/crmService';
 import { CRMOpportunity, OpportunityStatus } from '../../types';
@@ -56,9 +56,9 @@ export const CRM: React.FC = () => {
   const [showPdfMenu, setShowPdfMenu] = useState(false);
   
   const { showToast } = useToast();
-  // Load shared data from Supabase on mount, then subscribe to local changes
+  // Load shared data from Neon on mount, then subscribe to local changes
   useEffect(() => {
-    loadCRMFromSupabase().then(() => {
+    loadCRMFromAPI().then(() => {
       showToast('CRM data synced from cloud', 'info', 3000);
     }).catch(() => {});
     const unsubscribe = subscribe(() => {

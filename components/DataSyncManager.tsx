@@ -1,62 +1,54 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { 
-  RefreshCw, 
-  Cloud, 
-  Database, 
-  Download, 
-  Upload, 
-  CheckCircle, 
-  AlertCircle,
-  Wifi,
-  WifiOff,
+import {
+  RefreshCw,
+  Cloud,
+  Database,
+  Download,
+  Upload,
   Clock,
   ShieldCheck,
   Server,
   Play,
   Pause,
   HardDrive,
-  ArrowUpDown
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { useToast } from './ToastProvider';
-import { 
-  checkSupabaseHealth, 
-  getDatabaseStats, 
+import {
+  checkNeonHealth,
+  getDatabaseStats,
   exportAllData,
 } from '../services/storage';
-import { 
-  useSupabaseSync, 
-  forceSyncNow, 
-  startAutoSync, 
+import {
+  useSync,
+  forceSyncNow,
+  startAutoSync,
   stopAutoSync,
-  pullAllFromSupabase,
-  pushAllToSupabase,
-} from '../services/supabaseSyncManager';
+  pullAllFromNeon,
+  pushAllToNeon,
+} from '../services/neonSyncManager';
 import { logger } from '../utils/logger';
 
 export const DataSyncManager: React.FC = () => {
   const { showToast } = useToast();
-  const syncStatus = useSupabaseSync();
-  
+  const syncStatus = useSync();
+
   const [isSyncing, setIsSyncing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [dbStats, setDbStats] = useState<{ tables: Record<string, number>; totalRecords: number } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<{ configured: boolean; connected: boolean; error?: string } | null>(null);
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(syncStatus.isAutoSyncRunning);
 
   useEffect(() => {
     checkConnection();
     loadStats();
   }, []);
 
-  useEffect(() => {
-    setAutoSyncEnabled(syncStatus.isAutoSyncRunning);
-  }, [syncStatus.isAutoSyncRunning]);
-
   const checkConnection = async () => {
-    const health = await checkSupabaseHealth();
+    const health = await checkNeonHealth();
     setConnectionStatus(health);
   };
 
@@ -65,12 +57,12 @@ export const DataSyncManager: React.FC = () => {
     showToast('Starting force sync...', 'info');
 
     const success = await forceSyncNow();
-    
+
     if (success) {
-      showToast('Force sync complete! Supabase is up to date.', 'success');
+      showToast('Force sync complete! Database is up to date.', 'success');
       await loadStats();
     } else {
-      showToast('Sync failed. Check connection.', 'error');
+      showToast('Sync failed or already in progress. Check connection.', 'error');
     }
 
     setIsSyncing(false);
@@ -78,15 +70,21 @@ export const DataSyncManager: React.FC = () => {
 
   const handlePullFromCloud = async () => {
     setIsPulling(true);
-    showToast('Pulling data from Supabase...', 'info');
+    showToast('Pulling data from Neon...', 'info');
 
-    const result = await pullAllFromSupabase();
-    
+    const result = await pullAllFromNeon();
+
     if (result.success) {
-      showToast(`Pulled data from cloud. Reloading...`, 'success');
+      showToast('Pulled data from Neon. Reloading...', 'success');
       window.location.reload();
     } else {
-      showToast('Pull failed. Check connection.', 'error');
+      const failedTables = Object.entries(result.results)
+        .filter(([, v]) => v.error)
+        .map(([k]) => k);
+      const msg = failedTables.length > 0
+        ? `Pull partially failed (${failedTables.join(', ')}). Check connection.`
+        : 'Pull failed. Check connection.';
+      showToast(msg, 'error');
     }
 
     setIsPulling(false);
@@ -94,22 +92,23 @@ export const DataSyncManager: React.FC = () => {
 
   const handlePushToCloud = async () => {
     setIsPushing(true);
-    showToast('Pushing all local data to Supabase...', 'info');
+    showToast('Pushing all local data to Neon...', 'info');
 
-    const result = await pushAllToSupabase();
-    
+    const result = await pushAllToNeon();
+
     if (result.success) {
       const totalSynced = Object.values(result.results).reduce((a, b) => a + b.synced, 0);
-      showToast(`Pushed ${totalSynced} records to cloud`, 'success');
+      showToast(`Pushed ${totalSynced} records to Neon`, 'success');
     } else {
-      showToast('Push failed. Check connection.', 'error');
+      const totalFailed = Object.values(result.results).reduce((a, b) => a + b.failed, 0);
+      showToast(`Push completed with ${totalFailed} failure(s). Check logs.`, 'error');
     }
 
     setIsPushing(false);
   };
 
   const handleToggleAutoSync = () => {
-    if (autoSyncEnabled) {
+    if (syncStatus.isAutoSyncRunning) {
       stopAutoSync();
       showToast('Auto-sync stopped', 'info');
     } else {
@@ -117,10 +116,10 @@ export const DataSyncManager: React.FC = () => {
       if (started) {
         showToast('Auto-sync started (30s interval)', 'success');
       } else {
-        showToast('Failed to start auto-sync', 'error');
+        showToast('Failed to start auto-sync. Check authentication.', 'error');
       }
     }
-    setAutoSyncEnabled(!autoSyncEnabled);
+    // Don't optimistically flip state — let the hook pick up the real value
   };
 
   const handleExport = useCallback(async () => {
@@ -128,12 +127,12 @@ export const DataSyncManager: React.FC = () => {
     showToast('Preparing data export...', 'info');
 
     const result = await exportAllData();
-    
+
     if (result.error) {
       showToast('Export failed: ' + result.error, 'error');
     } else if (result.data) {
-      const blob = new Blob([JSON.stringify(result.data, null, 2)], { 
-        type: 'application/json' 
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+        type: 'application/json'
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -171,13 +170,13 @@ export const DataSyncManager: React.FC = () => {
     <div className="space-y-6">
       {/* Connection Status Banner */}
       <div className={`p-6 rounded-2xl border flex items-center gap-4 ${
-        connectionStatus?.connected 
-          ? 'bg-emerald-50 border-emerald-200' 
+        connectionStatus?.connected
+          ? 'bg-emerald-50 border-emerald-200'
           : 'bg-amber-50 border-amber-200'
       }`}>
         <div className={`p-3 rounded-xl ${
-          connectionStatus?.connected 
-            ? 'bg-emerald-100 text-emerald-600' 
+          connectionStatus?.connected
+            ? 'bg-emerald-100 text-emerald-600'
             : 'bg-amber-100 text-amber-600'
         }`}>
           {connectionStatus?.connected ? <Wifi size={24} /> : <WifiOff size={24} />}
@@ -186,14 +185,14 @@ export const DataSyncManager: React.FC = () => {
           <h3 className={`text-lg font-bold ${
             connectionStatus?.connected ? 'text-emerald-800' : 'text-amber-800'
           }`}>
-            {connectionStatus?.connected ? 'Supabase Connected' : 'Supabase Disconnected'}
+            {connectionStatus?.connected ? 'Neon Database Connected' : 'Neon Database Disconnected'}
           </h3>
           <p className={`text-sm ${
             connectionStatus?.connected ? 'text-emerald-600' : 'text-amber-600'
           }`}>
-            {connectionStatus?.connected 
-              ? '100% persistence active. Data syncs every 30 seconds.' 
-              : connectionStatus?.error || 'Check your Supabase configuration'}
+            {connectionStatus?.connected
+              ? '100% persistence active. Data syncs every 30 seconds.'
+              : connectionStatus?.error || 'Check your Neon database configuration'}
           </p>
         </div>
         {connectionStatus?.connected && (
@@ -221,14 +220,14 @@ export const DataSyncManager: React.FC = () => {
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex items-center gap-3 mb-3">
-            <ShieldCheck className={`w-5 h-5 ${autoSyncEnabled ? 'text-emerald-500' : 'text-slate-400'}`} />
+            <ShieldCheck className={`w-5 h-5 ${syncStatus.isAutoSyncRunning ? 'text-emerald-500' : 'text-slate-400'}`} />
             <span className="text-slate-500 text-sm font-medium">Auto-Sync</span>
           </div>
-          <div className={`text-2xl font-bold ${autoSyncEnabled ? 'text-emerald-600' : 'text-slate-500'}`}>
-            {autoSyncEnabled ? 'ON' : 'OFF'}
+          <div className={`text-2xl font-bold ${syncStatus.isAutoSyncRunning ? 'text-emerald-600' : 'text-slate-500'}`}>
+            {syncStatus.isAutoSyncRunning ? 'ON' : 'OFF'}
           </div>
           <div className="text-sm text-slate-400 mt-1">
-            {autoSyncEnabled ? '30 second interval' : 'Manual sync only'}
+            {syncStatus.isAutoSyncRunning ? '30 second interval' : 'Manual sync only'}
           </div>
         </div>
 
@@ -267,8 +266,8 @@ export const DataSyncManager: React.FC = () => {
         >
           <Download className={`w-5 h-5 text-indigo-500 ${isPulling ? 'animate-bounce' : ''}`} />
           <div className="text-left">
-            <div className="text-sm font-bold">Pull from Cloud</div>
-            <div className="text-xs text-slate-500">Supabase → Local</div>
+            <div className="text-sm font-bold">Pull from Neon</div>
+            <div className="text-xs text-slate-500">Neon &rarr; Local</div>
           </div>
         </button>
 
@@ -279,8 +278,8 @@ export const DataSyncManager: React.FC = () => {
         >
           <Upload className={`w-5 h-5 text-indigo-500 ${isPushing ? 'animate-bounce' : ''}`} />
           <div className="text-left">
-            <div className="text-sm font-bold">Push to Cloud</div>
-            <div className="text-xs text-slate-500">Local → Supabase</div>
+            <div className="text-sm font-bold">Push to Neon</div>
+            <div className="text-xs text-slate-500">Local &rarr; Neon</div>
           </div>
         </button>
 
@@ -288,18 +287,18 @@ export const DataSyncManager: React.FC = () => {
           onClick={handleToggleAutoSync}
           disabled={!connectionStatus?.connected}
           className={`flex items-center justify-center gap-3 px-4 py-4 rounded-xl font-medium transition-all ${
-            autoSyncEnabled 
-              ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
+            syncStatus.isAutoSyncRunning
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
               : 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 disabled:bg-slate-100'
           }`}
         >
-          {autoSyncEnabled ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+          {syncStatus.isAutoSyncRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
           <div className="text-left">
             <div className="text-sm font-bold">
-              {autoSyncEnabled ? 'Stop Auto-Sync' : 'Start Auto-Sync'}
+              {syncStatus.isAutoSyncRunning ? 'Stop Auto-Sync' : 'Start Auto-Sync'}
             </div>
-            <div className={`text-xs ${autoSyncEnabled ? 'opacity-75' : 'text-slate-500'}`}>
-              {autoSyncEnabled ? 'Currently running' : 'Enable 30s sync'}
+            <div className={`text-xs ${syncStatus.isAutoSyncRunning ? 'opacity-75' : 'text-slate-500'}`}>
+              {syncStatus.isAutoSyncRunning ? 'Currently running' : 'Enable 30s sync'}
             </div>
           </div>
         </button>
@@ -310,9 +309,9 @@ export const DataSyncManager: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Database className="w-5 h-5 text-slate-400" />
-            <h3 className="text-lg font-bold text-slate-800">Cloud Database Statistics</h3>
+            <h3 className="text-lg font-bold text-slate-800">Neon Database Statistics</h3>
           </div>
-          <button 
+          <button
             onClick={loadStats}
             className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
           >
@@ -320,7 +319,7 @@ export const DataSyncManager: React.FC = () => {
             Refresh
           </button>
         </div>
-        
+
         {dbStats ? (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {Object.entries(dbStats.tables).map(([table, count]) => (
@@ -355,7 +354,7 @@ export const DataSyncManager: React.FC = () => {
             <HardDrive className="w-5 h-5 text-slate-400" />
             <h3 className="text-lg font-bold text-slate-800">Local Backup</h3>
           </div>
-          
+
           <p className="text-slate-500 text-sm mb-4">
             Download a complete JSON backup of all your data. This is useful for offline storage or migration.
           </p>
@@ -377,20 +376,20 @@ export const DataSyncManager: React.FC = () => {
           </div>
           <ul className="text-sm text-slate-300 space-y-3">
             <li className="flex items-start gap-3">
-              <span className="text-indigo-400 mt-1">•</span>
-              <span><strong className="text-white">Supabase is the source of truth</strong> — All data is stored permanently in your Supabase database</span>
+              <span className="text-indigo-400 mt-1">&bull;</span>
+              <span><strong className="text-white">Neon is the source of truth</strong> &mdash; All data is stored permanently in your Neon PostgreSQL database</span>
             </li>
             <li className="flex items-start gap-3">
-              <span className="text-indigo-400 mt-1">•</span>
-              <span><strong className="text-white">Auto-sync every 30 seconds</strong> — Local changes are automatically pushed to Supabase</span>
+              <span className="text-indigo-400 mt-1">&bull;</span>
+              <span><strong className="text-white">Auto-sync every 30 seconds</strong> &mdash; Local changes are automatically pushed to Neon</span>
             </li>
             <li className="flex items-start gap-3">
-              <span className="text-indigo-400 mt-1">•</span>
-              <span><strong className="text-white">Keep-alive pings</strong> — Prevents Supabase from sleeping (60 second intervals)</span>
+              <span className="text-indigo-400 mt-1">&bull;</span>
+              <span><strong className="text-white">Prisma ORM</strong> &mdash; Type-safe database access via Vercel API functions</span>
             </li>
             <li className="flex items-start gap-3">
-              <span className="text-indigo-400 mt-1">•</span>
-              <span><strong className="text-white">100% persistence</strong> — Your data is never lost, even if you clear browser data</span>
+              <span className="text-indigo-400 mt-1">&bull;</span>
+              <span><strong className="text-white">100% persistence</strong> &mdash; Your data is never lost, even if you clear browser data</span>
             </li>
           </ul>
         </div>

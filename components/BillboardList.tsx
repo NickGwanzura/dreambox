@@ -47,10 +47,10 @@ const hasValidImage = (url?: string) => {
 // Dynamic Availability Checker for List Display
 const getAvailabilityStatus = (billboard: Billboard) => {
     const today = new Date();
-    const activeContracts = getContracts().filter(c => 
-        c.billboardId === billboard.id && 
-        c.status === 'Active' &&
-        new Date(c.startDate) <= today && 
+    const activeContracts = getContracts().filter(c =>
+        c.billboardId === billboard.id &&
+        String(c.status || '').toLowerCase() === 'active' &&
+        new Date(c.startDate) <= today &&
         new Date(c.endDate) >= today
     );
 

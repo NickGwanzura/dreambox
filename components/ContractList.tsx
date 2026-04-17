@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, updateContract, subscribe } from '../services/mockData';
 import { generateContractPDF } from '../services/pdfGenerator';
+import { sendDocumentEmail } from '../services/documentEmail';
 import { Contract, VAT_RATE, BillboardType } from '../types';
-import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, Lock, RotateCcw } from 'lucide-react';
+import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, Lock, RotateCcw, Send } from 'lucide-react';
 
 export const ContractList: React.FC = () => {
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
@@ -16,7 +17,7 @@ export const ContractList: React.FC = () => {
       const unsubscribe = subscribe(() => {
           setContracts(getContracts());
       });
-      return unsubscribe;
+      return () => { unsubscribe(); };
   }, []);
 
   // Poll for updates every 2 seconds to ensure list is in sync if added from another tab or component
@@ -40,6 +41,19 @@ export const ContractList: React.FC = () => {
     if (client) {
       generateContractPDF(contract, client, getBillboardName(contract.billboardId));
     }
+  };
+
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  const handleSendEmail = async (contract: Contract) => {
+    const client = getClient(contract.clientId);
+    if (!client) { alert('Client not found'); return; }
+    if (!confirm(`Send contract to ${client.companyName} (${client.email})?`)) return;
+    setSendingId(contract.id);
+    const { error, to } = await sendDocumentEmail('contract', contract.id);
+    setSendingId(null);
+    if (error) { alert(`Failed: ${error.message}`); }
+    else { alert(`Contract sent to ${to}`); }
   };
 
   // Check availability for edited dates
@@ -236,6 +250,9 @@ export const ContractList: React.FC = () => {
                 </button>}
                 <button onClick={() => handleDownload(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
                   <Download size={14} /> <span className="sm:hidden">PDF</span><span className="hidden sm:inline">PDF</span>
+                </button>
+                <button onClick={() => handleSendEmail(contract)} disabled={sendingId === contract.id} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50">
+                  <Send size={14} /> <span className="hidden sm:inline">{sendingId === contract.id ? 'Sending...' : 'Email'}</span>
                 </button>
               </div>
             </div>

@@ -88,9 +88,9 @@ export const Rentals: React.FC = () => {
       if (!billboard) return false;
 
       // Filter contracts for this billboard that are Active
-      const existingContracts = getContracts().filter(c => 
-          c.billboardId === billboardId && 
-          c.status === 'Active' &&
+      const existingContracts = getContracts().filter(c =>
+          c.billboardId === billboardId &&
+          String(c.status || '').toLowerCase() === 'active' &&
           (!excludeContractId || c.id !== excludeContractId)
       );
       
@@ -121,7 +121,7 @@ export const Rentals: React.FC = () => {
 
   const getDigitalOccupancy = (billboardId: string, start: string, end: string) => {
       if (!start || !end || !billboardId) return 0;
-      const existingContracts = getContracts().filter(c => c.billboardId === billboardId && c.status === 'Active');
+      const existingContracts = getContracts().filter(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active');
       const newStart = new Date(start).getTime();
       const newEnd = new Date(end).getTime();
       
@@ -390,8 +390,8 @@ export const Rentals: React.FC = () => {
 
                       {/* Body Rows */}
                       {billboards.map(b => {
-                          const activeContracts = rentals.filter(r => 
-                              r.billboardId === b.id && r.status === 'Active' &&
+                          const activeContracts = rentals.filter(r =>
+                              r.billboardId === b.id && String(r.status || '').toLowerCase() === 'active' &&
                               (new Date(r.startDate) <= new Date(year, month, daysInMonth) && new Date(r.endDate) >= new Date(year, month, 1))
                           );
 

@@ -1,24 +1,25 @@
 
-import React, { useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { useState, useEffect, ReactNode, useCallback, Suspense } from 'react';
 import { Layout } from './components/Layout';
-import { Dashboard } from './components/Dashboard';
-import { BillboardList } from './components/BillboardList';
-import { ClientList } from './components/ClientList';
-import { Rentals } from './components/Rentals';
-import { Financials } from './components/Financials';
-import { Expenses } from './components/Expenses';
-import { Settings } from './components/Settings';
-import { OutsourcedList } from './components/OutsourcedList';
-import { Analytics } from './components/Analytics';
-import { Payments } from './components/Payments';
-import { Tasks } from './components/Tasks';
-import { Maintenance } from './components/Maintenance';
 import { Auth } from './components/Auth';
 import { AuthCallback } from './components/AuthCallback';
-import { ClientPortal } from './components/ClientPortal';
-import { PublicView } from './components/PublicView';
-import { CRM } from './components/crm/CRM';
-import { getCurrentUser } from './services/supabaseAuth';
+
+const Dashboard = React.lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const BillboardList = React.lazy(() => import('./components/BillboardList').then(m => ({ default: m.BillboardList })));
+const ClientList = React.lazy(() => import('./components/ClientList').then(m => ({ default: m.ClientList })));
+const Rentals = React.lazy(() => import('./components/Rentals').then(m => ({ default: m.Rentals })));
+const Financials = React.lazy(() => import('./components/Financials').then(m => ({ default: m.Financials })));
+const Expenses = React.lazy(() => import('./components/Expenses').then(m => ({ default: m.Expenses })));
+const Settings = React.lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const OutsourcedList = React.lazy(() => import('./components/OutsourcedList').then(m => ({ default: m.OutsourcedList })));
+const Analytics = React.lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
+const Payments = React.lazy(() => import('./components/Payments').then(m => ({ default: m.Payments })));
+const Tasks = React.lazy(() => import('./components/Tasks').then(m => ({ default: m.Tasks })));
+const Maintenance = React.lazy(() => import('./components/Maintenance').then(m => ({ default: m.Maintenance })));
+const ClientPortal = React.lazy(() => import('./components/ClientPortal').then(m => ({ default: m.ClientPortal })));
+const PublicView = React.lazy(() => import('./components/PublicView').then(m => ({ default: m.PublicView })));
+const CRM = React.lazy(() => import('./components/crm/CRM').then(m => ({ default: m.CRM })));
+import { getCurrentUser, updatePassword } from './services/authService';
 import { ToastProvider } from './components/ToastProvider';
 import { FeatureErrorBoundary } from './components/error-boundaries/FeatureErrorBoundary';
 import { logger } from './utils/logger';
@@ -93,10 +94,26 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getCurrentUser());
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try { return !!localStorage.getItem('db_auth_token'); } catch { return false; }
+  });
+  const [mustResetPassword, setMustResetPassword] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [portalMode, setPortalMode] = useState<{active: boolean, clientId: string | null}>({ active: false, clientId: null });
   const [publicMode, setPublicMode] = useState<{active: boolean, type: 'billboard' | 'map', id?: string}>({ active: false, type: 'map' });
   const [pageError, setPageError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      getCurrentUser().then(user => {
+        if (user && (user as any).mustResetPassword) {
+          setMustResetPassword(true);
+        }
+      });
+    } else {
+      setMustResetPassword(false);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
@@ -250,7 +267,9 @@ const App: React.FC = () => {
       return (
           <ErrorBoundary>
               <ToastProvider>
-                <PublicView type={publicMode.type} billboardId={publicMode.id} />
+                <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-400 text-sm">Loading...</div></div>}>
+                  <PublicView type={publicMode.type} billboardId={publicMode.id} />
+                </Suspense>
               </ToastProvider>
           </ErrorBoundary>
       )
@@ -261,7 +280,9 @@ const App: React.FC = () => {
       return (
           <ErrorBoundary>
               <ToastProvider>
-                <ClientPortal clientId={portalMode.clientId} />
+                <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-400 text-sm">Loading...</div></div>}>
+                  <ClientPortal clientId={portalMode.clientId} />
+                </Suspense>
               </ToastProvider>
           </ErrorBoundary>
       );
@@ -279,6 +300,46 @@ const App: React.FC = () => {
       );
   }
 
+  // Forced Password Reset
+  if (isAuthenticated && mustResetPassword) {
+    return (
+      <ErrorBoundary>
+        <ToastProvider>
+          <div className="h-screen flex items-center justify-center bg-slate-50 p-6">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 border border-slate-100">
+              <h1 className="text-xl font-bold text-slate-900 mb-2">Password Reset Required</h1>
+              <p className="text-slate-500 text-sm mb-6">Your administrator requires you to set a new password before continuing.</p>
+              {resetPasswordError && <p className="text-red-600 text-sm mb-4">{resetPasswordError}</p>}
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setResetPasswordError(null);
+                const form = e.target as HTMLFormElement;
+                const newPw = (form.elements.namedItem('newPassword') as HTMLInputElement).value;
+                const confirmPw = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value;
+                if (newPw.length < 8) { setResetPasswordError('Password must be at least 8 characters'); return; }
+                if (!/[A-Z]/.test(newPw)) { setResetPasswordError('Password must contain an uppercase letter'); return; }
+                if (!/[a-z]/.test(newPw)) { setResetPasswordError('Password must contain a lowercase letter'); return; }
+                if (!/[0-9]/.test(newPw)) { setResetPasswordError('Password must contain a number'); return; }
+                if (!/[^A-Za-z0-9]/.test(newPw)) { setResetPasswordError('Password must contain a special character'); return; }
+                if (newPw !== confirmPw) { setResetPasswordError('Passwords do not match'); return; }
+                const { error } = await updatePassword(newPw);
+                if (error) { setResetPasswordError(error.message); return; }
+                setMustResetPassword(false);
+              }}>
+                <input name="newPassword" type="password" placeholder="New password" required minLength={8} className="w-full px-4 py-3 rounded-xl border border-slate-200 mb-3 text-sm" />
+                <input name="confirmPassword" type="password" placeholder="Confirm new password" required minLength={8} className="w-full px-4 py-3 rounded-xl border border-slate-200 mb-3 text-sm" />
+                <ul className="text-xs text-slate-400 mb-4 space-y-0.5 pl-1">
+                  <li>At least 8 characters, with uppercase, lowercase, number, and special character</li>
+                </ul>
+                <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs uppercase hover:bg-slate-800 transition-all">Update Password</button>
+              </form>
+            </div>
+          </div>
+        </ToastProvider>
+      </ErrorBoundary>
+    );
+  }
+
   // Main App Routing (Auth Required)
   if (!isAuthenticated) {
       return (
@@ -293,12 +354,14 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
         <ToastProvider>
-          <Layout 
-              currentPage={currentPage} 
+          <Layout
+              currentPage={currentPage}
               onNavigate={handlePageChange}
               onLogout={() => setIsAuthenticated(false)}
           >
-            {renderPage()}
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-slate-400 text-sm">Loading...</div></div>}>
+              {renderPage()}
+            </Suspense>
           </Layout>
         </ToastProvider>
     </ErrorBoundary>

@@ -83,14 +83,12 @@ export function handleStorageFull(): void {
  * Clear all app-related data
  */
 export function clearAllData(): void {
-  // Preserve Supabase credentials
-  const sbUrl = localStorage.getItem(STORAGE_KEYS.SB_URL);
-  const sbKey = localStorage.getItem(STORAGE_KEYS.SB_KEY);
-  
+  // Preserve auth token across clear
+  const authToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+
   localStorage.clear();
-  
-  if (sbUrl) localStorage.setItem(STORAGE_KEYS.SB_URL, sbUrl);
-  if (sbKey) localStorage.setItem(STORAGE_KEYS.SB_KEY, sbKey);
+
+  if (authToken) localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, authToken);
   
   logger.info('All local data cleared');
 }

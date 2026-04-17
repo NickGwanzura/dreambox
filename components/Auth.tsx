@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  signIn, 
-  signUp, 
-  sendPasswordReset, 
+import {
+  signIn,
+  signUp,
+  sendPasswordReset,
   resendVerificationEmail,
-  devLogin 
-} from '../services/supabaseAuth';
+  devLogin
+} from '../services/authService';
 import { useToast } from './ToastProvider';
 import { RELEASE_NOTES } from '../services/mockData';
 import { 
@@ -57,8 +57,20 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 validators.required(email, 'Email');
                 validators.email(email);
                 validators.required(password, 'Password');
-                if (password.length < 6) {
-                    throw new ValidationError('Password must be at least 6 characters');
+                if (password.length < 8) {
+                    throw new ValidationError('Password must be at least 8 characters');
+                }
+                if (!/[A-Z]/.test(password)) {
+                    throw new ValidationError('Password must contain at least one uppercase letter');
+                }
+                if (!/[a-z]/.test(password)) {
+                    throw new ValidationError('Password must contain at least one lowercase letter');
+                }
+                if (!/[0-9]/.test(password)) {
+                    throw new ValidationError('Password must contain at least one number');
+                }
+                if (!/[^A-Za-z0-9]/.test(password)) {
+                    throw new ValidationError('Password must contain at least one special character');
                 }
             } else if (mode === 'forgot') {
                 validators.required(email, 'Email');
@@ -397,7 +409,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                             {mode === 'login' && (
                                                 <button 
                                                     type="button"
-                                                    onClick={() => showToast('Password reset temporarily disabled. Contact admin@dreambox.com for assistance.', 'info')}
+                                                    onClick={() => toggleMode('forgot')}
                                                     className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
                                                 >
                                                     Forgot password?

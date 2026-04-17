@@ -1,10 +1,9 @@
 /**
- * User Management Service
- * Integrates with Supabase Auth for user CRUD operations
+ * User Management Service — all operations go through /api/users
  */
 
-import { supabase } from './supabaseClient';
-import { User } from '../types';
+import { api } from './apiClient';
+import { User, UserPermissions, LoginHistoryEntry } from '../types';
 import { logger } from '../utils/logger';
 
 export type UserCreateData = {
@@ -15,130 +14,37 @@ export type UserCreateData = {
   password?: string;
 };
 
-/**
- * Create a new user (Admin only)
- * Creates user in Supabase Auth AND our users table
- */
+export type BulkInviteEntry = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'Admin' | 'Manager' | 'Staff' | 'Sales Agent';
+};
+
+export type BulkInviteResult = {
+  email: string;
+  status: 'created' | 'exists' | 'error';
+  tempPassword?: string;
+};
+
+// ----------------------------------------------------------------
+// CRUD
+// ----------------------------------------------------------------
+
 export const createUser = async (userData: UserCreateData): Promise<{ user: User | null; error: Error | null }> => {
-  if (!supabase) {
-    return { user: null, error: new Error('Supabase not configured') };
-  }
-
   try {
-    // Generate a temporary password if not provided
-    const tempPassword = userData.password || generateTempPassword();
-
-    // Create user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: userData.email,
-      password: tempPassword,
-      email_confirm: true, // Auto-confirm email for admin-created users
-      user_metadata: {
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-      },
-    });
-
-    if (authError) {
-      // If admin API fails (needs service role), fall back to regular signup
-      if (authError.message.includes('service_role')) {
-        logger.warn('Admin API not available, using regular signup');
-        
-        // Create user via signup (will need email verification)
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: userData.email,
-          password: tempPassword,
-          options: {
-            data: {
-              first_name: userData.firstName,
-              last_name: userData.lastName,
-            },
-          },
-        });
-
-        if (signUpError) throw signUpError;
-        if (!signUpData.user) throw new Error('Failed to create user');
-
-        // Create user record in our database
-        const newUser: User = {
-          id: signUpData.user.id,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          email: userData.email,
-          username: userData.email.split('@')[0],
-          role: userData.role,
-          status: 'Active', // Admin-created users are auto-approved
-        };
-
-        const { error: dbError } = await supabase.from('users').insert(newUser);
-        if (dbError) throw dbError;
-
-        return { user: newUser, error: null };
-      }
-      
-      throw authError;
-    }
-
-    if (!authData.user) {
-      throw new Error('Failed to create user in Auth');
-    }
-
-    // Create user record in our database
-    const newUser: User = {
-      id: authData.user.id,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      email: userData.email,
-      username: userData.email.split('@')[0],
-      role: userData.role,
-      status: 'Active', // Admin-created users are auto-approved
-    };
-
-    const { error: dbError } = await supabase.from('users').insert(newUser);
-    if (dbError) {
-      logger.error('Failed to create user in database:', dbError);
-      // Don't fail - user exists in Auth, can fix DB later
-    }
-
-    logger.info(`User created by admin: ${userData.email}`);
-    return { user: newUser, error: null };
+    const { user } = await api.post<{ user: User; tempPassword?: string }>('/api/users', userData);
+    logger.info(`User created: ${userData.email}`);
+    return { user, error: null };
   } catch (error: any) {
     logger.error('Create user error:', error);
     return { user: null, error: new Error(error.message || 'Failed to create user') };
   }
 };
 
-/**
- * Update a user
- * Updates both Supabase Auth and our users table
- */
-export const updateUserData = async (userId: string, updates: Partial<User>): Promise<{ error: Error | null }> => {
-  if (!supabase) {
-    return { error: new Error('Supabase not configured') };
-  }
-
+export const updateUserData = async (userId: string, updates: Partial<User> & { unlockAccount?: boolean; permissions?: UserPermissions }): Promise<{ error: Error | null }> => {
   try {
-    // Update our database
-    const { error: dbError } = await supabase
-      .from('users')
-      .update(updates)
-      .eq('id', userId);
-
-    if (dbError) throw dbError;
-
-    // If email changed, update in Auth too
-    if (updates.email) {
-      const { error: authError } = await supabase.auth.admin.updateUserById(
-        userId,
-        { email: updates.email }
-      );
-
-      if (authError && !authError.message.includes('service_role')) {
-        logger.error('Failed to update auth email:', authError);
-        // Don't fail - DB is updated, Auth can be fixed separately
-      }
-    }
-
+    await api.put(`/api/users`, updates, { id: userId });
     logger.info(`User updated: ${userId}`);
     return { error: null };
   } catch (error: any) {
@@ -147,32 +53,9 @@ export const updateUserData = async (userId: string, updates: Partial<User>): Pr
   }
 };
 
-/**
- * Delete a user
- * Deletes from both Supabase Auth and our users table
- */
 export const deleteUserData = async (userId: string): Promise<{ error: Error | null }> => {
-  if (!supabase) {
-    return { error: new Error('Supabase not configured') };
-  }
-
   try {
-    // Delete from our database first
-    const { error: dbError } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId);
-
-    if (dbError) throw dbError;
-
-    // Delete from Supabase Auth
-    const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-
-    if (authError && !authError.message.includes('service_role')) {
-      logger.error('Failed to delete auth user:', authError);
-      // Don't fail - user is removed from app, just not Auth
-    }
-
+    await api.delete('/api/users', { id: userId });
     logger.info(`User deleted: ${userId}`);
     return { error: null };
   } catch (error: any) {
@@ -181,26 +64,26 @@ export const deleteUserData = async (userId: string): Promise<{ error: Error | n
   }
 };
 
-/**
- * Approve a pending user
- * Updates status to Active and assigns role
- */
+export const fetchAllUsers = async (): Promise<{ users: User[]; error: Error | null }> => {
+  try {
+    const users = await api.get<User[]>('/api/users');
+    return { users, error: null };
+  } catch (error: any) {
+    logger.error('Fetch users error:', error);
+    return { users: [], error: new Error(error.message || 'Failed to fetch users') };
+  }
+};
+
+// ----------------------------------------------------------------
+// APPROVAL / REJECTION / STATUS
+// ----------------------------------------------------------------
+
 export const approveUser = async (
   userId: string,
   role: 'Admin' | 'Manager' | 'Staff' | 'Sales Agent'
 ): Promise<{ error: Error | null }> => {
-  if (!supabase) {
-    return { error: new Error('Supabase not configured') };
-  }
-
   try {
-    const { error } = await supabase
-      .from('users')
-      .update({ status: 'Active', role })
-      .eq('id', userId);
-
-    if (error) throw error;
-
+    await api.put('/api/users', { status: 'Active', role }, { id: userId });
     logger.info(`User approved: ${userId} with role ${role}`);
     return { error: null };
   } catch (error: any) {
@@ -209,27 +92,10 @@ export const approveUser = async (
   }
 };
 
-/**
- * Reject a pending user
- * Sets status to Rejected or deletes the user
- */
-export const rejectUser = async (userId: string, deleteInstead: boolean = false): Promise<{ error: Error | null }> => {
-  if (!supabase) {
-    return { error: new Error('Supabase not configured') };
-  }
-
+export const rejectUser = async (userId: string, deleteInstead = false): Promise<{ error: Error | null }> => {
   try {
-    if (deleteInstead) {
-      return await deleteUserData(userId);
-    } else {
-      const { error } = await supabase
-        .from('users')
-        .update({ status: 'Rejected' })
-        .eq('id', userId);
-
-      if (error) throw error;
-    }
-
+    if (deleteInstead) return deleteUserData(userId);
+    await api.put('/api/users', { status: 'Rejected' }, { id: userId });
     logger.info(`User rejected: ${userId}`);
     return { error: null };
   } catch (error: any) {
@@ -238,101 +104,112 @@ export const rejectUser = async (userId: string, deleteInstead: boolean = false)
   }
 };
 
-/**
- * Fetch all users from database, deduplicated by email.
- * If duplicate rows exist in Supabase (same email, different IDs),
- * keeps the first encountered and deletes the extras.
- */
-export const fetchAllUsers = async (): Promise<{ users: User[]; error: Error | null }> => {
-  if (!supabase) {
-    return { users: [], error: new Error('Supabase not configured') };
-  }
-
+/** Soft-deactivate: sets status to Inactive (preserves data, blocks login) */
+export const suspendUser = async (userId: string): Promise<{ error: Error | null }> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: true }); // oldest first so we keep the canonical record
-
-    if (error) throw error;
-
-    const rows: User[] = data || [];
-
-    // Deduplicate by email — keep the first (oldest) row per email, delete the rest from Supabase
-    const seen = new Map<string, User>();
-    const duplicateIds: string[] = [];
-
-    for (const user of rows) {
-      const key = user.email?.toLowerCase();
-      if (!key) { seen.set(user.id, user); continue; }
-      if (seen.has(key)) {
-        duplicateIds.push(user.id); // mark newer duplicate for deletion
-      } else {
-        seen.set(key, user);
-      }
-    }
-
-    // Clean up duplicate rows in Supabase
-    if (duplicateIds.length > 0) {
-      logger.warn(`Removing ${duplicateIds.length} duplicate user(s) from Supabase`);
-      const { error: delErr } = await supabase.from('users').delete().in('id', duplicateIds);
-      if (delErr) {
-        logger.error('Failed to delete duplicate users (RLS may be blocking):', delErr.message);
-      } else {
-        logger.info(`Cleaned up ${duplicateIds.length} duplicate user rows from Supabase`);
-      }
-    }
-
-    return { users: Array.from(seen.values()), error: null };
+    await api.put('/api/users', { status: 'Inactive' }, { id: userId });
+    logger.info(`User suspended: ${userId}`);
+    return { error: null };
   } catch (error: any) {
-    logger.error('Fetch users error:', error);
-    return { users: [], error: new Error(error.message || 'Failed to fetch users') };
+    logger.error('Suspend user error:', error);
+    return { error: new Error(error.message || 'Failed to suspend user') };
   }
 };
 
-/**
- * Reset user password (Admin action)
- * Generates new temp password
- */
-export const resetUserPassword = async (userId: string): Promise<{ tempPassword: string | null; error: Error | null }> => {
-  if (!supabase) {
-    return { tempPassword: null, error: new Error('Supabase not configured') };
-  }
-
+/** Re-activate a suspended user */
+export const reactivateUser = async (userId: string): Promise<{ error: Error | null }> => {
   try {
-    const tempPassword = generateTempPassword();
-
-    const { error } = await supabase.auth.admin.updateUserById(
-      userId,
-      { password: tempPassword }
-    );
-
-    if (error) {
-      if (error.message.includes('service_role')) {
-        return { tempPassword: null, error: new Error('Admin API requires service role key') };
-      }
-      throw error;
-    }
-
-    logger.info(`Password reset for user: ${userId}`);
-    return { tempPassword, error: null };
+    await api.put('/api/users', { status: 'Active' }, { id: userId });
+    logger.info(`User reactivated: ${userId}`);
+    return { error: null };
   } catch (error: any) {
-    logger.error('Reset password error:', error);
-    return { tempPassword: null, error: new Error(error.message || 'Failed to reset password') };
+    logger.error('Reactivate user error:', error);
+    return { error: new Error(error.message || 'Failed to reactivate user') };
   }
 };
 
-// Helper function to generate temporary passwords
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+/** Unlock a locked account (too many failed login attempts) */
+export const unlockUser = async (userId: string): Promise<{ error: Error | null }> => {
+  try {
+    await api.put('/api/users', { unlockAccount: true }, { id: userId });
+    logger.info(`User unlocked: ${userId}`);
+    return { error: null };
+  } catch (error: any) {
+    logger.error('Unlock user error:', error);
+    return { error: new Error(error.message || 'Failed to unlock user') };
   }
-  return password;
-}
+};
 
-// Legacy compatibility exports
+// ----------------------------------------------------------------
+// PERMISSIONS
+// ----------------------------------------------------------------
+
+export const updateUserPermissions = async (
+  userId: string,
+  permissions: UserPermissions
+): Promise<{ error: Error | null }> => {
+  try {
+    await api.put('/api/users', { permissions }, { id: userId });
+    logger.info(`Permissions updated: ${userId}`);
+    return { error: null };
+  } catch (error: any) {
+    logger.error('Update permissions error:', error);
+    return { error: new Error(error.message || 'Failed to update permissions') };
+  }
+};
+
+// ----------------------------------------------------------------
+// BULK INVITE
+// ----------------------------------------------------------------
+
+export const bulkInviteUsers = async (
+  invites: BulkInviteEntry[]
+): Promise<{ results: BulkInviteResult[]; error: Error | null }> => {
+  try {
+    const { results } = await api.post<{ results: BulkInviteResult[] }>('/api/users?action=bulkInvite', { invites });
+    logger.info(`Bulk invite: ${results.length} processed`);
+    return { results, error: null };
+  } catch (error: any) {
+    logger.error('Bulk invite error:', error);
+    return { results: [], error: new Error(error.message || 'Failed to bulk invite') };
+  }
+};
+
+// ----------------------------------------------------------------
+// LOGIN HISTORY
+// ----------------------------------------------------------------
+
+export const fetchLoginHistory = async (
+  userId: string
+): Promise<{ history: LoginHistoryEntry[]; error: Error | null }> => {
+  try {
+    const history = await api.get<LoginHistoryEntry[]>(`/api/users?loginHistory=${userId}`);
+    return { history, error: null };
+  } catch (error: any) {
+    logger.error('Fetch login history error:', error);
+    return { history: [], error: new Error(error.message || 'Failed to fetch login history') };
+  }
+};
+
+// ----------------------------------------------------------------
+// PASSWORD RESET (admin-triggered)
+// ----------------------------------------------------------------
+
+export const adminResetPassword = async (userId: string): Promise<{ message: string | null; error: Error | null }> => {
+  try {
+    const { message } = await api.post<{ message: string }>('/api/users?action=adminReset', { userId });
+    logger.info(`Admin password reset sent for user: ${userId}`);
+    return { message, error: null };
+  } catch (error: any) {
+    logger.error('Admin reset password error:', error);
+    return { message: null, error: new Error(error.message || 'Failed to send reset email') };
+  }
+};
+
+// ----------------------------------------------------------------
+// LEGACY EXPORTS
+// ----------------------------------------------------------------
 export const addUser = createUser;
 export const updateUser = updateUserData;
 export const deleteUser = deleteUserData;
+export const resetUserPassword = adminResetPassword;

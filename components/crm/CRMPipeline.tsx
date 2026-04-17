@@ -102,7 +102,7 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({
       status: newStatus,
       // Also update stage based on status
       stage: getStageForStatus(newStatus, opportunity.stage),
-      lastModifiedDate: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     updateCRMOpportunity(updatedOpportunity);
