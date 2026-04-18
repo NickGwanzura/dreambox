@@ -2,7 +2,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard, BillboardType } from '../types';
-import { getCompanyProfile, getCompanyLogo } from './mockData';
+import { getCompanyProfile, getCompanyLogo, getContracts } from './mockData';
 
 type RGB = [number, number, number];
 
@@ -794,24 +794,50 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         ];
         let y = addCompanyHeader(doc, palette);
 
+        // Canonical availability: derived from active contracts with date filtering
+        // (matches getAvailabilityStatus in BillboardList). Drift-prone side flags
+        // like sideAStatus/rentedSlots are intentionally NOT used — they can fall
+        // out of sync with contract lifecycle (future-dated contracts, expired
+        // contracts not auto-reverted, manual status flips).
+        const asOf = new Date();
+        asOf.setHours(23, 59, 59, 999); // compare dates inclusively
+        const activeContractsFor = (billboardId: string): Contract[] =>
+            getContracts().filter(c =>
+                c.billboardId === billboardId &&
+                String(c.status || '').toLowerCase() === 'active' &&
+                new Date(c.startDate) <= asOf &&
+                new Date(c.endDate) >= new Date(new Date().setHours(0, 0, 0, 0))
+            );
+
         const rows: AvailabilityRow[] = [];
         billboards.forEach(b => {
             const sizeStr = b.width && b.height ? `${b.width}m x ${b.height}m` : '—';
             const dailyTraffic = b.dailyTraffic || 0;
             const locationStr = `${b.location}, ${b.town}`;
+            const active = activeContractsFor(b.id);
 
             if (b.type === BillboardType.Static) {
-                const aFree = (b.sideAStatus || 'Available') === 'Available' && !b.sideAClientId;
-                const bFree = (b.sideBStatus || 'Available') === 'Available' && !b.sideBClientId;
-                if (aFree) {
+                const sideABooked = active.some(c => c.side === 'A' || c.side === 'Both');
+                const sideBBooked = active.some(c => c.side === 'B' || c.side === 'Both');
+                if (!sideABooked) {
                     rows.push({ siteName: b.name, location: locationStr, type: 'Static', size: sizeStr, availability: 'Side A', slotsFree: 1, dailyTraffic, monthlyRate: b.sideARate || 0 });
                 }
-                if (bFree) {
+                if (!sideBBooked) {
                     rows.push({ siteName: b.name, location: locationStr, type: 'Static', size: sizeStr, availability: 'Side B', slotsFree: 1, dailyTraffic, monthlyRate: b.sideBRate || 0 });
                 }
             } else {
                 const total = b.totalSlots || 0;
-                const free = total - (b.rentedSlots || 0);
+                // Count distinct occupied slot numbers to prevent double-counting
+                // when two contracts accidentally target the same slotNumber.
+                const occupiedSlots = new Set(
+                    active
+                        .filter(c => typeof c.slotNumber === 'number')
+                        .map(c => c.slotNumber as number)
+                );
+                // Contracts without a slotNumber still consume one slot each.
+                const unnumbered = active.filter(c => typeof c.slotNumber !== 'number').length;
+                const used = Math.min(total, occupiedSlots.size + unnumbered);
+                const free = Math.max(0, total - used);
                 if (free > 0) {
                     rows.push({ siteName: b.name, location: locationStr, type: 'LED', size: sizeStr, availability: `${free} of ${total} slots`, slotsFree: free, dailyTraffic, monthlyRate: b.ratePerSlot || 0 });
                 }
@@ -847,7 +873,7 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
 
         doc.setFontSize(8);
         doc.setTextColor(203, 213, 225);
-        doc.text(`Generated ${new Date().toLocaleDateString()}`, pageWidth - 18, y + 5, { align: 'right' });
+        doc.text(`Availability as of ${new Date().toLocaleDateString()}`, pageWidth - 18, y + 5, { align: 'right' });
         doc.text(`${rows.length} opening${rows.length === 1 ? '' : 's'} listed`, pageWidth - 18, y + 12, { align: 'right' });
 
         y += 28;
@@ -862,8 +888,8 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
             { label: 'SITES AVAILABLE', value: String(uniqueSites) },
             { label: 'STATIC FACES', value: String(staticFaces) },
             { label: 'LED SLOTS OPEN', value: String(ledSlotsOpen) },
-            { label: 'DAILY IMPRESSIONS', value: formatCompactNumber(totalDailyTraffic) },
-            { label: 'MONTHLY REACH', value: formatCompactNumber(monthlyImpressions) },
+            { label: 'DAILY VIEWS', value: formatCompactNumber(totalDailyTraffic) },
+            { label: 'MONTHLY IMPRESSIONS', value: formatCompactNumber(monthlyImpressions) },
             { label: 'MONTHLY POTENTIAL', value: `$${monthlyPotential.toLocaleString()}` }
         ];
 
@@ -946,8 +972,8 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
             14, finalY + 14
         );
         const trafficNote = rows.length > 0 && totalDailyTraffic > 0
-            ? `Traffic estimates are per-site daily impressions from traffic surveys; monthly reach = daily views × 30. Network average: ${avgDailyTraffic.toLocaleString()} views/day per site.`
-            : `Traffic estimates are derived from on-site surveys; monthly reach = daily views × 30.`;
+            ? `Traffic figures are per-site daily view estimates from surveys; monthly impressions = daily views × 30 (not unique reach). Network average: ${avgDailyTraffic.toLocaleString()} views/day per site.`
+            : `Traffic figures are on-site survey estimates; monthly impressions = daily views × 30 (not unique reach).`;
         doc.text(trafficNote, 14, finalY + 19);
 
         // Premium "Contact Us" block
