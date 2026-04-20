@@ -4,6 +4,7 @@ import { getContracts, getBillboards, addContract, addInvoice, clients, deleteCo
 import { generateContractPDF, generateActiveContractsPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, VAT_RATE, Invoice } from '../types';
+import { splitInclusiveVat } from '../services/constants';
 import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle } from 'lucide-react';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
@@ -176,8 +177,10 @@ export const Rentals: React.FC = () => {
         }
     }
 
-    const subtotal = (newRental.monthlyRate * 12) + newRental.installationCost + newRental.printingCost;
-    const vat = newRental.hasVat ? subtotal * VAT_RATE : 0;
+    const gross = (newRental.monthlyRate * 12) + newRental.installationCost + newRental.printingCost;
+    const { subtotal, vat } = newRental.hasVat
+      ? splitInclusiveVat(gross)
+      : { subtotal: gross, vat: 0 };
     const rentalId = `C-${Date.now().toString().slice(-4)}`;
     
     let detailText = '';
@@ -198,7 +201,7 @@ export const Rentals: React.FC = () => {
         printingCost: newRental.printingCost,
         hasVat: newRental.hasVat,
         assignedTo: newRental.assignedTo || undefined,
-        totalContractValue: subtotal + vat,
+        totalContractValue: gross,
         status: 'Active',
         side: selectedBillboard?.type === BillboardType.Static ? newRental.side : undefined,
         slotNumber: selectedBillboard?.type === BillboardType.LED ? newRental.slotNumber : undefined,
@@ -208,8 +211,10 @@ export const Rentals: React.FC = () => {
 
     addContract(rental);
 
-    const invoiceSubtotal = newRental.monthlyRate + newRental.installationCost + newRental.printingCost;
-    const invoiceVat = newRental.hasVat ? invoiceSubtotal * VAT_RATE : 0;
+    const invoiceGross = newRental.monthlyRate + newRental.installationCost + newRental.printingCost;
+    const { subtotal: invoiceSubtotal, vat: invoiceVat } = newRental.hasVat
+      ? splitInclusiveVat(invoiceGross)
+      : { subtotal: invoiceGross, vat: 0 };
     const initialInvoice: Invoice = {
         id: `INV-${Date.now().toString().slice(-5)}`,
         contractId: rentalId,
@@ -222,7 +227,7 @@ export const Rentals: React.FC = () => {
         ],
         subtotal: invoiceSubtotal,
         vatAmount: invoiceVat,
-        total: invoiceSubtotal + invoiceVat,
+        total: invoiceGross,
         status: 'Pending',
         type: 'Invoice'
     };
@@ -246,12 +251,11 @@ export const Rentals: React.FC = () => {
       
       try {
           const months = Math.max(1, Math.ceil((new Date(editRental.endDate).getTime() - new Date(editRental.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
-          const subtotal = (editRental.monthlyRate * months) + editRental.installationCost + editRental.printingCost;
-          const vat = editRental.hasVat ? subtotal * VAT_RATE : 0;
-          
+          const gross = (editRental.monthlyRate * months) + editRental.installationCost + editRental.printingCost;
+
           const updatedContract: Contract = {
               ...editRental,
-              totalContractValue: subtotal + vat,
+              totalContractValue: gross,
               lastModifiedDate: new Date().toISOString(),
               lastModifiedBy: 'Current User'
           };
@@ -285,16 +289,15 @@ export const Rentals: React.FC = () => {
           }
           
           const months = 12;
-          const subtotal = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost;
-          const vat = renewRental.hasVat ? subtotal * VAT_RATE : 0;
-          
+          const gross = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost;
+
           const renewedContract: Contract = {
               ...renewRental,
               id: `C-${Date.now().toString().slice(-4)}`,
               startDate: newStart.toISOString().split('T')[0],
               endDate: newEnd.toISOString().split('T')[0],
               status: 'Active',
-              totalContractValue: subtotal + vat,
+              totalContractValue: gross,
               createdAt: new Date().toISOString(),
               lastModifiedDate: new Date().toISOString(),
               lastModifiedBy: 'Current User'
@@ -617,7 +620,7 @@ export const Rentals: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input type="checkbox" checked={newRental.hasVat} onChange={e => setNewRental({...newRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"/>
-                                    <label className="text-sm font-medium text-slate-600">Include VAT (15%)</label>
+                                    <label className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</label>
                                 </div>
                             </div>
                             <MinimalInput label="Assigned Sales Agent (Optional)" value={newRental.assignedTo} onChange={(e: any) => setNewRental({...newRental, assignedTo: e.target.value})} />
@@ -686,7 +689,7 @@ export const Rentals: React.FC = () => {
                         <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label><input type="number" value={editRental.monthlyRate} onChange={(e) => setEditRental({...editRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
                         <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Installation Cost ($)</label><input type="number" value={editRental.installationCost} onChange={(e) => setEditRental({...editRental, installationCost: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
                         <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Printing Cost ($)</label><input type="number" value={editRental.printingCost} onChange={(e) => setEditRental({...editRental, printingCost: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
-                        <div className="col-span-2"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editRental.hasVat} onChange={(e) => setEditRental({...editRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" /><span className="text-sm font-medium text-slate-600">Include VAT (15%)</span></label></div>
+                        <div className="col-span-2"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editRental.hasVat} onChange={(e) => setEditRental({...editRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" /><span className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</span></label></div>
                     </div>
                     <div className="flex gap-3 pt-4">
                         <button onClick={() => setEditRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
@@ -716,10 +719,10 @@ export const Rentals: React.FC = () => {
                             <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">New End Date</label><input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500" /></div>
                         </div>
                         <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label><input type="number" value={renewRental.monthlyRate} onChange={(e) => setRenewRental({...renewRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
-                        <div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={renewRental.hasVat} onChange={(e) => setRenewRental({...renewRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" /><span className="text-sm font-medium text-slate-600">Include VAT (15%)</span></label></div>
+                        <div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={renewRental.hasVat} onChange={(e) => setRenewRental({...renewRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" /><span className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</span></label></div>
                         <div className="bg-slate-100 p-4 rounded-xl">
                             <p className="text-xs font-bold uppercase text-slate-400 mb-1">New Total Value</p>
-                            <p className="text-2xl font-bold text-slate-900">${(() => { const months = 12; const subtotal = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost; const vat = renewRental.hasVat ? subtotal * VAT_RATE : 0; return (subtotal + vat).toLocaleString(); })()}</p>
+                            <p className="text-2xl font-bold text-slate-900">${(() => { const months = 12; const gross = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost; return gross.toLocaleString(); })()}</p>
                         </div>
                     </div>
                     <div className="flex gap-3 pt-4">

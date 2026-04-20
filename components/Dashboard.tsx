@@ -75,9 +75,8 @@ export const Dashboard: React.FC = () => {
       new Date(c.endDate) >= today
     );
 
-    // MRR = sum of monthly rates for active contracts (incl. VAT)
-    const mrr = activeContractsList.reduce((sum, c) =>
-      sum + (c.hasVat ? c.monthlyRate * 1.15 : c.monthlyRate), 0);
+    // MRR = sum of monthly rates for active contracts (rates are VAT-inclusive)
+    const mrr = activeContractsList.reduce((sum, c) => sum + c.monthlyRate, 0);
 
     // Outstanding balance = all pending + overdue invoices
     const outstanding = invoices

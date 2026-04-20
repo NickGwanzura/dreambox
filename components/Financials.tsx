@@ -5,6 +5,7 @@ import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerat
 import { sendDocumentEmail } from '../services/documentEmail';
 import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe, Send } from 'lucide-react';
 import { Invoice, Contract, BillboardType, VAT_RATE } from '../types';
+import { splitInclusiveVat } from '../services/constants';
 
 type InvoiceLineItem = Invoice['items'][number];
 
@@ -102,12 +103,16 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const removeItem = (index: number) => {
       setFormData({ ...formData, items: (formData.items || []).filter((_, itemIndex) => itemIndex !== index) });
   };
-  const subtotal = formData.items?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-  const rawDiscountAmount = discountType === 'percentage' ? subtotal * (discountValue / 100) : discountValue;
-  const discountAmount = Math.min(subtotal, Math.max(0, rawDiscountAmount || 0));
-  const taxableSubtotal = Math.max(0, subtotal - discountAmount);
-  const vatAmount = hasVat ? taxableSubtotal * VAT_RATE : 0;
-  const total = taxableSubtotal + vatAmount;
+  // Item amounts are VAT-inclusive (gross). VAT is extracted from the total, not added.
+  const grossItems = formData.items?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
+  const rawDiscountAmount = discountType === 'percentage' ? grossItems * (discountValue / 100) : discountValue;
+  const discountAmount = Math.min(grossItems, Math.max(0, rawDiscountAmount || 0));
+  const grossAfterDiscount = Math.max(0, grossItems - discountAmount);
+  const { subtotal: taxableSubtotal, vat: vatAmount } = hasVat
+    ? splitInclusiveVat(grossAfterDiscount)
+    : { subtotal: grossAfterDiscount, vat: 0 };
+  const subtotal = taxableSubtotal;
+  const total = grossAfterDiscount;
   const receiptIsLinkedToInvoice = activeTab === 'Receipts' && !!selectedInvoiceToPay;
   const handleCreate = (e: React.FormEvent) => {
       e.preventDefault();
@@ -143,8 +148,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     const bb = getBillboards().find(b => b.id === convertForm.billboardId);
     const monthlyRate = convertingQuotation.items[0]?.amount || 0;
     const months = Math.max(1, Math.ceil((new Date(convertForm.endDate).getTime() - new Date(convertForm.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
-    const subtotal = monthlyRate * months;
-    const vatAmount = convertingQuotation.vatAmount > 0 ? subtotal * VAT_RATE : 0;
+    const gross = monthlyRate * months;
     const contract: Contract = {
       id: `C-${Date.now().toString().slice(-4)}`,
       clientId: convertingQuotation.clientId,
@@ -155,7 +159,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       installationCost: 0,
       printingCost: 0,
       hasVat: convertingQuotation.vatAmount > 0,
-      totalContractValue: subtotal + vatAmount,
+      totalContractValue: gross,
       status: 'Active',
       details: bb?.type === BillboardType.LED ? 'Slot 1' : 'Side A',
       createdAt: new Date().toISOString(),
@@ -355,7 +359,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         </div>
                         <div className="flex items-center gap-2">
                             <input type="checkbox" checked={hasVat} disabled={activeTab === 'Receipts' && !!selectedInvoiceToPay} onChange={e => setHasVat(e.target.checked)} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                            <label className="text-sm font-medium text-slate-600">Include VAT (15%)</label>
+                            <label className="text-sm font-medium text-slate-600">Amounts include VAT (15%)</label>
                         </div>
                         <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
                             <div className="flex items-center justify-between text-sm">

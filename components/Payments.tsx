@@ -4,6 +4,7 @@ import { getClients, getInvoices, getClientFinancials, getTransactions, getContr
 import { generateStatementPDF, generatePaymentSchedulePDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { Client, Invoice, Contract } from '../types';
+import { splitInclusiveVat } from '../services/constants';
 import { Download, CheckCircle, AlertCircle, Search, CreditCard, X, Check, Hash, Wallet, Clock, Calendar, Trash2, ReceiptText, Send } from 'lucide-react';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, placeholder = "", icon: Icon }: any) => (
@@ -83,7 +84,7 @@ export const Payments: React.FC = () => {
     };
 
     const openMonthlyModal = (contract: Contract) => {
-        const monthlyTotal = contract.hasVat ? contract.monthlyRate * 1.15 : contract.monthlyRate;
+        const monthlyTotal = contract.monthlyRate;
         setMonthlyForm({
             month: today.getMonth(),
             year: today.getFullYear(),
@@ -109,8 +110,10 @@ export const Payments: React.FC = () => {
         // Only create invoice if one doesn't exist for this month yet
         const invoiceExists = allInvoices.some(i => i.id === invoiceId);
         if (!invoiceExists) {
-            const subtotal = monthlyContract.hasVat ? monthlyContract.monthlyRate : amount;
-            const vatAmount = monthlyContract.hasVat ? amount - monthlyContract.monthlyRate : 0;
+            // monthlyRate / amount is VAT-inclusive; split it into net + VAT.
+            const { subtotal, vat: vatAmount } = monthlyContract.hasVat
+                ? splitInclusiveVat(amount)
+                : { subtotal: amount, vat: 0 };
             const invoice: Invoice = {
                 id: invoiceId,
                 contractId: monthlyContract.id,
@@ -204,7 +207,7 @@ export const Payments: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {activeContracts.map(contract => {
-                                        const rate = contract.hasVat ? contract.monthlyRate * 1.15 : contract.monthlyRate;
+                                        const rate = contract.monthlyRate;
                                         const paidThisMonth = isMonthPaid(contract.id, today.getMonth(), today.getFullYear());
                                         return (
                                             <tr key={contract.id} className="hover:bg-slate-50 transition-colors">

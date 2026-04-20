@@ -34,6 +34,14 @@ export const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 export const VAT_RATE = 0.15;
 export const DEFAULT_CURRENCY = 'USD';
 
+// VAT is inclusive: the rate the user enters is the gross amount.
+// subtotal = gross / (1 + VAT_RATE); vat = gross - subtotal; total = gross.
+export const splitInclusiveVat = (gross: number) => {
+  const subtotal = gross / (1 + VAT_RATE);
+  const vat = gross - subtotal;
+  return { subtotal, vat, total: gross };
+};
+
 // Validation Limits
 export const MAX_NAME_LENGTH = 100;
 export const MAX_DESCRIPTION_LENGTH = 1000;

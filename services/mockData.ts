@@ -1,7 +1,7 @@
 import { Billboard, BillboardType, Client, Contract, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
 import { api, isConfigured } from './apiClient';
 import { logger } from '../utils/logger';
-import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS } from './constants';
+import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS, splitInclusiveVat } from './constants';
 
 export const ZIM_TOWNS = [
   "Harare", "Bulawayo", "Mutare", "Gweru", "Kwekwe", 
@@ -167,7 +167,20 @@ export const triggerFullSync = async () => {
         await Promise.all(tables.map(async ({ apiPath, setter, storageKey }) => {
             try {
                 const remoteData = await api.get<any[]>(`/api/${apiPath}`);
-                if (remoteData) { setter(remoteData); saveToStorage(storageKey, remoteData); hasChanges = true; }
+                if (remoteData) {
+                    // Tombstone filter: any id still in the deleted queue for this table
+                    // must not be re-hydrated from the server, even if the server-side
+                    // DELETE hasn't yet succeeded.
+                    const tombstoned = new Set(
+                        deletedQueue.filter(i => i.table === apiPath).map(i => i.id)
+                    );
+                    const filtered = tombstoned.size > 0
+                        ? remoteData.filter((row: any) => !tombstoned.has(row?.id))
+                        : remoteData;
+                    setter(filtered);
+                    saveToStorage(storageKey, filtered);
+                    hasChanges = true;
+                }
             } catch (e) { console.error(`Sync error ${apiPath}:`, e); }
         }));
 
@@ -272,8 +285,10 @@ export const runAutoBilling = () => {
   contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today).forEach(contract => {
     const alreadyBilled = invoices.some(i => i.contractId === contract.id && String(i.type || '').toLowerCase() === 'invoice' && i.date.startsWith(monthPrefix));
     if (!alreadyBilled) {
-      const subtotal = contract.monthlyRate;
-      const vatAmount = contract.hasVat ? subtotal * 0.15 : 0;
+      const gross = contract.monthlyRate;
+      const { subtotal, vat: vatAmount, total } = contract.hasVat
+        ? splitInclusiveVat(gross)
+        : { subtotal: gross, vat: 0, total: gross };
       const inv: Invoice = {
         id: `INV-AUTO-${contract.id}-${monthPrefix}`,
         contractId: contract.id,
@@ -282,7 +297,7 @@ export const runAutoBilling = () => {
         items: [{ description: `Monthly Rental — ${mo}/${yr} (Contract ${contract.id})`, amount: subtotal }],
         subtotal,
         vatAmount,
-        total: subtotal + vatAmount,
+        total,
         status: 'Pending',
         type: 'Invoice'
       };
@@ -609,7 +624,7 @@ export const getUpcomingBillings = () => {
     if (candidate < today) candidate.setMonth(candidate.getMonth() + 1);
     if (candidate <= in30) {
       const client = clients.find(c => c.id === contract.clientId);
-      const monthlyTotal = contract.hasVat ? contract.monthlyRate * 1.15 : contract.monthlyRate;
+      const monthlyTotal = contract.monthlyRate;
       results.push({
         clientName: client?.companyName || 'Unknown',
         amount: Math.round(monthlyTotal),
