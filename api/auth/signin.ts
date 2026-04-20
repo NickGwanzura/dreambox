@@ -1,10 +1,60 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { signToken, cors } from '../../lib/auth';
 import { checkRateLimit } from '../../lib/rateLimiter.js';
 import { log } from '../../lib/serverLogger.js';
+
+// Watched-user login notification: when Panashe signs in, email Brian.
+// Configured via env so it can be changed without a code deploy.
+const WATCHED_EMAIL = (process.env.WATCHED_LOGIN_EMAIL || 'panamuze@gmail.com').toLowerCase();
+const WATCHER_EMAIL = process.env.WATCHER_LOGIN_EMAIL || 'chiduroobc@gmail.com';
+const NOTIFY_FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
+
+function notifyWatchedLogin(
+  watchedUser: { email: string; firstName: string | null; lastName: string | null },
+  ip: string,
+  userAgent: string | null,
+) {
+  if (!process.env.RESEND_API_KEY) return;
+  if (watchedUser.email.toLowerCase() !== WATCHED_EMAIL) return;
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const fullName = [watchedUser.firstName, watchedUser.lastName].filter(Boolean).join(' ') || watchedUser.email;
+  const when = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Harare', dateStyle: 'medium', timeStyle: 'short' });
+
+  // Fire-and-forget: do not block the signin response on email delivery.
+  resend.emails.send({
+    from: NOTIFY_FROM,
+    to: WATCHER_EMAIL,
+    subject: `Login alert: ${fullName} signed in to Dreambox CRM`,
+    html: `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#ffffff;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;"><tr><td align="center">
+    <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:32px;">
+      <tr><td style="font-size:20px;font-weight:700;color:#1e293b;padding-bottom:12px;">Login Alert</td></tr>
+      <tr><td style="color:#64748b;font-size:14px;line-height:1.6;padding-bottom:16px;">
+        <strong style="color:#1e293b;">${fullName}</strong> (${watchedUser.email}) just signed in to Dreambox CRM.
+      </td></tr>
+      <tr><td>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;padding:16px;font-size:13px;color:#1e293b;">
+          <tr><td style="padding:4px 0;"><strong>When:</strong> ${when} (CAT)</td></tr>
+          <tr><td style="padding:4px 0;"><strong>IP:</strong> ${ip}</td></tr>
+          <tr><td style="padding:4px 0;word-break:break-all;"><strong>Device:</strong> ${userAgent || 'unknown'}</td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="color:#94a3b8;font-size:11px;padding-top:20px;border-top:1px solid #e2e8f0;margin-top:20px;text-align:center;">
+        Automated notification from Dreambox CRM
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`,
+  })
+    .then(() => log.info(`Watched-login notify sent  watched=${watchedUser.email}  to=${WATCHER_EMAIL}`))
+    .catch((err: any) => log.error(`Watched-login notify failed  ${err?.message}`));
+}
 
 const LOCKOUT_THRESHOLD = 5;       // failed attempts before lock
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000;  // 30 minutes
@@ -131,6 +181,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
     await recordHistory(user.id, true);
+
+    // Fire-and-forget notification when a watched user signs in.
+    notifyWatchedLogin({ email: user.email, firstName: user.firstName, lastName: user.lastName }, ip, ua);
 
     const token = signToken({ userId: user.id, email: user.email, role: user.role, status: user.status });
     log.info(`Signin success  email=${email}  role=${user.role}`);
