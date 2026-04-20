@@ -692,16 +692,17 @@ export const BillboardList: React.FC = () => {
           </div>
       )}
 
-      {/* Add Modal... */}
+      {/* Add Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} />
-            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-white/20">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                    <div>
                         <h3 className="text-xl font-bold text-slate-900">Add New Billboard</h3>
-                        <button onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>
+                        <p className="text-xs text-slate-400 mt-0.5">Register a new asset in your inventory</p>
                     </div>
+                    <button onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>
+                </div>
                     <form onSubmit={handleAddBillboard} className="p-8 space-y-6">
                         <div className="grid grid-cols-2 gap-6">
                             <MinimalInput label="Name" value={newBillboard.name} onChange={(e: any) => setNewBillboard({...newBillboard, name: e.target.value})} required />
@@ -785,25 +786,26 @@ export const BillboardList: React.FC = () => {
                             </div>
                         </div>
 
-                        <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all hover:scale-[1.02]">
-                            <Save size={18} /> Save Asset
-                        </button>
+                        <div className="flex gap-3 pt-2">
+                            <button type="button" onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                            <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Save size={14} /> Save Asset</button>
+                        </div>
                     </form>
-                </div>
             </div>
         </div>
       )}
 
-      {/* Edit Modal - UPDATED with Width/Height */}
+      {/* Edit Modal */}
       {editingBillboard && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} />
-            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-white/20">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                    <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Billboard</h3>
-                        <button onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>
+                        <p className="text-xs text-slate-400 mt-0.5">{editingBillboard.name} &bull; {editingBillboard.location}, {editingBillboard.town}</p>
                     </div>
+                    <button onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>
+                </div>
                     <form onSubmit={handleSaveEdit} className="p-8 space-y-6">
                         <div className="grid grid-cols-2 gap-6">
                             <MinimalInput label="Name" value={editingBillboard.name} onChange={(e: any) => setEditingBillboard({...editingBillboard, name: e.target.value})} required />
@@ -902,34 +904,46 @@ export const BillboardList: React.FC = () => {
                             </div>
                         </div>
                         
-                        <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all hover:scale-[1.02]">
-                            <Save size={18} /> Update Asset
-                        </button>
+                        <div className="flex gap-3 pt-2">
+                            <button type="button" onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                            <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Save size={14} /> Update Asset</button>
+                        </div>
                     </form>
-                </div>
             </div>
         </div>
       )}
 
+      {/* Delete Billboard Confirmation */}
       {billboardToDelete && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setBillboardToDelete(null)} />
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-sm border border-white/20 p-6 text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-50">
-                        <AlertTriangle className="text-red-500" size={32} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-sm w-full border border-white/20">
+                {/* Header */}
+                <div className="p-6 border-b border-red-100 bg-red-50 rounded-t-3xl flex items-start gap-4">
+                    <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center shrink-0 border-2 border-red-200">
+                        <Trash2 className="text-red-600" size={22} />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Delete Billboard?</h3>
-                    <p className="text-slate-500 mb-6 text-sm">
-                        Are you sure you want to delete <span className="font-bold text-slate-700">{billboardToDelete.name}</span>? This action cannot be undone.
-                    </p>
-                    <div className="flex gap-3">
-                        <button onClick={() => setBillboardToDelete(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
-                            Cancel
-                        </button>
-                        <button onClick={handleConfirmDelete} className="flex-1 py-3 text-white bg-red-500 hover:bg-red-600 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-500/30">
-                            Delete
-                        </button>
+                    <div>
+                        <h3 className="text-lg font-bold text-red-900">Delete Billboard?</h3>
+                        <p className="text-xs text-red-500 mt-0.5 font-medium">This action cannot be undone.</p>
+                    </div>
+                </div>
+                <div className="p-6 space-y-4">
+                    {/* Entity being deleted */}
+                    <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-1.5">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Billboard Being Deleted</p>
+                        <p className="font-bold text-slate-900">{billboardToDelete.name}</p>
+                        <p className="text-sm text-slate-600 flex items-center gap-2"><MapPin size={13} className="text-slate-400 shrink-0" /> {billboardToDelete.location}, {billboardToDelete.town}</p>
+                        <p className="text-xs text-slate-500">{billboardToDelete.type} &bull; {billboardToDelete.width}×{billboardToDelete.height}m</p>
+                        <p className="text-xs text-slate-400 font-mono mt-1">ID: {billboardToDelete.id}</p>
+                    </div>
+                    {/* Cascading impact warning */}
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
+                        <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 font-medium">Any active rental contracts referencing this billboard will be orphaned. The asset will be permanently removed from inventory.</p>
+                    </div>
+                    <div className="flex gap-3 pt-1">
+                        <button onClick={() => setBillboardToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Keep Billboard</button>
+                        <button onClick={handleConfirmDelete} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20">Delete Permanently</button>
                     </div>
                 </div>
             </div>

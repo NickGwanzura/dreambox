@@ -641,26 +641,67 @@ export const Dashboard: React.FC = () => {
 
       {/* News Modal */}
       {selectedNews && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedNews(null)}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-slate-100 flex justify-between items-start gap-3 shrink-0">
-              <div className="flex flex-wrap items-center gap-2">
-                {(() => {
-                  const catStyle = catColors[(selectedNews as any).category] || 'bg-slate-100 text-slate-600';
-                  return <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${catStyle}`}>{(selectedNews as any).category || selectedNews.source || 'News'}</span>;
-                })()}
-                {selectedNews.date && <span className="text-[10px] text-slate-400">{selectedNews.date}</span>}
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all"
+          onClick={() => setSelectedNews(null)}
+        >
+          <div
+            className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Industry News</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {(() => {
+                    const cat = (selectedNews as any).category || selectedNews.source || 'News';
+                    return `${cat}${selectedNews.date ? ` \u2022 ${selectedNews.date}` : ''}`;
+                  })()}
+                </p>
               </div>
-              <button onClick={() => setSelectedNews(null)} className="shrink-0 p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-                <X size={18} className="text-slate-400" />
+              <button
+                onClick={() => setSelectedNews(null)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                aria-label="Close"
+              >
+                <X size={20} className="text-slate-400" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto">
-              <h2 className="text-xl font-bold text-slate-900 leading-snug mb-4">{selectedNews.title}</h2>
-              <div className="space-y-3">
-                {selectedNews.summary.split(/\n\n+/).map((para, i) => (
-                  <p key={i} className="text-sm text-slate-600 leading-relaxed">{para.trim()}</p>
-                ))}
+
+            {/* Body */}
+            <div className="p-8 space-y-6">
+              {/* Context card */}
+              <div className="bg-slate-900 text-white p-5 rounded-2xl">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Article</p>
+                <h2 className="text-base font-bold leading-snug">{selectedNews.title}</h2>
+                {(() => {
+                  const catStyle = catColors[(selectedNews as any).category] || 'bg-slate-700 text-slate-300';
+                  const cat = (selectedNews as any).category || selectedNews.source;
+                  return cat ? (
+                    <span className={`inline-block mt-3 text-[10px] font-bold uppercase px-2 py-1 rounded-full ${catStyle}`}>{cat}</span>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Article body */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Summary</p>
+                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-3">
+                  {selectedNews.summary.split(/\n\n+/).map((para, i) => (
+                    <p key={i} className="text-sm text-slate-600 leading-relaxed">{para.trim()}</p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer button */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setSelectedNews(null)}
+                  className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import { getTasks, addTask, updateTask, deleteTask, getUsers, getBillboards, updateBillboard } from '../services/mockData';
-import { CheckSquare, Plus, Trash2, Calendar, User, Clock, X, Save } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, Calendar, User, Clock, X, Save, AlertTriangle, Flag, CheckCircle2 } from 'lucide-react';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
   <div className="group relative">
@@ -152,52 +152,166 @@ export const Tasks: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsModalOpen(false)} />
-            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-white/20">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+                {/* Sticky header */}
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                    <div>
                         <h3 className="text-xl font-bold text-slate-900">Create New Task</h3>
-                        <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                        <p className="text-xs text-slate-400 mt-0.5">Add an operational task and assign it to a team member</p>
                     </div>
-                    <form onSubmit={handleCreate} className="p-8 space-y-6">
-                        <MinimalInput label="Task Title" value={newTask.title} onChange={(e: any) => setNewTask({...newTask, title: e.target.value})} required />
-                        <div className="group relative pt-4">
-                            <textarea value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent resize-none h-24" />
-                            <label className="absolute left-0 top-0 text-xs text-slate-400 font-medium transition-all uppercase tracking-wide">Description</label>
-                        </div>
-                        <div className="grid grid-cols-2 gap-6">
-                            <MinimalSelect label="Assigned To" value={newTask.assignedTo} onChange={(e: any) => setNewTask({...newTask, assignedTo: e.target.value})} options={[{value: 'Unassigned', label: 'Unassigned'}, ...getUsers().map(u => ({value: `${u.firstName} ${u.lastName}`, label: `${u.firstName} ${u.lastName}`}))]} />
-                            <MinimalSelect label="Priority" value={newTask.priority} onChange={(e: any) => setNewTask({...newTask, priority: e.target.value})} options={[{value: 'Low', label: 'Low'},{value: 'Medium', label: 'Medium'},{value: 'High', label: 'High'}]} />
-                        </div>
-                        <MinimalInput label="Due Date" type="date" value={newTask.dueDate} onChange={(e: any) => setNewTask({...newTask, dueDate: e.target.value})} />
-                        
-                        <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all mt-4">
-                            <Save size={18} /> Save Task
-                        </button>
-                    </form>
+                    <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <X size={20} className="text-slate-400" />
+                    </button>
                 </div>
+
+                <form onSubmit={handleCreate} className="p-8 space-y-6">
+                    {/* Task Identity */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Task Details</p>
+                        <div className="space-y-4">
+                            <MinimalInput
+                                label="Task Title"
+                                value={newTask.title}
+                                onChange={(e: any) => setNewTask({...newTask, title: e.target.value})}
+                                required
+                            />
+                            <div className="group relative pt-4">
+                                <textarea
+                                    value={newTask.description}
+                                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                                    placeholder=" "
+                                    className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent resize-none h-24"
+                                />
+                                <label className="absolute left-0 top-0 text-xs text-slate-400 font-medium transition-all uppercase tracking-wide">Description</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Assignment */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Assignment & Priority</p>
+                        <div className="grid grid-cols-2 gap-6">
+                            <MinimalSelect
+                                label="Assigned To"
+                                value={newTask.assignedTo}
+                                onChange={(e: any) => setNewTask({...newTask, assignedTo: e.target.value})}
+                                options={[{value: 'Unassigned', label: 'Unassigned'}, ...getUsers().map(u => ({value: `${u.firstName} ${u.lastName}`, label: `${u.firstName} ${u.lastName}`}))]}
+                            />
+                            <MinimalSelect
+                                label="Priority"
+                                value={newTask.priority}
+                                onChange={(e: any) => setNewTask({...newTask, priority: e.target.value})}
+                                options={[{value: 'Low', label: 'Low'},{value: 'Medium', label: 'Medium'},{value: 'High', label: 'High'}]}
+                            />
+                        </div>
+                        {newTask.priority === 'High' && (
+                            <p className="text-[10px] text-red-500 mt-2 font-medium">High priority tasks appear at the top of the board and trigger immediate alerts.</p>
+                        )}
+                    </div>
+
+                    {/* Schedule */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Schedule</p>
+                        <MinimalInput
+                            label="Due Date"
+                            type="date"
+                            value={newTask.dueDate}
+                            onChange={(e: any) => setNewTask({...newTask, dueDate: e.target.value})}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-2">The date by which this task must be completed. Overdue tasks are flagged automatically.</p>
+                    </div>
+
+                    {/* Priority preview badge */}
+                    {(newTask.title || '') && (
+                        <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 flex items-start gap-3">
+                            <div className={`p-2 rounded-xl ${newTask.priority === 'High' ? 'bg-red-50 text-red-500' : newTask.priority === 'Medium' ? 'bg-amber-50 text-amber-500' : 'bg-slate-100 text-slate-500'}`}>
+                                <Flag size={14} />
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Preview</p>
+                                <p className="font-semibold text-slate-800 text-sm">{newTask.title || 'Task title…'}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{newTask.priority} priority &bull; Due {newTask.dueDate} &bull; {newTask.assignedTo || 'Unassigned'}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsModalOpen(false)}
+                            className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Save size={14} /> Save Task
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
       )}
 
       {taskToDelete && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setTaskToDelete(null)} />
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-sm border border-white/20 p-6 text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-50">
-                        <Trash2 className="text-red-500" size={32} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-white/20">
+                {/* Red-tinted header */}
+                <div className="p-6 border-b border-red-100 bg-red-50 flex items-start gap-4 rounded-t-3xl">
+                    <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center shrink-0 border-2 border-red-200">
+                        <Trash2 className="text-red-600" size={22} />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Delete Task?</h3>
-                    <p className="text-slate-500 mb-6 text-sm">
-                        Are you sure you want to delete <span className="font-bold text-slate-700">"{taskToDelete.title}"</span>? This action cannot be undone.
-                    </p>
-                    <div className="flex gap-3">
-                        <button onClick={() => setTaskToDelete(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
-                            Cancel
+                    <div>
+                        <h3 className="text-lg font-bold text-red-900">Delete Task?</h3>
+                        <p className="text-xs text-red-500 mt-0.5 font-medium">This action cannot be undone.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    {/* Entity being deleted */}
+                    <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-2">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Task Being Deleted</p>
+                        <p className="font-bold text-slate-900">{taskToDelete.title}</p>
+                        {taskToDelete.description && (
+                            <p className="text-sm text-slate-500 line-clamp-2">{taskToDelete.description}</p>
+                        )}
+                        <div className="flex items-center gap-4 pt-1">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getPriorityColor(taskToDelete.priority)}`}>
+                                {taskToDelete.priority}
+                            </span>
+                            <span className="text-xs text-slate-400 flex items-center gap-1">
+                                <User size={11} /> {taskToDelete.assignedTo}
+                            </span>
+                            <span className="text-xs text-slate-400 flex items-center gap-1">
+                                <Calendar size={11} /> {taskToDelete.dueDate}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Cascading impact warning */}
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
+                        <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 font-medium">
+                            {taskToDelete.relatedBillboardId
+                                ? 'This is an automated maintenance task. Deleting it will not undo any maintenance records already saved.'
+                                : 'Any notes or progress associated with this task will be permanently removed.'}
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3 pt-1">
+                        <button
+                            onClick={() => setTaskToDelete(null)}
+                            className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                        >
+                            Keep Task
                         </button>
-                        <button onClick={handleConfirmDelete} className="flex-1 py-3 text-white bg-red-500 hover:bg-red-600 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-500/30">
+                        <button
+                            onClick={handleConfirmDelete}
+                            className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20"
+                        >
                             Delete Permanently
                         </button>
                     </div>

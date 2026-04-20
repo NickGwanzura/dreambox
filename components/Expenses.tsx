@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { getExpenses, addExpense, deleteExpense, printingJobs, getClients, addPrintingJob, getPrintingJobs } from '../services/mockData';
 import { generateExpensesPDF } from '../services/pdfGenerator';
-import { Printer, TrendingDown, Plus, BarChart3, Scissors, Droplets, Zap, User, X, Save, Download, Trash2 } from 'lucide-react';
+import { Printer, TrendingDown, Plus, BarChart3, Scissors, Droplets, Zap, User, X, Save, Download, Trash2, AlertTriangle } from 'lucide-react';
 import { PrintingJob, Expense } from '../types';
 
 const MinimalInput = ({ label, value, onChange, type = "text", placeholder }: any) => (
@@ -25,6 +25,7 @@ export const Expenses: React.FC = () => {
   const [generalExpenses, setGeneralExpenses] = useState<Expense[]>(getExpenses());
   const [isAddJobModalOpen, setIsAddJobModalOpen] = useState(false);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [newJob, setNewJob] = useState<Partial<PrintingJob>>({ clientId: '', description: '', dimensions: '', pvcCost: 0, inkCost: 0, electricityCost: 0, operatorCost: 0, weldingCost: 0, chargedAmount: 0 });
   const [newExpense, setNewExpense] = useState<Partial<Expense>>({ category: 'Maintenance', description: '', amount: 0, date: new Date().toISOString().split('T')[0], reference: '' });
 
@@ -55,7 +56,8 @@ export const Expenses: React.FC = () => {
   const handleAddExpense = (e: React.FormEvent) => { e.preventDefault(); const expense: Expense = { id: `EXP-${Date.now()}`, category: newExpense.category as any, description: newExpense.description || '', amount: newExpense.amount || 0, date: newExpense.date || new Date().toISOString(), reference: newExpense.reference }; addExpense(expense); setGeneralExpenses(getExpenses()); setIsAddExpenseModalOpen(false); setNewExpense({ category: 'Maintenance', description: '', amount: 0, date: new Date().toISOString().split('T')[0], reference: '' }); };
   const exportExpenseReport = () => { const clients = getClients(); const csvRows = clients.map(client => { const jobs = printingJobs.filter(j => j.clientId === client.id); if (jobs.length === 0) return null; const totalSpent = jobs.reduce((acc, curr) => acc + curr.chargedAmount, 0); const totalCost = jobs.reduce((acc, curr) => acc + curr.totalCost, 0); const profit = totalSpent - totalCost; const margin = totalSpent > 0 ? ((profit / totalSpent) * 100).toFixed(2) : '0'; return `"${client.companyName}",${jobs.length},${totalSpent},${totalCost},${profit},${margin}`; }).filter(row => row !== null).join("\n"); if (!csvRows) { alert("No data to export."); return; } const blob = new Blob(["Client,Total Jobs,Total Billed,Total Internal Cost,Net Profit,Margin %\n" + csvRows], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.setAttribute('download', `printing_expenses_report_${new Date().toISOString().slice(0,10)}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); };
   const calculateTotalJobCost = () => { return (newJob.pvcCost || 0) + (newJob.inkCost || 0) + (newJob.electricityCost || 0) + (newJob.operatorCost || 0) + (newJob.weldingCost || 0); };
-  const handleDeleteExpense = (exp: Expense) => { if (window.confirm(`Delete "${exp.description}"? This cannot be undone.`)) { deleteExpense(exp.id); setGeneralExpenses(getExpenses()); } };
+  const handleDeleteExpense = (exp: Expense) => { setExpenseToDelete(exp); };
+  const handleConfirmDeleteExpense = () => { if (expenseToDelete) { deleteExpense(expenseToDelete.id); setGeneralExpenses(getExpenses()); setExpenseToDelete(null); } };
 
   // Calculate dynamic totals from actual data
   const pvcTotal = printingJobs.reduce((acc, job) => acc + job.pvcCost, 0);
@@ -85,58 +87,280 @@ export const Expenses: React.FC = () => {
         {activeTab === 'Reports' && (<div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 animate-fade-in"><h3 className="text-xl font-bold text-slate-800 mb-6">Client Printing Spend Report</h3><div className="space-y-4">{getClients().map(client => { const jobs = printingJobs.filter(j => j.clientId === client.id); const totalSpent = jobs.reduce((acc, curr) => acc + curr.chargedAmount, 0); const totalCost = jobs.reduce((acc, curr) => acc + curr.totalCost, 0); if(totalSpent === 0) return null; return (<div key={client.id} className="border border-slate-100 rounded-xl p-6 hover:shadow-md transition-all"><div className="flex justify-between items-center mb-4"><h4 className="font-bold text-slate-900 text-lg">{client.companyName}</h4><span className="text-sm font-medium text-slate-500">{jobs.length} Jobs</span></div><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div><p className="text-xs text-slate-400 font-bold uppercase">Total Billed</p><p className="text-xl font-bold text-slate-900">${totalSpent}</p></div><div><p className="text-xs text-slate-400 font-bold uppercase">Our Cost</p><p className="text-xl font-bold text-slate-700">${totalCost}</p></div><div className="md:col-span-2"><p className="text-xs text-slate-400 font-bold uppercase mb-1">Margin Analysis</p><div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-green-500" style={{ width: `${((totalSpent - totalCost) / totalSpent) * 100}%` }}></div></div></div></div></div>) })}</div></div>)}
       </div>
       {/* ... Add Job Modal & Expense Modal code remains the same ... */}
+      {/* New Print Job Modal */}
       {isAddJobModalOpen && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsAddJobModalOpen(false)} />
-            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-white/20">
-                    <div className="p-6 border-b border-slate-100 sticky top-0 z-10 bg-white"><h3 className="text-xl font-bold text-slate-900">New Printing Job</h3></div>
-                    <form onSubmit={handleAddJob} className="p-8 space-y-8">
-                        <div className="grid grid-cols-2 gap-6">
-                            <div className="col-span-2"><label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Client</label><select className="w-full px-0 py-2 border-b border-slate-200 bg-transparent text-slate-800 font-medium focus:border-slate-800 outline-none" value={newJob.clientId} onChange={(e) => setNewJob({...newJob, clientId: e.target.value})}><option value="">Select Client</option>{getClients().map(c => <option key={c.id} value={c.id}>{c.companyName}</option>)}</select></div>
-                            <div className="col-span-2"><MinimalInput label="Description / Ref" value={newJob.description} onChange={(e: any) => setNewJob({...newJob, description: e.target.value})} /></div>
-                            <MinimalInput label="Dimensions (e.g. 12x4m)" value={newJob.dimensions} onChange={(e: any) => setNewJob({...newJob, dimensions: e.target.value})} />
-                            <MinimalInput label="Billed Amount ($)" type="number" value={newJob.chargedAmount} onChange={(e: any) => setNewJob({...newJob, chargedAmount: Number(e.target.value)})} />
-                        </div>
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Internal Cost Breakdown</h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                <MinimalInput label="PVC Cost" type="number" value={newJob.pvcCost} onChange={(e: any) => setNewJob({...newJob, pvcCost: Number(e.target.value)})} />
-                                <MinimalInput label="Ink" type="number" value={newJob.inkCost} onChange={(e: any) => setNewJob({...newJob, inkCost: Number(e.target.value)})} />
-                                <MinimalInput label="Electricity" type="number" value={newJob.electricityCost} onChange={(e: any) => setNewJob({...newJob, electricityCost: Number(e.target.value)})} />
-                                <MinimalInput label="Operator" type="number" value={newJob.operatorCost} onChange={(e: any) => setNewJob({...newJob, operatorCost: Number(e.target.value)})} />
-                                <MinimalInput label="Welding" type="number" value={newJob.weldingCost} onChange={(e: any) => setNewJob({...newJob, weldingCost: Number(e.target.value)})} />
-                                <div className="flex flex-col justify-end"><p className="text-xs text-slate-400">Total Cost</p><p className="text-lg font-bold text-slate-800">${calculateTotalJobCost()}</p></div>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+                {/* Sticky header */}
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900">New Printing Job</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">Record internal production costs and client billing for a print run</p>
+                    </div>
+                    <button onClick={() => setIsAddJobModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <X size={20} className="text-slate-400" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleAddJob} className="p-8 space-y-6">
+                    {/* Job identity */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Job Details</p>
+                        <div className="space-y-5">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Client</label>
+                                <select
+                                    className="w-full px-0 py-2 border-b border-slate-200 bg-transparent text-slate-800 font-medium focus:border-slate-800 outline-none"
+                                    value={newJob.clientId}
+                                    onChange={(e) => setNewJob({...newJob, clientId: e.target.value})}
+                                >
+                                    <option value="">Select Client</option>
+                                    {getClients().map(c => <option key={c.id} value={c.id}>{c.companyName}</option>)}
+                                </select>
+                            </div>
+                            <MinimalInput
+                                label="Description / Job Reference"
+                                value={newJob.description}
+                                onChange={(e: any) => setNewJob({...newJob, description: e.target.value})}
+                            />
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <MinimalInput
+                                        label="Dimensions (e.g. 12x4m)"
+                                        value={newJob.dimensions}
+                                        onChange={(e: any) => setNewJob({...newJob, dimensions: e.target.value})}
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-1.5">Width × Height of the printed vinyl panel.</p>
+                                </div>
+                                <div>
+                                    <MinimalInput
+                                        label="Billed Amount ($)"
+                                        type="number"
+                                        value={newJob.chargedAmount}
+                                        onChange={(e: any) => setNewJob({...newJob, chargedAmount: Number(e.target.value)})}
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-1.5">Amount invoiced to the client for this job.</p>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex gap-4">
-                            <button type="button" onClick={() => setIsAddJobModalOpen(false)} className="flex-1 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium">Cancel</button>
-                            <button type="submit" className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider shadow-lg">Save Job</button>
+                    </div>
+
+                    {/* Internal cost breakdown */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Internal Cost Breakdown</p>
+                        <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <MinimalInput label="PVC Cost ($)" type="number" value={newJob.pvcCost} onChange={(e: any) => setNewJob({...newJob, pvcCost: Number(e.target.value)})} />
+                                <MinimalInput label="Ink ($)" type="number" value={newJob.inkCost} onChange={(e: any) => setNewJob({...newJob, inkCost: Number(e.target.value)})} />
+                                <MinimalInput label="Electricity ($)" type="number" value={newJob.electricityCost} onChange={(e: any) => setNewJob({...newJob, electricityCost: Number(e.target.value)})} />
+                                <MinimalInput label="Operator ($)" type="number" value={newJob.operatorCost} onChange={(e: any) => setNewJob({...newJob, operatorCost: Number(e.target.value)})} />
+                                <MinimalInput label="Welding ($)" type="number" value={newJob.weldingCost} onChange={(e: any) => setNewJob({...newJob, weldingCost: Number(e.target.value)})} />
+                            </div>
+                            {/* Live cost summary */}
+                            <div className="border-t border-slate-200 pt-4">
+                                <div className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Internal Cost</p>
+                                        <p className="text-2xl font-black mt-0.5">${calculateTotalJobCost().toLocaleString()}</p>
+                                    </div>
+                                    {(newJob.chargedAmount || 0) > 0 && (
+                                        <div className="text-right">
+                                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Gross Margin</p>
+                                            <p className={`text-xl font-bold mt-0.5 ${(newJob.chargedAmount || 0) - calculateTotalJobCost() > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                ${((newJob.chargedAmount || 0) - calculateTotalJobCost()).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </form>
-                </div>
+                        <p className="text-[10px] text-slate-400 mt-2">These costs are internal only and not shown on client invoices.</p>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsAddJobModalOpen(false)}
+                            className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Save size={14} /> Save Job
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
       )}
+
+      {/* Add Expense Modal */}
       {isAddExpenseModalOpen && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsAddExpenseModalOpen(false)} />
-            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-white/20">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+                {/* Sticky header */}
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                    <div>
                         <h3 className="text-xl font-bold text-slate-900">Record Operational Expense</h3>
-                        <button onClick={() => setIsAddExpenseModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                        <p className="text-xs text-slate-400 mt-0.5">Log a cost against a category for reporting and audit purposes</p>
                     </div>
-                    <form onSubmit={handleAddExpense} className="p-8 space-y-6">
-                        <MinimalSelect label="Category" value={newExpense.category} onChange={(e: any) => setNewExpense({...newExpense, category: e.target.value})} options={[{value: 'Maintenance', label: 'Maintenance & Repairs'},{value: 'Electricity', label: 'Electricity / Power'},{value: 'Labor', label: 'General Labor'},{value: 'Printing', label: 'Printing Supplies (Misc)'},{value: 'Other', label: 'Other'}]} />
-                        <MinimalInput label="Description" value={newExpense.description} onChange={(e: any) => setNewExpense({...newExpense, description: e.target.value})} required />
-                        <div className="grid grid-cols-2 gap-6">
-                            <MinimalInput label="Amount ($)" type="number" value={newExpense.amount} onChange={(e: any) => setNewExpense({...newExpense, amount: Number(e.target.value)})} required />
-                            <MinimalInput label="Date" type="date" value={newExpense.date} onChange={(e: any) => setNewExpense({...newExpense, date: e.target.value})} />
+                    <button onClick={() => setIsAddExpenseModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <X size={20} className="text-slate-400" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleAddExpense} className="p-8 space-y-6">
+                    {/* Category */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Classification</p>
+                        <MinimalSelect
+                            label="Category"
+                            value={newExpense.category}
+                            onChange={(e: any) => setNewExpense({...newExpense, category: e.target.value})}
+                            options={[
+                                {value: 'Maintenance', label: 'Maintenance & Repairs'},
+                                {value: 'Electricity', label: 'Electricity / Power'},
+                                {value: 'Labor', label: 'General Labor'},
+                                {value: 'Printing', label: 'Printing Supplies (Misc)'},
+                                {value: 'Other', label: 'Other'}
+                            ]}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1.5">
+                            {newExpense.category === 'Maintenance' && 'Repairs, servicing, and upkeep costs for billboard structures.'}
+                            {newExpense.category === 'Electricity' && 'Power bills and energy costs — LED boards and office usage.'}
+                            {newExpense.category === 'Labor' && 'Wages, contractor fees, and installation labor not tied to a print job.'}
+                            {newExpense.category === 'Printing' && 'Miscellaneous print supplies not captured in a printing job record.'}
+                            {newExpense.category === 'Other' && 'Any other operational cost that does not fit the above categories.'}
+                        </p>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Details</p>
+                        <div className="space-y-5">
+                            <MinimalInput
+                                label="Description"
+                                value={newExpense.description}
+                                onChange={(e: any) => setNewExpense({...newExpense, description: e.target.value})}
+                            />
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <MinimalInput
+                                        label="Amount ($)"
+                                        type="number"
+                                        value={newExpense.amount}
+                                        onChange={(e: any) => setNewExpense({...newExpense, amount: Number(e.target.value)})}
+                                    />
+                                </div>
+                                <div>
+                                    <MinimalInput
+                                        label="Date"
+                                        type="date"
+                                        value={newExpense.date}
+                                        onChange={(e: any) => setNewExpense({...newExpense, date: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <MinimalInput
+                                    label="Reference / Invoice No."
+                                    value={newExpense.reference}
+                                    onChange={(e: any) => setNewExpense({...newExpense, reference: e.target.value})}
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1.5">Optional: Supplier invoice number, purchase order, or linked maintenance ID.</p>
+                            </div>
                         </div>
-                        <MinimalInput label="Reference / Invoice No." value={newExpense.reference} onChange={(e: any) => setNewExpense({...newExpense, reference: e.target.value})} />
-                        <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all"><Save size={18} /> Record Expense</button>
-                    </form>
+                    </div>
+
+                    {/* Live summary */}
+                    {(newExpense.amount || 0) > 0 && (
+                        <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Expense Preview</p>
+                                <p className="font-semibold text-slate-800 text-sm mt-0.5">{newExpense.description || 'No description'}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{newExpense.category} &bull; {newExpense.date}</p>
+                            </div>
+                            <p className="text-xl font-black text-slate-900">${(newExpense.amount || 0).toLocaleString()}</p>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsAddExpenseModalOpen(false)}
+                            className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Save size={14} /> Record Expense
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* Delete Expense Confirm Modal */}
+      {expenseToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-white/20">
+                {/* Red-tinted header */}
+                <div className="p-6 border-b border-red-100 bg-red-50 flex items-start gap-4 rounded-t-3xl">
+                    <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center shrink-0 border-2 border-red-200">
+                        <Trash2 className="text-red-600" size={22} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-red-900">Delete Expense?</h3>
+                        <p className="text-xs text-red-500 mt-0.5 font-medium">This action cannot be undone.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    {/* Entity being deleted */}
+                    <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-1.5">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Expense Being Deleted</p>
+                        <p className="font-bold text-slate-900">{expenseToDelete.description}</p>
+                        <div className="flex items-center gap-3 pt-1">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${expenseToDelete.category === 'Maintenance' ? 'bg-orange-50 text-orange-600' : expenseToDelete.category === 'Electricity' ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-100 text-slate-600'}`}>
+                                {expenseToDelete.category}
+                            </span>
+                            <span className="text-xs font-mono text-slate-400">{expenseToDelete.date}</span>
+                        </div>
+                        {expenseToDelete.reference && (
+                            <p className="text-xs font-mono text-slate-400">Ref: {expenseToDelete.reference}</p>
+                        )}
+                        <p className="text-lg font-black text-slate-900 pt-1">${expenseToDelete.amount.toLocaleString()}</p>
+                    </div>
+
+                    {/* Cascading impact warning */}
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
+                        <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 font-medium">
+                            This expense will be removed from all totals and reports. If it was auto-created from a maintenance log, the log itself will remain intact.
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3 pt-1">
+                        <button
+                            onClick={() => setExpenseToDelete(null)}
+                            className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                        >
+                            Keep Expense
+                        </button>
+                        <button
+                            onClick={handleConfirmDeleteExpense}
+                            className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20"
+                        >
+                            Delete Permanently
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

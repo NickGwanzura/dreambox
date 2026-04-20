@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { getBillboards, getMaintenanceLogs, addMaintenanceLog, addExpense, getExpenses } from '../services/mockData';
 import { Billboard, MaintenanceLog, Expense } from '../types';
-import { Wrench, Calendar, CheckCircle, AlertTriangle, Clock, Plus, X, Save, Search, MapPin, History, Hammer, FileText } from 'lucide-react';
+import { Wrench, Calendar, CheckCircle, AlertTriangle, Clock, Plus, X, Save, Search, MapPin, History, Hammer, FileText, DollarSign, ChevronRight } from 'lucide-react';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
   <div className="group relative pt-5">
@@ -256,64 +256,172 @@ export const Maintenance: React.FC = () => {
       )}
 
       {isModalOpen && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[9999]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            {/* Backdrop */}
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsModalOpen(false)}></div>
-
-            {/* Modal Panel */}
-            <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
-              <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-white/20 animate-fade-in">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                        <h3 className="text-xl font-bold text-slate-900">Record Maintenance</h3>
-                        <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+                {/* Sticky header */}
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900" id="modal-title">Record Maintenance</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                            {selectedBillboardId
+                                ? <span>Asset: <span className="font-semibold text-slate-600">{getBillboardName(selectedBillboardId)}</span></span>
+                                : 'Log a service event and update the 3-month schedule'}
+                        </p>
                     </div>
-                    <form onSubmit={handleSave} className="p-8 space-y-6">
-                        {!selectedBillboardId && (
-                            <MinimalSelect label="Select Billboard" value={selectedBillboardId} onChange={(e: any) => setSelectedBillboardId(e.target.value)} options={[{value: '', label: 'Select Asset...'}, ...billboards.map(b => ({value: b.id, label: b.name}))]} />
-                        )}
-                        {selectedBillboardId && (
-                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-center gap-3">
-                                <div className="p-2 bg-indigo-100 rounded-full"><MapPin className="text-indigo-600" size={18} /></div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Selected Asset</p>
-                                    <p className="text-sm font-bold text-indigo-900">{getBillboardName(selectedBillboardId)}</p>
-                                </div>
-                                <button type="button" onClick={() => setSelectedBillboardId('')} className="ml-auto text-indigo-400 hover:text-indigo-600 text-xs font-bold uppercase">Change</button>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-2 gap-6">
-                            <MinimalInput label="Date Completed" type="date" value={newLog.date} onChange={(e: any) => setNewLog({...newLog, date: e.target.value})} required />
-                            <MinimalSelect label="Type" value={newLog.type} onChange={(e: any) => setNewLog({...newLog, type: e.target.value})} options={[{value: 'Routine', label: 'Routine Check'}, {value: 'Repair', label: 'Repair/Fix'}, {value: 'Inspection', label: 'Inspection'}, {value: 'Emergency', label: 'Emergency'}]} />
-                        </div>
-                        <MinimalInput label="Description / Summary" value={newLog.description} onChange={(e: any) => setNewLog({...newLog, description: e.target.value})} required />
-                        
-                        <div className="group relative pt-5">
-                            <textarea
-                                value={newLog.notes}
-                                onChange={(e: any) => setNewLog({...newLog, notes: e.target.value})}
-                                placeholder=" "
-                                className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent resize-none h-20"
-                            />
-                            <label className="absolute left-0 top-0 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-5 peer-focus:top-0 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">
-                                Internal Notes (Optional)
-                            </label>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-6">
-                            <MinimalInput label="Cost ($)" type="number" value={newLog.cost} onChange={(e: any) => setNewLog({...newLog, cost: Number(e.target.value)})} />
-                            <MinimalInput label="Performed By" value={newLog.performedBy} onChange={(e: any) => setNewLog({...newLog, performedBy: e.target.value})} />
-                        </div>
-                        <div className="flex items-center gap-3 pt-2 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                            <input type="checkbox" checked={createExpense} onChange={(e) => setCreateExpense(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer" />
-                            <label className="text-sm font-medium text-slate-600 cursor-pointer" onClick={() => setCreateExpense(!createExpense)}>Create Expense Record automatically</label>
-                        </div>
-                        <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all mt-4 hover:scale-[1.02] active:scale-[0.98]">
-                            <Save size={18} /> Save & Update Schedule
-                        </button>
-                    </form>
+                    <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <X size={20} className="text-slate-400" />
+                    </button>
                 </div>
-              </div>
+
+                <form onSubmit={handleSave} className="p-8 space-y-6">
+                    {/* Asset selector / context card */}
+                    {!selectedBillboardId ? (
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Select Asset</p>
+                            <MinimalSelect
+                                label="Billboard / Asset"
+                                value={selectedBillboardId}
+                                onChange={(e: any) => setSelectedBillboardId(e.target.value)}
+                                options={[{value: '', label: 'Select Asset...'}, ...billboards.map(b => ({value: b.id, label: b.name}))]}
+                            />
+                            <p className="text-[10px] text-slate-400 mt-2">Choose the billboard this maintenance event applies to. This updates its service schedule.</p>
+                        </div>
+                    ) : (
+                        <div className="bg-slate-900 text-white p-5 rounded-2xl flex items-center gap-4">
+                            <div className="p-3 bg-slate-700 rounded-xl shrink-0">
+                                <MapPin className="text-slate-300" size={20} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Selected Asset</p>
+                                <p className="font-bold text-white">{getBillboardName(selectedBillboardId)}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    {billboards.find(b => b.id === selectedBillboardId)?.location}, {billboards.find(b => b.id === selectedBillboardId)?.town}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedBillboardId('')}
+                                className="text-slate-400 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1 shrink-0"
+                            >
+                                Change <ChevronRight size={12} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Service record */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Service Record</p>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div>
+                                <MinimalInput
+                                    label="Date Completed"
+                                    type="date"
+                                    value={newLog.date}
+                                    onChange={(e: any) => setNewLog({...newLog, date: e.target.value})}
+                                    required
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1.5">Next service due 3 months from this date.</p>
+                            </div>
+                            <div>
+                                <MinimalSelect
+                                    label="Service Type"
+                                    value={newLog.type}
+                                    onChange={(e: any) => setNewLog({...newLog, type: e.target.value})}
+                                    options={[
+                                        {value: 'Routine', label: 'Routine Check'},
+                                        {value: 'Repair', label: 'Repair / Fix'},
+                                        {value: 'Inspection', label: 'Inspection'},
+                                        {value: 'Emergency', label: 'Emergency'}
+                                    ]}
+                                />
+                                {newLog.type === 'Emergency' && (
+                                    <p className="text-[10px] text-red-500 mt-1.5 font-medium">Emergency logs are flagged for management review.</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <MinimalInput
+                            label="Description / Summary"
+                            value={newLog.description}
+                            onChange={(e: any) => setNewLog({...newLog, description: e.target.value})}
+                            required
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1.5">Briefly describe what was done — e.g. "Replaced torn vinyl, re-tensioned cables."</p>
+                    </div>
+
+                    {/* Notes */}
+                    <div className="group relative pt-5">
+                        <textarea
+                            value={newLog.notes}
+                            onChange={(e: any) => setNewLog({...newLog, notes: e.target.value})}
+                            placeholder=" "
+                            className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent resize-none h-20"
+                        />
+                        <label className="absolute left-0 top-0 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-5 peer-focus:top-0 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">
+                            Internal Notes (Optional)
+                        </label>
+                    </div>
+
+                    {/* Cost & Technician */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Cost & Technician</p>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div>
+                                <MinimalInput
+                                    label="Cost ($)"
+                                    type="number"
+                                    value={newLog.cost}
+                                    onChange={(e: any) => setNewLog({...newLog, cost: Number(e.target.value)})}
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1.5">Enter 0 if no external cost was incurred.</p>
+                            </div>
+                            <MinimalInput
+                                label="Performed By"
+                                value={newLog.performedBy}
+                                onChange={(e: any) => setNewLog({...newLog, performedBy: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Auto-expense checkbox */}
+                    {(newLog.cost || 0) > 0 && (
+                        <div
+                            className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer"
+                            onClick={() => setCreateExpense(!createExpense)}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={createExpense}
+                                onChange={(e) => setCreateExpense(e.target.checked)}
+                                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer mt-0.5 shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            <div>
+                                <p className="text-sm font-semibold text-slate-700">Create expense record automatically</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">Adds a <span className="font-bold text-slate-600">${newLog.cost}</span> entry to General Expenses under "Maintenance" — visible in the Expenses tab.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsModalOpen(false)}
+                            className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Save size={14} /> Save & Update Schedule
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>,
         document.body

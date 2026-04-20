@@ -679,77 +679,181 @@ export const Settings: React.FC = () => {
 
       {/* Add User Modal */}
       {isAddUserModalOpen && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsAddUserModalOpen(false)} />
-          <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
-            <div className="relative rounded-3xl bg-white shadow-2xl sm:my-8 sm:w-full sm:max-w-lg border border-white/20 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div>
                 <h3 className="text-xl font-bold text-slate-900">Add New User</h3>
-                <button onClick={() => setIsAddUserModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+                <p className="text-xs text-slate-400 mt-0.5">Invite a team member to Dreambox</p>
               </div>
-              <form onSubmit={handleAddUser} className="p-8 space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <MinimalInput label="First Name" value={newUser.firstName} onChange={(e: any) => setNewUser({ ...newUser, firstName: e.target.value })} required />
-                  <MinimalInput label="Last Name" value={newUser.lastName} onChange={(e: any) => setNewUser({ ...newUser, lastName: e.target.value })} required />
-                </div>
-                <MinimalInput label="Email Address" type="email" value={newUser.email} onChange={(e: any) => setNewUser({ ...newUser, email: e.target.value })} required />
-                <MinimalSelect label="Role" value={newUser.role} onChange={(e: any) => setNewUser({ ...newUser, role: e.target.value })} options={ROLE_OPTIONS} />
-                <button type="submit" disabled={isUserLoading} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all mt-4 disabled:opacity-50">
-                  {isUserLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  {isUserLoading ? 'Creating...' : 'Create User Account'}
-                </button>
-              </form>
+              <button onClick={() => setIsAddUserModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
             </div>
+
+            {/* Body */}
+            <form onSubmit={handleAddUser} className="p-8 space-y-6">
+              {/* User Info section */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">User Info</p>
+                <div className="space-y-5">
+                  <div className="grid grid-cols-2 gap-6">
+                    <MinimalInput label="First Name" value={newUser.firstName} onChange={(e: any) => setNewUser({ ...newUser, firstName: e.target.value })} required />
+                    <MinimalInput label="Last Name" value={newUser.lastName} onChange={(e: any) => setNewUser({ ...newUser, lastName: e.target.value })} required />
+                  </div>
+                  <MinimalInput label="Email Address" type="email" value={newUser.email} onChange={(e: any) => setNewUser({ ...newUser, email: e.target.value })} required />
+                </div>
+              </div>
+
+              {/* Role section */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Permissions</p>
+                <MinimalSelect label="Role" value={newUser.role} onChange={(e: any) => setNewUser({ ...newUser, role: e.target.value })} options={ROLE_OPTIONS} />
+                <p className="text-xs text-slate-400 mt-2">
+                  {newUser.role === 'Admin' && 'Full system access including user management and settings.'}
+                  {newUser.role === 'Manager' && 'Access to all modules except system settings and user admin.'}
+                  {newUser.role === 'Staff' && 'Read access to billboards, contracts, and invoices. Write access to tasks.'}
+                  {newUser.role === 'Sales Agent' && 'CRM and task write access. Read-only for billboards and contracts.'}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setIsAddUserModalOpen(false)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isUserLoading} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                  {isUserLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {isUserLoading ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setEditingUser(null)} />
-          <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
-            <div className="relative rounded-3xl bg-white shadow-2xl sm:my-8 sm:w-full sm:max-w-lg border border-white/20 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div>
                 <h3 className="text-xl font-bold text-slate-900">Edit User</h3>
-                <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+                <p className="text-xs text-slate-400 mt-0.5">{editingUser.email} &bull; {editingUser.role}</p>
               </div>
-              <form onSubmit={handleEditUser} className="p-8 space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <MinimalInput label="First Name" value={editingUser.firstName} onChange={(e: any) => setEditingUser({ ...editingUser, firstName: e.target.value })} required />
-                  <MinimalInput label="Last Name" value={editingUser.lastName} onChange={(e: any) => setEditingUser({ ...editingUser, lastName: e.target.value })} required />
-                </div>
-                <MinimalInput label="Email Address" type="email" value={editingUser.email} onChange={(e: any) => setEditingUser({ ...editingUser, email: e.target.value })} required />
-                <MinimalSelect label="Role" value={editingUser.role} onChange={(e: any) => setEditingUser({ ...editingUser, role: e.target.value as any })} options={ROLE_OPTIONS} />
-                <MinimalSelect label="Status" value={editingUser.status} onChange={(e: any) => setEditingUser({ ...editingUser, status: e.target.value as any })}
-                  options={[{ value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive (Suspended)' }, { value: 'Pending', label: 'Pending' }, { value: 'Rejected', label: 'Rejected' }]} />
-                <button type="submit" disabled={isUserLoading} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider disabled:opacity-50">
-                  {isUserLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  {isUserLoading ? 'Updating...' : 'Update User'}
-                </button>
-              </form>
+              <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
             </div>
+
+            <form onSubmit={handleEditUser} className="p-8 space-y-6">
+              {/* Context card */}
+              <div className="bg-slate-900 text-white p-5 rounded-2xl flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-lg font-bold shrink-0">
+                  {editingUser.firstName?.charAt(0) || '?'}
+                </div>
+                <div>
+                  <p className="font-bold text-base">{editingUser.firstName} {editingUser.lastName}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{editingUser.email}</p>
+                </div>
+                <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${editingUser.status === 'Active' ? 'bg-green-900 text-green-300' : editingUser.status === 'Inactive' ? 'bg-slate-700 text-slate-400' : 'bg-amber-900 text-amber-300'}`}>
+                  {editingUser.status}
+                </span>
+              </div>
+
+              {/* User Info */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">User Info</p>
+                <div className="space-y-5">
+                  <div className="grid grid-cols-2 gap-6">
+                    <MinimalInput label="First Name" value={editingUser.firstName} onChange={(e: any) => setEditingUser({ ...editingUser, firstName: e.target.value })} required />
+                    <MinimalInput label="Last Name" value={editingUser.lastName} onChange={(e: any) => setEditingUser({ ...editingUser, lastName: e.target.value })} required />
+                  </div>
+                  <MinimalInput label="Email Address" type="email" value={editingUser.email} onChange={(e: any) => setEditingUser({ ...editingUser, email: e.target.value })} required />
+                </div>
+              </div>
+
+              {/* Role & Status */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Role & Status</p>
+                <div className="space-y-5">
+                  <MinimalSelect label="Role" value={editingUser.role} onChange={(e: any) => setEditingUser({ ...editingUser, role: e.target.value as any })} options={ROLE_OPTIONS} />
+                  <MinimalSelect
+                    label="Account Status"
+                    value={editingUser.status}
+                    onChange={(e: any) => setEditingUser({ ...editingUser, status: e.target.value as any })}
+                    options={[
+                      { value: 'Active', label: 'Active' },
+                      { value: 'Inactive', label: 'Inactive (Suspended)' },
+                      { value: 'Pending', label: 'Pending' },
+                      { value: 'Rejected', label: 'Rejected' },
+                    ]}
+                  />
+                  <p className="text-xs text-slate-400">Setting status to Inactive suspends login without deleting history or audit trails.</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isUserLoading} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                  {isUserLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {isUserLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
       {/* Delete Confirmation Modal */}
       {userToDelete && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setUserToDelete(null)} />
-          <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
-            <div className="relative rounded-3xl bg-white shadow-2xl sm:my-8 sm:w-full sm:max-w-md border border-white/20 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><AlertTriangle size={20} className="text-red-500" /> Delete User</h3>
-                <button onClick={() => setUserToDelete(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-md w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            {/* Header — destructive red tint */}
+            <div className="p-6 border-b border-red-100 flex justify-between items-center bg-red-50 sticky top-0 z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Trash2 size={20} className="text-red-500" /> Delete User
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">{userToDelete.email} &bull; {userToDelete.role}</p>
               </div>
-              <div className="p-8 space-y-6">
-                <p className="text-slate-600">Are you sure you want to permanently delete <span className="font-bold text-slate-900">{userToDelete.firstName} {userToDelete.lastName}</span>? This action cannot be undone.</p>
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">Tip: Consider suspending instead of deleting to preserve login history and audit trails.</p>
-                <div className="flex gap-3">
-                  <button onClick={() => setUserToDelete(null)} className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
-                  <button onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-red-500/20">Delete User</button>
+              <button onClick={() => setUserToDelete(null)} className="p-2 hover:bg-red-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+            </div>
+
+            <div className="p-8 space-y-5">
+              {/* Entity card */}
+              <div className="bg-slate-900 text-white p-5 rounded-2xl flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-lg font-bold shrink-0">
+                  {userToDelete.firstName?.charAt(0) || '?'}
                 </div>
+                <div>
+                  <p className="font-bold text-base">{userToDelete.firstName} {userToDelete.lastName}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{userToDelete.email}</p>
+                </div>
+                <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase ${userToDelete.role === 'Admin' ? 'bg-purple-900 text-purple-300' : 'bg-slate-700 text-slate-300'}`}>
+                  {userToDelete.role}
+                </span>
+              </div>
+
+              {/* Warning */}
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex gap-3">
+                <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-amber-800">This action is permanent and cannot be undone.</p>
+                  <p className="text-xs text-amber-700">All login history, audit trail entries, and permission overrides for this user will be permanently removed.</p>
+                  <p className="text-xs text-amber-600 mt-1">Consider suspending instead to preserve data.</p>
+                </div>
+              </div>
+
+              {/* Actions — Cancel first */}
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setUserToDelete(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                  Cancel
+                </button>
+                <button onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold uppercase text-xs tracking-wider shadow-lg shadow-red-500/20 transition-colors">
+                  Delete Permanently
+                </button>
               </div>
             </div>
           </div>
@@ -758,34 +862,59 @@ export const Settings: React.FC = () => {
 
       {/* Approval Modal */}
       {approvalUser && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setApprovalUser(null)} />
-          <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
-            <div className="relative rounded-3xl bg-white shadow-2xl sm:my-8 sm:w-full sm:max-w-md border border-white/20 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                <h3 className="text-xl font-bold text-slate-900">Approve Account Request</h3>
-                <button onClick={() => setApprovalUser(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-md w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Review Access Request</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{approvalUser.email} &bull; Pending approval</p>
               </div>
-              <div className="p-8 space-y-6">
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 text-center">
-                  <div className="w-16 h-16 bg-white rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold text-amber-600 shadow-sm">{approvalUser.firstName.charAt(0)}</div>
-                  <h4 className="font-bold text-slate-900">{approvalUser.firstName} {approvalUser.lastName}</h4>
-                  <p className="text-xs text-slate-500">{approvalUser.email}</p>
+              <button onClick={() => setApprovalUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              {/* Context card */}
+              <div className="bg-slate-900 text-white p-5 rounded-2xl flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-amber-600 flex items-center justify-center text-xl font-bold shrink-0">
+                  {approvalUser.firstName.charAt(0)}
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase text-slate-400 mb-3 text-center">Select Role to Assign</p>
-                  <div className="grid grid-cols-1 gap-3">
-                    {ROLE_OPTIONS.map(opt => (
-                      <button key={opt.value} onClick={() => handleApproveUser(opt.value as any)}
-                        className="py-3 px-4 bg-white border border-slate-200 hover:border-indigo-500 hover:text-indigo-600 rounded-xl text-sm font-bold transition-all shadow-sm">
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+                  <p className="font-bold text-base">{approvalUser.firstName} {approvalUser.lastName}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{approvalUser.email}</p>
                 </div>
-                <div className="pt-4 border-t border-slate-100">
-                  <button onClick={handleRejectUser} className="w-full py-3 text-red-500 hover:bg-red-50 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors">Reject Request</button>
+                <span className="ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase bg-amber-900 text-amber-300">
+                  Pending
+                </span>
+              </div>
+
+              {/* Role selection */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Assign Role to Approve</p>
+                <div className="space-y-2">
+                  {ROLE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleApproveUser(opt.value as any)}
+                      className="w-full py-3 px-4 bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-50 rounded-xl text-sm font-bold text-slate-700 transition-all flex items-center justify-between"
+                    >
+                      <span>{opt.label}</span>
+                      <UserCheck size={15} className="text-slate-300" />
+                    </button>
+                  ))}
                 </div>
+                <p className="text-xs text-slate-400 mt-2">Approving grants immediate login access with the selected role&apos;s default permissions.</p>
+              </div>
+
+              {/* Reject section */}
+              <div className="border-t border-slate-100 pt-4">
+                <button
+                  onClick={handleRejectUser}
+                  className="w-full py-3 text-red-600 hover:bg-red-50 border border-red-100 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+                >
+                  <UserX size={14} /> Reject Request
+                </button>
+                <p className="text-xs text-slate-400 mt-2 text-center">Rejecting will notify the user and prevent login.</p>
               </div>
             </div>
           </div>
@@ -794,26 +923,46 @@ export const Settings: React.FC = () => {
 
       {/* Permissions Modal */}
       {permissionsUser && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setPermissionsUser(null)} />
-          <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
-            <div className="relative rounded-3xl bg-white shadow-2xl sm:my-8 sm:w-full sm:max-w-lg border border-white/20 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Key size={18} /> Feature Permissions</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{permissionsUser.firstName} {permissionsUser.lastName} — {permissionsUser.role}</p>
-                </div>
-                <button onClick={() => setPermissionsUser(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Feature Permissions</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{permissionsUser.firstName} {permissionsUser.lastName} &bull; {permissionsUser.role}</p>
               </div>
-              <div className="p-6 space-y-1">
-                <p className="text-xs text-slate-400 mb-4">Override default role permissions for this user. Leave at role defaults to inherit from role.</p>
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              <button onClick={() => setPermissionsUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              {/* Context card */}
+              <div className="bg-slate-900 text-white p-5 rounded-2xl flex items-center gap-4">
+                <div className="p-2.5 bg-indigo-600 rounded-xl shrink-0"><Key size={18} /></div>
+                <div>
+                  <p className="font-bold">{permissionsUser.firstName} {permissionsUser.lastName}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{permissionsUser.email}</p>
+                </div>
+                <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase ${permissionsUser.role === 'Admin' ? 'bg-purple-900 text-purple-300' : permissionsUser.role === 'Manager' ? 'bg-indigo-900 text-indigo-300' : 'bg-slate-700 text-slate-300'}`}>
+                  {permissionsUser.role}
+                </span>
+              </div>
+
+              {/* Helper text */}
+              <p className="text-xs text-slate-400">
+                Override default role permissions for this user. Changes apply immediately after saving.
+                Use &ldquo;Reset to Defaults&rdquo; to restore role-based access.
+              </p>
+
+              {/* Permissions section */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Module Access</p>
+                <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100">
                   {PERMISSION_RESOURCES.map(({ key, label }) => {
                     const options = key === 'reports'
                       ? [{ value: 'none', label: 'No Access' }, { value: 'read', label: 'View' }]
                       : [{ value: 'none', label: 'No Access' }, { value: 'read', label: 'View Only' }, { value: 'write', label: 'Full Access' }];
                     return (
-                      <div key={key} className="flex items-center justify-between py-3 px-4 rounded-xl hover:bg-slate-50 transition-colors">
+                      <div key={key} className="flex items-center justify-between py-3 px-4">
                         <span className="text-sm font-semibold text-slate-700">{label}</span>
                         <div className="flex gap-1">
                           {options.map(opt => (
@@ -823,7 +972,7 @@ export const Settings: React.FC = () => {
                               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                 editingPermissions[key] === opt.value
                                   ? opt.value === 'none' ? 'bg-red-100 text-red-700' : opt.value === 'read' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                                  : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                  : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-100'
                               }`}
                             >
                               {opt.label}
@@ -835,9 +984,20 @@ export const Settings: React.FC = () => {
                   })}
                 </div>
               </div>
-              <div className="p-6 border-t border-slate-100 flex gap-3">
-                <button onClick={() => setEditingPermissions({ ...DEFAULT_PERMISSIONS[permissionsUser.role] })} className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">Reset to Role Defaults</button>
-                <button onClick={handleSavePermissions} disabled={isSavingPermissions} className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2">
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setEditingPermissions({ ...DEFAULT_PERMISSIONS[permissionsUser.role] })}
+                  className="flex-1 py-3 border border-slate-200 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-600 uppercase tracking-wider transition-colors"
+                >
+                  Reset to Defaults
+                </button>
+                <button
+                  onClick={handleSavePermissions}
+                  disabled={isSavingPermissions}
+                  className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                >
                   {isSavingPermissions ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Save Permissions
                 </button>
@@ -849,48 +1009,79 @@ export const Settings: React.FC = () => {
 
       {/* Login History Modal */}
       {historyUser && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setHistoryUser(null)} />
-          <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
-            <div className="relative rounded-3xl bg-white shadow-2xl sm:my-8 sm:w-full sm:max-w-2xl border border-white/20 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><History size={18} /> Login History</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{historyUser.firstName} {historyUser.lastName}</p>
-                </div>
-                <button onClick={() => setHistoryUser(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Login History</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{historyUser.firstName} {historyUser.lastName} &bull; {historyUser.email}</p>
               </div>
-              <div className="max-h-[60vh] overflow-y-auto">
+              <button onClick={() => setHistoryUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              {/* Context card */}
+              <div className="bg-slate-900 text-white p-5 rounded-2xl flex items-center gap-4">
+                <div className="p-2.5 bg-blue-600 rounded-xl shrink-0"><History size={18} /></div>
+                <div>
+                  <p className="font-bold">{historyUser.firstName} {historyUser.lastName}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {historyUser.lastLoginAt ? `Last login ${new Date(historyUser.lastLoginAt).toLocaleDateString()}` : 'No logins recorded'}
+                  </p>
+                </div>
+                <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase ${historyUser.status === 'Active' ? 'bg-green-900 text-green-300' : 'bg-slate-700 text-slate-400'}`}>
+                  {historyUser.status}
+                </span>
+              </div>
+
+              {/* Log table */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Access Log</p>
                 {isLoadingHistory ? (
-                  <div className="p-12 text-center"><Loader2 size={24} className="animate-spin text-slate-400 mx-auto" /></div>
+                  <div className="bg-slate-50 rounded-2xl border border-slate-100 p-12 text-center">
+                    <Loader2 size={24} className="animate-spin text-slate-400 mx-auto" />
+                  </div>
                 ) : loginHistory.length === 0 ? (
-                  <div className="p-12 text-center text-slate-400 italic">No login history recorded yet.</div>
+                  <div className="bg-slate-50 rounded-2xl border border-slate-100 p-12 text-center text-slate-400">
+                    <History size={28} className="mx-auto mb-3 opacity-40" />
+                    <p className="font-medium">No login history recorded yet.</p>
+                  </div>
                 ) : (
-                  <table className="w-full text-sm text-slate-600">
-                    <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
-                      <tr>
-                        <th className="px-6 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">When</th>
-                        <th className="px-6 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">Result</th>
-                        <th className="px-6 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">IP Address</th>
-                        <th className="px-6 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">Details</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {loginHistory.map(entry => (
-                        <tr key={entry.id} className="hover:bg-slate-50">
-                          <td className="px-6 py-3 font-mono text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString()}</td>
-                          <td className="px-6 py-3">
-                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${entry.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                              {entry.success ? 'Success' : 'Failed'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-3 font-mono text-xs">{entry.ip || '—'}</td>
-                          <td className="px-6 py-3 text-xs text-slate-400">{entry.reason ? entry.reason.replace(/_/g, ' ') : '—'}</td>
+                  <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden">
+                    <table className="w-full text-sm text-slate-600">
+                      <thead className="bg-white border-b border-slate-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">When</th>
+                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">Result</th>
+                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">IP</th>
+                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">Details</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {loginHistory.map(entry => (
+                          <tr key={entry.id} className="hover:bg-white/60 transition-colors">
+                            <td className="px-4 py-3 font-mono text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString()}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${entry.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                                {entry.success ? 'Success' : 'Failed'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs">{entry.ip || '—'}</td>
+                            <td className="px-4 py-3 text-xs text-slate-400">{entry.reason ? entry.reason.replace(/_/g, ' ') : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
+              </div>
+
+              {/* Close button */}
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setHistoryUser(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                  Close
+                </button>
               </div>
             </div>
           </div>
@@ -899,56 +1090,101 @@ export const Settings: React.FC = () => {
 
       {/* Bulk Invite Modal */}
       {isBulkInviteOpen && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }} />
-          <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
-            <div className="relative rounded-3xl bg-white shadow-2xl sm:my-8 sm:w-full sm:max-w-lg border border-white/20 overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users size={18} /> Bulk Invite Users</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Enter email addresses separated by commas or new lines</p>
-                </div>
-                <button onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Bulk Invite Users</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Send invitations to multiple team members at once</p>
               </div>
-              <div className="p-6 space-y-4">
-                {bulkInviteResults.length === 0 ? (
-                  <>
-                    <div>
-                      <label className="text-xs font-bold uppercase text-slate-400 tracking-wider block mb-2">Email Addresses</label>
-                      <textarea
-                        value={bulkInviteText}
-                        onChange={e => setBulkInviteText(e.target.value)}
-                        rows={6}
-                        placeholder="alice@company.com&#10;bob@company.com&#10;carol@company.com"
-                        className="w-full p-4 border border-slate-200 rounded-xl text-sm font-mono text-slate-700 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
-                      />
-                    </div>
+              <button
+                onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              {bulkInviteResults.length === 0 ? (
+                <>
+                  {/* Email input section */}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Email Addresses</p>
+                    <textarea
+                      value={bulkInviteText}
+                      onChange={e => setBulkInviteText(e.target.value)}
+                      rows={6}
+                      placeholder={"alice@company.com\nbob@company.com\ncarol@company.com"}
+                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-mono text-slate-700 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200 resize-none"
+                    />
+                    <p className="text-xs text-slate-400 mt-1.5">Separate addresses with commas, semicolons, or new lines.</p>
+                  </div>
+
+                  {/* Role section */}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Default Role</p>
                     <MinimalSelect label="Assign Role" value={bulkInviteRole} onChange={(e: any) => setBulkInviteRole(e.target.value)} options={ROLE_OPTIONS} />
-                    <p className="text-xs text-slate-400">Users will be created with Active status and must reset their password on first login.</p>
-                    <button onClick={handleBulkInvite} disabled={isBulkInviting || !bulkInviteText.trim()} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2">
-                      {isBulkInviting ? <Loader2 size={18} className="animate-spin" /> : <Users size={18} />}
-                      {isBulkInviting ? 'Sending Invites...' : 'Send Invites'}
+                    <p className="text-xs text-slate-400 mt-2">Users are created as Active and will be prompted to set a password on first login.</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }}
+                      className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                    >
+                      Cancel
                     </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <button
+                      onClick={handleBulkInvite}
+                      disabled={isBulkInviting || !bulkInviteText.trim()}
+                      className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-xs tracking-wider hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                    >
+                      {isBulkInviting ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
+                      {isBulkInviting ? 'Sending...' : 'Send Invites'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Results */}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Invite Results</p>
+                    <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100 max-h-64 overflow-y-auto">
                       {bulkInviteResults.map((r, i) => (
-                        <div key={i} className="flex items-center justify-between py-2 px-4 rounded-xl bg-slate-50 text-sm">
-                          <span className="font-mono text-slate-700">{r.email}</span>
-                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${r.status === 'created' ? 'bg-green-100 text-green-700' : r.status === 'exists' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                        <div key={i} className="flex items-center justify-between py-3 px-4">
+                          <span className="font-mono text-sm text-slate-700">{r.email}</span>
+                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+                            r.status === 'created' ? 'bg-green-100 text-green-700'
+                            : r.status === 'exists' ? 'bg-amber-100 text-amber-700'
+                            : 'bg-red-100 text-red-700'
+                          }`}>
                             {r.status}
                           </span>
                         </div>
                       ))}
                     </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => { setBulkInviteResults([]); setBulkInviteText(''); }} className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50">Invite More</button>
-                      <button onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }} className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800">Done</button>
-                    </div>
-                  </>
-                )}
-              </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      onClick={() => { setBulkInviteResults([]); setBulkInviteText(''); }}
+                      className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                    >
+                      Invite More
+                    </button>
+                    <button
+                      onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }}
+                      className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-xs tracking-wider hover:bg-slate-800 transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
