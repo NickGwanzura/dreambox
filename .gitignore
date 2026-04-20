@@ -33,3 +33,6 @@ dist-ssr
 
 # Server build output (derived from tsc -p tsconfig.server.json)
 dist-server/
+
+# Claude Code session state
+.claude/
