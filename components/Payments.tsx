@@ -297,97 +297,170 @@ export const Payments: React.FC = () => {
             </div>
 
             {/* ── Monthly Payment Modal ── */}
-            {monthlyContract && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-md w-full border border-white/20 overflow-hidden">
-                        <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
-                            <div>
-                                <h3 className="text-xl font-bold tracking-tight">Log Monthly Payment</h3>
-                                <p className="text-slate-400 text-sm mt-1">{getClientName(monthlyContract.clientId)} · {getBillboardName(monthlyContract.billboardId)}</p>
+            {monthlyContract && (() => {
+                const expectedGross = monthlyContract.monthlyRate;
+                const { subtotal: expectedNet, vat: expectedVat } = monthlyContract.hasVat
+                    ? splitInclusiveVat(expectedGross)
+                    : { subtotal: expectedGross, vat: 0 };
+                const enteredAmount = monthlyForm.amount || 0;
+                const variance = enteredAmount - expectedGross;
+                const varianceClass = Math.abs(variance) < 0.01
+                    ? 'text-slate-400'
+                    : variance > 0 ? 'text-emerald-600' : 'text-amber-600';
+
+                return (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+                        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 overflow-hidden max-h-[90vh] overflow-y-auto">
+                            <div className="bg-slate-900 p-6 text-white flex justify-between items-start sticky top-0 z-10">
+                                <div>
+                                    <h3 className="text-xl font-bold tracking-tight">Log Monthly Payment</h3>
+                                    <p className="text-slate-400 text-xs mt-1">{MONTH_NAMES[monthlyForm.month]} {monthlyForm.year} &middot; Contract {monthlyContract.id}</p>
+                                </div>
+                                <button onClick={() => setMonthlyContract(null)} className="text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
                             </div>
-                            <button onClick={() => setMonthlyContract(null)} className="text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
-                        </div>
-                        <div className="p-8 space-y-4">
-                            <div className="grid grid-cols-2 gap-6">
-                                <MinimalSelect
-                                    label="Month"
-                                    value={String(monthlyForm.month)}
-                                    onChange={(e: any) => setMonthlyForm(f => ({ ...f, month: Number(e.target.value) }))}
-                                    options={monthOptions}
-                                />
-                                <MinimalSelect
-                                    label="Year"
-                                    value={String(monthlyForm.year)}
-                                    onChange={(e: any) => setMonthlyForm(f => ({ ...f, year: Number(e.target.value) }))}
-                                    options={yearOptions}
-                                />
+                            <div className="p-8 space-y-6">
+                                {/* Context card */}
+                                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-2">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Paying For</p>
+                                    <p className="font-bold text-slate-900">{getClientName(monthlyContract.clientId)}</p>
+                                    <p className="text-sm text-slate-600">{getBillboardName(monthlyContract.billboardId)}{monthlyContract.details ? ` • ${monthlyContract.details}` : ''}</p>
+                                    <div className="flex flex-wrap gap-x-5 gap-y-1 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                                        <span><span className="font-semibold text-slate-700">Monthly rate:</span> ${expectedGross.toLocaleString()}</span>
+                                        {monthlyContract.hasVat && (
+                                            <>
+                                                <span>Net ${expectedNet.toFixed(2)}</span>
+                                                <span>VAT ${expectedVat.toFixed(2)}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Period */}
+                                <div className="space-y-3">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Billing Period</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <MinimalSelect
+                                            label="Month"
+                                            value={String(monthlyForm.month)}
+                                            onChange={(e: any) => setMonthlyForm(f => ({ ...f, month: Number(e.target.value) }))}
+                                            options={monthOptions}
+                                        />
+                                        <MinimalSelect
+                                            label="Year"
+                                            value={String(monthlyForm.year)}
+                                            onChange={(e: any) => setMonthlyForm(f => ({ ...f, year: Number(e.target.value) }))}
+                                            options={yearOptions}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Amount + variance */}
+                                <div className="space-y-3">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Amount Received</p>
+                                    <MinimalInput
+                                        label="Amount ($)"
+                                        type="number"
+                                        value={monthlyForm.amount}
+                                        onChange={(e: any) => setMonthlyForm(f => ({ ...f, amount: Number(e.target.value) }))}
+                                        required
+                                    />
+                                    {enteredAmount > 0 && (
+                                        <div className={`text-xs font-medium ${varianceClass}`}>
+                                            {Math.abs(variance) < 0.01
+                                                ? `Matches expected (${expectedGross.toLocaleString()})`
+                                                : variance > 0
+                                                    ? `Overpayment of $${variance.toFixed(2)} vs expected $${expectedGross.toLocaleString()}`
+                                                    : `Short by $${Math.abs(variance).toFixed(2)} vs expected $${expectedGross.toLocaleString()}`}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Payment details */}
+                                <div className="space-y-3">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Payment Details</p>
+                                    <MinimalInput
+                                        label="Payment Date"
+                                        type="date"
+                                        value={monthlyForm.date}
+                                        onChange={(e: any) => setMonthlyForm(f => ({ ...f, date: e.target.value }))}
+                                        icon={Calendar}
+                                        required
+                                    />
+                                    <MinimalSelect
+                                        label="Payment Method"
+                                        value={monthlyForm.method}
+                                        onChange={(e: any) => setMonthlyForm(f => ({ ...f, method: e.target.value }))}
+                                        icon={Wallet}
+                                        options={[
+                                            { value: 'Bank Transfer', label: 'Bank Transfer' },
+                                            { value: 'Cash', label: 'Cash' },
+                                            { value: 'EcoCash', label: 'EcoCash Mobile Money' },
+                                            { value: 'Other', label: 'Other' },
+                                        ]}
+                                    />
+                                    <MinimalInput
+                                        label="Reference Number / Proof"
+                                        value={monthlyForm.reference}
+                                        onChange={(e: any) => setMonthlyForm(f => ({ ...f, reference: e.target.value }))}
+                                        icon={Hash}
+                                        placeholder="e.g. POP-12345"
+                                    />
+                                    <p className="text-[10px] text-slate-400">A receipt will be created and the month marked as paid.</p>
+                                </div>
+
+                                <div className="flex gap-3 pt-1">
+                                    <button
+                                        onClick={() => setMonthlyContract(null)}
+                                        className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={confirmMonthlyPayment}
+                                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Check size={15} /> Confirm Payment
+                                    </button>
+                                </div>
                             </div>
-                            <MinimalInput
-                                label="Amount"
-                                type="number"
-                                value={monthlyForm.amount}
-                                onChange={(e: any) => setMonthlyForm(f => ({ ...f, amount: Number(e.target.value) }))}
-                                icon={null}
-                                required
-                            />
-                            <MinimalInput
-                                label="Payment Date"
-                                type="date"
-                                value={monthlyForm.date}
-                                onChange={(e: any) => setMonthlyForm(f => ({ ...f, date: e.target.value }))}
-                                icon={Calendar}
-                                required
-                            />
-                            <MinimalSelect
-                                label="Payment Method"
-                                value={monthlyForm.method}
-                                onChange={(e: any) => setMonthlyForm(f => ({ ...f, method: e.target.value }))}
-                                icon={Wallet}
-                                options={[
-                                    { value: 'Bank Transfer', label: 'Bank Transfer' },
-                                    { value: 'Cash', label: 'Cash' },
-                                    { value: 'EcoCash', label: 'EcoCash Mobile Money' },
-                                    { value: 'Other', label: 'Other' },
-                                ]}
-                            />
-                            <MinimalInput
-                                label="Reference Number / Proof"
-                                value={monthlyForm.reference}
-                                onChange={(e: any) => setMonthlyForm(f => ({ ...f, reference: e.target.value }))}
-                                icon={Hash}
-                                placeholder="e.g. POP-12345"
-                            />
-                            <button
-                                onClick={confirmMonthlyPayment}
-                                className="w-full mt-4 py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold uppercase tracking-wider shadow-lg shadow-green-500/30 transition-all flex items-center justify-center gap-2"
-                            >
-                                <Check size={20} /> Confirm Payment
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* ── Invoice Payment Modal ── */}
             {selectedInvoice && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all animate-fade-in">
-                    <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-md w-full border border-white/20 overflow-hidden transform scale-100">
-                        <div className="bg-slate-900 p-6 text-white flex justify-between items-start">
-                            <div><h3 className="text-xl font-bold tracking-tight">Record Payment</h3><p className="text-slate-400 text-sm mt-1">Invoice #{selectedInvoice.id}</p></div>
+                    <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-md w-full border border-white/20 overflow-hidden max-h-[90vh] overflow-y-auto">
+                        <div className="bg-slate-900 p-6 text-white flex justify-between items-start sticky top-0 z-10">
+                            <div>
+                                <h3 className="text-xl font-bold tracking-tight">Record Payment</h3>
+                                <p className="text-slate-400 text-xs mt-1">Invoice #{selectedInvoice.id} &middot; {selectedInvoice.date}</p>
+                            </div>
                             <button onClick={() => setSelectedInvoice(null)} className="text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
                         </div>
-                        <div className="p-8">
-                            <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-center border border-slate-100">
+                        <div className="p-8 space-y-6">
+                            <div className="bg-slate-50 rounded-2xl p-6 text-center border border-slate-100">
                                 <p className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Total Amount Due</p>
                                 <h2 className="text-4xl font-extrabold text-slate-900 tracking-tighter">${selectedInvoice.total.toLocaleString()}</h2>
                                 <p className="text-sm font-medium text-slate-500 mt-2">{getClientName(selectedInvoice.clientId)}</p>
+                                {selectedInvoice.vatAmount > 0 && (
+                                    <p className="text-[10px] text-slate-400 mt-2">
+                                        Net ${Number(selectedInvoice.subtotal).toFixed(2)} + VAT ${Number(selectedInvoice.vatAmount).toFixed(2)}
+                                    </p>
+                                )}
                             </div>
-                            <div className="space-y-6">
+                            <div className="space-y-3">
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Payment Details</p>
                                 <MinimalInput label="Payment Date" type="date" value={paymentDetails.date} onChange={(e: any) => setPaymentDetails({...paymentDetails, date: e.target.value})} icon={Calendar} required />
                                 <MinimalSelect label="Payment Method" value={paymentDetails.method} onChange={(e: any) => setPaymentDetails({...paymentDetails, method: e.target.value})} icon={Wallet} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash Mobile Money'},{value: 'Other', label: 'Other'}]} />
                                 <MinimalInput label="Reference Number / Proof" value={paymentDetails.reference} onChange={(e: any) => setPaymentDetails({...paymentDetails, reference: e.target.value})} icon={Hash} placeholder="e.g. POP-12345" required />
+                                <p className="text-[10px] text-slate-400">A receipt will be issued and the invoice marked paid.</p>
                             </div>
-                            <button onClick={confirmPayment} className="w-full mt-8 py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold uppercase tracking-wider shadow-lg shadow-green-500/30 transition-all flex items-center justify-center gap-2"><Check size={20} /> Confirm Payment</button>
+                            <div className="flex gap-3">
+                                <button onClick={() => setSelectedInvoice(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                                <button onClick={confirmPayment} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"><Check size={15} /> Confirm Payment</button>
+                            </div>
                         </div>
                     </div>
                 </div>

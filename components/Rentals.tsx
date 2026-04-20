@@ -551,7 +551,10 @@ export const Rentals: React.FC = () => {
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
                 <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-4xl border border-white/20 max-h-[90vh] overflow-y-auto">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50 sticky top-0 z-10 backdrop-blur-sm">
-                        <h3 className="text-xl font-bold text-slate-900">New Rental Agreement</h3>
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-900">New Rental Agreement</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">Creates a contract and generates the first month's invoice</p>
+                        </div>
                         <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-2">
@@ -615,13 +618,22 @@ export const Rentals: React.FC = () => {
                             <div className="bg-slate-50 p-6 rounded-2xl space-y-6">
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</h4>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <MinimalInput label="Monthly Rate ($)" type="number" value={newRental.monthlyRate} onChange={(e: any) => setNewRental({...newRental, monthlyRate: Number(e.target.value)})} />
-                                    <MinimalInput label="Install Fee ($)" type="number" value={newRental.installationCost} onChange={(e: any) => setNewRental({...newRental, installationCost: Number(e.target.value)})} />
+                                    <div>
+                                        <MinimalInput label="Monthly Rate ($)" type="number" value={newRental.monthlyRate} onChange={(e: any) => setNewRental({...newRental, monthlyRate: Number(e.target.value)})} />
+                                        {newRental.hasVat && newRental.monthlyRate > 0 && (
+                                            <p className="text-[10px] text-slate-400 mt-2">Net: ${splitInclusiveVat(newRental.monthlyRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newRental.monthlyRate).vat.toFixed(2)}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <MinimalInput label="Install Fee ($)" type="number" value={newRental.installationCost} onChange={(e: any) => setNewRental({...newRental, installationCost: Number(e.target.value)})} />
+                                        <p className="text-[10px] text-slate-400 mt-2">One-time setup charge billed in month 1</p>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input type="checkbox" checked={newRental.hasVat} onChange={e => setNewRental({...newRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"/>
                                     <label className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</label>
                                 </div>
+                                <p className="text-[10px] text-slate-400 -mt-2">When checked, VAT-inclusive — the system extracts 15% for invoicing. Uncheck only for VAT-exempt clients.</p>
                             </div>
                             <MinimalInput label="Assigned Sales Agent (Optional)" value={newRental.assignedTo} onChange={(e: any) => setNewRental({...newRental, assignedTo: e.target.value})} />
                             <button type="submit" disabled={selectedBillboard?.type === BillboardType.LED && digitalFull} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed">
@@ -658,13 +670,91 @@ export const Rentals: React.FC = () => {
       {selectedRental && !editRental && !renewRental && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10"><h3 className="text-xl font-bold text-slate-900">Contract Details</h3><button onClick={() => setSelectedRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button></div>
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900">Contract Details</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">ID: {selectedRental.id} &bull; Status: <span className={`font-bold ${selectedRental.status === 'Active' ? 'text-emerald-600' : selectedRental.status === 'Expired' ? 'text-red-500' : 'text-amber-600'}`}>{selectedRental.status}</span></p>
+                    </div>
+                    <button onClick={() => setSelectedRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                </div>
                 <div className="p-8 space-y-6">
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-center"><div><p className="text-xs font-bold uppercase text-slate-400 mb-2">Lessee</p><h4 className="text-xl font-bold text-slate-900">{getClientName(selectedRental.clientId)}</h4></div></div>
-                    <div className="grid grid-cols-2 gap-6"><div><p className="text-xs font-bold uppercase text-slate-400 mb-1">Asset</p><p className="font-medium text-slate-800">{getBillboardName(selectedRental.billboardId)}</p><p className="text-xs text-slate-500">{selectedRental.details}</p></div><div><p className="text-xs font-bold uppercase text-slate-400 mb-1">Duration</p><p className="font-medium text-slate-900">{selectedRental.startDate}</p><p className="text-xs text-slate-500">to {selectedRental.endDate}</p></div></div>
-                    <div className="space-y-2 border-t border-slate-100 pt-4"><div className="flex justify-between text-sm"><span className="text-slate-500">Monthly Rate</span><span className="font-medium">${selectedRental.monthlyRate.toLocaleString()}</span></div><div className="flex justify-between text-sm"><span className="text-slate-500">Installation Fee</span><span className="font-medium">${selectedRental.installationCost.toLocaleString()}</span></div><div className="flex justify-between text-lg font-bold pt-2 text-slate-900"><span>Total Value</span><span>${selectedRental.totalContractValue.toLocaleString()}</span></div></div>
-                    {selectedRental.lastModifiedDate && <div className="bg-amber-50 p-4 rounded-xl border border-amber-100"><p className="text-xs text-amber-600 font-medium"><Edit size={12} className="inline mr-1"/> Last edited on {new Date(selectedRental.lastModifiedDate).toLocaleDateString()} by {selectedRental.lastModifiedBy || 'Unknown'}</p></div>}
-                    <div className="flex gap-3">
+                    {/* Context summary card */}
+                    <div className="bg-slate-900 text-white p-5 rounded-2xl flex flex-col gap-3">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Client</p>
+                            <p className="text-lg font-bold">{getClientName(selectedRental.clientId)}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 border-t border-slate-700 pt-3">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Billboard</p>
+                                <p className="font-semibold text-sm">{getBillboardName(selectedRental.billboardId)}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{selectedRental.details}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Duration</p>
+                                <p className="font-semibold text-sm">{selectedRental.startDate}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">to {selectedRental.endDate}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Financial breakdown */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Financial Breakdown</p>
+                        <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100">
+                            <div className="flex justify-between items-center px-4 py-3 text-sm">
+                                <span className="text-slate-500">Monthly Rate</span>
+                                <span className="font-semibold text-slate-800">${selectedRental.monthlyRate.toLocaleString()}</span>
+                            </div>
+                            {selectedRental.installationCost > 0 && (
+                                <div className="flex justify-between items-center px-4 py-3 text-sm">
+                                    <span className="text-slate-500">Installation Fee</span>
+                                    <span className="font-semibold text-slate-800">${selectedRental.installationCost.toLocaleString()}</span>
+                                </div>
+                            )}
+                            {selectedRental.printingCost > 0 && (
+                                <div className="flex justify-between items-center px-4 py-3 text-sm">
+                                    <span className="text-slate-500">Printing Cost</span>
+                                    <span className="font-semibold text-slate-800">${selectedRental.printingCost.toLocaleString()}</span>
+                                </div>
+                            )}
+                            {selectedRental.hasVat && (() => {
+                                const { subtotal: net, vat } = splitInclusiveVat(selectedRental.monthlyRate);
+                                return (
+                                    <>
+                                        <div className="flex justify-between items-center px-4 py-3 text-sm">
+                                            <span className="text-slate-500">Net (excl. VAT)</span>
+                                            <span className="font-semibold text-slate-800">${net.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center px-4 py-3 text-sm">
+                                            <span className="text-slate-500">VAT (15%)</span>
+                                            <span className="font-semibold text-slate-800">${vat.toFixed(2)}</span>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                            <div className="flex justify-between items-center px-4 py-3 bg-white rounded-b-2xl">
+                                <span className="text-sm font-bold text-slate-900">Total Contract Value</span>
+                                <span className="text-lg font-extrabold text-slate-900">${selectedRental.totalContractValue.toLocaleString()}</span>
+                            </div>
+                        </div>
+                        {selectedRental.hasVat && <p className="text-xs text-slate-400 mt-1.5">Monthly rate is VAT-inclusive — 15% extracted for invoicing.</p>}
+                    </div>
+
+                    {selectedRental.assignedTo && (
+                        <div className="flex items-center gap-2 text-sm text-indigo-600">
+                            <UserCircle size={15} />
+                            <span className="font-medium">Assigned to <strong>{selectedRental.assignedTo}</strong></span>
+                        </div>
+                    )}
+
+                    {selectedRental.lastModifiedDate && (
+                        <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                            <p className="text-xs text-amber-600 font-medium"><Edit size={12} className="inline mr-1"/> Last edited on {new Date(selectedRental.lastModifiedDate).toLocaleDateString()} by {selectedRental.lastModifiedBy || 'Unknown'}</p>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
                         <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
                         <button onClick={() => { setSelectedRental(null); setEditRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Edit size={14} /> Edit</button>
                         {isContractExpired(selectedRental) && <button onClick={() => { setSelectedRental(null); setRenewRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>}
@@ -678,20 +768,89 @@ export const Rentals: React.FC = () => {
       {editRental && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white"><h3 className="text-xl font-bold text-slate-900">Edit Rental</h3><button onClick={() => setEditRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button></div>
-                <div className="p-8 space-y-6">
-                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-100"><p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Editing an Active rental. Asset assignment cannot be changed.</p></div>
-                    {editError && <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3"><AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" /><p className="text-sm text-red-700">{editError}</p></div>}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2"><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Status</label><select value={editRental.status} onChange={(e) => setEditRental({...editRental, status: e.target.value as 'Active' | 'Pending' | 'Expired'})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800"><option value="Active">Active</option><option value="Pending">Pending</option><option value="Expired">Expired</option></select></div>
-                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Start Date</label><input type="date" value={editRental.startDate} onChange={(e) => setEditRental({...editRental, startDate: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
-                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">End Date</label><input type="date" value={editRental.endDate} onChange={(e) => setEditRental({...editRental, endDate: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
-                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label><input type="number" value={editRental.monthlyRate} onChange={(e) => setEditRental({...editRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
-                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Installation Cost ($)</label><input type="number" value={editRental.installationCost} onChange={(e) => setEditRental({...editRental, installationCost: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
-                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Printing Cost ($)</label><input type="number" value={editRental.printingCost} onChange={(e) => setEditRental({...editRental, printingCost: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
-                        <div className="col-span-2"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editRental.hasVat} onChange={(e) => setEditRental({...editRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" /><span className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</span></label></div>
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900">Edit Rental</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">{getClientName(editRental.clientId)} &bull; {getBillboardName(editRental.billboardId)}</p>
                     </div>
-                    <div className="flex gap-3 pt-4">
+                    <button onClick={() => setEditRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                </div>
+                <div className="p-8 space-y-6">
+                    {/* Context card */}
+                    <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Billboard</p>
+                            <p className="font-semibold text-slate-800 text-sm">{getBillboardName(editRental.billboardId)}</p>
+                            <p className="text-xs text-slate-500">{editRental.details}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Contract ID</p>
+                            <p className="font-semibold text-slate-800 text-sm">{editRental.id}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                        <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Editing an active rental. Billboard assignment cannot be changed here.</p>
+                    </div>
+
+                    {editError && (
+                        <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3">
+                            <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-700">{editError}</p>
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Contract Status</p>
+                        <select value={editRental.status} onChange={(e) => setEditRental({...editRental, status: e.target.value as 'Active' | 'Pending' | 'Expired'})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800">
+                            <option value="Active">Active</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Rental Period</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Start Date</label>
+                                <input type="date" value={editRental.startDate} onChange={(e) => setEditRental({...editRental, startDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">End Date</label>
+                                <input type="date" value={editRental.endDate} onChange={(e) => setEditRental({...editRental, endDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label>
+                                <input type="number" value={editRental.monthlyRate} onChange={(e) => setEditRental({...editRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                                {editRental.hasVat && editRental.monthlyRate > 0 && (
+                                    <p className="text-[10px] text-slate-400 mt-1">Net: ${splitInclusiveVat(editRental.monthlyRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editRental.monthlyRate).vat.toFixed(2)}</p>
+                                )}
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Installation Cost ($)</label>
+                                <input type="number" value={editRental.installationCost} onChange={(e) => setEditRental({...editRental, installationCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Printing Cost ($)</label>
+                                <input type="number" value={editRental.printingCost} onChange={(e) => setEditRental({...editRental, printingCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                            </div>
+                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={editRental.hasVat} onChange={(e) => setEditRental({...editRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+                            <span className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</span>
+                        </label>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
                         <button onClick={() => setEditRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
                         <button onClick={handleEditSave} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Save Changes</button>
                     </div>
@@ -703,29 +862,95 @@ export const Rentals: React.FC = () => {
       {/* Renew Modal */}
       {renewRental && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center"><h3 className="text-xl font-bold text-slate-900">Renew Contract</h3><button onClick={() => setRenewRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button></div>
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900">Renew Contract</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">Creates a new 12-month agreement from the expired one</p>
+                    </div>
+                    <button onClick={() => setRenewRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                </div>
                 <div className="p-8 space-y-6">
-                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100"><p className="text-xs text-emerald-700 font-medium flex items-center gap-2"><RotateCcw size={14} /> Create a new 12-month contract based on this expired agreement.</p></div>
-                    {editError && <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3"><AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" /><p className="text-sm text-red-700">{editError}</p></div>}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <p className="text-xs font-bold uppercase text-slate-400 mb-2">Original Contract</p>
-                        <p className="text-sm text-slate-700">{getClientName(renewRental.clientId)} • {getBillboardName(renewRental.billboardId)}</p>
-                        <p className="text-xs text-slate-500 mt-1">{renewRental.startDate} to {renewRental.endDate}</p>
+                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                        <p className="text-xs text-emerald-700 font-medium flex items-center gap-2"><RotateCcw size={14} /> A new contract will be created starting the day after the original expires.</p>
                     </div>
-                    <div className="space-y-4">
+
+                    {editError && (
+                        <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3">
+                            <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-700">{editError}</p>
+                        </div>
+                    )}
+
+                    {/* Original contract summary */}
+                    <div className="bg-slate-900 text-white p-4 rounded-2xl">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Original Contract</p>
+                        <p className="font-bold text-base">{getClientName(renewRental.clientId)}</p>
+                        <p className="text-slate-300 text-sm mt-0.5">{getBillboardName(renewRental.billboardId)} &bull; {renewRental.details}</p>
+                        <p className="text-xs text-slate-400 mt-1">{renewRental.startDate} — {renewRental.endDate}</p>
+                    </div>
+
+                    {/* New period (read-only) */}
+                    <div className="space-y-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">New Rental Period</p>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">New Start Date</label><input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500" /></div>
-                            <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">New End Date</label><input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500" /></div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Start Date</label>
+                                <input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">End Date</label>
+                                <input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+                            </div>
                         </div>
-                        <div><label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label><input type="number" value={renewRental.monthlyRate} onChange={(e) => setRenewRental({...renewRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800" /></div>
-                        <div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={renewRental.hasVat} onChange={(e) => setRenewRental({...renewRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" /><span className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</span></label></div>
-                        <div className="bg-slate-100 p-4 rounded-xl">
-                            <p className="text-xs font-bold uppercase text-slate-400 mb-1">New Total Value</p>
-                            <p className="text-2xl font-bold text-slate-900">${(() => { const months = 12; const gross = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost; return gross.toLocaleString(); })()}</p>
-                        </div>
+                        <p className="text-xs text-slate-400">Period is auto-calculated (12 months). Dates are locked.</p>
                     </div>
-                    <div className="flex gap-3 pt-4">
+
+                    {/* Financials */}
+                    <div className="space-y-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</p>
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label>
+                            <input type="number" value={renewRental.monthlyRate} onChange={(e) => setRenewRental({...renewRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                            <p className="text-[10px] text-slate-400 mt-1">Adjust the rate if pricing has changed since last term.</p>
+                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={renewRental.hasVat} onChange={(e) => setRenewRental({...renewRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+                            <span className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</span>
+                        </label>
+                    </div>
+
+                    {/* Value breakdown */}
+                    {(() => {
+                        const months = 12;
+                        const gross = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost;
+                        const { subtotal: net, vat } = renewRental.hasVat ? splitInclusiveVat(renewRental.monthlyRate) : { subtotal: renewRental.monthlyRate, vat: 0 };
+                        return (
+                            <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-300">Monthly Net</span>
+                                    <span className="font-semibold">${net.toFixed(2)}</span>
+                                </div>
+                                {renewRental.hasVat && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-300">Monthly VAT (15%)</span>
+                                        <span className="font-semibold">${vat.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-300">Monthly Rate (gross)</span>
+                                    <span className="font-semibold">${renewRental.monthlyRate.toLocaleString()}</span>
+                                </div>
+                                <div className="border-t border-slate-700 pt-2 flex justify-between">
+                                    <span className="text-sm font-bold uppercase tracking-wider">New Total Value</span>
+                                    <span className="text-xl font-black">${gross.toLocaleString()}</span>
+                                </div>
+                                <p className="text-xs text-slate-400">12 months × ${renewRental.monthlyRate.toLocaleString()}{renewRental.installationCost > 0 ? ` + $${renewRental.installationCost} install` : ''}</p>
+                            </div>
+                        );
+                    })()}
+
+                    <div className="flex gap-3 pt-2">
                         <button onClick={() => setRenewRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
                         <button onClick={handleRenew} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew Contract</button>
                     </div>
@@ -738,17 +963,35 @@ export const Rentals: React.FC = () => {
         <div className="fixed inset-0 z-[200] overflow-y-auto">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setRentalToDelete(null)} />
           <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-sm border border-white/20 p-6 text-center">
-                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-50">
-                    <AlertTriangle className="text-red-500" size={32} />
+              <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-sm border border-white/20">
+                 {/* Header */}
+                 <div className="p-6 border-b border-red-100 bg-red-50 flex items-start gap-4">
+                     <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center shrink-0 border-2 border-red-200">
+                         <Trash2 className="text-red-600" size={22} />
+                     </div>
+                     <div>
+                         <h3 className="text-lg font-bold text-red-900">Delete Rental Agreement?</h3>
+                         <p className="text-xs text-red-500 mt-0.5 font-medium">This action cannot be undone.</p>
+                     </div>
                  </div>
-                 <h3 className="text-xl font-bold text-slate-900 mb-2">Delete Rental?</h3>
-                 <p className="text-slate-500 mb-6 text-sm">
-                   Are you sure you want to delete the rental agreement for <span className="font-bold text-slate-700">{getClientName(rentalToDelete.clientId)}</span>?<br/>This will free up the billboard asset.
-                 </p>
-                 <div className="flex gap-3">
-                   <button onClick={() => setRentalToDelete(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                   <button onClick={confirmDelete} className="flex-1 py-3 text-white bg-red-500 hover:bg-red-600 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-500/30">Delete & Free Asset</button>
+                 <div className="p-6 space-y-4">
+                     {/* What's being deleted */}
+                     <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-1.5">
+                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Rental Being Deleted</p>
+                         <p className="font-bold text-slate-900">{getClientName(rentalToDelete.clientId)}</p>
+                         <p className="text-sm text-slate-600">{getBillboardName(rentalToDelete.billboardId)} &bull; {rentalToDelete.details}</p>
+                         <p className="text-xs text-slate-400">{rentalToDelete.startDate} — {rentalToDelete.endDate}</p>
+                         <p className="text-xs text-slate-400 font-mono">ID: {rentalToDelete.id}</p>
+                     </div>
+                     {/* Warning about related records */}
+                     <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
+                         <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                         <p className="text-xs text-amber-700 font-medium">Any invoices and receipts linked to this rental will be orphaned. The billboard asset will be freed for re-booking.</p>
+                     </div>
+                     <div className="flex gap-3 pt-1">
+                         <button onClick={() => setRentalToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Keep Rental</button>
+                         <button onClick={confirmDelete} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20">Delete Permanently</button>
+                     </div>
                  </div>
               </div>
           </div>
