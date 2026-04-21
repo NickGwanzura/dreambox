@@ -65,6 +65,21 @@ export const Settings: React.FC = () => {
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === 'Admin';
 
+  if (!isAdmin) {
+    return (
+      <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
+        <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Shield size={26} className="text-red-500" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Administrators Only</h2>
+        <p className="text-slate-500 text-sm leading-relaxed">
+          Settings (users, company profile, audit logs, backups) are restricted to administrators.
+          If you need something changed, ask an admin to make the update for you.
+        </p>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState<'General' | 'Audit' | 'Data' | 'ReleaseNotes'>('General');
   const [users, setUsers] = useState<UserType[]>(getLocalUsers());
   const [auditLogs, setAuditLogs] = useState(getAuditLogs());

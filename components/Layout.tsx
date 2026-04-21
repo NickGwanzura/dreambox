@@ -225,7 +225,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     { id: 'financials', label: 'Invoices & Quotes', icon: CreditCard, roles: null },
     { id: 'receipts', label: 'Receipts', icon: Receipt, roles: ['Admin', 'Manager', 'Staff'] },
     { id: 'expenses', label: 'Expenses', icon: Printer, roles: ['Admin', 'Manager', 'Staff'] },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['Admin', 'Manager'] },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['Admin'] },
   ];
 
   const userRole = user?.role || 'Staff';

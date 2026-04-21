@@ -21,6 +21,7 @@ const ClientPortal = lazyWithRetry(() => import('./components/ClientPortal').the
 const PublicView = lazyWithRetry(() => import('./components/PublicView').then(m => ({ default: m.PublicView })));
 const CRM = lazyWithRetry(() => import('./components/crm/CRM').then(m => ({ default: m.CRM })));
 import { getCurrentUser, updatePassword } from './services/authService';
+import { getCurrentUser as getCachedUser } from './services/authServiceSecure';
 import { ToastProvider } from './components/ToastProvider';
 import { FeatureErrorBoundary } from './components/error-boundaries/FeatureErrorBoundary';
 import { logger } from './utils/logger';
@@ -243,12 +244,22 @@ const App: React.FC = () => {
               <Expenses />
             </FeatureErrorBoundary>
           );
-        case 'settings': 
+        case 'settings': {
+          const role = getCachedUser()?.role;
+          if (role !== 'Admin') {
+            return (
+              <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
+                <p className="text-slate-500 text-sm">Settings are available to administrators only. Contact an admin if you need a change made.</p>
+              </div>
+            );
+          }
           return (
             <FeatureErrorBoundary featureName="Settings" onReset={() => setPageError(null)}>
               <Settings />
             </FeatureErrorBoundary>
           );
+        }
         default: 
           return (
             <FeatureErrorBoundary featureName="Dashboard" onReset={() => setPageError(null)}>
