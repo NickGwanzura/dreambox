@@ -18,6 +18,7 @@ import {
 } from '../services/mockData';
 // Realtime subscriptions removed — sync is handled by neonSyncManager polling
 import { logger } from '../utils/logger';
+import { canAccessSettings } from '../utils/settingsAccess';
 import { 
   ALERT_CHECK_INTERVAL_MS,
   BACKUP_INTERVAL_MS,
@@ -229,7 +230,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   ];
 
   const userRole = user?.role || 'Staff';
-  const menuItems = allMenuItems.filter(item => !item.roles || item.roles.includes(userRole));
+  const settingsVisible = canAccessSettings(user);
+  const menuItems = allMenuItems.filter(item => {
+    if (item.id === 'settings') return settingsVisible;
+    return !item.roles || item.roles.includes(userRole);
+  });
 
   const handleLogout = async () => { 
     await signOut(); 

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { getUsers as getLocalUsers, addUser as addLocalUser, updateUser as updateLocalUser, deleteUser as deleteLocalUser, getAuditLogs, getCompanyLogo, setCompanyLogo, getCompanyProfile, updateCompanyProfile, RELEASE_NOTES, resetSystemData, createSystemBackup, restoreSystemBackup, getLastManualBackupDate, getAutoBackupStatus, getStorageUsage, simulateCloudSync, getLastCloudBackupDate, triggerFullSync, verifyDataIntegrity, syncToNeon, subscribe } from '../services/mockData';
 import { createUser, updateUserData, deleteUserData, approveUser, rejectUser, fetchAllUsers, suspendUser, reactivateUser, unlockUser, updateUserPermissions, bulkInviteUsers, fetchLoginHistory, adminResetPassword } from '../services/userManagement';
 import { getCurrentUser } from '../services/authServiceSecure';
+import { canAccessSettings } from '../utils/settingsAccess';
 import { generateAppFeaturesPDF, generateUserManualPDF } from '../services/pdfGenerator';
 import { Shield, Building, ScrollText, Download, Plus, X, Save, Phone, MapPin, Edit2, Trash2, AlertTriangle, Cloud, Upload, RefreshCw, Clock, HardDrive, Sparkles, Loader2, CheckCircle, FileText, ChevronRight, Server, Wifi, Activity, Lock, Copy, FileCheck, Layers, Cpu, Code2, UserCheck, Users, Database, UserX, Key, History, SlashSquare, Settings2, Mail } from 'lucide-react';
 import { User as UserType, CompanyProfile, UserPermissions, LoginHistoryEntry } from '../types';
@@ -64,17 +65,18 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
 export const Settings: React.FC = () => {
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === 'Admin';
+  const hasSettingsAccess = canAccessSettings(currentUser);
 
-  if (!isAdmin) {
+  if (!hasSettingsAccess) {
     return (
       <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
         <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <Shield size={26} className="text-red-500" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Administrators Only</h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
         <p className="text-slate-500 text-sm leading-relaxed">
-          Settings (users, company profile, audit logs, backups) are restricted to administrators.
-          If you need something changed, ask an admin to make the update for you.
+          Settings (users, company profile, audit logs, backups) are limited to the finance/admin team.
+          Please contact Rufaro, Brian, or Nick if something needs to be changed.
         </p>
       </div>
     );

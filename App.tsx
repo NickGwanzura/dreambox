@@ -22,6 +22,7 @@ const PublicView = lazyWithRetry(() => import('./components/PublicView').then(m 
 const CRM = lazyWithRetry(() => import('./components/crm/CRM').then(m => ({ default: m.CRM })));
 import { getCurrentUser, updatePassword } from './services/authService';
 import { getCurrentUser as getCachedUser } from './services/authServiceSecure';
+import { canAccessSettings } from './utils/settingsAccess';
 import { ToastProvider } from './components/ToastProvider';
 import { FeatureErrorBoundary } from './components/error-boundaries/FeatureErrorBoundary';
 import { logger } from './utils/logger';
@@ -245,12 +246,11 @@ const App: React.FC = () => {
             </FeatureErrorBoundary>
           );
         case 'settings': {
-          const role = getCachedUser()?.role;
-          if (role !== 'Admin') {
+          if (!canAccessSettings(getCachedUser())) {
             return (
               <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
-                <p className="text-slate-500 text-sm">Settings are available to administrators only. Contact an admin if you need a change made.</p>
+                <p className="text-slate-500 text-sm">Settings access is limited to the finance/admin team. Contact Rufaro, Brian, or Nick if you need a change made.</p>
               </div>
             );
           }
