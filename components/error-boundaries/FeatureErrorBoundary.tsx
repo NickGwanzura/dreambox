@@ -6,6 +6,7 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { logger } from '../../utils/logger';
+import { isChunkLoadError, reloadForStaleChunk } from '../../utils/lazyWithRetry';
 
 interface Props {
   children: React.ReactNode;
@@ -33,6 +34,9 @@ export class FeatureErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error(`Error in ${(this as any).props.featureName}:`, error, errorInfo);
+    if (isChunkLoadError(error)) {
+      reloadForStaleChunk(error);
+    }
   }
 
   render() {

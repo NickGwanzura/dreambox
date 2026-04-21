@@ -3,8 +3,21 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { isChunkLoadError, reloadForStaleChunk } from './utils/lazyWithRetry';
 
 console.log("Initializing Billboard Suite...");
+
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  reloadForStaleChunk((event as unknown as { payload?: unknown }).payload ?? 'vite:preloadError');
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  if (isChunkLoadError(event.reason)) {
+    event.preventDefault();
+    reloadForStaleChunk(event.reason);
+  }
+});
 
 try {
   const rootElement = document.getElementById('root');
