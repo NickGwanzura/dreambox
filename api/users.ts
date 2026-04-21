@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { Resend } from 'resend';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireAdmin, cors } from '../lib/auth';
+import { requireAuth, requireAdmin, requireDeletePermission, cors } from '../lib/auth';
 import { validatePassword } from '../lib/passwordPolicy.js';
 
 const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
@@ -296,11 +296,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ----------------------------------------------------------------
-  // DELETE /api/users?id=... — delete user (Admin only)
+  // DELETE /api/users?id=... — delete user (allowlist only)
   // ----------------------------------------------------------------
   if (req.method === 'DELETE') {
-    const admin = requireAdmin(req, res);
-    if (!admin) return;
+    if (!requireDeletePermission(req, res)) return;
     const { id } = req.query;
     if (!id || !UUID_RE.test(id as string)) return res.status(400).json({ error: 'Valid id required' });
 

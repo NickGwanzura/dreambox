@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireAdmin, cors } from '../lib/auth';
+import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 
 const contractSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
@@ -52,12 +52,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'DELETE') {
-      const adminPayload = requireAdmin(req, res);
-      if (!adminPayload) return;
+      if (!requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
-      await prisma.contract.delete({ where: { id: id as string } });
-      return res.status(200).json({ success: true });
+      // Cascade-delete linked invoices in the same transaction so a deleted contract never
+      // leaves behind orphan invoices. Receipts and quotations are preserved.
+      const [{ count: invoicesDeleted }] = await prisma.$transaction([
+        prisma.invoice.deleteMany({ where: { contractId: id as string, type: 'Invoice' } }),
+        prisma.contract.delete({ where: { id: id as string } }),
+      ]);
+      return res.status(200).json({ success: true, invoicesDeleted });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

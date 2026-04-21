@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireAdmin, cors } from '../lib/auth';
+import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 
 const invoiceSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
@@ -52,8 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'DELETE') {
-      const adminPayload = requireAdmin(req, res);
-      if (!adminPayload) return;
+      if (!requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
       await prisma.invoice.delete({ where: { id: id as string } });

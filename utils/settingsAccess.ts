@@ -1,12 +1,21 @@
-export const SETTINGS_ALLOWED_EMAILS: readonly string[] = [
+export const PRIVILEGED_EMAILS: readonly string[] = [
   'rufarod@gmail.com',
   'chiduroobc@gmail.com',
-  'chiduurobc@gmail.com',
   'nicholas.gwanzura@outlook.com',
 ];
 
-export function canAccessSettings(user: { email?: string | null } | null | undefined): boolean {
+export const SETTINGS_ALLOWED_EMAILS = PRIVILEGED_EMAILS;
+
+function isPrivileged(user: { email?: string | null } | null | undefined): boolean {
   const email = user?.email?.trim().toLowerCase();
   if (!email) return false;
-  return SETTINGS_ALLOWED_EMAILS.includes(email);
+  return PRIVILEGED_EMAILS.includes(email);
+}
+
+export function canAccessSettings(user: { email?: string | null } | null | undefined): boolean {
+  return isPrivileged(user);
+}
+
+export function canDelete(user: { email?: string | null } | null | undefined): boolean {
+  return isPrivileged(user);
 }

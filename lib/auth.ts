@@ -103,3 +103,24 @@ export function requireManagerOrAdmin(
   }
   return payload;
 }
+
+const DELETE_ALLOWED_EMAILS: readonly string[] = [
+  'rufarod@gmail.com',
+  'chiduroobc@gmail.com',
+  'nicholas.gwanzura@outlook.com',
+];
+
+export function requireDeletePermission(
+  req: VercelRequest,
+  res: VercelResponse
+): JWTPayload | null {
+  const payload = requireAuth(req, res);
+  if (!payload) return null;
+  const email = payload.email?.trim().toLowerCase();
+  if (!email || !DELETE_ALLOWED_EMAILS.includes(email)) {
+    log.warn(`Delete rejected — not on allowlist  user=${payload.email}  ${req.method} ${(req as any).originalUrl ?? req.url}`);
+    res.status(403).json({ error: 'Delete permission is limited to Rufaro, Brian, or Nick.' });
+    return null;
+  }
+  return payload;
+}
