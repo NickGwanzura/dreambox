@@ -4,6 +4,8 @@ import { Client } from '../types';
 import { getClients, addClient, deleteClient, updateClient, getNextBillingDetails, subscribe } from '../services/mockData';
 import { generateClientDirectoryPDF } from '../services/pdfGenerator';
 import { Mail, Phone, MoreHorizontal, User, Plus, X, Save, Search, Trash2, AlertTriangle, Calendar, Clock, Edit2, CreditCard, Share2, Download, CheckCircle } from 'lucide-react';
+import { getCurrentUser } from '../services/authServiceSecure';
+import { canDelete } from '../utils/settingsAccess';
 
 const MinimalInput = ({ label, value, onChange, type = "text", placeholder, required = false, max, min, step }: any) => (
   <div className="group relative">
@@ -13,6 +15,7 @@ const MinimalInput = ({ label, value, onChange, type = "text", placeholder, requ
 );
 
 export const ClientList: React.FC = () => {
+  const canUserDelete = canDelete(getCurrentUser());
   const [clients, setClients] = useState<Client[]>(getClients());
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -88,7 +91,7 @@ export const ClientList: React.FC = () => {
                             <div className="flex gap-1">
                                 <button onClick={() => generatePortalLink(client)} className="text-slate-300 hover:text-green-600 transition-colors p-2 hover:bg-green-50 rounded-full" title="Copy Client Portal Link"><Share2 size={18} /></button>
                                 <button onClick={() => setEditingClient(client)} className="text-slate-300 hover:text-indigo-600 transition-colors p-2 hover:bg-indigo-50 rounded-full" title="Edit Client"><Edit2 size={18} /></button>
-                                <button onClick={() => setClientToDelete(client)} className="text-slate-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full" title="Delete Client"><Trash2 size={18} /></button>
+                                {canUserDelete && (<button onClick={() => setClientToDelete(client)} className="text-slate-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full" title="Delete Client"><Trash2 size={18} /></button>)}
                             </div>
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-1">{client.companyName}</h3><div className="flex items-center gap-2 text-sm text-slate-500 mb-6 font-medium"><User size={14} className="text-indigo-500"/> {client.contactPerson}</div>

@@ -4,6 +4,8 @@ import { Billboard, BillboardType, Client, Contract } from '../types';
 import { getBillboards, addBillboard, updateBillboard, deleteBillboard, clients, ZIM_TOWNS, addClient, addContract, getClients, updateClient, getContracts, subscribe } from '../services/mockData';
 import { analyzeBillboardLocation } from '../services/aiService';
 import { MapPin, X, Edit2, Save, Plus, Image as ImageIcon, Map as MapIcon, Grid as GridIcon, Trash2, AlertTriangle, Share2, Eye, List as ListIcon, Search, Link2, Upload, Download, Layers, Users, Sparkles, RefreshCw, Car, ZoomIn, Maximize2, Hash, Zap, MousePointer2, FileText, Globe, FileDown } from 'lucide-react';
+import { getCurrentUser } from '../services/authServiceSecure';
+import { canDelete } from '../utils/settingsAccess';
 import { generateAvailabilitySheetPDF } from '../services/pdfGenerator';
 import L from 'leaflet';
 
@@ -78,9 +80,10 @@ interface BillboardCardProps {
   getClientName: (id?: string) => string;
   onShare: (b: Billboard) => void;
   onViewImage: (url: string) => void;
+  canUserDelete: boolean;
 }
 
-const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit, onDelete, getClientName, onShare, onViewImage }) => {
+const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit, onDelete, getClientName, onShare, onViewImage, canUserDelete }) => {
     const status = getAvailabilityStatus(billboard);
     const isAvailable = status === 'Open';
     const isPartial = status === 'Partial';
@@ -205,9 +208,9 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
                     <button onClick={(e) => { e.stopPropagation(); onShare(billboard); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Share">
                         <Share2 size={16} strokeWidth={2}/>
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(billboard); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                    {canUserDelete && (<button onClick={(e) => { e.stopPropagation(); onDelete(billboard); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
                         <Trash2 size={16} strokeWidth={2}/>
-                    </button>
+                    </button>)}
                 </div>
             </div>
         </div>
@@ -215,6 +218,7 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
 };
 
 export const BillboardList: React.FC = () => {
+  const canUserDelete = canDelete(getCurrentUser());
   const [billboards, setBillboards] = useState<Billboard[]>(getBillboards());
   const [filter, setFilter] = useState<'All' | 'Static' | 'LED'>('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
@@ -663,12 +667,12 @@ export const BillboardList: React.FC = () => {
                                  <div className="flex gap-2">
                                      <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Edit"><Edit2 size={16}/></button>
                                      <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Share"><Share2 size={16}/></button>
-                                     <button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors" title="Delete"><Trash2 size={16}/></button>
+                                     {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors" title="Delete"><Trash2 size={16}/></button>)}
                                  </div>
                              </div>
                          </div>
                     ) : (
-                        <BillboardCard key={b.id} billboard={b} index={idx + 1} onEdit={setEditingBillboard} onDelete={setBillboardToDelete} getClientName={getClientName} onShare={shareBillboard} onViewImage={(url) => setViewImage(url)} />
+                        <BillboardCard key={b.id} billboard={b} index={idx + 1} onEdit={setEditingBillboard} onDelete={setBillboardToDelete} getClientName={getClientName} onShare={shareBillboard} onViewImage={(url) => setViewImage(url)} canUserDelete={canUserDelete} />
                     )
                 })}
             </div>

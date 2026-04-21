@@ -6,6 +6,8 @@ import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, VAT_RATE, Invoice } from '../types';
 import { splitInclusiveVat } from '../services/constants';
 import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle } from 'lucide-react';
+import { getCurrentUser } from '../services/authServiceSecure';
+import { canDelete } from '../utils/settingsAccess';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -48,6 +50,7 @@ const MinimalSelect = ({ label, value, onChange, options, disabled = false }: an
 );
 
 export const Rentals: React.FC = () => {
+  const canUserDelete = canDelete(getCurrentUser());
   const [rentals, setRentals] = useState<Contract[]>(getContracts());
   const [viewMode, setViewMode] = useState<'list' | 'gantt'>('list');
   const [selectedRental, setSelectedRental] = useState<Contract | null>(null);
@@ -525,9 +528,9 @@ export const Rentals: React.FC = () => {
                         <button onClick={() => { const client = getClient(contract.clientId); if(client) generateContractPDF(contract, client, getBillboardName(contract.billboardId)); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
                             <Download size={14} /> <span className="hidden sm:inline">PDF</span>
                         </button>
-                        <button onClick={() => setRentalToDelete(contract)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Rental">
+                        {canUserDelete && (<button onClick={() => setRentalToDelete(contract)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Rental">
                             <Trash2 size={16} />
-                        </button>
+                        </button>)}
                     </div>
                 </div>
                 </div>
