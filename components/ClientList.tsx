@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { Client } from '../types';
-import { getClients, addClient, deleteClient, updateClient, getNextBillingDetails, subscribe } from '../services/mockData';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Client, Contract } from '../types';
+import { getClients, addClient, deleteClient, updateClient, getNextBillingDetails, getContracts, subscribe } from '../services/mockData';
 import { generateClientDirectoryPDF } from '../services/pdfGenerator';
 import { Mail, Phone, MoreHorizontal, User, Plus, X, Save, Search, Trash2, AlertTriangle, Calendar, Clock, Edit2, CreditCard, Share2, Download, CheckCircle } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
@@ -18,10 +18,19 @@ const MinimalInput = ({ label, value, onChange, type = "text", placeholder, requ
 export const ClientList: React.FC = () => {
   const canUserDelete = canDelete(getCurrentUser());
   const [clients, setClients] = useState<Client[]>(getClients());
+  const [contracts, setContracts] = useState<Contract[]>(getContracts());
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClientId, setViewingClientId] = useState<string | null>(null);
+
+  const activeContractsByClient = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const c of contracts) {
+      if (c.status === 'Active') map[c.clientId] = (map[c.clientId] || 0) + 1;
+    }
+    return map;
+  }, [contracts]);
 
   const [newClient, setNewClient] = useState<Partial<Client>>({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined });
 
@@ -29,6 +38,7 @@ export const ClientList: React.FC = () => {
   useEffect(() => {
       const unsubscribe = subscribe(() => {
           setClients([...getClients()]);
+          setContracts([...getContracts()]);
       });
       return () => { unsubscribe(); };
   }, []);
@@ -140,6 +150,7 @@ export const ClientList: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {clients.map(client => {
                 const billingInfo = getNextBillingDetails(client.id);
+                const activeCount = activeContractsByClient[client.id] || 0;
                 return (
                 <div key={client.id} onClick={() => setViewingClientId(client.id)} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 group hover:-translate-y-1 flex flex-col justify-between cursor-pointer">
                     <div>
@@ -172,7 +183,22 @@ export const ClientList: React.FC = () => {
                              </div>
                         ) : null}
                     </div>
-                    <div className="flex justify-between items-center pt-2"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${client.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{client.status}</span><span className="text-xs font-bold uppercase tracking-wider text-slate-400 group-hover:text-indigo-600 transition-colors flex items-center gap-1">View Profile <MoreHorizontal size={14}/></span></div>
+                    <div className="flex justify-between items-center pt-2">
+                        <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${client.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{client.status}</span>
+                            {activeCount > 0 ? (
+                                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border bg-indigo-50 text-indigo-600 border-indigo-100 flex items-center gap-1" title={`${activeCount} active contract${activeCount === 1 ? '' : 's'}`}>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                                    {activeCount === 1 ? 'Active Contract' : `${activeCount} Active`}
+                                </span>
+                            ) : (
+                                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border bg-slate-50 text-slate-400 border-slate-100" title="No active contracts">
+                                    No Active Contract
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 group-hover:text-indigo-600 transition-colors flex items-center gap-1">View Profile <MoreHorizontal size={14}/></span>
+                    </div>
                 </div>
             )})}
         </div>
