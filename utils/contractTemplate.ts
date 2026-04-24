@@ -1,12 +1,12 @@
 import { Billboard, Client, CompanyProfile, Contract, BillboardType } from '../types';
 
 export const CONTRACT_TEMPLATE_PLACEHOLDERS = [
-  { key: 'contract_number', label: 'Contract number (e.g. BIM/109/)' },
+  { key: 'contract_number', label: 'Contract reference (the contract ID, e.g. C-1234)' },
   { key: 'contract_date', label: 'Date the contract is issued' },
   { key: 'company_name', label: 'Your company name' },
   { key: 'company_address', label: 'Your registered address' },
   { key: 'advertiser_name', label: 'Client company name' },
-  { key: 'advertiser_address', label: 'Client address (falls back to "[address]")' },
+  { key: 'advertiser_address', label: 'Client address (falls back to "[address on file]")' },
   { key: 'billboard_name', label: 'Billboard name' },
   { key: 'billboard_location', label: 'Billboard location' },
   { key: 'billboard_type', label: 'Static or LED' },
@@ -100,9 +100,9 @@ function monthsBetween(start: string, end: string): number {
   const s = new Date(start);
   const e = new Date(end);
   if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
-  const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
-  const dayDiff = e.getDate() - s.getDate();
-  return Math.max(1, months + (dayDiff >= 0 ? 0 : -1) + 1);
+  const days = (e.getTime() - s.getTime()) / 86_400_000;
+  if (days <= 0) return 0;
+  return Math.max(1, Math.round(days / 30.4375));
 }
 
 function buildRateBlock(contract: Contract, billboard: Billboard | undefined, advertiser: string): string {
@@ -110,33 +110,29 @@ function buildRateBlock(contract: Contract, billboard: Billboard | undefined, ad
   const sizeStr = billboard ? `${billboard.width}m x ${billboard.height}m` : '';
   const typeLabel = billboard?.type === BillboardType.LED ? 'digital' : 'static';
   const detail = contract.details || '';
+  const vatNote = contract.hasVat ? 'VAT-inclusive, 15%' : 'VAT not included';
 
-  const lines: string[] = [];
-  lines.push(`• The Advertiser ${advertiser}, will be required to pay:`);
-  lines.push('');
-  lines.push(`${monthly} USD per month (VAT not included)`);
-  lines.push('');
+  let placement: string;
   if (billboard?.type === BillboardType.LED) {
-    const slots = contract.slotNumber ? 1 : 1;
-    lines.push(`for a 10-second slot on a ${sizeStr} ${typeLabel} billboard located at ${billboard.location}.`);
-    void slots;
+    const slotLabel = contract.slotNumber ? `slot ${contract.slotNumber}` : 'one rotating slot';
+    placement = `for ${slotLabel} on the ${sizeStr} ${typeLabel} billboard located at ${billboard.location}`;
   } else if (billboard) {
-    lines.push(`for ${detail || 'the rental'} on the ${sizeStr} ${typeLabel} billboard located at ${billboard.location}.`);
+    placement = `for ${detail || 'the rental'} on the ${sizeStr} ${typeLabel} billboard located at ${billboard.location}`;
   } else {
-    lines.push(`for ${detail || 'the agreed placement'}.`);
+    placement = `for ${detail || 'the agreed placement'}`;
   }
 
   const oneOffs: string[] = [];
   if (contract.installationCost > 0) oneOffs.push(`${money(contract.installationCost)} installation fee`);
   if ((contract.productionCost ?? 0) > 0) oneOffs.push(`${money(contract.productionCost ?? 0)} production fee (one-time)`);
   if (contract.printingCost > 0) oneOffs.push(`${money(contract.printingCost)} printing cost`);
-  if (oneOffs.length > 0) {
-    lines.push('');
-    lines.push(`Additional one-time charges: ${oneOffs.join('; ')}.`);
-  }
 
-  lines.push('');
-  lines.push(`Total contract value: ${money(contract.totalContractValue)}${contract.hasVat ? ' (VAT-inclusive, 15%)' : ' (VAT not included)'}.`);
+  const lines: string[] = [];
+  lines.push(`• The Advertiser ${advertiser} shall pay ${monthly} per month (${vatNote}) ${placement}.`);
+  if (oneOffs.length > 0) {
+    lines.push(`• Additional one-time charges: ${oneOffs.join('; ')}.`);
+  }
+  lines.push(`• Total contract value: ${money(contract.totalContractValue)} (${vatNote}).`);
 
   return lines.join('\n');
 }
@@ -173,7 +169,7 @@ export function buildTemplateData(
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const months = monthsBetween(contract.startDate, contract.endDate);
   const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || '[address]';
-  const advertiserAddress = (client as any).address || '[address on file]';
+  const advertiserAddress = '[address on file]';
 
   const base: TemplateData = {
     contract_number: contract.id,

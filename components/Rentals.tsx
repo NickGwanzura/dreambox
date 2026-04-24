@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe } from '../services/mockData';
-import { generateContractPDF, generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
+import { generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, VAT_RATE, Invoice } from '../types';
 import { splitInclusiveVat } from '../services/constants';
@@ -532,7 +532,7 @@ export const Rentals: React.FC = () => {
                                 <RotateCcw size={14} /> <span className="hidden sm:inline">Renew</span>
                             </button>
                         )}
-                        <button onClick={() => { const client = getClient(contract.clientId); if(client) generateContractPDF(contract, client, getBillboardName(contract.billboardId)); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
+                        <button onClick={() => { const client = getClient(contract.clientId); if(client) generateLegalContractPDF(contract, client, getBillboard(contract.billboardId)); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
                             <Download size={14} /> <span className="hidden sm:inline">PDF</span>
                         </button>
                         {canUserDelete && (<button onClick={() => setRentalToDelete(contract)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Rental">

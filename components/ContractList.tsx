@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, updateContract, subscribe } from '../services/mockData';
-import { generateContractPDF } from '../services/pdfGenerator';
+import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat } from '../services/constants';
@@ -40,7 +40,7 @@ export const ContractList: React.FC = () => {
   const handleDownload = (contract: Contract) => {
     const client = getClient(contract.clientId);
     if (client) {
-      generateContractPDF(contract, client, getBillboardName(contract.billboardId));
+      generateLegalContractPDF(contract, client, getBillboard(contract.billboardId));
     }
   };
 

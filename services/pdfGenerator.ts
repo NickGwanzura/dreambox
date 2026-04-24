@@ -195,11 +195,17 @@ const addCompanyHeader = (doc: jsPDF, logoInfo?: LogoInfo | null): number => {
     return startY + 15; // Return Y position for next elements
 };
 
+const buildFooterLine = (profile: CompanyProfile): string => {
+    const address = [profile.address, profile.city, profile.country].filter(Boolean).join(', ');
+    return [address, profile.phone, profile.email, profile.website].filter(Boolean).join('  |  ');
+};
+
 // Adds a contact footer to every page of the document
 const addContactFooter = (doc: jsPDF) => {
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     const pageCount = (doc as any).getNumberOfPages ? (doc as any).getNumberOfPages() : 1;
+    const contactLine = buildFooterLine(getCompanyProfile());
 
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -213,8 +219,9 @@ const addContactFooter = (doc: jsPDF) => {
         doc.setFont("helvetica", "normal");
         doc.setTextColor(150);
 
-        const contactLine = '54 Brooke Village, Borrowdale Brooke, Harare, Zimbabwe  |  +263 778 018 909  |  info@dreamboxadvertising.com  |  www.dreamboxadvertising.com';
-        doc.text(contactLine, pageWidth / 2, footerY, { align: 'center' });
+        if (contactLine) {
+            doc.text(contactLine, pageWidth / 2, footerY, { align: 'center' });
+        }
 
         if (pageCount > 1) {
             doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, footerY, { align: 'right' });
@@ -328,162 +335,6 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
   }
 };
 
-export const generateContractPDF = async (contract: Contract, client: Client, billboardName: string) => {
-  try {
-    const doc = new jsPDF();
-    const profile = getCompanyProfile();
-    const branding = await getPdfBranding();
-    let currentY = addCompanyHeader(doc, branding);
-
-    doc.setFontSize(22);
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.text('RENTAL AGREEMENT', 105, currentY, { align: 'center' });
-    
-    currentY += 10;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    doc.text(`Contract ID: ${contract.id}`, 105, currentY, { align: 'center' });
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 105, currentY + 5, { align: 'center' });
-
-    currentY += 15;
-
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.rect(14, currentY, 182, 35, 'FD');
-
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.text('Parties Involved', 20, currentY + 10);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(50);
-    
-    doc.text(`Lessor: ${profile.name}`, 20, currentY + 20);
-    doc.text(`Address: ${profile.address}, ${profile.city}`, 20, currentY + 25);
-    
-    doc.text(`Lessee: ${client.companyName}`, 110, currentY + 20);
-    doc.text(`Contact: ${client.contactPerson}`, 110, currentY + 25);
-
-    currentY += 45;
-
-    doc.setFontSize(12);
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.text('1. Asset Details', 14, currentY);
-    
-    currentY += 8;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(50);
-    const assetInfo = [
-        `Billboard Location: ${billboardName}`,
-        `Specific Unit/Side: ${contract.details}`,
-        `Contract Duration: ${contract.startDate} to ${contract.endDate}`,
-    ];
-    assetInfo.forEach(line => {
-        doc.text(`• ${line}`, 20, currentY);
-        currentY += 6;
-    });
-
-    currentY += 10;
-
-    doc.setFontSize(12);
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.text('2. Financial Terms', 14, currentY);
-    
-    currentY += 8;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(50);
-    doc.text(`Monthly Rental Rate: $${contract.monthlyRate.toFixed(2)}`, 20, currentY);
-    currentY += 6;
-    if(contract.installationCost > 0) {
-        doc.text(`Installation Fee (One-time): $${contract.installationCost.toFixed(2)}`, 20, currentY);
-        currentY += 6;
-    }
-    if((contract.productionCost ?? 0) > 0) {
-        doc.text(`Production Fee (One-time): $${(contract.productionCost ?? 0).toFixed(2)}`, 20, currentY);
-        currentY += 6;
-    }
-    if(contract.printingCost > 0) {
-        doc.text(`Printing Cost: $${contract.printingCost.toFixed(2)}`, 20, currentY);
-        currentY += 6;
-    }
-    
-    currentY += 4;
-    doc.setFont("helvetica", "bold");
-    doc.text(`Total Contract Value: $${contract.totalContractValue.toFixed(2)}`, 20, currentY);
-    
-    currentY += 15;
-
-    doc.setFontSize(12);
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.text('3. Terms and Conditions', 14, currentY);
-    
-    currentY += 8;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(50);
-    
-    const terms = [
-        "1. PAYMENT: All rental payments are due in advance on the 1st of each month unless otherwise specified.",
-        "2. ARTWORK: The Lessee is responsible for providing artwork in the required format. Printing costs are separate.",
-        "3. MAINTENANCE: The Lessor shall maintain the structure in good repair.",
-        "4. INDEMNITY: The Lessee indemnifies the Lessor against claims arising from the content of the advertisement.",
-        "5. TERMINATION: Either party may terminate this agreement with 30 days written notice.",
-        "6. JURISDICTION: This agreement is governed by the laws of Zimbabwe."
-    ];
-    
-    terms.forEach(term => {
-        doc.text(term, 20, currentY);
-        currentY += 5;
-    });
-    
-    currentY += 15;
-    
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text("4. Signatures", 14, currentY);
-    
-    currentY += 15;
-    
-    const boxY = currentY;
-    
-    doc.setDrawColor(200);
-    doc.setLineWidth(0.5);
-    doc.rect(14, boxY, 80, 30);
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text("Signed for and on behalf of Lessor:", 16, boxY + 5);
-    doc.line(20, boxY + 22, 80, boxY + 22); 
-    doc.text(profile.name, 20, boxY + 27);
-
-    doc.rect(110, boxY, 80, 30);
-    doc.text("Signed for and on behalf of Lessee:", 112, boxY + 5);
-    doc.line(116, boxY + 22, 176, boxY + 22); 
-    doc.text(client.companyName, 116, boxY + 27);
-
-    addContactFooter(doc);
-    doc.save(`Contract_${contract.id}.pdf`);
-  } catch (error) {
-    console.error("PDF Generation Error:", error);
-    alert("Failed to generate Contract PDF.");
-  }
-};
-
-/**
- * Generate a long-form legal contract PDF from the company's editable template.
- * The template is resolved from CompanyProfile.contractTemplate with fallback to the
- * built-in default; placeholders ({{advertiser_name}}, {{rate_block}}, etc.) are
- * substituted with contract/client/billboard data.
- */
 export const generateLegalContractPDF = async (
   contract: Contract,
   client: Client,
@@ -536,21 +387,24 @@ export const generateLegalContractPDF = async (
       y += lines.length * lineHeight + (isHeading ? 3 : 2);
     };
 
-    // Document title from the first line if it looks like "ADVERTISING CONTRACT ..."
     const paragraphs = body.split(/\n{2,}/);
 
     paragraphs.forEach((raw, idx) => {
       const para = raw.trim();
       if (!para) { y += 2; return; }
 
-      // First paragraph is typically the title — render big, centered.
-      if (idx === 0 && /^[A-Z][A-Z\s\d\-\/]+/.test(para.split('\n')[0])) {
+      // First paragraph is the document title — centered, bold, 16pt. Wraps if long.
+      if (idx === 0) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(16);
         doc.setTextColor(15, 23, 42);
-        ensureSpace(12);
-        doc.text(para, PAGE_W / 2, y + 6, { align: 'center' });
-        y += 12;
+        const titleLines = doc.splitTextToSize(para.replace(/\n+/g, ' '), CONTENT_W);
+        ensureSpace(titleLines.length * 8 + 4);
+        titleLines.forEach((line: string) => {
+          doc.text(line, PAGE_W / 2, y + 6, { align: 'center' });
+          y += 8;
+        });
+        y += 4;
         return;
       }
 
@@ -1125,10 +979,13 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         doc.setTextColor(accent[0], accent[1], accent[2]);
         doc.text('OUR OFFICES', 24, contactY + 16);
 
+        const contactProfile = getCompanyProfile();
+        const officeAddress = [contactProfile.address, contactProfile.city, contactProfile.country].filter(Boolean).join(', ');
+
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(226, 232, 240);
-        doc.text('54 Brooke Village, Borrowdale Brooke, Harare, Zimbabwe', 24, contactY + 22);
+        if (officeAddress) doc.text(officeAddress, 24, contactY + 22);
 
         const col2X = 24 + (pageWidth - 28) * 0.45;
         doc.setFontSize(8);
@@ -1140,13 +997,15 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(226, 232, 240);
-        doc.text('+263 778 018 909', col2X, contactY + 22);
-        doc.text('info@dreamboxadvertising.com', col2X + 55, contactY + 22);
+        if (contactProfile.phone) doc.text(contactProfile.phone, col2X, contactY + 22);
+        if (contactProfile.email) doc.text(contactProfile.email, col2X + 55, contactY + 22);
 
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(203, 213, 225);
-        doc.text('www.dreamboxadvertising.com', 24, contactY + 29);
+        if (contactProfile.website) {
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(203, 213, 225);
+            doc.text(contactProfile.website, 24, contactY + 29);
+        }
 
         addContactFooter(doc);
         doc.save(`Availability_Sheet_${new Date().toISOString().slice(0, 10)}.pdf`);
