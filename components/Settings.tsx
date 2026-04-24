@@ -3,7 +3,6 @@ import { getUsers as getLocalUsers, addUser as addLocalUser, updateUser as updat
 import { createUser, updateUserData, deleteUserData, approveUser, rejectUser, fetchAllUsers, suspendUser, reactivateUser, unlockUser, updateUserPermissions, bulkInviteUsers, fetchLoginHistory, adminResetPassword } from '../services/userManagement';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canAccessSettings } from '../utils/settingsAccess';
-import { CONTRACT_TEMPLATE_PLACEHOLDERS, DEFAULT_CONTRACT_TEMPLATE } from '../utils/contractTemplate';
 import { generateAppFeaturesPDF, generateUserManualPDF } from '../services/pdfGenerator';
 import { Shield, Building, ScrollText, Download, Plus, X, Save, Phone, MapPin, Edit2, Trash2, AlertTriangle, Cloud, Upload, RefreshCw, Clock, HardDrive, Sparkles, Loader2, CheckCircle, FileText, ChevronRight, Server, Wifi, Activity, Lock, Copy, FileCheck, Layers, Cpu, Code2, UserCheck, Users, Database, UserX, Key, History, SlashSquare, Settings2, Mail } from 'lucide-react';
 import { User as UserType, CompanyProfile, UserPermissions, LoginHistoryEntry } from '../types';
@@ -480,40 +479,19 @@ export const Settings: React.FC = () => {
                   </div>
                   <div className="border-t border-slate-50 pt-6">
                     <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400 tracking-wider mb-4"><FileText size={14} /> Legal Contract Template</h4>
-                    <p className="text-xs text-slate-400 mb-4">
-                      Used when you click &ldquo;Generate Full Legal Contract&rdquo; from a contract. Supports placeholders — they&apos;re replaced with client / billboard / rate data at generation time.
-                      Leave blank to use the built-in default.
-                    </p>
-                    <details className="mb-4 text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-100 p-4">
-                      <summary className="cursor-pointer font-bold text-slate-600 uppercase tracking-wider text-[10px]">Available placeholders</summary>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mt-3 font-mono text-[11px]">
-                        {CONTRACT_TEMPLATE_PLACEHOLDERS.map(p => (
-                          <div key={p.key} className="flex items-start gap-2">
-                            <code className="text-indigo-600 shrink-0">{`{{${p.key}}}`}</code>
-                            <span className="text-slate-500">— {p.label}</span>
-                          </div>
-                        ))}
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex items-start gap-3">
+                      <div className="p-2 bg-white rounded-lg text-indigo-600 shrink-0"><FileText size={16} /></div>
+                      <div className="text-sm text-indigo-900">
+                        <p className="font-bold mb-1">Edit the contract template on the dedicated page.</p>
+                        <p className="text-indigo-700 leading-relaxed">
+                          The full editor (with preview, placeholder reference, and click-to-copy) lives in the sidebar under
+                          <strong> Contract Template</strong>. Keeping it on its own page gives the legal text the full page
+                          width it needs.
+                          {profile.contractTemplate?.trim()
+                            ? <span className="block mt-2 text-[11px] text-indigo-600">Current status: custom override ({profile.contractTemplate.length.toLocaleString()} chars).</span>
+                            : <span className="block mt-2 text-[11px] text-indigo-600">Current status: using built-in default.</span>}
+                        </p>
                       </div>
-                    </details>
-                    <textarea
-                      value={profile.contractTemplate ?? ''}
-                      onChange={(e) => setProfile({ ...profile, contractTemplate: e.target.value })}
-                      rows={22}
-                      placeholder={DEFAULT_CONTRACT_TEMPLATE}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-xs font-mono leading-relaxed resize-y"
-                      spellCheck={false}
-                    />
-                    <div className="flex justify-between items-center mt-2">
-                      <p className="text-[10px] text-slate-400">
-                        {profile.contractTemplate?.trim() ? `${profile.contractTemplate.length} chars — overriding default` : 'Empty — using built-in template'}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setProfile({ ...profile, contractTemplate: DEFAULT_CONTRACT_TEMPLATE })}
-                        className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700"
-                      >
-                        Load Default Template
-                      </button>
                     </div>
                   </div>
                 </div>
