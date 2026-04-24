@@ -58,6 +58,7 @@ export const Rentals: React.FC = () => {
   const [editRental, setEditRental] = useState<Contract | null>(null);
   const [renewRental, setRenewRental] = useState<Contract | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
   const [rentalToDelete, setRentalToDelete] = useState<Contract | null>(null);
   const [aiProposal, setAiProposal] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -242,6 +243,7 @@ export const Rentals: React.FC = () => {
     addInvoice(initialInvoice);
     
     setIsCreateModalOpen(false);
+    setCreateStep(1);
     setNewRental({ clientId: '', billboardId: '', side: 'A', slotNumber: 1, startDate: '', endDate: '', monthlyRate: 0, installationCost: 0, printingCost: 0, productionCost: 0, hasVat: true, assignedTo: '' });
     alert("Success! Rental Active & Initial Invoice Generated.");
   };
@@ -474,7 +476,7 @@ export const Rentals: React.FC = () => {
                   <button onClick={() => setViewMode('list')} className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}><List size={14}/> List</button>
                   <button onClick={() => setViewMode('gantt')} className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'gantt' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}><GanttChart size={14}/> Calendar</button>
               </div>
-              <button onClick={() => setIsCreateModalOpen(true)} className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2">
+              <button onClick={() => { setCreateStep(1); setIsCreateModalOpen(true); }} className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2">
                 <Plus size={18} /> <span className="hidden sm:inline">New Rental</span><span className="sm:hidden">New</span>
               </button>
           </div>
@@ -555,7 +557,7 @@ export const Rentals: React.FC = () => {
       {/* Create Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[200] overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsCreateModalOpen(false)} />
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => { setIsCreateModalOpen(false); setCreateStep(1); }} />
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
                 <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-4xl border border-white/20 max-h-[90vh] overflow-y-auto">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50 sticky top-0 z-10 backdrop-blur-sm">
@@ -563,122 +565,261 @@ export const Rentals: React.FC = () => {
                             <h3 className="text-xl font-bold text-slate-900">New Rental Agreement</h3>
                             <p className="text-xs text-slate-400 mt-0.5">Creates a contract and generates the first month's invoice</p>
                         </div>
-                        <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                        <button onClick={() => { setIsCreateModalOpen(false); setCreateStep(1); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2">
-                        <form onSubmit={handleCreateRental} className="p-6 sm:p-8 space-y-6 sm:space-y-8 border-r border-slate-100">
-                            <div className="space-y-6">
-                                <MinimalSelect label="Select Client" value={newRental.clientId} onChange={(e: any) => setNewRental({...newRental, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...clients.map(c => ({value: c.id, label: c.companyName}))]} />
-                                <MinimalSelect label="Select Billboard" value={newRental.billboardId} onChange={(e: any) => { setNewRental(prev => ({...prev, billboardId: e.target.value})); }} options={[{value: '', label: 'Select Billboard...'}, ...getBillboards().map(b => ({value: b.id, label: `${b.name} (${b.type})`}))]} />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                <MinimalInput label="Start Date" type="date" value={newRental.startDate} onChange={(e: any) => setNewRental({...newRental, startDate: e.target.value})} required />
-                                <MinimalInput label="End Date" type="date" value={newRental.endDate} onChange={(e: any) => setNewRental({...newRental, endDate: e.target.value})} required />
-                            </div>
-
-                            {selectedBillboard?.type === BillboardType.Static && (
-                                <div className="space-y-2">
-                                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Select Sides (Based on availability)</p>
-                                    <div className="flex flex-col sm:flex-row gap-4">
-                                        {(['A', 'B', 'Both'] as const).map(side => {
-                                            const available = checkAvailability(newRental.billboardId, side, newRental.startDate, newRental.endDate);
-                                            let price = 0;
-                                            if(side === 'A') price = selectedBillboard.sideARate || 0;
-                                            else if(side === 'B') price = selectedBillboard.sideBRate || 0;
-                                            else price = (selectedBillboard.sideARate || 0) + (selectedBillboard.sideBRate || 0);
-
-                                            const isSelected = newRental.side === side;
-                                            const disabled = !available;
-
-                                            return (
-                                                <label key={side} className={`flex-1 relative cursor-pointer border rounded-xl p-3 text-center transition-all ${disabled ? 'opacity-40 bg-slate-50 cursor-not-allowed border-slate-100' : isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}>
-                                                    <input type="radio" name="side" className="hidden" disabled={disabled} checked={isSelected} onChange={() => !disabled && setNewRental({...newRental, side, monthlyRate: price})} />
-                                                    <div className="font-bold text-slate-800">{side === 'Both' ? 'Both A&B' : `Side ${side}`}</div>
-                                                    <div className="text-xs text-slate-500">${price.toLocaleString()}</div>
-                                                    {disabled && (
-                                                        <div className="text-[10px] text-red-500 font-bold uppercase mt-1 flex items-center justify-center gap-1">
-                                                            <Lock size={10}/> Booked
-                                                        </div>
-                                                    )}
-                                                    {isSelected && <div className="absolute top-2 right-2 text-blue-500"><CheckCircle size={14}/></div>}
-                                                </label>
-                                            )
-                                        })}
-                                    </div>
-                                    {!newRental.startDate && <p className="text-[10px] text-indigo-500 mt-1">* Select dates to check availability.</p>}
-                                </div>
-                            )}
-                            
-                            {selectedBillboard?.type === BillboardType.LED && (
-                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Digital Availability</h4>
-                                        <span className={`text-xs font-bold px-2 py-1 rounded ${digitalFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                            {digitalOccupancy} / {selectedBillboard.totalSlots} Slots Booked
-                                        </span>
-                                    </div>
-                                    <MinimalSelect label="Select Slot ID (Reference)" value={newRental.slotNumber} onChange={(e: any) => setNewRental({...newRental, slotNumber: Number(e.target.value)})} options={Array.from({length: selectedBillboard.totalSlots || 10}, (_, i) => ({value: i+1, label: `Slot ${i+1}`}))} disabled={digitalFull} />
-                                    {digitalFull && <p className="text-[10px] text-red-500 mt-2 font-bold flex items-center gap-1"><Lock size={10}/> Fully Booked for selected dates.</p>}
-                                </div>
-                            )}
-                            
-                            <div className="bg-slate-50 p-6 rounded-2xl space-y-6">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div>
-                                        <MinimalInput label="Monthly Rate ($)" type="number" value={newRental.monthlyRate} onChange={(e: any) => setNewRental({...newRental, monthlyRate: Number(e.target.value)})} />
-                                        {newRental.hasVat && newRental.monthlyRate > 0 && (
-                                            <p className="text-[10px] text-slate-400 mt-2">Net: ${splitInclusiveVat(newRental.monthlyRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newRental.monthlyRate).vat.toFixed(2)}</p>
+                    {/* Progress Stepper */}
+                    <div className="px-8 pt-6 pb-4 bg-slate-50/60 border-b border-slate-100">
+                        <div className="flex items-center justify-between max-w-md mx-auto">
+                            {[
+                                { n: 1, label: 'Client' },
+                                { n: 2, label: 'Billboard' },
+                                { n: 3, label: 'Duration' },
+                            ].map((s, idx, arr) => {
+                                const done = createStep > s.n;
+                                const active = createStep === s.n;
+                                return (
+                                    <React.Fragment key={s.n}>
+                                        <div className="flex flex-col items-center gap-1">
+                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${done ? 'bg-emerald-500 border-emerald-500 text-white' : active ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border-slate-200 text-slate-400'}`}>
+                                                {done ? <CheckCircle size={16}/> : s.n}
+                                            </div>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${active ? 'text-slate-900' : done ? 'text-emerald-600' : 'text-slate-400'}`}>{s.label}</span>
+                                        </div>
+                                        {idx < arr.length - 1 && (
+                                            <div className={`flex-1 h-0.5 mx-2 transition-colors ${createStep > s.n ? 'bg-emerald-500' : 'bg-slate-200'}`} />
                                         )}
-                                    </div>
-                                    <div>
-                                        <MinimalInput label="Install Fee ($)" type="number" value={newRental.installationCost} onChange={(e: any) => setNewRental({...newRental, installationCost: Number(e.target.value)})} />
-                                        <p className="text-[10px] text-slate-400 mt-2">One-time setup charge billed in month 1</p>
-                                    </div>
-                                </div>
-                                {selectedBillboard?.type === BillboardType.Static && (
-                                    <div>
-                                        <MinimalInput label="Production Fee ($)" type="number" value={newRental.productionCost} onChange={(e: any) => setNewRental({...newRental, productionCost: Number(e.target.value)})} />
-                                        <p className="text-[10px] text-slate-400 mt-2">
-                                            {newRental.productionCost > 0
-                                                ? `Auto-set from size ${selectedBillboard.width}m × ${selectedBillboard.height}m. Edit if needed.`
-                                                : 'No standard fee for this size — enter manually if applicable.'}
-                                        </p>
-                                    </div>
-                                )}
-                                <div className="flex items-center gap-2">
-                                    <input type="checkbox" checked={newRental.hasVat} onChange={e => setNewRental({...newRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"/>
-                                    <label className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</label>
-                                </div>
-                                <p className="text-[10px] text-slate-400 -mt-2">When checked, VAT-inclusive — the system extracts 15% for invoicing. Uncheck only for VAT-exempt clients.</p>
-                            </div>
-                            <MinimalInput label="Assigned Sales Agent (Optional)" value={newRental.assignedTo} onChange={(e: any) => setNewRental({...newRental, assignedTo: e.target.value})} />
-                            <button type="submit" disabled={selectedBillboard?.type === BillboardType.LED && digitalFull} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed">
-                                Generate Contract & Invoice
-                            </button>
-                        </form>
-                        <div className="p-8 bg-slate-50/50 flex flex-col">
-                            <div className="flex items-center gap-2 mb-4">
-                                <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Wand2 size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800">AI Proposal Draft</h4>
-                                    <p className="text-xs text-slate-500">Generate a pitch email for this rental</p>
-                                </div>
-                            </div>
-                            <div className="flex-1 bg-white rounded-xl border border-slate-200 p-4 shadow-inner mb-4 overflow-y-auto min-h-[200px] text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
-                                {aiProposal || "Select a client and billboard, then click 'Generate' to create a professional pitch draft..."}
-                            </div>
-                            <button type="button" onClick={handleGenerateProposal} disabled={isGenerating} className="w-full py-3 bg-white border border-slate-200 text-slate-700 font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
-                                {isGenerating ? <RefreshCw size={16} className="animate-spin"/> : <Wand2 size={16} />} {isGenerating ? 'Drafting...' : 'Generate Proposal'}
-                            </button>
-                            {aiProposal && (
-                              <a href={`https://wa.me/?text=${encodeURIComponent(aiProposal)}`} target="_blank" rel="noopener noreferrer" className="w-full py-3 bg-green-600 text-white font-bold uppercase tracking-wider rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                                <MessageCircle size={16} /> Send via WhatsApp
-                              </a>
-                            )}
+                                    </React.Fragment>
+                                );
+                            })}
                         </div>
                     </div>
+
+                    {/* Wizard Body */}
+                    <form onSubmit={handleCreateRental} className="p-6 sm:p-8 space-y-6">
+
+                        {/* STEP 1 — Client */}
+                        {createStep === 1 && (
+                            <div className="space-y-4 animate-fade-in">
+                                <div>
+                                    <h4 className="text-lg font-bold text-slate-900">Who is the client?</h4>
+                                    <p className="text-xs text-slate-400 mt-0.5">Pick the advertiser this contract is for.</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1">
+                                    {clients.length === 0 && (
+                                        <p className="col-span-2 text-sm text-slate-400 italic text-center py-8">No clients found. Add one first under Clients.</p>
+                                    )}
+                                    {clients.map(c => {
+                                        const isSelected = newRental.clientId === c.id;
+                                        return (
+                                            <button type="button" key={c.id} onClick={() => setNewRental({ ...newRental, clientId: c.id })}
+                                                className={`text-left p-4 rounded-2xl border-2 transition-all ${isSelected ? 'border-slate-900 bg-slate-900/5 shadow-lg' : 'border-slate-100 hover:border-slate-300 bg-white'}`}>
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isSelected ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                                            {c.companyName.charAt(0)}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="font-bold text-slate-900 truncate">{c.companyName}</p>
+                                                            <p className="text-xs text-slate-400 truncate">{c.contactPerson}</p>
+                                                        </div>
+                                                    </div>
+                                                    {isSelected && <CheckCircle size={18} className="text-slate-900 shrink-0" />}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* STEP 2 — Billboard */}
+                        {createStep === 2 && (
+                            <div className="space-y-4 animate-fade-in">
+                                <div>
+                                    <h4 className="text-lg font-bold text-slate-900">Which billboard?</h4>
+                                    <p className="text-xs text-slate-400 mt-0.5">Pick the asset to rent. Side/slot availability is checked on the next step.</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1">
+                                    {getBillboards().length === 0 && (
+                                        <p className="col-span-2 text-sm text-slate-400 italic text-center py-8">No billboards in inventory.</p>
+                                    )}
+                                    {getBillboards().map(b => {
+                                        const isSelected = newRental.billboardId === b.id;
+                                        const rateHint = b.type === BillboardType.LED
+                                            ? `$${(b.ratePerSlot || 0).toLocaleString()}/slot`
+                                            : `A: $${(b.sideARate || 0).toLocaleString()} · B: $${(b.sideBRate || 0).toLocaleString()}`;
+                                        return (
+                                            <button type="button" key={b.id} onClick={() => setNewRental({ ...newRental, billboardId: b.id })}
+                                                className={`text-left p-4 rounded-2xl border-2 transition-all ${isSelected ? 'border-slate-900 bg-slate-900/5 shadow-lg' : 'border-slate-100 hover:border-slate-300 bg-white'}`}>
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="font-bold text-slate-900 truncate">{b.name}</p>
+                                                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${b.type === BillboardType.LED ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>{b.type}</span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 truncate">{b.location}, {b.town}</p>
+                                                        <p className="text-[11px] text-slate-400 mt-2">{b.width}m × {b.height}m · {rateHint}</p>
+                                                    </div>
+                                                    {isSelected && <CheckCircle size={18} className="text-slate-900 shrink-0" />}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* STEP 3 — Duration & Finalize */}
+                        {createStep === 3 && (
+                            <div className="space-y-6 animate-fade-in">
+                                <div>
+                                    <h4 className="text-lg font-bold text-slate-900">How long and what's the price?</h4>
+                                    <p className="text-xs text-slate-400 mt-0.5">Set dates, side/slot, and pricing.</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <MinimalInput label="Start Date" type="date" value={newRental.startDate} onChange={(e: any) => setNewRental({...newRental, startDate: e.target.value})} required />
+                                    <MinimalInput label="End Date" type="date" value={newRental.endDate} onChange={(e: any) => setNewRental({...newRental, endDate: e.target.value})} required />
+                                </div>
+
+                                {selectedBillboard?.type === BillboardType.Static && (
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Select Sides (Based on availability)</p>
+                                        <div className="flex flex-col sm:flex-row gap-4">
+                                            {(['A', 'B', 'Both'] as const).map(side => {
+                                                const available = checkAvailability(newRental.billboardId, side, newRental.startDate, newRental.endDate);
+                                                let price = 0;
+                                                if(side === 'A') price = selectedBillboard.sideARate || 0;
+                                                else if(side === 'B') price = selectedBillboard.sideBRate || 0;
+                                                else price = (selectedBillboard.sideARate || 0) + (selectedBillboard.sideBRate || 0);
+
+                                                const isSelected = newRental.side === side;
+                                                const disabled = !available;
+
+                                                return (
+                                                    <label key={side} className={`flex-1 relative cursor-pointer border rounded-xl p-3 text-center transition-all ${disabled ? 'opacity-40 bg-slate-50 cursor-not-allowed border-slate-100' : isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}>
+                                                        <input type="radio" name="side" className="hidden" disabled={disabled} checked={isSelected} onChange={() => !disabled && setNewRental({...newRental, side, monthlyRate: price})} />
+                                                        <div className="font-bold text-slate-800">{side === 'Both' ? 'Both A&B' : `Side ${side}`}</div>
+                                                        <div className="text-xs text-slate-500">${price.toLocaleString()}</div>
+                                                        {disabled && (
+                                                            <div className="text-[10px] text-red-500 font-bold uppercase mt-1 flex items-center justify-center gap-1">
+                                                                <Lock size={10}/> Booked
+                                                            </div>
+                                                        )}
+                                                        {isSelected && <div className="absolute top-2 right-2 text-blue-500"><CheckCircle size={14}/></div>}
+                                                    </label>
+                                                )
+                                            })}
+                                        </div>
+                                        {!newRental.startDate && <p className="text-[10px] text-indigo-500 mt-1">* Select dates to check availability.</p>}
+                                    </div>
+                                )}
+
+                                {selectedBillboard?.type === BillboardType.LED && (
+                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Digital Availability</h4>
+                                            <span className={`text-xs font-bold px-2 py-1 rounded ${digitalFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                {digitalOccupancy} / {selectedBillboard.totalSlots} Slots Booked
+                                            </span>
+                                        </div>
+                                        <MinimalSelect label="Select Slot ID (Reference)" value={newRental.slotNumber} onChange={(e: any) => setNewRental({...newRental, slotNumber: Number(e.target.value)})} options={Array.from({length: selectedBillboard.totalSlots || 10}, (_, i) => ({value: i+1, label: `Slot ${i+1}`}))} disabled={digitalFull} />
+                                        {digitalFull && <p className="text-[10px] text-red-500 mt-2 font-bold flex items-center gap-1"><Lock size={10}/> Fully Booked for selected dates.</p>}
+                                    </div>
+                                )}
+
+                                <div className="bg-slate-50 p-6 rounded-2xl space-y-6">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div>
+                                            <MinimalInput label="Monthly Rate ($)" type="number" value={newRental.monthlyRate} onChange={(e: any) => setNewRental({...newRental, monthlyRate: Number(e.target.value)})} />
+                                            {newRental.hasVat && newRental.monthlyRate > 0 && (
+                                                <p className="text-[10px] text-slate-400 mt-2">Net: ${splitInclusiveVat(newRental.monthlyRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newRental.monthlyRate).vat.toFixed(2)}</p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <MinimalInput label="Install Fee ($)" type="number" value={newRental.installationCost} onChange={(e: any) => setNewRental({...newRental, installationCost: Number(e.target.value)})} />
+                                            <p className="text-[10px] text-slate-400 mt-2">One-time setup charge billed in month 1</p>
+                                        </div>
+                                    </div>
+                                    {selectedBillboard?.type === BillboardType.Static && (
+                                        <div>
+                                            <MinimalInput label="Production Fee ($)" type="number" value={newRental.productionCost} onChange={(e: any) => setNewRental({...newRental, productionCost: Number(e.target.value)})} />
+                                            <p className="text-[10px] text-slate-400 mt-2">
+                                                {newRental.productionCost > 0
+                                                    ? `Auto-set from size ${selectedBillboard.width}m × ${selectedBillboard.height}m. Edit if needed.`
+                                                    : 'No standard fee for this size — enter manually if applicable.'}
+                                            </p>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                        <input type="checkbox" checked={newRental.hasVat} onChange={e => setNewRental({...newRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"/>
+                                        <label className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</label>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 -mt-2">When checked, VAT-inclusive — the system extracts 15% for invoicing. Uncheck only for VAT-exempt clients.</p>
+                                </div>
+                                <MinimalInput label="Assigned Sales Agent (Optional)" value={newRental.assignedTo} onChange={(e: any) => setNewRental({...newRental, assignedTo: e.target.value})} />
+
+                                {/* AI Proposal — collapsible, step 3 only */}
+                                <details className="bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                    <summary className="p-4 cursor-pointer flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                        <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Wand2 size={16}/></div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-800 text-sm">AI Proposal Draft</h4>
+                                            <p className="text-xs text-slate-500">Optional pitch email for this rental</p>
+                                        </div>
+                                    </summary>
+                                    <div className="p-4 border-t border-slate-100 space-y-3">
+                                        <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-4 min-h-[140px] text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+                                            {aiProposal || "Click 'Generate' to create a professional pitch draft..."}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button type="button" onClick={handleGenerateProposal} disabled={isGenerating} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-xs rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
+                                                {isGenerating ? <RefreshCw size={14} className="animate-spin"/> : <Wand2 size={14} />} {isGenerating ? 'Drafting...' : 'Generate Proposal'}
+                                            </button>
+                                            {aiProposal && (
+                                                <a href={`https://wa.me/?text=${encodeURIComponent(aiProposal)}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2.5 bg-green-600 text-white font-bold uppercase tracking-wider text-xs rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                                                    <MessageCircle size={14} /> WhatsApp
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        )}
+
+                        {/* Navigation Footer */}
+                        <div className="flex gap-3 pt-4 border-t border-slate-100">
+                            {createStep > 1 ? (
+                                <button type="button" onClick={() => setCreateStep((prev) => (prev - 1) as 1 | 2 | 3)} className="px-6 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                                    Back
+                                </button>
+                            ) : (
+                                <button type="button" onClick={() => { setIsCreateModalOpen(false); setCreateStep(1); }} className="px-6 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                                    Cancel
+                                </button>
+                            )}
+
+                            {createStep < 3 ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setCreateStep((prev) => (prev + 1) as 1 | 2 | 3)}
+                                    disabled={(createStep === 1 && !newRental.clientId) || (createStep === 2 && !newRental.billboardId)}
+                                    className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Next &rarr;
+                                </button>
+                            ) : (
+                                <button
+                                    type="submit"
+                                    disabled={selectedBillboard?.type === BillboardType.LED && digitalFull}
+                                    className="flex-1 py-3 text-white bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle size={14} /> Generate Contract & Invoice
+                                </button>
+                            )}
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
