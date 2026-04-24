@@ -398,7 +398,8 @@ export const Settings: React.FC = () => {
 
         {/* GENERAL TAB */}
         {activeTab === 'General' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+          <div className="space-y-8 animate-fade-in">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
 
               {/* Pending Approvals — Admin only */}
@@ -481,8 +482,52 @@ export const Settings: React.FC = () => {
                   <button onClick={handleSaveCompanyDetails} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all hover:scale-105">Save Changes</button>
                 </div>
               </div>
+            </div>
 
-              {/* Team Members — Admin only */}
+            {/* Sidebar */}
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h3 className="text-lg font-bold text-slate-800 mb-6">Branding & Identity</h3>
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl mb-6 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                  <div className="text-center relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    <div className="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden shadow-md border-4 border-white group-hover:scale-105 transition-transform p-2">
+                      <img src={logoPreview} alt="Logo" className="max-w-full max-h-full object-contain" />
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-black/50 text-white text-xs font-bold px-2 py-1 rounded">Change</div></div>
+                    <p className="text-sm font-medium text-slate-600">Company Logo</p>
+                    <p className="text-xs text-slate-400 mt-1">Click to Upload (Max 1MB)</p>
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                  </div>
+                </div>
+                <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2"><Upload size={14} /> Upload New Logo</button>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-900 to-slate-900 p-6 rounded-2xl shadow-lg text-white relative overflow-hidden group">
+                <div className="relative z-10">
+                  <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><Cloud size={18} /> System Status</h3>
+                  <div className="flex items-center gap-2 mb-6"><div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div><span className="text-blue-100 text-sm font-medium">Systems Operational</span></div>
+                  <div className="space-y-2 text-xs text-blue-200/80 border-t border-white/10 pt-4 font-mono">
+                    <p>Version: <span className="text-white">1.13.0</span></p>
+                    <p>Build: <span className="text-white">Dreambox-Prod</span></p>
+                    <p>Last Update: {new Date().toLocaleDateString()}</p>
+                  </div>
+                  {isAdmin && (
+                    <div className="mt-4 pt-4 border-t border-white/10 space-y-1 text-xs text-blue-200/80">
+                      <p className="font-bold text-white/60 uppercase tracking-wider mb-2">Security</p>
+                      <p>Lockout: <span className="text-white">5 failures / 30 min</span></p>
+                      <p>Rate limit: <span className="text-white">20 req / 15 min</span></p>
+                      <p>Password: <span className="text-white">Complexity enforced</span></p>
+                    </div>
+                  )}
+                </div>
+                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-blue-500 rounded-full blur-3xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500 rounded-full blur-3xl opacity-10"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Team Members — full-width row (Admin only) */}
+          <div>
               {isAdmin ? (
                 <div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden">
                   <div className="p-6 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
@@ -557,48 +602,7 @@ export const Settings: React.FC = () => {
                   <p className="text-slate-500 font-medium">User management is restricted to Administrators.</p>
                 </div>
               )}
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h3 className="text-lg font-bold text-slate-800 mb-6">Branding & Identity</h3>
-                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl mb-6 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                  <div className="text-center relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <div className="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden shadow-md border-4 border-white group-hover:scale-105 transition-transform p-2">
-                      <img src={logoPreview} alt="Logo" className="max-w-full max-h-full object-contain" />
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-black/50 text-white text-xs font-bold px-2 py-1 rounded">Change</div></div>
-                    <p className="text-sm font-medium text-slate-600">Company Logo</p>
-                    <p className="text-xs text-slate-400 mt-1">Click to Upload (Max 1MB)</p>
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                  </div>
-                </div>
-                <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2"><Upload size={14} /> Upload New Logo</button>
-              </div>
-
-              <div className="bg-gradient-to-br from-blue-900 to-slate-900 p-6 rounded-2xl shadow-lg text-white relative overflow-hidden group">
-                <div className="relative z-10">
-                  <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><Cloud size={18} /> System Status</h3>
-                  <div className="flex items-center gap-2 mb-6"><div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div><span className="text-blue-100 text-sm font-medium">Systems Operational</span></div>
-                  <div className="space-y-2 text-xs text-blue-200/80 border-t border-white/10 pt-4 font-mono">
-                    <p>Version: <span className="text-white">1.13.0</span></p>
-                    <p>Build: <span className="text-white">Dreambox-Prod</span></p>
-                    <p>Last Update: {new Date().toLocaleDateString()}</p>
-                  </div>
-                  {isAdmin && (
-                    <div className="mt-4 pt-4 border-t border-white/10 space-y-1 text-xs text-blue-200/80">
-                      <p className="font-bold text-white/60 uppercase tracking-wider mb-2">Security</p>
-                      <p>Lockout: <span className="text-white">5 failures / 30 min</span></p>
-                      <p>Rate limit: <span className="text-white">20 req / 15 min</span></p>
-                      <p>Password: <span className="text-white">Complexity enforced</span></p>
-                    </div>
-                  )}
-                </div>
-                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-blue-500 rounded-full blur-3xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500 rounded-full blur-3xl opacity-10"></div>
-              </div>
-            </div>
+          </div>
           </div>
         )}
 
