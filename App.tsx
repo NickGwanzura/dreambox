@@ -12,6 +12,7 @@ const Rentals = lazyWithRetry(() => import('./components/Rentals').then(m => ({ 
 const Financials = lazyWithRetry(() => import('./components/Financials').then(m => ({ default: m.Financials })));
 const Expenses = lazyWithRetry(() => import('./components/Expenses').then(m => ({ default: m.Expenses })));
 const Settings = lazyWithRetry(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const ContractTemplatePage = lazyWithRetry(() => import('./components/ContractTemplatePage').then(m => ({ default: m.ContractTemplatePage })));
 const OutsourcedList = lazyWithRetry(() => import('./components/OutsourcedList').then(m => ({ default: m.OutsourcedList })));
 const Analytics = lazyWithRetry(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
 const Payments = lazyWithRetry(() => import('./components/Payments').then(m => ({ default: m.Payments })));
@@ -257,6 +258,21 @@ const App: React.FC = () => {
           return (
             <FeatureErrorBoundary featureName="Settings" onReset={() => setPageError(null)}>
               <Settings />
+            </FeatureErrorBoundary>
+          );
+        }
+        case 'contract-template': {
+          if (!canAccessSettings(getCachedUser())) {
+            return (
+              <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
+                <p className="text-slate-500 text-sm">Contract template editing is limited to the finance/admin team. Contact Rufaro, Brian, or Nick if you need a change made.</p>
+              </div>
+            );
+          }
+          return (
+            <FeatureErrorBoundary featureName="Contract Template" onReset={() => setPageError(null)}>
+              <ContractTemplatePage />
             </FeatureErrorBoundary>
           );
         }

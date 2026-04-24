@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe } from '../services/mockData';
-import { generateContractPDF, generateActiveContractsPDF } from '../services/pdfGenerator';
+import { generateContractPDF, generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, VAT_RATE, Invoice } from '../types';
 import { splitInclusiveVat } from '../services/constants';
@@ -778,6 +778,20 @@ export const Rentals: React.FC = () => {
                         </div>
                     )}
 
+                    <div className="pt-2">
+                        <button
+                            onClick={() => {
+                                const client = getClient(selectedRental.clientId);
+                                const billboard = getBillboard(selectedRental.billboardId);
+                                if (!client) { alert('Client data missing.'); return; }
+                                generateLegalContractPDF(selectedRental, client, billboard);
+                            }}
+                            className="w-full py-3 text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
+                        >
+                            <FileText size={14} /> Generate Full Legal Contract
+                        </button>
+                        <p className="text-[10px] text-slate-400 mt-2 text-center">Uses your editable contract template from Settings &rarr; Company Profile.</p>
+                    </div>
                     <div className="flex gap-3 pt-2">
                         <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
                         <button onClick={() => { setSelectedRental(null); setEditRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Edit size={14} /> Edit</button>

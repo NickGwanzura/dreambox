@@ -290,6 +290,7 @@ model CompanyProfile {
   senderEmail       String?
   senderName        String?
   emailSignature    String?
+  contractTemplate  String?
 
   @@map("company_profile")
 }

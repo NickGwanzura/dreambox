@@ -1,8 +1,9 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard, BillboardType } from '../types';
+import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard, BillboardType, CompanyProfile } from '../types';
 import { getCompanyProfile, getCompanyLogo, getContracts } from './mockData';
+import { buildTemplateData, resolveContractTemplate, substituteTemplate, TemplateData } from '../utils/contractTemplate';
 
 type RGB = [number, number, number];
 
@@ -474,6 +475,111 @@ export const generateContractPDF = async (contract: Contract, client: Client, bi
   } catch (error) {
     console.error("PDF Generation Error:", error);
     alert("Failed to generate Contract PDF.");
+  }
+};
+
+/**
+ * Generate a long-form legal contract PDF from the company's editable template.
+ * The template is resolved from CompanyProfile.contractTemplate with fallback to the
+ * built-in default; placeholders ({{advertiser_name}}, {{rate_block}}, etc.) are
+ * substituted with contract/client/billboard data.
+ */
+export const generateLegalContractPDF = async (
+  contract: Contract,
+  client: Client,
+  billboard: Billboard | undefined,
+  options?: { company?: CompanyProfile; overrides?: Partial<TemplateData> }
+) => {
+  try {
+    const company = options?.company ?? getCompanyProfile();
+    const template = resolveContractTemplate(company);
+    const data = buildTemplateData(contract, client, billboard, company, options?.overrides);
+    const body = substituteTemplate(template, data);
+
+    const doc = new jsPDF();
+    const branding = await getPdfBranding();
+
+    const PAGE_W = 210;
+    const PAGE_H = 297;
+    const MARGIN_L = 18;
+    const MARGIN_R = 18;
+    const MARGIN_B = 22;
+    const CONTENT_W = PAGE_W - MARGIN_L - MARGIN_R;
+
+    let y = addCompanyHeader(doc, branding);
+    y += 2;
+
+    const ensureSpace = (need: number) => {
+      if (y + need > PAGE_H - MARGIN_B) {
+        doc.addPage();
+        y = addCompanyHeader(doc, branding) + 2;
+      }
+    };
+
+    const writeParagraph = (text: string, opts: { bullet?: boolean; heading?: boolean } = {}) => {
+      if (!text.trim()) { y += 3; return; }
+      const isHeading = opts.heading || false;
+      const isBullet = opts.bullet || false;
+      doc.setFont('helvetica', isHeading ? 'bold' : 'normal');
+      doc.setFontSize(isHeading ? 11 : 10);
+      doc.setTextColor(isHeading ? 15 : 50, isHeading ? 23 : 50, isHeading ? 42 : 50);
+
+      const indentL = isBullet ? 6 : 0;
+      const prefix = isBullet ? '•  ' : '';
+      const firstLineX = MARGIN_L + indentL;
+      const wrapWidth = CONTENT_W - indentL;
+      const lines = doc.splitTextToSize(prefix + text, wrapWidth);
+      const lineHeight = isHeading ? 6 : 5.2;
+
+      ensureSpace(lines.length * lineHeight + (isHeading ? 3 : 0));
+      doc.text(lines, firstLineX, y);
+      y += lines.length * lineHeight + (isHeading ? 3 : 2);
+    };
+
+    // Document title from the first line if it looks like "ADVERTISING CONTRACT ..."
+    const paragraphs = body.split(/\n{2,}/);
+
+    paragraphs.forEach((raw, idx) => {
+      const para = raw.trim();
+      if (!para) { y += 2; return; }
+
+      // First paragraph is typically the title — render big, centered.
+      if (idx === 0 && /^[A-Z][A-Z\s\d\-\/]+/.test(para.split('\n')[0])) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42);
+        ensureSpace(12);
+        doc.text(para, PAGE_W / 2, y + 6, { align: 'center' });
+        y += 12;
+        return;
+      }
+
+      // Standalone heading paragraph (short, all-caps, no bullet)
+      if (/^[A-Z][A-Z\s,]{6,}$/.test(para) && !para.startsWith('•') && para.length < 80) {
+        writeParagraph(para, { heading: true });
+        return;
+      }
+
+      // Multi-line blocks (e.g. rate block) — render line by line preserving bullets
+      const lines = para.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) { y += 2; continue; }
+        if (trimmed.startsWith('•')) {
+          writeParagraph(trimmed.slice(1).trim(), { bullet: true });
+        } else {
+          writeParagraph(trimmed);
+        }
+      }
+    });
+
+    // Footer contact strip
+    addContactFooter(doc);
+
+    doc.save(`Contract_${data.contract_number}_${client.companyName.replace(/[^a-z0-9]+/gi, '_')}.pdf`);
+  } catch (error) {
+    console.error('Legal Contract PDF Generation Error:', error);
+    alert('Failed to generate legal contract PDF. See console for details.');
   }
 };
 

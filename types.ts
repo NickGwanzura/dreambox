@@ -241,6 +241,8 @@ export interface CompanyProfile {
     senderEmail?: string;        // e.g. noreply@crm.yourcompany.com (must be verified in Resend)
     senderName?: string;         // e.g. "Dreambox CRM"
     emailSignature?: string;     // free-text footer appended to outbound emails
+    // Legal contract template — plain text with {{placeholders}}. Blank/unset = use built-in default.
+    contractTemplate?: string;
 }
 
 /**

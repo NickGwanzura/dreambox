@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   LayoutDashboard, Map, Users, FileText, CreditCard, Receipt, Settings as SettingsIcon,
   Menu, X, Bell, LogOut, Printer, Globe, PieChart, Wallet, ChevronRight, CheckSquare, Wrench, Database, RefreshCw,
-  Building2, Target
+  Building2, Target, FileSignature
 } from 'lucide-react';
 import { getCurrentUser, signOut } from '../services/authService';
 import { isConfigured as isNeonConfigured, checkConnection as checkNeonConnection } from '../services/apiClient';
@@ -226,13 +226,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     { id: 'financials', label: 'Invoices & Quotes', icon: CreditCard, roles: null },
     { id: 'receipts', label: 'Receipts', icon: Receipt, roles: ['Admin', 'Manager', 'Staff'] },
     { id: 'expenses', label: 'Expenses', icon: Printer, roles: ['Admin', 'Manager', 'Staff'] },
+    { id: 'contract-template', label: 'Contract Template', icon: FileSignature, roles: ['Admin'] },
     { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['Admin'] },
   ];
 
   const userRole = user?.role || 'Staff';
   const settingsVisible = canAccessSettings(user);
   const menuItems = allMenuItems.filter(item => {
-    if (item.id === 'settings') return settingsVisible;
+    if (item.id === 'settings' || item.id === 'contract-template') return settingsVisible;
     return !item.roles || item.roles.includes(userRole);
   });
 
