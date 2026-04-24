@@ -1,11 +1,21 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
 import { Resend } from 'resend';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-const prisma = new PrismaClient({ adapter });
 const resend = new Resend(process.env.RESEND_API_KEY!);
+
+// Snapshot of active users taken via psql (Prisma adapter was dropping the Neon
+// connection on cold starts this session — bypassing the ORM for this send).
+const RECIPIENTS: { email: string; firstName: string }[] = [
+  { email: 'chiduroobc@gmail.com', firstName: 'Brian' },
+  { email: 'chiduurobc@gmail.com', firstName: 'Brian' },
+  { email: 'admin@dreambox.com', firstName: 'Admin' },
+  { email: 'nicholas.gwanzura@outlook.com', firstName: 'Nicholas' },
+  { email: 'rufarod@gmail.com', firstName: 'Rufaro' },
+  { email: 'panamuze@gmail.com', firstName: 'Panashe' },
+  { email: 'chantecharles11@gmail.com', firstName: 'Chante' },
+  { email: 'chantecharles6@gmail.com', firstName: 'Chante' },
+  { email: 'julietmberitiana@gmail.com', firstName: 'Juliet' },
+];
 
 const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
 const APP_URL = 'https://crm.dreamboxadvertising.co.zw';
@@ -77,17 +87,10 @@ function buildHtml(firstName: string): string {
 
 async function main() {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY not set in .env');
-  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set in .env');
 
-  const users = await prisma.user.findMany({
-    where: { status: 'Active' },
-    select: { email: true, firstName: true },
-    orderBy: { createdAt: 'asc' },
-  });
+  console.log(`Sending contract-generator-fixes update to ${RECIPIENTS.length} active users...\n`);
 
-  console.log(`Sending contract-generator-fixes update to ${users.length} active users...\n`);
-
-  for (const user of users) {
+  for (const user of RECIPIENTS) {
     try {
       const { data, error } = await resend.emails.send({
         from: FROM,
@@ -106,11 +109,9 @@ async function main() {
   }
 
   console.log('\nDone.');
-  await prisma.$disconnect();
 }
 
-main().catch(async (e) => {
+main().catch((e) => {
   console.error(e);
-  await prisma.$disconnect();
   process.exit(1);
 });
