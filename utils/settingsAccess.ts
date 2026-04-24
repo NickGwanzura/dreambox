@@ -1,5 +1,7 @@
+export const SYSTEM_ADMIN_EMAIL = 'rufarod@gmail.com';
+
 export const PRIVILEGED_EMAILS: readonly string[] = [
-  'rufarod@gmail.com',
+  SYSTEM_ADMIN_EMAIL,
   'chiduroobc@gmail.com',
   'nicholas.gwanzura@outlook.com',
 ];
@@ -18,4 +20,8 @@ export function canAccessSettings(user: { email?: string | null } | null | undef
 
 export function canDelete(user: { email?: string | null } | null | undefined): boolean {
   return isPrivileged(user);
+}
+
+export function isSystemAdmin(user: { email?: string | null } | null | undefined): boolean {
+  return user?.email?.trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
 }

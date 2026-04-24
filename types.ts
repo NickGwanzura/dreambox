@@ -85,8 +85,9 @@ export interface Contract {
   monthlyRate: number;
   installationCost: number; // One-time fee
   printingCost: number; // Tied to a printing job
+  productionCost?: number; // One-time vinyl production fee, auto-derived from billboard size for Static boards
   hasVat: boolean;
-  totalContractValue: number; // (Monthly * Months) + Install + Print + VAT
+  totalContractValue: number; // (Monthly * Months) + Install + Print + Production + VAT
   
   status: 'Active' | 'Pending' | 'Expired';
   details: string; // e.g., "Side A" or "Slot 5"
@@ -107,7 +108,7 @@ export interface Invoice {
   contractId?: string;
   clientId: string;
   date: string;
-  items: { description: string; amount: number }[];
+  items: { description: string; amount: number; billboardId?: string; side?: 'A' | 'B'; slots?: number }[];
   subtotal: number;
   discountAmount?: number;
   discountDescription?: string;

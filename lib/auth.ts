@@ -104,8 +104,14 @@ export function requireManagerOrAdmin(
   return payload;
 }
 
+export const SYSTEM_ADMIN_EMAIL = 'rufarod@gmail.com';
+
+export function isSystemAdmin(email: string | null | undefined): boolean {
+  return email?.trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
+}
+
 const DELETE_ALLOWED_EMAILS: readonly string[] = [
-  'rufarod@gmail.com',
+  SYSTEM_ADMIN_EMAIL,
   'chiduroobc@gmail.com',
   'nicholas.gwanzura@outlook.com',
 ];

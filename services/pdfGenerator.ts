@@ -405,8 +405,12 @@ export const generateContractPDF = async (contract: Contract, client: Client, bi
         doc.text(`Installation Fee (One-time): $${contract.installationCost.toFixed(2)}`, 20, currentY);
         currentY += 6;
     }
+    if((contract.productionCost ?? 0) > 0) {
+        doc.text(`Production Fee (One-time): $${(contract.productionCost ?? 0).toFixed(2)}`, 20, currentY);
+        currentY += 6;
+    }
     if(contract.printingCost > 0) {
-        doc.text(`Printing/Production Cost: $${contract.printingCost.toFixed(2)}`, 20, currentY);
+        doc.text(`Printing Cost: $${contract.printingCost.toFixed(2)}`, 20, currentY);
         currentY += 6;
     }
     

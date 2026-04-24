@@ -57,6 +57,7 @@ export type ContractLike = {
   monthlyRate: number;
   installationCost: number;
   printingCost: number;
+  productionCost?: number;
   hasVat: boolean;
   totalContractValue: number;
   status: string;
@@ -287,6 +288,7 @@ export async function buildContractPdf(
     ['Period', `${contract.startDate} to ${contract.endDate}`],
     ['Monthly Rate', money(contract.monthlyRate)],
     ['Installation', money(contract.installationCost)],
+    ...((contract.productionCost ?? 0) > 0 ? ([['Production Fee', money(contract.productionCost ?? 0)]] as [string, string][]) : []),
     ['Printing', money(contract.printingCost)],
     ['VAT', contract.hasVat ? '15%' : 'None'],
   ];

@@ -20,16 +20,28 @@ export const clearToken = (): void => {
 export const isConfigured = (): boolean => !!getToken();
 
 /**
+ * Decode a base64url segment (JWT-style) into a UTF-8 string.
+ * atob() only handles standard base64, so we normalise padding and charset first.
+ */
+function decodeBase64Url(segment: string): string {
+  const padded = segment.replace(/-/g, '+').replace(/_/g, '/').padEnd(
+    segment.length + ((4 - (segment.length % 4)) % 4),
+    '='
+  );
+  return atob(padded);
+}
+
+/**
  * Check whether a JWT has expired by inspecting its payload.
- * Returns true if expired or unparseable.
+ * Returns false on unparseable tokens — the server is the source of truth; let it decide.
  */
 function isTokenExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(decodeBase64Url(token.split('.')[1] ?? ''));
     if (!payload.exp) return false; // no expiry claim — treat as valid
     return Date.now() >= payload.exp * 1000;
   } catch {
-    return true; // malformed → treat as expired
+    return false; // can't tell locally — let the server respond
   }
 }
 
@@ -70,10 +82,16 @@ async function request<T = any>(
     ...(body !== undefined && { body: JSON.stringify(body) }),
   });
 
-  // Handle 401 — token rejected by server
+  // Handle 401 — only treat as expired session if we actually sent a token.
+  // Unauthenticated requests (signin, signup, password reset) must surface the
+  // server's real error message (e.g. "Invalid email or password").
   if (res.status === 401) {
-    handleSessionExpired();
-    throw new Error('Session expired. Please sign in again.');
+    const err = await res.json().catch(() => ({ error: 'Unauthorized' }));
+    if (token) {
+      handleSessionExpired();
+      throw new Error('Session expired. Please sign in again.');
+    }
+    throw new Error(err.error || 'Invalid email or password');
   }
 
   if (!res.ok) {

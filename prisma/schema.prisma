@@ -142,6 +142,7 @@ model Contract {
   monthlyRate        Float
   installationCost   Float
   printingCost       Float
+  productionCost     Float          @default(0)
   hasVat             Boolean        @default(false)
   totalContractValue Float
   status             ContractStatus @default(Pending)

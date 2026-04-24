@@ -83,6 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ['Period', `${contract.startDate} to ${contract.endDate}`],
           ['Monthly Rate', `$${contract.monthlyRate.toLocaleString()}`],
           ['Installation', `$${contract.installationCost.toLocaleString()}`],
+          ...((contract.productionCost ?? 0) > 0 ? [['Production Fee', `$${(contract.productionCost ?? 0).toLocaleString()}`]] as [string, string][] : []),
           ['Printing', `$${contract.printingCost.toLocaleString()}`],
           ['VAT', contract.hasVat ? '15%' : 'None'],
           ['Total Value', `$${contract.totalContractValue.toLocaleString()}`],

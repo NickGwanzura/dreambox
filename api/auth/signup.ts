@@ -6,6 +6,7 @@ import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
 import { validatePassword } from '../../lib/passwordPolicy.js';
 import { checkRateLimit } from '../../lib/rateLimiter.js';
+import { notifyAdminNewUser } from '../../lib/notifyAdmin.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
@@ -103,6 +104,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         </html>
       `,
     }).catch(err => console.error('[auth/signup] email send failed:', err));
+
+    notifyAdminNewUser({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      source: 'public-signup',
+    });
 
     const { passwordHash: _, ...safeUser } = user;
     return res.status(201).json({ user: safeUser });

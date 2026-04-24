@@ -375,7 +375,17 @@ export const deleteContract = (id: string) => {
         contracts = contracts.filter(c => c.id !== id);
         saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
         queueForDeletion('contracts', id);
-        
+
+        // Cascade-delete invoices tied to this contract. Receipts and quotations are preserved —
+        // receipts represent real payments, and quotations typically don't carry a contractId.
+        const linkedInvoices = invoices.filter(i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice');
+        if (linkedInvoices.length > 0) {
+            linkedInvoices.forEach(i => queueForDeletion('invoices', i.id));
+            invoices = invoices.filter(i => !(i.contractId === id && String(i.type || '').toLowerCase() === 'invoice'));
+            saveToStorage(STORAGE_KEYS.INVOICES, invoices);
+            logAction('Delete Contract', `Cascade-deleted ${linkedInvoices.length} invoice(s) from contract ${id}`);
+        }
+
         const billboard = billboards.find(b => b.id === contract.billboardId);
         if(billboard) {
             if(billboard.type === BillboardType.Static) {
@@ -452,14 +462,61 @@ export const updateContract = (updated: Contract) => {
     notifyListeners();
 };
 
-export const addInvoice = (invoice: Invoice) => { invoices = [invoice, ...invoices]; saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); syncToNeon('invoices', invoice); logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`); notifyListeners(); };
+const recalcBillboardAvailability = (billboardId: string) => {
+    const b = billboards.find(x => x.id === billboardId);
+    if (!b) return;
+    if (b.type === BillboardType.Static) {
+        const sideAContract = contracts.find(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active' && (c.side === 'A' || c.side === 'Both' || (c.details || '').includes('Side A')));
+        const sideBContract = contracts.find(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active' && (c.side === 'B' || c.side === 'Both' || (c.details || '').includes('Side B')));
+        const sideAInvoiceHolder = invoices.find(i => String(i.type || '').toLowerCase() === 'invoice' && (i.items || []).some(it => it.billboardId === billboardId && it.side === 'A'));
+        const sideBInvoiceHolder = invoices.find(i => String(i.type || '').toLowerCase() === 'invoice' && (i.items || []).some(it => it.billboardId === billboardId && it.side === 'B'));
+        if (b.sideAStatus !== 'Maintenance') {
+            if (sideAContract) { b.sideAStatus = 'Rented'; b.sideAClientId = sideAContract.clientId; }
+            else if (sideAInvoiceHolder) { b.sideAStatus = 'Rented'; b.sideAClientId = sideAInvoiceHolder.clientId; }
+            else { b.sideAStatus = 'Available'; b.sideAClientId = undefined; }
+        }
+        if (b.sideBStatus !== 'Maintenance') {
+            if (sideBContract) { b.sideBStatus = 'Rented'; b.sideBClientId = sideBContract.clientId; }
+            else if (sideBInvoiceHolder) { b.sideBStatus = 'Rented'; b.sideBClientId = sideBInvoiceHolder.clientId; }
+            else { b.sideBStatus = 'Available'; b.sideBClientId = undefined; }
+        }
+    } else if (b.type === BillboardType.LED) {
+        const contractSlots = contracts.filter(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active').length;
+        const invoiceSlots = invoices
+            .filter(i => String(i.type || '').toLowerCase() === 'invoice')
+            .reduce((acc, i) => acc + (i.items || [])
+                .filter(it => it.billboardId === billboardId)
+                .reduce((a, it) => a + (it.slots || 0), 0), 0);
+        b.rentedSlots = Math.min(b.totalSlots || 0, contractSlots + invoiceSlots);
+    }
+    billboards = billboards.map(x => x.id === b.id ? b : x);
+    saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards);
+    syncToNeon('billboards', b);
+};
+
+export const addInvoice = (invoice: Invoice) => {
+    invoices = [invoice, ...invoices];
+    saveToStorage(STORAGE_KEYS.INVOICES, invoices);
+    syncToCloudMirror();
+    syncToNeon('invoices', invoice);
+    if (String(invoice.type || '').toLowerCase() === 'invoice') {
+        const touched = Array.from(new Set((invoice.items || []).map(it => it.billboardId).filter((id): id is string => !!id)));
+        touched.forEach(recalcBillboardAvailability);
+        if (touched.length > 0) logAction('Billboard Availability', `Marked ${touched.length} billboard${touched.length > 1 ? 's' : ''} as rented from Invoice #${invoice.id}`);
+    }
+    logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`);
+    notifyListeners();
+};
 export const markInvoiceAsPaid = (id: string) => { invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i); saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); const updated = invoices.find(i => i.id === id); if(updated) syncToNeon('invoices', updated); logAction('Payment', `Marked Invoice #${id} as Paid`); notifyListeners(); };
 
 export const deleteInvoice = (id: string) => {
     const target = invoices.find(i => i.id === id);
     if (target) {
+        const touchedBillboards = String(target.type || '').toLowerCase() === 'invoice'
+            ? Array.from(new Set((target.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid)))
+            : [];
         invoices = invoices.filter(i => i.id !== id);
-        
+
         // Try to revert invoice status if this was a receipt
         if (target.type === 'Receipt') {
              const desc = target.items?.[0]?.description || '';
@@ -477,6 +534,10 @@ export const deleteInvoice = (id: string) => {
         saveToStorage(STORAGE_KEYS.INVOICES, invoices);
         syncToCloudMirror();
         queueForDeletion('invoices', id);
+        if (touchedBillboards.length > 0) {
+            touchedBillboards.forEach(recalcBillboardAvailability);
+            logAction('Billboard Availability', `Recalculated ${touchedBillboards.length} billboard${touchedBillboards.length > 1 ? 's' : ''} after deleting Invoice #${id}`);
+        }
         logAction('Delete Document', `Removed ${target.type} #${id}`);
         notifyListeners();
     }

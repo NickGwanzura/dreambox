@@ -6,6 +6,7 @@ import { Resend } from 'resend';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireAdmin, requireDeletePermission, cors } from '../lib/auth';
 import { validatePassword } from '../lib/passwordPolicy.js';
+import { notifyAdminNewUser } from '../lib/notifyAdmin.js';
 
 const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
 const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
@@ -126,6 +127,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             html: buildInviteEmail(firstName, tempPassword),
           }).catch(err => console.error('[users bulkInvite] email failed:', err));
 
+          notifyAdminNewUser({
+            firstName, lastName, email,
+            role,
+            status: 'Active',
+            source: 'bulk-invite',
+            invitedBy: admin.email,
+          });
+
           results.push({ email, status: 'created', tempPassword });
         } catch {
           results.push({ email, status: 'error' });
@@ -222,6 +231,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           html: buildInviteEmail(firstName, tempPassword),
         }).catch(err => console.error('[users POST] email failed:', err));
       }
+
+      notifyAdminNewUser({
+        firstName, lastName,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        source: 'admin-create',
+        invitedBy: admin.email,
+      });
 
       return res.status(201).json({ user, tempPassword: !password ? tempPassword : undefined });
     } catch (e: any) {

@@ -6,6 +6,7 @@ import { generateClientDirectoryPDF } from '../services/pdfGenerator';
 import { Mail, Phone, MoreHorizontal, User, Plus, X, Save, Search, Trash2, AlertTriangle, Calendar, Clock, Edit2, CreditCard, Share2, Download, CheckCircle } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
+import { ClientDetail } from './ClientDetail';
 
 const MinimalInput = ({ label, value, onChange, type = "text", placeholder, required = false, max, min, step }: any) => (
   <div className="group relative">
@@ -20,6 +21,7 @@ export const ClientList: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [viewingClientId, setViewingClientId] = useState<string | null>(null);
 
   const [newClient, setNewClient] = useState<Partial<Client>>({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined });
 
@@ -62,6 +64,61 @@ export const ClientList: React.FC = () => {
       alert(`Client Portal Link Copied!\n${link}`);
   };
 
+  const viewingClient = viewingClientId ? clients.find(c => c.id === viewingClientId) : null;
+
+  if (viewingClient) {
+    return (
+      <>
+        <ClientDetail
+          client={viewingClient}
+          onBack={() => setViewingClientId(null)}
+          onEdit={(c) => setEditingClient(c)}
+        />
+        {/* Edit Client Modal (shared) */}
+        {editingClient && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Edit Client</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">{editingClient.companyName} &bull; {editingClient.status}</p>
+                </div>
+                <button onClick={() => setEditingClient(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              </div>
+              <form onSubmit={handleUpdateClient} className="p-8 space-y-6">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Company Information</p>
+                  <div className="space-y-6">
+                    <MinimalInput label="Company Name" value={editingClient.companyName} onChange={(e: any) => setEditingClient({...editingClient, companyName: e.target.value})} required />
+                    <MinimalInput label="Contact Person" value={editingClient.contactPerson} onChange={(e: any) => setEditingClient({...editingClient, contactPerson: e.target.value})} required />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Contact Details</p>
+                  <div className="grid grid-cols-2 gap-6">
+                    <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} required />
+                    <MinimalInput label="Phone Number" type="tel" value={editingClient.phone} onChange={(e: any) => setEditingClient({...editingClient, phone: e.target.value})} />
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <CreditCard size={15} className="text-slate-400" />
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Billing Preferences</p>
+                  </div>
+                  <MinimalInput label="Preferred Billing Day (1–31)" type="number" min={1} max={31} value={editingClient.billingDay || ''} onChange={(e: any) => setEditingClient({...editingClient, billingDay: e.target.value ? Number(e.target.value) : undefined})} placeholder="Default: Contract Start Date" />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Update Client</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="space-y-8 relative animate-fade-in">
@@ -84,11 +141,11 @@ export const ClientList: React.FC = () => {
             {clients.map(client => {
                 const billingInfo = getNextBillingDetails(client.id);
                 return (
-                <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 group hover:-translate-y-1 flex flex-col justify-between">
+                <div key={client.id} onClick={() => setViewingClientId(client.id)} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 group hover:-translate-y-1 flex flex-col justify-between cursor-pointer">
                     <div>
                         <div className="flex justify-between items-start mb-4">
                             <div className="w-14 h-14 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center font-bold text-xl group-hover:bg-slate-900 group-hover:text-white transition-colors shadow-sm">{client.companyName.charAt(0)}</div>
-                            <div className="flex gap-1">
+                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                 <button onClick={() => generatePortalLink(client)} className="text-slate-300 hover:text-green-600 transition-colors p-2 hover:bg-green-50 rounded-full" title="Copy Client Portal Link"><Share2 size={18} /></button>
                                 <button onClick={() => setEditingClient(client)} className="text-slate-300 hover:text-indigo-600 transition-colors p-2 hover:bg-indigo-50 rounded-full" title="Edit Client"><Edit2 size={18} /></button>
                                 {canUserDelete && (<button onClick={() => setClientToDelete(client)} className="text-slate-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full" title="Delete Client"><Trash2 size={18} /></button>)}
@@ -115,7 +172,7 @@ export const ClientList: React.FC = () => {
                              </div>
                         ) : null}
                     </div>
-                    <div className="flex justify-between items-center pt-2"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${client.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{client.status}</span><button onClick={() => setEditingClient(client)} className="text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1">View Details <MoreHorizontal size={14}/></button></div>
+                    <div className="flex justify-between items-center pt-2"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${client.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{client.status}</span><span className="text-xs font-bold uppercase tracking-wider text-slate-400 group-hover:text-indigo-600 transition-colors flex items-center gap-1">View Profile <MoreHorizontal size={14}/></span></div>
                 </div>
             )})}
         </div>

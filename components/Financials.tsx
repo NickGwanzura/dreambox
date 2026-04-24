@@ -47,6 +47,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const [discountDescription, setDiscountDescription] = useState('');
   const [convertingQuotation, setConvertingQuotation] = useState<Invoice | null>(null);
   const [convertForm, setConvertForm] = useState({ billboardId: '', startDate: '', endDate: '' });
+  const [billboardSelections, setBillboardSelections] = useState<Record<string, { sideA?: boolean; sideB?: boolean; slots?: number }>>({});
+  const [billboardSearch, setBillboardSearch] = useState('');
 
   const getEmptyFormData = (): Partial<Invoice> => ({
     clientId: '',
@@ -92,6 +94,60 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           setNewItem({ description: '', amount: 0 });
       }
   };
+  const toggleBillboardSide = (billboardId: string, side: 'A' | 'B') => {
+      setBillboardSelections(prev => {
+          const cur = prev[billboardId] || {};
+          const key = side === 'A' ? 'sideA' : 'sideB';
+          return { ...prev, [billboardId]: { ...cur, [key]: !cur[key] } };
+      });
+  };
+  const setBillboardSlots = (billboardId: string, slots: number) => {
+      setBillboardSelections(prev => ({
+          ...prev,
+          [billboardId]: { ...(prev[billboardId] || {}), slots: Math.max(0, Math.floor(slots || 0)) }
+      }));
+  };
+  const addSelectedBillboards = () => {
+      const allBillboards = getBillboards();
+      const newItems: InvoiceLineItem[] = [];
+      Object.entries(billboardSelections).forEach(([billboardId, sel]) => {
+          const b = allBillboards.find(x => x.id === billboardId);
+          if (!b) return;
+          if (b.type === BillboardType.LED) {
+              if (sel.slots && sel.slots > 0) {
+                  const rate = b.ratePerSlot || 0;
+                  newItems.push({
+                      description: `${b.name} — ${b.location}, ${b.town} (LED, ${sel.slots} slot${sel.slots > 1 ? 's' : ''})`,
+                      amount: rate * sel.slots,
+                      billboardId: b.id,
+                      slots: sel.slots,
+                  });
+              }
+          } else {
+              if (sel.sideA) {
+                  newItems.push({
+                      description: `${b.name} — ${b.location}, ${b.town} (Side A)`,
+                      amount: b.sideARate || 0,
+                      billboardId: b.id,
+                      side: 'A',
+                  });
+              }
+              if (sel.sideB) {
+                  newItems.push({
+                      description: `${b.name} — ${b.location}, ${b.town} (Side B)`,
+                      amount: b.sideBRate || 0,
+                      billboardId: b.id,
+                      side: 'B',
+                  });
+              }
+          }
+      });
+      if (newItems.length > 0) {
+          setFormData({ ...formData, items: [...(formData.items || []), ...newItems] });
+          setBillboardSelections({});
+          setBillboardSearch('');
+      }
+  };
   const updateItem = (index: number, field: keyof InvoiceLineItem, value: string | number) => {
       const updatedItems = [...(formData.items || [])];
       updatedItems[index] = {
@@ -119,7 +175,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       const newDoc: Invoice = { id: `${activeTab === 'Quotations' ? 'QT' : activeTab === 'Receipts' ? 'RCT' : 'INV'}-${Date.now().toString().slice(-4)}`, clientId: formData.clientId!, date: formData.date!, items: formData.items || [], subtotal, discountAmount, discountDescription: discountAmount > 0 ? discountDescription.trim() || undefined : undefined, vatAmount, total, status: activeTab === 'Receipts' ? 'Paid' : 'Pending', type: activeTab === 'Invoices' ? 'Invoice' : activeTab === 'Quotations' ? 'Quotation' : 'Receipt', contractId: formData.contractId, paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined, paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined };
       addInvoice(newDoc);
       if (activeTab === 'Receipts' && selectedInvoiceToPay) { markInvoiceAsPaid(selectedInvoiceToPay); }
-      setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+      setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
   };
   const downloadPDF = (doc: Invoice) => { const client = allClients.find(c => c.id === doc.clientId); if (client) { generateInvoicePDF(doc, client); } else { alert(`Could not generate PDF: Client data missing for ID ${doc.clientId}`); } };
   const [sendingDocId, setSendingDocId] = useState<string | null>(null);
@@ -187,7 +243,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : 'Financial Documents'}</h2><p className="text-slate-500 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : 'Create invoices, manage VAT, and track payment history'}</p></div>
-          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64 hidden sm:block"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
+          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64 hidden sm:block"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
         </div>
 
         {/* Mobile-friendly tabs */}
@@ -298,7 +354,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Actions</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} disabled={sendingDocId === doc.id} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50" title="Send via Email"><Send size={16} /></button>{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'pending' && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} disabled={sendingDocId === doc.id} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50" title="Send via Email"><Send size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-400 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
@@ -321,6 +377,82 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         {activeTab === 'Receipts' && (<div className="grid grid-cols-2 gap-6"><MinimalSelect label="Payment Method" value={formData.paymentMethod} onChange={(e: any) => setFormData({...formData, paymentMethod: e.target.value})} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash'},{value: 'Other', label: 'Other'}]}/><MinimalInput label="Reference Number" value={formData.paymentReference} onChange={(e: any) => setFormData({...formData, paymentReference: e.target.value})} /></div>)}
                         <div className="bg-slate-50 rounded-2xl p-6 space-y-4 border border-slate-100">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Line Items</h4>
+                            {(() => {
+                              const allBillboards = getBillboards();
+                              const search = billboardSearch.toLowerCase();
+                              const filteredBillboards = search
+                                ? allBillboards.filter(b => b.name.toLowerCase().includes(search) || b.location.toLowerCase().includes(search) || b.town.toLowerCase().includes(search))
+                                : allBillboards;
+                              const hasSelections = Object.values(billboardSelections).some(s => s.sideA || s.sideB || (s.slots && s.slots > 0));
+                              return (
+                                <div className="bg-white rounded-xl p-4 border border-indigo-100 space-y-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <h5 className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-2"><Building2 size={14} /> Select Billboards</h5>
+                                        <span className="text-[10px] text-slate-400">Pick one or many</span>
+                                    </div>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
+                                        <input type="text" placeholder="Search by name, location, or town..." value={billboardSearch} onChange={(e) => setBillboardSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-slate-800 focus:ring-1 focus:ring-slate-800 outline-none" />
+                                    </div>
+                                    <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                                        {filteredBillboards.length === 0 ? (
+                                            <p className="text-center text-xs text-slate-400 italic py-6">No billboards found</p>
+                                        ) : filteredBillboards.map(b => {
+                                            const sel = billboardSelections[b.id] || {};
+                                            const isLED = b.type === BillboardType.LED;
+                                            const availSlots = Math.max(0, (b.totalSlots || 0) - (b.rentedSlots || 0));
+                                            return (
+                                                <div key={b.id} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-bold text-slate-800 truncate">{b.name}</p>
+                                                            <p className="text-[11px] text-slate-500 truncate">{b.location}, {b.town}</p>
+                                                        </div>
+                                                        <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold uppercase tracking-wider">{b.type}</span>
+                                                    </div>
+                                                    {isLED ? (
+                                                        <div className="flex items-center justify-between gap-3 bg-white rounded-lg p-2 border border-slate-200">
+                                                            <div className="min-w-0">
+                                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Slots</p>
+                                                                <p className="text-[11px] text-slate-600">Rate: <span className="font-bold text-slate-800">${(b.ratePerSlot || 0).toLocaleString()}</span>/slot · {availSlots} of {b.totalSlots || 0} available</p>
+                                                            </div>
+                                                            <input type="number" min={0} value={sel.slots || 0} onChange={(e) => setBillboardSlots(b.id, Number(e.target.value))} className="w-20 px-2 py-1.5 text-center text-sm font-bold border border-slate-200 rounded-lg focus:border-slate-800 outline-none" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <label className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border ${sel.sideA ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                                                <input type="checkbox" checked={!!sel.sideA} onChange={() => toggleBillboardSide(b.id, 'A')} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Side A</p>
+                                                                    <p className="text-xs font-bold text-slate-800">${(b.sideARate || 0).toLocaleString()}</p>
+                                                                </div>
+                                                                {b.sideAStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${b.sideAStatus === 'Available' ? 'bg-green-100 text-green-700' : b.sideAStatus === 'Rented' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'}`}>{b.sideAStatus}</span>}
+                                                            </label>
+                                                            <label className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border ${sel.sideB ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                                                <input type="checkbox" checked={!!sel.sideB} onChange={() => toggleBillboardSide(b.id, 'B')} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Side B</p>
+                                                                    <p className="text-xs font-bold text-slate-800">${(b.sideBRate || 0).toLocaleString()}</p>
+                                                                </div>
+                                                                {b.sideBStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${b.sideBStatus === 'Available' ? 'bg-green-100 text-green-700' : b.sideBStatus === 'Rented' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'}`}>{b.sideBStatus}</span>}
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {hasSelections && (
+                                        <button type="button" onClick={addSelectedBillboards} className="w-full bg-slate-900 text-white rounded-xl px-4 py-2.5 hover:bg-slate-800 flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-wider transition-all"><Plus size={16}/> Add Selected to Line Items</button>
+                                    )}
+                                </div>
+                              );
+                            })()}
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1 h-px bg-slate-200" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Or Add Custom Line</span>
+                                <div className="flex-1 h-px bg-slate-200" />
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-3 items-end">
                                 <div className="flex-1"><MinimalTextarea label="Description / Details" value={newItem.description} onChange={(e: any) => setNewItem({...newItem, description: e.target.value})} rows={3} /></div>
                                 <div><MinimalInput label="Amount ($)" type="number" value={newItem.amount} onChange={(e: any) => setNewItem({...newItem, amount: Number(e.target.value)})} /></div>

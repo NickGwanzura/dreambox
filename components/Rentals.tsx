@@ -8,6 +8,7 @@ import { splitInclusiveVat } from '../services/constants';
 import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
+import { getProductionFee } from '../utils/productionFee';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -67,7 +68,7 @@ export const Rentals: React.FC = () => {
 
   const [newRental, setNewRental] = useState({
     clientId: '', billboardId: '', side: 'A' as 'A' | 'B' | 'Both', slotNumber: 1, startDate: '', endDate: '',
-    monthlyRate: 0, installationCost: 0, printingCost: 0, hasVat: true, assignedTo: ''
+    monthlyRate: 0, installationCost: 0, printingCost: 0, productionCost: 0, hasVat: true, assignedTo: ''
   });
 
   // Real-time Subscription
@@ -164,6 +165,8 @@ export const Rentals: React.FC = () => {
     } else if (selectedBillboard?.type === BillboardType.LED) {
         setNewRental(prev => ({ ...prev, monthlyRate: selectedBillboard.ratePerSlot || 0 }));
     }
+    // Auto-populate production fee from billboard size (Static only; LED stays at 0)
+    setNewRental(prev => ({ ...prev, productionCost: getProductionFee(selectedBillboard) }));
   }, [newRental.billboardId, newRental.startDate, newRental.endDate]); // Re-run when dates change
 
   const handleCreateRental = (e: React.FormEvent) => {
@@ -180,7 +183,7 @@ export const Rentals: React.FC = () => {
         }
     }
 
-    const gross = (newRental.monthlyRate * 12) + newRental.installationCost + newRental.printingCost;
+    const gross = (newRental.monthlyRate * 12) + newRental.installationCost + newRental.printingCost + newRental.productionCost;
     const { subtotal, vat } = newRental.hasVat
       ? splitInclusiveVat(gross)
       : { subtotal: gross, vat: 0 };
@@ -202,6 +205,7 @@ export const Rentals: React.FC = () => {
         monthlyRate: newRental.monthlyRate,
         installationCost: newRental.installationCost,
         printingCost: newRental.printingCost,
+        productionCost: newRental.productionCost,
         hasVat: newRental.hasVat,
         assignedTo: newRental.assignedTo || undefined,
         totalContractValue: gross,
@@ -214,7 +218,7 @@ export const Rentals: React.FC = () => {
 
     addContract(rental);
 
-    const invoiceGross = newRental.monthlyRate + newRental.installationCost + newRental.printingCost;
+    const invoiceGross = newRental.monthlyRate + newRental.installationCost + newRental.printingCost + newRental.productionCost;
     const { subtotal: invoiceSubtotal, vat: invoiceVat } = newRental.hasVat
       ? splitInclusiveVat(invoiceGross)
       : { subtotal: invoiceGross, vat: 0 };
@@ -226,6 +230,7 @@ export const Rentals: React.FC = () => {
         items: [
             { description: `Rental: ${selectedBillboard?.name} (${rental.details}) - Month 1`, amount: newRental.monthlyRate },
             ...(newRental.installationCost > 0 ? [{ description: 'Installation Fee', amount: newRental.installationCost }] : []),
+            ...(newRental.productionCost > 0 ? [{ description: `Production Fee (${selectedBillboard?.width}m x ${selectedBillboard?.height}m)`, amount: newRental.productionCost }] : []),
             ...(newRental.printingCost > 0 ? [{ description: 'Printing Costs', amount: newRental.printingCost }] : [])
         ],
         subtotal: invoiceSubtotal,
@@ -237,7 +242,7 @@ export const Rentals: React.FC = () => {
     addInvoice(initialInvoice);
     
     setIsCreateModalOpen(false);
-    setNewRental({ clientId: '', billboardId: '', side: 'A', slotNumber: 1, startDate: '', endDate: '', monthlyRate: 0, installationCost: 0, printingCost: 0, hasVat: true, assignedTo: '' });
+    setNewRental({ clientId: '', billboardId: '', side: 'A', slotNumber: 1, startDate: '', endDate: '', monthlyRate: 0, installationCost: 0, printingCost: 0, productionCost: 0, hasVat: true, assignedTo: '' });
     alert("Success! Rental Active & Initial Invoice Generated.");
   };
 
@@ -254,7 +259,7 @@ export const Rentals: React.FC = () => {
       
       try {
           const months = Math.max(1, Math.ceil((new Date(editRental.endDate).getTime() - new Date(editRental.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
-          const gross = (editRental.monthlyRate * months) + editRental.installationCost + editRental.printingCost;
+          const gross = (editRental.monthlyRate * months) + editRental.installationCost + editRental.printingCost + (editRental.productionCost || 0);
 
           const updatedContract: Contract = {
               ...editRental,
@@ -292,7 +297,7 @@ export const Rentals: React.FC = () => {
           }
           
           const months = 12;
-          const gross = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost;
+          const gross = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost + (renewRental.productionCost || 0);
 
           const renewedContract: Contract = {
               ...renewRental,
@@ -632,6 +637,16 @@ export const Rentals: React.FC = () => {
                                         <p className="text-[10px] text-slate-400 mt-2">One-time setup charge billed in month 1</p>
                                     </div>
                                 </div>
+                                {selectedBillboard?.type === BillboardType.Static && (
+                                    <div>
+                                        <MinimalInput label="Production Fee ($)" type="number" value={newRental.productionCost} onChange={(e: any) => setNewRental({...newRental, productionCost: Number(e.target.value)})} />
+                                        <p className="text-[10px] text-slate-400 mt-2">
+                                            {newRental.productionCost > 0
+                                                ? `Auto-set from size ${selectedBillboard.width}m × ${selectedBillboard.height}m. Edit if needed.`
+                                                : 'No standard fee for this size — enter manually if applicable.'}
+                                        </p>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2">
                                     <input type="checkbox" checked={newRental.hasVat} onChange={e => setNewRental({...newRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"/>
                                     <label className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</label>
@@ -713,6 +728,12 @@ export const Rentals: React.FC = () => {
                                 <div className="flex justify-between items-center px-4 py-3 text-sm">
                                     <span className="text-slate-500">Installation Fee</span>
                                     <span className="font-semibold text-slate-800">${selectedRental.installationCost.toLocaleString()}</span>
+                                </div>
+                            )}
+                            {(selectedRental.productionCost || 0) > 0 && (
+                                <div className="flex justify-between items-center px-4 py-3 text-sm">
+                                    <span className="text-slate-500">Production Fee</span>
+                                    <span className="font-semibold text-slate-800">${(selectedRental.productionCost || 0).toLocaleString()}</span>
                                 </div>
                             )}
                             {selectedRental.printingCost > 0 && (
@@ -846,6 +867,10 @@ export const Rentals: React.FC = () => {
                                 <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Printing Cost ($)</label>
                                 <input type="number" value={editRental.printingCost} onChange={(e) => setEditRental({...editRental, printingCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
                             </div>
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Production Fee ($)</label>
+                                <input type="number" value={editRental.productionCost || 0} onChange={(e) => setEditRental({...editRental, productionCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                            </div>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={editRental.hasVat} onChange={(e) => setEditRental({...editRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
@@ -926,7 +951,7 @@ export const Rentals: React.FC = () => {
                     {/* Value breakdown */}
                     {(() => {
                         const months = 12;
-                        const gross = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost;
+                        const gross = (renewRental.monthlyRate * months) + renewRental.installationCost + renewRental.printingCost + (renewRental.productionCost || 0);
                         const { subtotal: net, vat } = renewRental.hasVat ? splitInclusiveVat(renewRental.monthlyRate) : { subtotal: renewRental.monthlyRate, vat: 0 };
                         return (
                             <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
@@ -948,7 +973,7 @@ export const Rentals: React.FC = () => {
                                     <span className="text-sm font-bold uppercase tracking-wider">New Total Value</span>
                                     <span className="text-xl font-black">${gross.toLocaleString()}</span>
                                 </div>
-                                <p className="text-xs text-slate-400">12 months × ${renewRental.monthlyRate.toLocaleString()}{renewRental.installationCost > 0 ? ` + $${renewRental.installationCost} install` : ''}</p>
+                                <p className="text-xs text-slate-400">12 months × ${renewRental.monthlyRate.toLocaleString()}{renewRental.installationCost > 0 ? ` + $${renewRental.installationCost} install` : ''}{(renewRental.productionCost || 0) > 0 ? ` + $${renewRental.productionCost} production` : ''}</p>
                             </div>
                         );
                     })()}
