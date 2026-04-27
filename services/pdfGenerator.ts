@@ -387,7 +387,36 @@ export const generateLegalContractPDF = async (
       y += lines.length * lineHeight + (isHeading ? 3 : 2);
     };
 
-    const paragraphs = body.split(/\n{2,}/);
+    const allParagraphs = body.split(/\n{2,}/);
+
+    // Pull off trailing "Accepted for and on behalf of … / Signature: … / Name: …" blocks so
+    // we can lay them out as proper signature panels instead of plain paragraphs (which
+    // visually overlap each other and the page footer when rendered as inline text).
+    type SigRow = { label: string; value: string };
+    type SignatureGroup = { heading: string; rows: SigRow[] };
+    const signatureGroups: SignatureGroup[] = [];
+    let lastContentIdx = allParagraphs.length;
+    while (lastContentIdx >= 2) {
+      const headingPara = (allParagraphs[lastContentIdx - 2] || '').trim();
+      const blockPara = (allParagraphs[lastContentIdx - 1] || '').trim();
+      const isHeading = /^Accepted for and on behalf of\s+.+?:?\s*$/i.test(headingPara);
+      const looksLikeSig = /^\s*(Signature|Name|Designation|Date)\s*:/m.test(blockPara);
+      if (isHeading && looksLikeSig) {
+        const rows = blockPara.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+          const m = line.match(/^([^:]+):\s*(.*)$/);
+          if (!m) return { label: line, value: '' };
+          const label = m[1].trim();
+          // Strip placeholder underscore runs — those are rendered as a drawn rule instead.
+          const value = m[2].replace(/_{3,}/g, '').trim();
+          return { label, value };
+        });
+        signatureGroups.unshift({ heading: headingPara.replace(/:\s*$/, ''), rows });
+        lastContentIdx -= 2;
+      } else {
+        break;
+      }
+    }
+    const paragraphs = allParagraphs.slice(0, lastContentIdx);
 
     paragraphs.forEach((raw, idx) => {
       const para = raw.trim();
@@ -426,6 +455,59 @@ export const generateLegalContractPDF = async (
         }
       }
     });
+
+    // Render signature groups as a properly-spaced side-by-side block so the
+    // signature lines don't visually collide with each other or with the
+    // contact footer at the bottom of the page.
+    if (signatureGroups.length > 0) {
+      const SIG_TITLE_H = 7;
+      const SIG_ROW_H = 11;
+      const SIG_GAP = 10;
+      const blockHeight = SIG_TITLE_H + signatureGroups[0].rows.length * SIG_ROW_H + 4;
+
+      // Force a page break if the whole block can't sit above the contact footer.
+      y += 6; // breathing room before signatures
+      ensureSpace(blockHeight);
+
+      const cols = Math.min(signatureGroups.length, 2);
+      const colW = (CONTENT_W - (cols - 1) * SIG_GAP) / cols;
+
+      const baseY = y;
+      let maxY = baseY;
+      signatureGroups.forEach((group, gi) => {
+        // If we have more than two groups, wrap to a new row.
+        const colIdx = gi % 2;
+        const rowIdx = Math.floor(gi / 2);
+        const x = MARGIN_L + colIdx * (colW + SIG_GAP);
+        let yy = baseY + rowIdx * (blockHeight + 4);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        const headingLines = doc.splitTextToSize(group.heading + ':', colW);
+        doc.text(headingLines, x, yy);
+        yy += SIG_TITLE_H + Math.max(0, headingLines.length - 1) * 4.6;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(50);
+        for (const row of group.rows) {
+          const labelText = `${row.label}:`;
+          doc.text(labelText, x, yy);
+          const labelW = doc.getTextWidth(labelText) + 2;
+          if (row.value) {
+            doc.text(row.value, x + labelW, yy);
+          } else {
+            doc.setDrawColor(160);
+            doc.setLineWidth(0.3);
+            doc.line(x + labelW, yy + 1.2, x + colW, yy + 1.2);
+          }
+          yy += SIG_ROW_H;
+        }
+        if (yy > maxY) maxY = yy;
+      });
+      y = maxY;
+    }
 
     // Footer contact strip
     addContactFooter(doc);
