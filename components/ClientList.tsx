@@ -248,7 +248,7 @@ export const ClientList: React.FC = () => {
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Contact Details</p>
                   <div className="grid grid-cols-2 gap-6">
-                    <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} required />
+                    <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} />
                     <MinimalInput label="Phone Number" type="tel" value={editingClient.phone} onChange={(e: any) => setEditingClient({...editingClient, phone: e.target.value})} />
                   </div>
                 </div>
@@ -411,7 +411,7 @@ export const ClientList: React.FC = () => {
                     <div>
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Contact Details</p>
                         <div className="space-y-6">
-                            <MinimalInput label="Email Address" type="email" value={newClient.email} onChange={(e: any) => setNewClient({...newClient, email: e.target.value})} required />
+                            <MinimalInput label="Email Address" type="email" value={newClient.email} onChange={(e: any) => setNewClient({...newClient, email: e.target.value})} />
                             <MinimalInput label="Phone Number" type="tel" value={newClient.phone} onChange={(e: any) => setNewClient({...newClient, phone: e.target.value})} />
                         </div>
                     </div>
@@ -490,7 +490,7 @@ export const ClientList: React.FC = () => {
                     <div>
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Contact Details</p>
                         <div className="grid grid-cols-2 gap-6">
-                            <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} required />
+                            <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} />
                             <MinimalInput label="Phone Number" type="tel" value={editingClient.phone} onChange={(e: any) => setEditingClient({...editingClient, phone: e.target.value})} />
                         </div>
                     </div>

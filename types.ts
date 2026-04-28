@@ -68,7 +68,7 @@ export interface Client {
   id: string;
   companyName: string;
   contactPerson: string;
-  email: string;
+  email?: string;
   phone: string;
   status: 'Active' | 'Inactive';
   billingDay?: number; // Preferred day of month for payment

@@ -6,7 +6,7 @@ import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 const clientSchema = z.object({
   companyName: z.string().min(1, 'Company name is required'),
   contactPerson: z.string().min(1, 'Contact person is required'),
-  email: z.string().email('Invalid email format'),
+  email: z.string().email('Invalid email format').optional().or(z.literal('')),
   phone: z.string().min(1, 'Phone is required'),
 });
 

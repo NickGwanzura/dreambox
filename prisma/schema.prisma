@@ -123,7 +123,7 @@ model Client {
   id            String       @id @default(uuid())
   companyName   String
   contactPerson String
-  email         String
+  email         String?
   phone         String
   status        ClientStatus @default(Active)
   billingDay    Int?
