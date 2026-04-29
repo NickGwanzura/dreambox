@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { getInvoices, getContracts, getClients, getBillboards, addInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe } from '../services/mockData';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
+import { SendDocumentModal } from './SendDocumentModal';
 import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe, Send } from 'lucide-react';
 import { Invoice, Contract, BillboardType, VAT_RATE } from '../types';
 import { splitInclusiveVat } from '../services/constants';
@@ -178,16 +179,24 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
   };
   const downloadPDF = (doc: Invoice) => { const client = allClients.find(c => c.id === doc.clientId); if (client) { generateInvoicePDF(doc, client); } else { alert(`Could not generate PDF: Client data missing for ID ${doc.clientId}`); } };
-  const [sendingDocId, setSendingDocId] = useState<string | null>(null);
-  const handleSendDoc = async (doc: Invoice) => {
+  const [sendModal, setSendModal] = useState<{ doc: Invoice; client: any } | null>(null);
+  const handleSendDoc = (doc: Invoice) => {
     const client = allClients.find(c => c.id === doc.clientId);
     if (!client) { alert('Client not found'); return; }
-    if (!confirm(`Send ${doc.type.toLowerCase()} to ${client.companyName} (${client.email})?`)) return;
-    setSendingDocId(doc.id);
-    const { error, to } = await sendDocumentEmail(doc.type.toLowerCase() as any, doc.id);
-    setSendingDocId(null);
-    if (error) { alert(`Failed: ${error.message}`); }
-    else { alert(`${doc.type} sent to ${to}`); }
+    setSendModal({ doc, client });
+  };
+
+  const buildDocSendDefaults = (doc: Invoice) => {
+    const typeLabel = doc.type || 'Invoice';
+    const brand = 'Dreambox Advertising';
+    const subject = `${typeLabel} #${doc.id.slice(0, 8)} — $${doc.total.toLocaleString()} | ${brand}`;
+    const t = String(typeLabel).toLowerCase();
+    const message = t === 'quotation'
+      ? `Please find your quotation from ${brand} below. This quote is valid for 30 days. A PDF copy is attached.`
+      : t === 'receipt'
+      ? `Thank you for your payment. Here is your receipt from ${brand}. A PDF copy is attached.`
+      : `Please find your invoice from ${brand} below. Payment is due at your earliest convenience. A PDF copy is attached.`;
+    return { subject, message };
   };
   const initiatePayment = (invoice: Invoice) => { setActiveTab('Receipts'); setIsModalOpen(true); setTimeout(() => handleInvoiceSelect(invoice.id), 0); };
 
@@ -354,7 +363,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Actions</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} disabled={sendingDocId === doc.id} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50" title="Send via Email"><Send size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-400 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
@@ -546,6 +555,26 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           </div>
         </div>
       )}
+      {sendModal && (() => {
+        const { doc, client } = sendModal;
+        const docType = (doc.type || 'Invoice').toLowerCase() as any;
+        const { subject, message } = buildDocSendDefaults(doc);
+        const typeLabel = doc.type || 'Invoice';
+        return (
+          <SendDocumentModal
+            isOpen={true}
+            onClose={() => setSendModal(null)}
+            documentType={docType}
+            documentId={doc.id}
+            documentLabel={`${typeLabel} #${doc.id}`}
+            clientName={client.companyName}
+            clientEmail={client.email}
+            defaultSubject={subject}
+            defaultMessage={message}
+            onSent={({ to }) => { alert(`${typeLabel} sent to ${to}`); }}
+          />
+        );
+      })()}
     </>
   );
 };

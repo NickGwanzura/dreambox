@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { getClients, getInvoices, getClientFinancials, getTransactions, getContracts, getBillboards, addInvoice, markInvoiceAsPaid, getUpcomingBillings, deleteInvoice } from '../services/mockData';
 import { generateStatementPDF, generatePaymentSchedulePDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
+import { SendDocumentModal } from './SendDocumentModal';
 import { Client, Invoice, Contract } from '../types';
 import { splitInclusiveVat } from '../services/constants';
 import { Download, CheckCircle, AlertCircle, Search, CreditCard, X, Check, Hash, Wallet, Clock, Calendar, Trash2, ReceiptText, Send } from 'lucide-react';
@@ -66,17 +67,23 @@ export const Payments: React.FC = () => {
 
     const getClientName = (id: string) => clients.find(c => c.id === id)?.companyName || 'Unknown';
 
-    const [sendingInvId, setSendingInvId] = useState<string | null>(null);
-    const handleSendInvoice = async (invoice: Invoice) => {
+    const [sendModal, setSendModal] = useState<{ invoice: Invoice; client: Client } | null>(null);
+    const handleSendInvoice = (invoice: Invoice) => {
       const client = clients.find(c => c.id === invoice.clientId);
       if (!client) { alert('Client not found'); return; }
-      if (!confirm(`Send invoice to ${client.companyName} (${client.email})?`)) return;
-      setSendingInvId(invoice.id);
-      const docType = (invoice.type || 'Invoice').toLowerCase() as any;
-      const { error, to } = await sendDocumentEmail(docType, invoice.id);
-      setSendingInvId(null);
-      if (error) { alert(`Failed: ${error.message}`); }
-      else { alert(`${invoice.type || 'Invoice'} sent to ${to}`); }
+      setSendModal({ invoice, client });
+    };
+
+    const buildSendDefaults = (invoice: Invoice, client: Client) => {
+      const typeLabel = invoice.type || 'Invoice';
+      const brand = 'Dreambox Advertising';
+      const subject = `${typeLabel} #${invoice.id.slice(0, 8)} — $${invoice.total.toLocaleString()} | ${brand}`;
+      const message = String(typeLabel).toLowerCase() === 'quotation'
+        ? `Please find your quotation from ${brand} below. This quote is valid for 30 days. A PDF copy is attached.`
+        : String(typeLabel).toLowerCase() === 'receipt'
+        ? `Thank you for your payment. Here is your receipt from ${brand}. A PDF copy is attached.`
+        : `Please find your invoice from ${brand} below. Payment is due at your earliest convenience. A PDF copy is attached.`;
+      return { subject, message };
     };
 
     // Check if a monthly payment has already been logged for a contract+month+year
@@ -255,7 +262,7 @@ export const Payments: React.FC = () => {
                 )}
 
                 {/* ── Invoices Tab ── */}
-                {activeTab === 'Invoices' && (<div className="space-y-6"><div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100"><div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">{(['All', 'Pending', 'Overdue', 'Paid'] as const).map(status => (<button key={status} onClick={() => setStatusFilter(status)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border ${statusFilter === status ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{status}</button>))}</div><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search Client or ID..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:bg-white focus:border-slate-800 transition-all text-sm"/></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">{filteredInvoices.map(invoice => (<div key={invoice.id} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-lg transition-all group flex flex-col justify-between hover:-translate-y-1 duration-300"><div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-slate-50 rounded-xl group-hover:bg-slate-100 transition-colors">{String(invoice.status || '').toLowerCase() === 'paid' ? <CheckCircle className="text-green-500" size={24}/> : String(invoice.status || '').toLowerCase() === 'overdue' ? <AlertCircle className="text-red-500" size={24}/> : <AlertCircle className="text-amber-500" size={24}/>}</div><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${String(invoice.status || '').toLowerCase() === 'paid' ? 'bg-green-50 text-green-600' : String(invoice.status || '').toLowerCase() === 'overdue' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{invoice.status}</span></div><h3 className="text-lg font-bold text-slate-900 mb-1">{getClientName(invoice.clientId)}</h3><p className="text-sm text-slate-500 mb-6">Inv #{invoice.id} • {invoice.date}</p><div className="space-y-3 mb-6"><div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-medium">Amount Due</span><span className="font-bold text-slate-900 text-lg">${invoice.total.toLocaleString()}</span></div></div></div><div className="flex gap-2">{['pending', 'overdue'].includes(String(invoice.status || '').toLowerCase()) && (<button onClick={() => handleOpenPaymentModal(invoice)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all flex items-center justify-center gap-2"><CreditCard size={14} /> Pay</button>)}{String(invoice.status || '').toLowerCase() === 'paid' && (<div className="flex-1 py-3 bg-slate-50 text-slate-400 rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 cursor-default border border-slate-100"><Check size={14} /> Paid</div>)}<button onClick={() => handleSendInvoice(invoice)} disabled={sendingInvId === invoice.id} className="py-3 px-4 border border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"><Send size={14} /> {sendingInvId === invoice.id ? '...' : 'Email'}</button>{canUserDelete && (<button onClick={() => handleDeleteInvoice(invoice)} className="py-3 px-4 border border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center" title="Delete invoice"><Trash2 size={14}/></button>)}</div></div>))}{filteredInvoices.length === 0 && (<div className="col-span-full py-12 text-center text-slate-400 italic bg-white rounded-2xl border border-slate-100 border-dashed">No invoices found matching your criteria.</div>)}</div></div>)}
+                {activeTab === 'Invoices' && (<div className="space-y-6"><div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100"><div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">{(['All', 'Pending', 'Overdue', 'Paid'] as const).map(status => (<button key={status} onClick={() => setStatusFilter(status)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border ${statusFilter === status ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{status}</button>))}</div><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search Client or ID..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:bg-white focus:border-slate-800 transition-all text-sm"/></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">{filteredInvoices.map(invoice => (<div key={invoice.id} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-lg transition-all group flex flex-col justify-between hover:-translate-y-1 duration-300"><div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-slate-50 rounded-xl group-hover:bg-slate-100 transition-colors">{String(invoice.status || '').toLowerCase() === 'paid' ? <CheckCircle className="text-green-500" size={24}/> : String(invoice.status || '').toLowerCase() === 'overdue' ? <AlertCircle className="text-red-500" size={24}/> : <AlertCircle className="text-amber-500" size={24}/>}</div><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${String(invoice.status || '').toLowerCase() === 'paid' ? 'bg-green-50 text-green-600' : String(invoice.status || '').toLowerCase() === 'overdue' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{invoice.status}</span></div><h3 className="text-lg font-bold text-slate-900 mb-1">{getClientName(invoice.clientId)}</h3><p className="text-sm text-slate-500 mb-6">Inv #{invoice.id} • {invoice.date}</p><div className="space-y-3 mb-6"><div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-medium">Amount Due</span><span className="font-bold text-slate-900 text-lg">${invoice.total.toLocaleString()}</span></div></div></div><div className="flex gap-2">{['pending', 'overdue'].includes(String(invoice.status || '').toLowerCase()) && (<button onClick={() => handleOpenPaymentModal(invoice)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all flex items-center justify-center gap-2"><CreditCard size={14} /> Pay</button>)}{String(invoice.status || '').toLowerCase() === 'paid' && (<div className="flex-1 py-3 bg-slate-50 text-slate-400 rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 cursor-default border border-slate-100"><Check size={14} /> Paid</div>)}<button onClick={() => handleSendInvoice(invoice)} className="py-3 px-4 border border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2"><Send size={14} /> Email</button>{canUserDelete && (<button onClick={() => handleDeleteInvoice(invoice)} className="py-3 px-4 border border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center" title="Delete invoice"><Trash2 size={14}/></button>)}</div></div>))}{filteredInvoices.length === 0 && (<div className="col-span-full py-12 text-center text-slate-400 italic bg-white rounded-2xl border border-slate-100 border-dashed">No invoices found matching your criteria.</div>)}</div></div>)}
 
                 {/* ── History Tab ── */}
                 {activeTab === 'History' && (<div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in"><div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4"><div className="flex items-center gap-2 text-slate-500"><Clock size={18} /> <span className="text-sm font-bold uppercase tracking-wider">Payment History</span></div><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search Ref, ID, Client..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:border-slate-800 transition-all text-sm"/></div></div><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-600 min-w-[500px] lg:min-w-[700px]"><thead className="bg-slate-50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Payment Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Receipt ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Reference</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Amount</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredReceipts.map(receipt => (<tr key={receipt.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-mono text-xs font-bold text-slate-700">{receipt.date}</td><td className="px-6 py-4 font-bold text-slate-900">{receipt.id}</td><td className="px-6 py-4">{getClientName(receipt.clientId)}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold uppercase">{receipt.paymentMethod || 'N/A'}</span></td><td className="px-6 py-4 font-mono text-xs text-slate-500">{receipt.paymentReference || '-'}</td><td className="px-6 py-4 text-right font-bold text-green-600">${receipt.total.toLocaleString()}</td><td className="px-6 py-4 text-right">{canUserDelete && (<button onClick={() => handleDeleteReceipt(receipt.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16}/></button>)}</td></tr>))}{filteredReceipts.length === 0 && (<tr><td colSpan={7} className="px-6 py-12 text-center text-slate-400 italic">No payment history found.</td></tr>)}</tbody></table></div></div>)}
@@ -475,6 +482,26 @@ export const Payments: React.FC = () => {
                     </div>
                 </div>
             )}
+            {sendModal && (() => {
+              const { invoice, client } = sendModal;
+              const docType = (invoice.type || 'Invoice').toLowerCase() as any;
+              const { subject, message } = buildSendDefaults(invoice, client);
+              const typeLabel = invoice.type || 'Invoice';
+              return (
+                <SendDocumentModal
+                  isOpen={true}
+                  onClose={() => setSendModal(null)}
+                  documentType={docType}
+                  documentId={invoice.id}
+                  documentLabel={`${typeLabel} #${invoice.id}`}
+                  clientName={client.companyName}
+                  clientEmail={client.email}
+                  defaultSubject={subject}
+                  defaultMessage={message}
+                  onSent={({ to }) => { alert(`${typeLabel} sent to ${to}`); }}
+                />
+              );
+            })()}
         </>
     );
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, updateContract, subscribe } from '../services/mockData';
 import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
+import { SendDocumentModal } from './SendDocumentModal';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat } from '../services/constants';
 import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, Lock, RotateCcw, Send } from 'lucide-react';
@@ -44,17 +45,12 @@ export const ContractList: React.FC = () => {
     }
   };
 
-  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendModal, setSendModal] = useState<{ contract: Contract; client: any } | null>(null);
 
-  const handleSendEmail = async (contract: Contract) => {
+  const handleSendEmail = (contract: Contract) => {
     const client = getClient(contract.clientId);
     if (!client) { alert('Client not found'); return; }
-    if (!confirm(`Send contract to ${client.companyName} (${client.email})?`)) return;
-    setSendingId(contract.id);
-    const { error, to } = await sendDocumentEmail('contract', contract.id);
-    setSendingId(null);
-    if (error) { alert(`Failed: ${error.message}`); }
-    else { alert(`Contract sent to ${to}`); }
+    setSendModal({ contract, client });
   };
 
   // Check availability for edited dates
@@ -250,8 +246,8 @@ export const ContractList: React.FC = () => {
                 <button onClick={() => handleDownload(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
                   <Download size={14} /> <span className="sm:hidden">PDF</span><span className="hidden sm:inline">PDF</span>
                 </button>
-                <button onClick={() => handleSendEmail(contract)} disabled={sendingId === contract.id} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50">
-                  <Send size={14} /> <span className="hidden sm:inline">{sendingId === contract.id ? 'Sending...' : 'Email'}</span>
+                <button onClick={() => handleSendEmail(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 rounded-lg transition-colors flex items-center gap-1">
+                  <Send size={14} /> <span className="hidden sm:inline">Email</span>
                 </button>
               </div>
             </div>
@@ -550,6 +546,26 @@ export const ContractList: React.FC = () => {
           </div>
         </div>
       )}
+      {sendModal && (() => {
+        const { contract, client } = sendModal;
+        const billboard = getBillboard(contract.billboardId);
+        const subject = `Your Billboard Contract — ${billboard?.name || 'Billboard'} (${contract.startDate} to ${contract.endDate})`;
+        const message = `Please find below the details of your billboard rental contract with Dreambox Advertising. A PDF copy is attached.`;
+        return (
+          <SendDocumentModal
+            isOpen={true}
+            onClose={() => setSendModal(null)}
+            documentType="contract"
+            documentId={contract.id}
+            documentLabel={`Contract ${contract.id}`}
+            clientName={client.companyName}
+            clientEmail={client.email}
+            defaultSubject={subject}
+            defaultMessage={message}
+            onSent={({ to }) => { alert(`Contract sent to ${to}`); }}
+          />
+        );
+      })()}
     </>
   );
 };

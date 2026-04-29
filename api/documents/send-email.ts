@@ -14,7 +14,7 @@ import { buildInvoicePdf, buildContractPdf } from '../../lib/documentPdf';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
-const DEFAULT_FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
+const DEFAULT_FROM = 'Dreambox Advertising <info@dreamboxadvertising.com>';
 
 type DocType = 'contract' | 'invoice' | 'quotation' | 'receipt';
 
@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const payload = requireAuth(req, res);
   if (!payload) return;
 
-  const { documentType, documentId } = req.body ?? {};
+  const { documentType, documentId, to: toOverride, cc: ccOverride, subject: subjectOverride, customMessage } = req.body ?? {};
   if (!documentType || !documentId) {
     return res.status(400).json({ error: 'documentType and documentId required' });
   }
@@ -44,6 +44,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!validTypes.includes(documentType)) {
     return res.status(400).json({ error: `Invalid documentType. Must be one of: ${validTypes.join(', ')}` });
   }
+
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const sanitizeEmails = (arr: unknown): string[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((x) => (typeof x === 'string' ? x.trim() : ''))
+      .filter((x) => x && emailRe.test(x))
+      .slice(0, 20);
+  };
+  const toList = sanitizeEmails(toOverride);
+  const ccList = sanitizeEmails(ccOverride);
 
   try {
     // Load company profile once — used for branding, sender, banking details.
@@ -72,11 +83,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       contactPerson = escapeHtml(client.contactPerson);
       subject = `Your Billboard Contract — ${billboard?.name || 'Billboard'} (${contract.startDate} to ${contract.endDate})`;
 
+      const contractIntro = (typeof customMessage === 'string' && customMessage.trim())
+        ? customMessage.trim().split('\n').map((line: string) => escapeHtml(line)).join('<br/>')
+        : `Please find below the details of your billboard rental contract${company?.name ? ` with ${escapeHtml(company.name)}` : ''}. A PDF copy is attached.`;
+
       html = buildDocEmail({
         company,
         contactPerson,
         title: 'Billboard Rental Contract',
-        intro: `Please find below the details of your billboard rental contract${company?.name ? ` with ${escapeHtml(company.name)}` : ''}. A PDF copy is attached.`,
+        intro: contractIntro,
         rows: [
           ['Billboard', billboard?.name || 'N/A'],
           ['Location', billboard?.location || 'N/A'],
@@ -140,11 +155,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       summaryRows.push(['Total', `$${invoice.total.toLocaleString()}`]);
 
-      const introText = documentType === 'quotation'
+      const defaultIntro = documentType === 'quotation'
         ? `Please find your quotation from ${escapeHtml(brand)} below. This quote is valid for 30 days. A PDF copy is attached.`
         : documentType === 'receipt'
         ? `Thank you for your payment. Here is your receipt from ${escapeHtml(brand)}. A PDF copy is attached.`
         : `Please find your invoice from ${escapeHtml(brand)} below. Payment is due at your earliest convenience. A PDF copy is attached.`;
+      const introText = (typeof customMessage === 'string' && customMessage.trim())
+        ? customMessage.trim().split('\n').map((line: string) => escapeHtml(line)).join('<br/>')
+        : defaultIntro;
 
       html = buildInvoiceEmail({
         company,
@@ -166,16 +184,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       pdfFilename = `${typeLabel}-${invoice.id.slice(0, 8)}.pdf`;
     }
 
+    const finalTo = toList.length > 0 ? toList : (clientEmail && emailRe.test(clientEmail) ? [clientEmail] : []);
+    if (finalTo.length === 0) {
+      return res.status(400).json({ error: 'No valid recipient email. Add a To address or set the client email.' });
+    }
+    const finalSubject = (typeof subjectOverride === 'string' && subjectOverride.trim()) ? subjectOverride.trim() : subject;
+
     await resend.emails.send({
       from: FROM,
-      to: clientEmail,
-      subject,
+      to: finalTo,
+      cc: ccList.length > 0 ? ccList : undefined,
+      subject: finalSubject,
       html,
       attachments: [{ filename: pdfFilename, content: pdfBuffer }],
     });
 
-    console.log(`[documents/send-email] Sent ${documentType} ${documentId} to ${clientEmail} with PDF attachment`);
-    return res.status(200).json({ message: `${documentType} sent to ${clientEmail}`, to: clientEmail, attachment: pdfFilename });
+    const displayTo = finalTo.join(', ') + (ccList.length ? ` (cc: ${ccList.join(', ')})` : '');
+    console.log(`[documents/send-email] Sent ${documentType} ${documentId} to ${displayTo} with PDF attachment`);
+    return res.status(200).json({ message: `${documentType} sent to ${displayTo}`, to: displayTo, attachment: pdfFilename });
   } catch (e: any) {
     console.error('[documents/send-email]', e);
     return res.status(500).json({ error: 'Failed to send email' });
