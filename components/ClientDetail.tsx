@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Client, Contract, Invoice } from '../types';
 import {
-  getInvoices, getContracts, getBillboards, addInvoice, subscribe, markInvoiceAsPaid, deleteInvoice,
+  getInvoices, getContracts, getBillboards, addInvoice, subscribe, markInvoiceAsPaid, deleteInvoice, getEffectiveVatRate,
 } from '../services/mockData';
 import { generateInvoicePDF } from '../services/pdfGenerator';
-import { splitInclusiveVat } from '../services/constants';
+import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import {
   ArrowLeft, Edit2, Mail, Phone, User, Plus, X, FileText, Download, Trash2, CheckCircle, DollarSign, AlertCircle, Clock, Calendar,
 } from 'lucide-react';
@@ -27,6 +27,8 @@ const STATUS_STYLES: Record<Invoice['status'], string> = {
 
 export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
   const canUserDelete = canDelete(getCurrentUser());
+  const vatRate = getEffectiveVatRate();
+  const vatPct = formatVatPercent(vatRate);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [tab, setTab] = useState<'Invoice' | 'Quotation' | 'Receipt'>('Invoice');
@@ -97,7 +99,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
     }));
 
   const gross = newDoc.items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
-  const { subtotal, vat } = newDoc.hasVat ? splitInclusiveVat(gross) : { subtotal: gross, vat: 0 };
+  const { subtotal, vat } = newDoc.hasVat ? splitInclusiveVat(gross, vatRate) : { subtotal: gross, vat: 0 };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -344,7 +346,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={newDoc.hasVat} onChange={e => setNewDoc({ ...newDoc, hasVat: e.target.checked })}
                   className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                <span className="text-sm font-medium text-slate-600">Amounts include VAT (15%)</span>
+                <span className="text-sm font-medium text-slate-600">Amounts include VAT ({vatPct})</span>
               </label>
 
               {/* Summary */}
@@ -356,7 +358,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
                       <span className="font-semibold">${subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-300">VAT (15%)</span>
+                      <span className="text-slate-300">VAT ({vatPct})</span>
                       <span className="font-semibold">${vat.toFixed(2)}</span>
                     </div>
                   </>

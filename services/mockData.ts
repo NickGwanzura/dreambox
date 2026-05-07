@@ -1,7 +1,7 @@
 import { Billboard, BillboardType, Client, Contract, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
 import { api, isConfigured } from './apiClient';
 import { logger } from '../utils/logger';
-import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS, splitInclusiveVat } from './constants';
+import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS, splitInclusiveVat, VAT_RATE } from './constants';
 
 export const ZIM_TOWNS = [
   "Harare", "Bulawayo", "Mutare", "Gweru", "Kwekwe", 
@@ -266,8 +266,18 @@ const DEFAULT_PROFILE: CompanyProfile = {
     senderEmail: "",
     senderName: "Dreambox CRM",
     emailSignature: "",
+    vatRate: VAT_RATE,
 };
 let companyProfile: CompanyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || DEFAULT_PROFILE;
+// Backfill VAT rate for profiles persisted before the field existed.
+if (companyProfile.vatRate === undefined || companyProfile.vatRate === null) {
+    companyProfile = { ...companyProfile, vatRate: VAT_RATE };
+}
+
+export const getEffectiveVatRate = (): number => {
+    const r = companyProfile.vatRate;
+    return typeof r === 'number' && r >= 0 ? r : VAT_RATE;
+};
 let lastBackupDate = loadFromStorage(STORAGE_KEYS.LAST_BACKUP, null) || 'Never'; let lastCloudBackup = loadFromStorage(STORAGE_KEYS.CLOUD_BACKUP, null) || 'Never';
 
 // ... (Other getters/setters/helpers remain same)
@@ -287,7 +297,7 @@ export const runAutoBilling = () => {
     if (!alreadyBilled) {
       const gross = contract.monthlyRate;
       const { subtotal, vat: vatAmount, total } = contract.hasVat
-        ? splitInclusiveVat(gross)
+        ? splitInclusiveVat(gross, getEffectiveVatRate())
         : { subtotal: gross, vat: 0, total: gross };
       const inv: Invoice = {
         id: `INV-AUTO-${contract.id}-${monthPrefix}`,

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, updateContract, subscribe } from '../services/mockData';
+import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, updateContract, subscribe, getEffectiveVatRate } from '../services/mockData';
 import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
 import { Contract, BillboardType } from '../types';
-import { splitInclusiveVat } from '../services/constants';
+import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, Lock, RotateCcw, Send } from 'lucide-react';
 
 export const ContractList: React.FC = () => {
+  const vatRate = getEffectiveVatRate();
+  const vatPct = formatVatPercent(vatRate);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [editContract, setEditContract] = useState<Contract | null>(null);
   const [renewContract, setRenewContract] = useState<Contract | null>(null);
@@ -316,7 +318,7 @@ export const ContractList: React.FC = () => {
                     </div>
                   )}
                   {selectedContract.hasVat && (() => {
-                    const { subtotal: net, vat } = splitInclusiveVat(selectedContract.monthlyRate);
+                    const { subtotal: net, vat } = splitInclusiveVat(selectedContract.monthlyRate, vatRate);
                     return (
                       <>
                         <div className="flex justify-between items-center px-4 py-3 text-sm">
@@ -324,7 +326,7 @@ export const ContractList: React.FC = () => {
                           <span className="font-semibold text-slate-800">${net.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center px-4 py-3 text-sm">
-                          <span className="text-slate-500">VAT / month (15%)</span>
+                          <span className="text-slate-500">VAT / month ({vatPct})</span>
                           <span className="font-semibold text-slate-800">${vat.toFixed(2)}</span>
                         </div>
                       </>
@@ -335,7 +337,7 @@ export const ContractList: React.FC = () => {
                     <span className="text-lg font-extrabold text-slate-900">${selectedContract.totalContractValue.toLocaleString()}</span>
                   </div>
                 </div>
-                {selectedContract.hasVat && <p className="text-xs text-slate-400 mt-1.5">Monthly rate is VAT-inclusive — 15% extracted for invoicing.</p>}
+                {selectedContract.hasVat && <p className="text-xs text-slate-400 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
               </div>
 
               {selectedContract.lastModifiedDate && (
@@ -422,7 +424,7 @@ export const ContractList: React.FC = () => {
                     <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label>
                     <input type="number" value={editContract.monthlyRate} onChange={(e) => setEditContract({...editContract, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
                     {editContract.hasVat && editContract.monthlyRate > 0 && (
-                      <p className="text-[10px] text-slate-400 mt-1">Net: ${splitInclusiveVat(editContract.monthlyRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editContract.monthlyRate).vat.toFixed(2)}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Net: ${splitInclusiveVat(editContract.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editContract.monthlyRate, vatRate).vat.toFixed(2)}</p>
                     )}
                   </div>
                   <div>
@@ -438,7 +440,7 @@ export const ContractList: React.FC = () => {
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={editContract.hasVat} onChange={(e) => setEditContract({...editContract, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                  <span className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</span>
+                  <span className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</span>
                 </label>
               </div>
 
@@ -505,14 +507,14 @@ export const ContractList: React.FC = () => {
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={renewContract.hasVat} onChange={(e) => setRenewContract({...renewContract, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                  <span className="text-sm font-medium text-slate-600">Rate includes VAT (15%)</span>
+                  <span className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</span>
                 </label>
               </div>
 
               {(() => {
                 const months = 12;
                 const gross = (renewContract.monthlyRate * months) + renewContract.installationCost + renewContract.printingCost;
-                const { subtotal: net, vat } = renewContract.hasVat ? splitInclusiveVat(renewContract.monthlyRate) : { subtotal: renewContract.monthlyRate, vat: 0 };
+                const { subtotal: net, vat } = renewContract.hasVat ? splitInclusiveVat(renewContract.monthlyRate, vatRate) : { subtotal: renewContract.monthlyRate, vat: 0 };
                 return (
                   <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
                     <div className="flex justify-between text-sm">
@@ -521,7 +523,7 @@ export const ContractList: React.FC = () => {
                     </div>
                     {renewContract.hasVat && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-slate-300">Monthly VAT (15%)</span>
+                        <span className="text-slate-300">Monthly VAT ({vatPct})</span>
                         <span className="font-semibold">${vat.toFixed(2)}</span>
                       </div>
                     )}

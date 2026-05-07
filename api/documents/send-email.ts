@@ -60,6 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Load company profile once — used for branding, sender, banking details.
     const company = (await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } })) as any || {};
     const FROM = buildFromAddress(company);
+    const vatRate = (typeof company?.vatRate === 'number' && company.vatRate >= 0) ? company.vatRate : 0.155;
+    const vatPctLabel = (() => {
+      const pct = vatRate * 100;
+      const str = Number.isInteger(pct) ? pct.toString() : pct.toFixed(2).replace(/\.?0+$/, '');
+      return `${str}%`;
+    })();
 
     let clientEmail: string;
     let clientName: string;
@@ -100,7 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ['Installation', `$${contract.installationCost.toLocaleString()}`],
           ...((contract.productionCost ?? 0) > 0 ? [['Production Fee', `$${(contract.productionCost ?? 0).toLocaleString()}`]] as [string, string][] : []),
           ['Printing', `$${contract.printingCost.toLocaleString()}`],
-          ['VAT', contract.hasVat ? '15%' : 'None'],
+          ['VAT', contract.hasVat ? vatPctLabel : 'None'],
           ['Total Value', `$${contract.totalContractValue.toLocaleString()}`],
         ],
         status: contract.status,
@@ -151,7 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         summaryRows.push(['Discount', `-$${invoice.discountAmount.toLocaleString()}`]);
       }
       if (invoice.vatAmount > 0) {
-        summaryRows.push(['VAT (15%)', `$${invoice.vatAmount.toLocaleString()}`]);
+        summaryRows.push([`VAT (${vatPctLabel})`, `$${invoice.vatAmount.toLocaleString()}`]);
       }
       summaryRows.push(['Total', `$${invoice.total.toLocaleString()}`]);
 

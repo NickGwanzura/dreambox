@@ -436,6 +436,18 @@ export const Settings: React.FC = () => {
                     <div className="md:col-span-2"><MinimalInput label="Company Registered Name" value={profile.name} onChange={(e: any) => setProfile({ ...profile, name: e.target.value })} /></div>
                     <MinimalInput label="Tax ID / VAT Number" value={profile.vatNumber} onChange={(e: any) => setProfile({ ...profile, vatNumber: e.target.value })} />
                     <MinimalInput label="Registration Number" value={profile.regNumber} onChange={(e: any) => setProfile({ ...profile, regNumber: e.target.value })} />
+                    <MinimalInput
+                      label="VAT Rate (%)"
+                      type="number"
+                      value={profile.vatRate !== undefined ? (profile.vatRate * 100).toString() : ''}
+                      onChange={(e: any) => {
+                        const raw = e.target.value;
+                        if (raw === '') { setProfile({ ...profile, vatRate: undefined }); return; }
+                        const pct = parseFloat(raw);
+                        if (!Number.isFinite(pct) || pct < 0) return;
+                        setProfile({ ...profile, vatRate: pct / 100 });
+                      }}
+                    />
                   </div>
                   <div className="border-t border-slate-50 pt-6">
                     <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400 tracking-wider mb-6"><Phone size={14} /> Contact Information</h4>

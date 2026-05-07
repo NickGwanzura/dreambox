@@ -1,4 +1,5 @@
 import { Billboard, Client, CompanyProfile, Contract, BillboardType } from '../types';
+import { VAT_RATE, formatVatPercent } from '../services/constants';
 
 export const CONTRACT_TEMPLATE_PLACEHOLDERS = [
   { key: 'contract_number', label: 'Contract reference (the contract ID, e.g. C-1234)' },
@@ -105,12 +106,12 @@ function monthsBetween(start: string, end: string): number {
   return Math.max(1, Math.round(days / 30.4375));
 }
 
-function buildRateBlock(contract: Contract, billboard: Billboard | undefined, advertiser: string): string {
+function buildRateBlock(contract: Contract, billboard: Billboard | undefined, advertiser: string, vatRate: number = VAT_RATE): string {
   const monthly = money(contract.monthlyRate);
   const sizeStr = billboard ? `${billboard.width}m x ${billboard.height}m` : '';
   const typeLabel = billboard?.type === BillboardType.LED ? 'digital' : 'static';
   const detail = contract.details || '';
-  const vatNote = contract.hasVat ? 'VAT-inclusive, 15%' : 'VAT not included';
+  const vatNote = contract.hasVat ? `VAT-inclusive, ${formatVatPercent(vatRate)}` : 'VAT not included';
 
   let placement: string;
   if (billboard?.type === BillboardType.LED) {
@@ -182,7 +183,7 @@ export function buildTemplateData(
     billboard_location: billboard?.location || '',
     billboard_type: billboard?.type || 'Static',
     billboard_size: billboard ? `${billboard.width}m x ${billboard.height}m` : '',
-    rate_block: buildRateBlock(contract, billboard, client.companyName),
+    rate_block: buildRateBlock(contract, billboard, client.companyName, company.vatRate ?? VAT_RATE),
     monthly_rate: money(contract.monthlyRate),
     total_contract_value: money(contract.totalContractValue),
     start_date: contract.startDate,

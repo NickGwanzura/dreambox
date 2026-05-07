@@ -2,7 +2,8 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard, BillboardType, CompanyProfile } from '../types';
-import { getCompanyProfile, getCompanyLogo, getContracts } from './mockData';
+import { getCompanyProfile, getCompanyLogo, getContracts, getEffectiveVatRate } from './mockData';
+import { formatVatPercent } from './constants';
 import { buildTemplateData, resolveContractTemplate, substituteTemplate, TemplateData } from '../utils/contractTemplate';
 
 type RGB = [number, number, number];
@@ -315,7 +316,7 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.text(discountLabel + ':', totalsX, finalY + 15);
     doc.text(`-$${(invoice.discountAmount || 0).toFixed(2)}`, 195, finalY + 15, { align: 'right' });
 
-    doc.text(`VAT (15%):`, totalsX, finalY + 20);
+    doc.text(`VAT (${formatVatPercent(getEffectiveVatRate())}):`, totalsX, finalY + 20);
     doc.text(`$${(invoice.vatAmount || 0).toFixed(2)}`, 195, finalY + 20, { align: 'right' });
     
     doc.setDrawColor(200);
@@ -1014,7 +1015,7 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         doc.setFont('helvetica', 'italic');
         doc.setTextColor(100, 116, 139);
         doc.text(
-            `Rates shown are monthly and exclude VAT (15%) and production/printing. To reserve, contact us using the details below.`,
+            `Rates shown are monthly and exclude VAT (${formatVatPercent(getEffectiveVatRate())}) and production/printing. To reserve, contact us using the details below.`,
             14, finalY + 14
         );
         const trafficNote = rows.length > 0 && totalDailyTraffic > 0

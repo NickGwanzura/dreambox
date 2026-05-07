@@ -5,8 +5,9 @@ import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerat
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
 import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe, Send } from 'lucide-react';
-import { Invoice, Contract, BillboardType, VAT_RATE } from '../types';
-import { splitInclusiveVat } from '../services/constants';
+import { Invoice, Contract, BillboardType } from '../types';
+import { splitInclusiveVat, formatVatPercent } from '../services/constants';
+import { getEffectiveVatRate } from '../services/mockData';
 
 type InvoiceLineItem = Invoice['items'][number];
 
@@ -165,8 +166,10 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const rawDiscountAmount = discountType === 'percentage' ? grossItems * (discountValue / 100) : discountValue;
   const discountAmount = Math.min(grossItems, Math.max(0, rawDiscountAmount || 0));
   const grossAfterDiscount = Math.max(0, grossItems - discountAmount);
+  const vatRate = getEffectiveVatRate();
+  const vatPct = formatVatPercent(vatRate);
   const { subtotal: taxableSubtotal, vat: vatAmount } = hasVat
-    ? splitInclusiveVat(grossAfterDiscount)
+    ? splitInclusiveVat(grossAfterDiscount, vatRate)
     : { subtotal: grossAfterDiscount, vat: 0 };
   const subtotal = taxableSubtotal;
   const total = grossAfterDiscount;
@@ -500,7 +503,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         </div>
                         <div className="flex items-center gap-2">
                             <input type="checkbox" checked={hasVat} disabled={activeTab === 'Receipts' && !!selectedInvoiceToPay} onChange={e => setHasVat(e.target.checked)} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                            <label className="text-sm font-medium text-slate-600">Amounts include VAT (15%)</label>
+                            <label className="text-sm font-medium text-slate-600">Amounts include VAT ({vatPct})</label>
                         </div>
                         <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
                             <div className="flex items-center justify-between text-sm">

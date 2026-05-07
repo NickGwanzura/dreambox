@@ -31,15 +31,23 @@ export const MAX_UPLOAD_SIZE_MB = 5;
 export const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 
 // Financial
-export const VAT_RATE = 0.15;
+export const VAT_RATE = 0.155;
 export const DEFAULT_CURRENCY = 'USD';
 
 // VAT is inclusive: the rate the user enters is the gross amount.
-// subtotal = gross / (1 + VAT_RATE); vat = gross - subtotal; total = gross.
-export const splitInclusiveVat = (gross: number) => {
-  const subtotal = gross / (1 + VAT_RATE);
+// subtotal = gross / (1 + rate); vat = gross - subtotal; total = gross.
+export const splitInclusiveVat = (gross: number, rate: number = VAT_RATE) => {
+  const subtotal = gross / (1 + rate);
   const vat = gross - subtotal;
   return { subtotal, vat, total: gross };
+};
+
+// Format a VAT rate (fraction, e.g. 0.155) as a percent string ("15.5%").
+// Trims trailing zeros so 0.15 -> "15%", 0.155 -> "15.5%".
+export const formatVatPercent = (rate: number = VAT_RATE) => {
+  const pct = rate * 100;
+  const str = Number.isInteger(pct) ? pct.toString() : pct.toFixed(2).replace(/\.?0+$/, '');
+  return `${str}%`;
 };
 
 // Validation Limits

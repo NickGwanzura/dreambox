@@ -243,13 +243,15 @@ export interface CompanyProfile {
     emailSignature?: string;     // free-text footer appended to outbound emails
     // Legal contract template — plain text with {{placeholders}}. Blank/unset = use built-in default.
     contractTemplate?: string;
+    // VAT rate as a fraction (e.g. 0.155 for 15.5%). Blank/unset = use built-in default.
+    vatRate?: number;
 }
 
 /**
  * VAT Rate constant - also available in services/constants.ts
  * @deprecated Use VAT_RATE from services/constants.ts instead
  */
-export const VAT_RATE = 0.15;
+export const VAT_RATE = 0.155;
 
 // ==========================================
 // CRM OUTREACH TRACKING SYSTEM

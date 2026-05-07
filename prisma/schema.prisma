@@ -291,6 +291,7 @@ model CompanyProfile {
   senderName        String?
   emailSignature    String?
   contractTemplate  String?
+  vatRate           Float?
 
   @@map("company_profile")
 }

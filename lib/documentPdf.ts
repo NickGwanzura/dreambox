@@ -25,6 +25,18 @@ export type CompanyProfileLite = {
   bankBranch?: string | null;
   bankSwift?: string | null;
   paymentTerms?: string | null;
+  vatRate?: number | null;
+};
+
+const DEFAULT_VAT_RATE = 0.155;
+const effectiveVatRate = (company: CompanyProfileLite): number => {
+  const r = company.vatRate;
+  return typeof r === 'number' && r >= 0 ? r : DEFAULT_VAT_RATE;
+};
+const formatVatPct = (rate: number): string => {
+  const pct = rate * 100;
+  const str = Number.isInteger(pct) ? pct.toString() : pct.toFixed(2).replace(/\.?0+$/, '');
+  return `${str}%`;
 };
 
 export type ClientLite = {
@@ -212,7 +224,7 @@ export async function buildInvoicePdf(
 
   totalRow('Subtotal', money(invoice.subtotal));
   if (invoice.discountAmount && invoice.discountAmount > 0) totalRow('Discount', `-${money(invoice.discountAmount)}`);
-  if (invoice.vatAmount > 0) totalRow('VAT (15%)', money(invoice.vatAmount));
+  if (invoice.vatAmount > 0) totalRow(`VAT (${formatVatPct(effectiveVatRate(company))})`, money(invoice.vatAmount));
   y += 4;
   doc.moveTo(370, y).lineTo(560, y).strokeColor(LINE).stroke();
   y += 8;
@@ -290,7 +302,7 @@ export async function buildContractPdf(
     ['Installation', money(contract.installationCost)],
     ...((contract.productionCost ?? 0) > 0 ? ([['Production Fee', money(contract.productionCost ?? 0)]] as [string, string][]) : []),
     ['Printing', money(contract.printingCost)],
-    ['VAT', contract.hasVat ? '15%' : 'None'],
+    ['VAT', contract.hasVat ? formatVatPct(effectiveVatRate(company)) : 'None'],
   ];
 
   let y = doc.y;
