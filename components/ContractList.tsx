@@ -5,7 +5,7 @@ import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
-import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, Lock, RotateCcw, Send } from 'lucide-react';
+import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, RotateCcw, Send } from 'lucide-react';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -55,6 +55,27 @@ export const ContractList: React.FC = () => {
   const getClientName = (id: string) => getClient(id)?.companyName || 'Unknown';
   const getBillboardName = (id: string) => billboards.find(b => b.id === id)?.name || 'Unknown';
   const getBillboard = (id: string) => getBillboards().find(b => b.id === id);
+  const getDefaultRate = (billboardId: string, side: Contract['side'] = 'A') => {
+      const billboard = getBillboard(billboardId);
+      if (!billboard) return 0;
+      if (billboard.type === BillboardType.LED) return billboard.ratePerSlot || 0;
+      if (side === 'B') return billboard.sideBRate || 0;
+      if (side === 'Both') return (billboard.sideARate || 0) + (billboard.sideBRate || 0);
+      return billboard.sideARate || 0;
+  };
+  const getLineDetails = (contract: Contract) => {
+      const billboard = getBillboard(contract.billboardId);
+      if (!billboard) return contract.details || 'Billboard rental';
+      if (billboard.type === BillboardType.Static) return contract.side === 'Both' ? 'Sides A & B' : `Side ${contract.side || 'A'}`;
+      return `Slot ${contract.slotNumber || 1}`;
+  };
+  const withBillboardDefaults = (contract: Contract, billboardId: string): Contract => {
+      const billboard = getBillboard(billboardId);
+      const side: Contract['side'] = billboard?.type === BillboardType.Static ? 'A' : undefined;
+      const slotNumber = billboard?.type === BillboardType.LED ? 1 : undefined;
+      const next = { ...contract, billboardId, side, slotNumber, monthlyRate: getDefaultRate(billboardId, side) };
+      return { ...next, details: getLineDetails(next) };
+  };
 
   const handleDownload = (contract: Contract) => {
     const client = getClient(contract.clientId);
@@ -100,7 +121,10 @@ export const ContractList: React.FC = () => {
               return !overlappingContracts.some(c => c.side === contract.side || c.side === 'Both');
           }
       } else {
-          // Digital: Available if overlap count < total slots
+          if (contract.slotNumber) {
+              return !overlappingContracts.some(c => c.slotNumber === contract.slotNumber);
+          }
+          // Digital fallback: available if overlap count < total slots
           return overlappingContracts.length < (billboard.totalSlots || 1);
       }
   };
@@ -131,6 +155,7 @@ export const ContractList: React.FC = () => {
 
           const updatedContract: Contract = {
               ...editContract,
+              details: getLineDetails(editContract),
               totalContractValue: gross,
               lastModifiedDate: new Date().toISOString(),
               lastModifiedBy: 'Current User'
@@ -418,7 +443,7 @@ export const ContractList: React.FC = () => {
               </div>
 
               <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Extend or shorten the term by changing the dates. Asset assignment cannot be changed here.</p>
+                <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Edit size={14} /> Edit dates, rates, fees, billboard assignment, and side/slot before saving.</p>
               </div>
 
               {editError && (
@@ -427,6 +452,55 @@ export const ContractList: React.FC = () => {
                   <p className="text-sm text-red-700">{editError}</p>
                 </div>
               )}
+
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Billboard Assignment</p>
+                <select
+                  value={editContract.billboardId}
+                  onChange={(e) => setEditContract(withBillboardDefaults(editContract, e.target.value))}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                >
+                  {getBillboards().map(b => <option key={b.id} value={b.id}>{b.name} - {b.location}</option>)}
+                </select>
+                {(() => {
+                  const billboard = getBillboard(editContract.billboardId);
+                  if (!billboard) return null;
+                  if (billboard.type === BillboardType.Static) {
+                    return (
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['A', 'B', 'Both'] as const).map(side => (
+                          <button
+                            key={side}
+                            type="button"
+                            onClick={() => {
+                              const next = { ...editContract, side, slotNumber: undefined, monthlyRate: getDefaultRate(editContract.billboardId, side) };
+                              setEditContract({ ...next, details: getLineDetails(next) });
+                            }}
+                            className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${editContract.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}
+                          >
+                            {side === 'Both' ? 'Both A&B' : `Side ${side}`}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-2">LED Slot</label>
+                      <select
+                        value={editContract.slotNumber || 1}
+                        onChange={(e) => {
+                          const next = { ...editContract, slotNumber: Number(e.target.value), side: undefined };
+                          setEditContract({ ...next, details: getLineDetails(next) });
+                        }}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                      >
+                        {Array.from({ length: billboard.totalSlots || 10 }, (_, i) => <option key={i + 1} value={i + 1}>Slot {i + 1}</option>)}
+                      </select>
+                    </div>
+                  );
+                })()}
+              </div>
 
               <div className="space-y-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Contract Status</p>

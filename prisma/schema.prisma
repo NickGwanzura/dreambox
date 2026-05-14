@@ -153,11 +153,13 @@ model Contract {
   lastModifiedDate   String?
   lastModifiedBy     String?
   assignedTo         String?
+  masterContractId   String?
   dbCreatedAt        DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
   @@index([clientId])
   @@index([billboardId])
+  @@index([masterContractId])
   @@map("contracts")
 }
 

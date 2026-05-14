@@ -101,6 +101,7 @@ export interface Contract {
   lastModifiedDate?: string; // ISO Date String
   lastModifiedBy?: string;
   assignedTo?: string; // User name of the Sales Agent who closed this deal
+  masterContractId?: string; // Links additional billboard lines to the primary contract
 }
 
 export interface Invoice {

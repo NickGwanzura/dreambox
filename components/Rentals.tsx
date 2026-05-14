@@ -82,6 +82,8 @@ export const Rentals: React.FC = () => {
   const [aiProposal, setAiProposal] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editExtraLines, setEditExtraLines] = useState<Contract[]>([]);
+  const [deletedEditLineIds, setDeletedEditLineIds] = useState<string[]>([]);
 
   // Gantt State
   const [ganttDate, setGanttDate] = useState(new Date());
@@ -106,8 +108,55 @@ export const Rentals: React.FC = () => {
 
   const selectedBillboard = getBillboard(newRental.billboardId);
 
+  const getContractGroupId = (contract: Contract) => contract.masterContractId || contract.id;
+
+  const getContractGroupLines = (contract: Contract) => {
+      const groupId = getContractGroupId(contract);
+      return getContracts().filter(c => (c.masterContractId || c.id) === groupId && c.id !== contract.id);
+  };
+
+  const getLineDetails = (line: Contract) => {
+      const billboard = getBillboard(line.billboardId);
+      if (!billboard) return line.details || 'Billboard rental';
+      if (billboard.type === BillboardType.Static) {
+          return line.side === 'Both' ? 'Sides A & B' : `Side ${line.side || 'A'}`;
+      }
+      return `Slot ${line.slotNumber || 1}`;
+  };
+
+  const getDefaultRate = (billboardId: string, side: Contract['side'] = 'A') => {
+      const billboard = getBillboard(billboardId);
+      if (!billboard) return 0;
+      if (billboard.type === BillboardType.LED) return billboard.ratePerSlot || 0;
+      if (side === 'B') return billboard.sideBRate || 0;
+      if (side === 'Both') return (billboard.sideARate || 0) + (billboard.sideBRate || 0);
+      return billboard.sideARate || 0;
+  };
+
+  const withBillboardDefaults = (line: Contract, billboardId: string): Contract => {
+      const billboard = getBillboard(billboardId);
+      const side: Contract['side'] = billboard?.type === BillboardType.Static ? 'A' : undefined;
+      const slotNumber = billboard?.type === BillboardType.LED ? 1 : undefined;
+      const next = {
+          ...line,
+          billboardId,
+          side,
+          slotNumber,
+          monthlyRate: getDefaultRate(billboardId, side),
+      };
+      return { ...next, details: getLineDetails(next) };
+  };
+
+  const recalcContractValue = (line: Contract) => {
+      const months = calculateContractMonths(line.startDate, line.endDate);
+      return (Number(line.monthlyRate) || 0) * months +
+          (Number(line.installationCost) || 0) +
+          (Number(line.printingCost) || 0) +
+          (Number(line.productionCost) || 0);
+  };
+
   // --- Dynamic Availability Check ---
-  const checkAvailability = (billboardId: string, side: 'A' | 'B' | 'Both', start: string, end: string, excludeContractId?: string) => {
+  const checkAvailability = (billboardId: string, side: 'A' | 'B' | 'Both', start: string, end: string, excludeContractId?: string, slotNumber?: number, ignoredContractIds: string[] = []) => {
       if (!start || !end || !billboardId) return true; // Assume available if dates not set to allow editing
       const billboard = getBillboard(billboardId);
       if (!billboard) return false;
@@ -116,7 +165,8 @@ export const Rentals: React.FC = () => {
       const existingContracts = getContracts().filter(c =>
           c.billboardId === billboardId &&
           String(c.status || '').toLowerCase() === 'active' &&
-          (!excludeContractId || c.id !== excludeContractId)
+          (!excludeContractId || c.id !== excludeContractId) &&
+          !ignoredContractIds.includes(c.id)
       );
       
       const newStart = new Date(start).getTime();
@@ -139,7 +189,10 @@ export const Rentals: React.FC = () => {
               return !overlappingContracts.some(c => c.side === side || c.side === 'Both');
           }
       } else {
-          // Digital: Available if overlap count < total slots
+          if (slotNumber) {
+              return !overlappingContracts.some(c => c.slotNumber === slotNumber);
+          }
+          // Digital fallback: available if overlap count < total slots
           return overlappingContracts.length < (billboard.totalSlots || 1);
       }
   };
@@ -203,7 +256,8 @@ export const Rentals: React.FC = () => {
         }
     }
 
-    const gross = (newRental.monthlyRate * 12) + newRental.installationCost + newRental.printingCost + newRental.productionCost;
+    const months = calculateContractMonths(newRental.startDate, newRental.endDate);
+    const gross = (newRental.monthlyRate * months) + newRental.installationCost + newRental.printingCost + newRental.productionCost;
     const { subtotal, vat } = newRental.hasVat
       ? splitInclusiveVat(gross, vatRate)
       : { subtotal: gross, vat: 0 };
@@ -269,37 +323,85 @@ export const Rentals: React.FC = () => {
 
   const handleEditSave = () => {
       if (!editRental) return;
-      if (!editRental.startDate || !editRental.endDate) {
-          setEditError('Start date and end date are required before saving a contract term.');
-          return;
+      const allLines = [editRental, ...editExtraLines];
+      for (const line of allLines) {
+          if (!line.billboardId) {
+              setEditError('Every contract line must have a billboard selected.');
+              return;
+          }
+          if (!line.startDate || !line.endDate) {
+              setEditError('Start date and end date are required for every billboard line.');
+              return;
+          }
+          if (new Date(line.endDate) < new Date(line.startDate)) {
+              setEditError('End date cannot be before the start date on any billboard line.');
+              return;
+          }
       }
-      if (new Date(editRental.endDate) < new Date(editRental.startDate)) {
-          setEditError('End date cannot be before the start date. Pick a later end date to extend, or move the start date first.');
-          return;
+      for (let i = 0; i < allLines.length; i += 1) {
+          for (let j = i + 1; j < allLines.length; j += 1) {
+              const a = allLines[i];
+              const b = allLines[j];
+              if (a.billboardId !== b.billboardId) continue;
+              const overlaps = new Date(a.startDate).getTime() <= new Date(b.endDate).getTime() &&
+                  new Date(a.endDate).getTime() >= new Date(b.startDate).getTime();
+              if (!overlaps) continue;
+              const billboard = getBillboard(a.billboardId);
+              const sameStaticSide = billboard?.type === BillboardType.Static &&
+                  (a.side === 'Both' || b.side === 'Both' || a.side === b.side);
+              const sameDigitalSlot = billboard?.type === BillboardType.LED &&
+                  (a.slotNumber || 1) === (b.slotNumber || 1);
+              if (sameStaticSide || sameDigitalSlot) {
+                  setEditError(`${billboard?.name || 'A billboard'} is duplicated within this contract for overlapping dates.`);
+                  return;
+              }
+          }
       }
       
       // Validate dates don't cause double booking
-      if (!checkAvailability(editRental.billboardId, editRental.side || 'A', editRental.startDate, editRental.endDate, editRental.id)) {
-          setEditError('Selected dates overlap with an existing contract for this asset. Please choose different dates.');
-          return;
+      for (const line of allLines) {
+          const billboard = getBillboard(line.billboardId);
+          if (!billboard) {
+              setEditError('One selected billboard could not be found. Please reselect it.');
+              return;
+          }
+          if (!checkAvailability(line.billboardId, line.side || 'A', line.startDate, line.endDate, line.id, line.slotNumber, deletedEditLineIds)) {
+              setEditError(`${billboard.name} is already booked for the selected dates, side, or slot.`);
+              return;
+          }
       }
       
       setEditError(null);
       
       try {
-          const months = calculateContractMonths(editRental.startDate, editRental.endDate);
-          const gross = (editRental.monthlyRate * months) + editRental.installationCost + editRental.printingCost + (editRental.productionCost || 0);
-
           const updatedContract: Contract = {
               ...editRental,
-              totalContractValue: gross,
+              details: getLineDetails(editRental),
+              totalContractValue: recalcContractValue(editRental),
               lastModifiedDate: new Date().toISOString(),
               lastModifiedBy: 'Current User'
           };
           
           updateContract(updatedContract);
+          editExtraLines.forEach(line => {
+              const normalized: Contract = {
+                  ...line,
+                  clientId: updatedContract.clientId,
+                  masterContractId: updatedContract.masterContractId || updatedContract.id,
+                  details: getLineDetails(line),
+                  totalContractValue: recalcContractValue(line),
+                  lastModifiedDate: new Date().toISOString(),
+                  lastModifiedBy: 'Current User',
+              };
+              const exists = getContracts().some(c => c.id === normalized.id);
+              if (exists) updateContract(normalized);
+              else addContract(normalized);
+          });
+          deletedEditLineIds.forEach(id => deleteContract(id));
           setRentals([...getContracts()]);
           setEditRental(null);
+          setEditExtraLines([]);
+          setDeletedEditLineIds([]);
           setSelectedRental(updatedContract);
           
           console.log('Contract updated successfully:', updatedContract.id);
@@ -376,6 +478,8 @@ export const Rentals: React.FC = () => {
   const openTermAdjustment = (contract: Contract) => {
       setSelectedRental(null);
       setEditRental({ ...contract });
+      setEditExtraLines(getContractGroupLines(contract).map(line => ({ ...line })));
+      setDeletedEditLineIds([]);
       setEditError(null);
   };
 
@@ -1006,7 +1110,7 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                        <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Extend or shorten the rental by changing its dates. Billboard assignment cannot be changed here.</p>
+                        <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Edit size={14} /> Edit dates, rates, fees, billboard assignment, side/slot, and additional billboard lines before saving.</p>
                     </div>
 
                     {editError && (
@@ -1015,6 +1119,55 @@ export const Rentals: React.FC = () => {
                             <p className="text-sm text-red-700">{editError}</p>
                         </div>
                     )}
+
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Primary Billboard Line</p>
+                        <select
+                            value={editRental.billboardId}
+                            onChange={(e) => setEditRental(withBillboardDefaults(editRental, e.target.value))}
+                            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                        >
+                            {getBillboards().map(b => <option key={b.id} value={b.id}>{b.name} - {b.location}</option>)}
+                        </select>
+                        {(() => {
+                            const billboard = getBillboard(editRental.billboardId);
+                            if (!billboard) return null;
+                            if (billboard.type === BillboardType.Static) {
+                                return (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {(['A', 'B', 'Both'] as const).map(side => (
+                                            <button
+                                                key={side}
+                                                type="button"
+                                                onClick={() => {
+                                                    const next = { ...editRental, side, slotNumber: undefined, monthlyRate: getDefaultRate(editRental.billboardId, side) };
+                                                    setEditRental({ ...next, details: getLineDetails(next) });
+                                                }}
+                                                className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${editRental.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}
+                                            >
+                                                {side === 'Both' ? 'Both A&B' : `Side ${side}`}
+                                            </button>
+                                        ))}
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div>
+                                    <label className="block text-xs font-bold uppercase text-slate-400 mb-2">LED Slot</label>
+                                    <select
+                                        value={editRental.slotNumber || 1}
+                                        onChange={(e) => {
+                                            const next = { ...editRental, slotNumber: Number(e.target.value), side: undefined };
+                                            setEditRental({ ...next, details: getLineDetails(next) });
+                                        }}
+                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                                    >
+                                        {Array.from({ length: billboard.totalSlots || 10 }, (_, i) => <option key={i + 1} value={i + 1}>Slot {i + 1}</option>)}
+                                    </select>
+                                </div>
+                            );
+                        })()}
+                    </div>
 
                     <div className="space-y-4">
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Contract Status</p>
@@ -1078,6 +1231,125 @@ export const Rentals: React.FC = () => {
                             <input type="checkbox" checked={editRental.hasVat} onChange={(e) => setEditRental({...editRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                             <span className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</span>
                         </label>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Additional Billboard Lines</p>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const firstBoard = getBillboards()[0];
+                                    if (!firstBoard) {
+                                        setEditError('Add a billboard to inventory before adding a contract line.');
+                                        return;
+                                    }
+                                    const id = `C-${Date.now().toString().slice(-6)}`;
+                                    const base: Contract = {
+                                        ...editRental,
+                                        id,
+                                        billboardId: firstBoard.id,
+                                        side: firstBoard.type === BillboardType.Static ? 'A' : undefined,
+                                        slotNumber: firstBoard.type === BillboardType.LED ? 1 : undefined,
+                                        monthlyRate: getDefaultRate(firstBoard.id, firstBoard.type === BillboardType.Static ? 'A' : undefined),
+                                        installationCost: 0,
+                                        printingCost: 0,
+                                        productionCost: getProductionFee(firstBoard),
+                                        totalContractValue: 0,
+                                        masterContractId: editRental.masterContractId || editRental.id,
+                                        createdAt: new Date().toISOString(),
+                                    };
+                                    setEditExtraLines([...editExtraLines, { ...base, details: getLineDetails(base), totalContractValue: recalcContractValue(base) }]);
+                                }}
+                                className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1"
+                            >
+                                <Plus size={13} /> Add Billboard
+                            </button>
+                        </div>
+
+                        {editExtraLines.length === 0 && (
+                            <div className="border border-dashed border-slate-200 rounded-xl p-4 text-sm text-slate-500">
+                                No additional billboards on this contract yet.
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            {editExtraLines.map((line, index) => {
+                                const billboard = getBillboard(line.billboardId);
+                                return (
+                                    <div key={line.id} className="rounded-2xl border border-slate-200 p-4 space-y-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Line {index + 2}</p>
+                                                <p className="text-sm font-semibold text-slate-800">{billboard?.name || 'Unknown billboard'} &bull; {line.details}</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (getContracts().some(c => c.id === line.id)) setDeletedEditLineIds([...deletedEditLineIds, line.id]);
+                                                    setEditExtraLines(editExtraLines.filter(l => l.id !== line.id));
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                aria-label="Remove billboard line"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+
+                                        <select
+                                            value={line.billboardId}
+                                            onChange={(e) => {
+                                                const next = withBillboardDefaults(line, e.target.value);
+                                                setEditExtraLines(editExtraLines.map(l => l.id === line.id ? next : l));
+                                            }}
+                                            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                                        >
+                                            {getBillboards().map(b => <option key={b.id} value={b.id}>{b.name} - {b.location}</option>)}
+                                        </select>
+
+                                        {billboard?.type === BillboardType.Static ? (
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {(['A', 'B', 'Both'] as const).map(side => (
+                                                    <button
+                                                        key={side}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const next = { ...line, side, slotNumber: undefined, monthlyRate: getDefaultRate(line.billboardId, side) };
+                                                            setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...next, details: getLineDetails(next) } : l));
+                                                        }}
+                                                        className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${line.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}
+                                                    >
+                                                        {side === 'Both' ? 'Both A&B' : `Side ${side}`}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : billboard ? (
+                                            <select
+                                                value={line.slotNumber || 1}
+                                                onChange={(e) => {
+                                                    const next = { ...line, slotNumber: Number(e.target.value), side: undefined };
+                                                    setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...next, details: getLineDetails(next) } : l));
+                                                }}
+                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                                            >
+                                                {Array.from({ length: billboard.totalSlots || 10 }, (_, i) => <option key={i + 1} value={i + 1}>Slot {i + 1}</option>)}
+                                            </select>
+                                        ) : null}
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <input type="date" value={line.startDate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, startDate: e.target.value } : l))} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                                            <input type="date" value={line.endDate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, endDate: e.target.value } : l))} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                                            <input type="number" value={line.monthlyRate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, monthlyRate: Number(e.target.value) } : l))} placeholder="Monthly rate" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                                            <input type="number" value={line.productionCost || 0} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, productionCost: Number(e.target.value) } : l))} placeholder="Production fee" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                                        </div>
+                                        <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
+                                            <span className="text-slate-500 font-medium">Line value</span>
+                                            <span className="text-slate-900 font-bold">${recalcContractValue(line).toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
 
                     <div className="flex gap-3 pt-2">
