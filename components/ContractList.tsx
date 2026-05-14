@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, updateContract, subscribe, getEffectiveVatRate } from '../services/mockData';
+import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, addContract, updateContract, subscribe, getEffectiveVatRate } from '../services/mockData';
 import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, Lock, RotateCcw, Send } from 'lucide-react';
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const addMonths = (dateValue: string, months: number) => {
+  const date = new Date(`${dateValue}T00:00:00`);
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().split('T')[0];
+};
+
+const calculateContractMonths = (startDate: string, endDate: string) => {
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return 1;
+  const days = (end - start) / MS_PER_DAY;
+  return Math.max(1, Math.ceil(days / 30));
+};
 
 export const ContractList: React.FC = () => {
   const vatRate = getEffectiveVatRate();
@@ -91,6 +107,14 @@ export const ContractList: React.FC = () => {
 
   const handleEditSave = async () => {
       if (!editContract) return;
+      if (!editContract.startDate || !editContract.endDate) {
+          setEditError('Start date and end date are required before saving a contract term.');
+          return;
+      }
+      if (new Date(editContract.endDate) < new Date(editContract.startDate)) {
+          setEditError('End date cannot be before the start date. Pick a later end date to extend, or move the start date first.');
+          return;
+      }
       
       // Validate dates don't cause double booking
       if (!checkAvailabilityForEdit(editContract, editContract.startDate, editContract.endDate)) {
@@ -102,8 +126,8 @@ export const ContractList: React.FC = () => {
       
       try {
           // Recalculate total contract value
-          const months = Math.max(1, Math.ceil((new Date(editContract.endDate).getTime() - new Date(editContract.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
-          const gross = (editContract.monthlyRate * months) + editContract.installationCost + editContract.printingCost;
+          const months = calculateContractMonths(editContract.startDate, editContract.endDate);
+          const gross = (editContract.monthlyRate * months) + editContract.installationCost + editContract.printingCost + (editContract.productionCost || 0);
 
           const updatedContract: Contract = {
               ...editContract,
@@ -158,7 +182,7 @@ export const ContractList: React.FC = () => {
               lastModifiedBy: 'Current User'
           };
           
-          updateContract(renewedContract);
+          addContract(renewedContract);
           
           const latestContracts = getContracts();
           setContracts(latestContracts);
@@ -170,6 +194,12 @@ export const ContractList: React.FC = () => {
           console.error('Failed to renew contract:', error);
           alert('Failed to renew contract. Please try again.');
       }
+  };
+
+  const openTermAdjustment = (contract: Contract) => {
+      setSelectedContract(null);
+      setEditContract({ ...contract });
+      setEditError(null);
   };
   
   const getBillingDayDisplay = (contract: Contract) => {
@@ -219,6 +249,7 @@ export const ContractList: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
                     <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
+                    <span className="text-slate-300 hidden sm:inline">• {calculateContractMonths(contract.startDate, contract.endDate)} mo</span>
                     <span className="hidden sm:inline">ID: {contract.id}</span>
                     {contract.lastModifiedDate && <span className="text-slate-300 hidden sm:inline">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
                   </div>
@@ -241,6 +272,9 @@ export const ContractList: React.FC = () => {
                 </button>
                 <button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
                   <Edit size={14} /> <span className="sm:hidden">Edit</span><span className="hidden sm:inline">Edit</span>
+                </button>
+                <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
+                  <Calendar size={14} /> <span className="hidden sm:inline">Adjust Term</span><span className="sm:hidden">Term</span>
                 </button>
                 {isContractExpired(contract) && <button onClick={() => { setRenewContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1">
                   <RotateCcw size={14} /> <span className="sm:hidden">Renew</span><span className="hidden sm:inline">Renew</span>
@@ -348,7 +382,7 @@ export const ContractList: React.FC = () => {
 
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setSelectedContract(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
-                <button onClick={() => { setSelectedContract(null); setEditContract({...selectedContract}); setEditError(null); }} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Edit size={14} /> Edit</button>
+                <button onClick={() => openTermAdjustment(selectedContract)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Calendar size={14} /> Adjust Term</button>
                 {isContractExpired(selectedContract) && (
                   <button onClick={() => { setSelectedContract(null); setRenewContract({...selectedContract}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>
                 )}
@@ -384,7 +418,7 @@ export const ContractList: React.FC = () => {
               </div>
 
               <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Asset assignment cannot be changed. Edit dates and financials only.</p>
+                <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Extend or shorten the term by changing the dates. Asset assignment cannot be changed here.</p>
               </div>
 
               {editError && (
@@ -415,6 +449,16 @@ export const ContractList: React.FC = () => {
                     <input type="date" value={editContract.endDate} onChange={(e) => setEditContract({...editContract, endDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: new Date().toISOString().split('T')[0]})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">End Today</button>
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 1)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+1 Month</button>
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 3)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+3 Months</button>
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 12)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+12 Months</button>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
+                  <span className="text-slate-500 font-medium">Updated term length</span>
+                  <span className="text-slate-900 font-bold">{calculateContractMonths(editContract.startDate, editContract.endDate)} month(s)</span>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -436,6 +480,10 @@ export const ContractList: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Printing Cost ($)</label>
                     <input type="number" value={editContract.printingCost} onChange={(e) => setEditContract({...editContract, printingCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Production Fee ($)</label>
+                    <input type="number" value={editContract.productionCost || 0} onChange={(e) => setEditContract({...editContract, productionCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
                   </div>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">

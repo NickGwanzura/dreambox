@@ -11,6 +11,22 @@ import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
 import { getProductionFee } from '../utils/productionFee';
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const addMonths = (dateValue: string, months: number) => {
+  const date = new Date(`${dateValue}T00:00:00`);
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().split('T')[0];
+};
+
+const calculateContractMonths = (startDate: string, endDate: string) => {
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return 1;
+  const days = (end - start) / MS_PER_DAY;
+  return Math.max(1, Math.ceil(days / 30));
+};
+
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
   return (
@@ -253,6 +269,14 @@ export const Rentals: React.FC = () => {
 
   const handleEditSave = () => {
       if (!editRental) return;
+      if (!editRental.startDate || !editRental.endDate) {
+          setEditError('Start date and end date are required before saving a contract term.');
+          return;
+      }
+      if (new Date(editRental.endDate) < new Date(editRental.startDate)) {
+          setEditError('End date cannot be before the start date. Pick a later end date to extend, or move the start date first.');
+          return;
+      }
       
       // Validate dates don't cause double booking
       if (!checkAvailability(editRental.billboardId, editRental.side || 'A', editRental.startDate, editRental.endDate, editRental.id)) {
@@ -263,7 +287,7 @@ export const Rentals: React.FC = () => {
       setEditError(null);
       
       try {
-          const months = Math.max(1, Math.ceil((new Date(editRental.endDate).getTime() - new Date(editRental.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+          const months = calculateContractMonths(editRental.startDate, editRental.endDate);
           const gross = (editRental.monthlyRate * months) + editRental.installationCost + editRental.printingCost + (editRental.productionCost || 0);
 
           const updatedContract: Contract = {
@@ -347,6 +371,12 @@ export const Rentals: React.FC = () => {
 
   const isContractExpired = (contract: Contract) => {
       return new Date(contract.endDate) < new Date();
+  };
+
+  const openTermAdjustment = (contract: Contract) => {
+      setSelectedRental(null);
+      setEditRental({ ...contract });
+      setEditError(null);
   };
 
   // --- Gantt Chart Helpers ---
@@ -504,6 +534,7 @@ export const Rentals: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
                         <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
+                        <span className="text-slate-300">{calculateContractMonths(contract.startDate, contract.endDate)} mo</span>
                         <span>ID: {contract.id}</span>
                         {contract.assignedTo && <span className="flex items-center gap-1 text-indigo-400"><UserCircle size={11}/> {contract.assignedTo}</span>}
                         {contract.lastModifiedDate && <span className="text-slate-300">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
@@ -529,6 +560,9 @@ export const Rentals: React.FC = () => {
                         </button>
                         <button onClick={() => { setEditRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
                             <Edit size={14} /> <span className="hidden sm:inline">Edit</span>
+                        </button>
+                        <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
+                            <Calendar size={14} /> <span className="hidden sm:inline">Adjust Term</span><span className="sm:hidden">Term</span>
                         </button>
                         {isContractExpired(contract) && (
                             <button onClick={() => { setRenewRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1">
@@ -938,7 +972,7 @@ export const Rentals: React.FC = () => {
                     </div>
                     <div className="flex gap-3 pt-2">
                         <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
-                        <button onClick={() => { setSelectedRental(null); setEditRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Edit size={14} /> Edit</button>
+                        <button onClick={() => openTermAdjustment(selectedRental)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Calendar size={14} /> Adjust Term</button>
                         {isContractExpired(selectedRental) && <button onClick={() => { setSelectedRental(null); setRenewRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>}
                     </div>
                 </div>
@@ -972,7 +1006,7 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                        <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Editing an active rental. Billboard assignment cannot be changed here.</p>
+                        <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Lock size={14} /> Extend or shorten the rental by changing its dates. Billboard assignment cannot be changed here.</p>
                     </div>
 
                     {editError && (
@@ -1002,6 +1036,16 @@ export const Rentals: React.FC = () => {
                                 <label className="block text-xs font-bold uppercase text-slate-400 mb-2">End Date</label>
                                 <input type="date" value={editRental.endDate} onChange={(e) => setEditRental({...editRental, endDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
                             </div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <button type="button" onClick={() => setEditRental({...editRental, endDate: new Date().toISOString().split('T')[0]})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">End Today</button>
+                            <button type="button" onClick={() => setEditRental({...editRental, endDate: addMonths(editRental.endDate, 1)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+1 Month</button>
+                            <button type="button" onClick={() => setEditRental({...editRental, endDate: addMonths(editRental.endDate, 3)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+3 Months</button>
+                            <button type="button" onClick={() => setEditRental({...editRental, endDate: addMonths(editRental.endDate, 12)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+12 Months</button>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
+                            <span className="text-slate-500 font-medium">Updated term length</span>
+                            <span className="text-slate-900 font-bold">{calculateContractMonths(editRental.startDate, editRental.endDate)} month(s)</span>
                         </div>
                     </div>
 
