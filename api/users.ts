@@ -329,6 +329,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       // Prevent deleting the last admin
       const target = await prisma.user.findUnique({ where: { id: id as string } });
+      if (!target) {
+        return res.status(200).json({ success: true, alreadyDeleted: true });
+      }
+
       if (target?.role === 'Admin') {
         const adminCount = await prisma.user.count({ where: { role: 'Admin', status: 'Active' } });
         if (adminCount <= 1) {
@@ -337,7 +341,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       await prisma.user.delete({ where: { id: id as string } });
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ success: true, alreadyDeleted: false });
     } catch (e: any) {
       console.error('[users DELETE]', e);
       return res.status(500).json({ error: 'Internal server error' });
