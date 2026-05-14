@@ -691,7 +691,7 @@ export const markOverdueInvoices = () => {
 export const getOverdueInvoices = () => { markOverdueInvoices(); return invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice'); };
 export const getSystemAlertCount = () => getExpiringContracts().length + invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice').length;
 export const getFinancialTrends = () => {
-  // Calculate actual monthly revenue and expenses from invoices
+  // Calculate actual monthly revenue and gross profit from invoices + contract COGS
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const currentMonth = new Date().getMonth();
   
@@ -705,25 +705,39 @@ export const getFinancialTrends = () => {
     // Get invoices for this month
     const monthInvoices = invoices.filter(inv => {
       const invDate = new Date(inv.date);
-      return invDate.getMonth() === monthIndex && 
-             invDate.getFullYear() === year &&
-             String(inv.type || '').toLowerCase() === 'invoice';
-    });
-    
-    const monthExpenses = expenses.filter(exp => {
-      const expDate = new Date(exp.date);
-      return expDate.getMonth() === monthIndex && expDate.getFullYear() === year;
+      return String(inv.type || '').toLowerCase() === 'invoice' &&
+             invDate.getMonth() === monthIndex && 
+             invDate.getFullYear() === year;
     });
     
     const revenue = monthInvoices.reduce((sum, inv) => sum + inv.total, 0);
-    const expenseTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const margin = revenue - expenseTotal;
+    
+    // COGS for this month: contracts that started this month (one-time costs incurred)
+    const monthContracts = contracts.filter(c => {
+      const start = new Date(c.startDate);
+      return start.getMonth() === monthIndex && start.getFullYear() === year;
+    });
+    
+    const monthCOGS = monthContracts.reduce((sum, c) => 
+      sum + (c.installationCost || 0) + (c.printingCost || 0) + (c.productionCost || 0), 0);
+    
+    // Add outsourced payouts for this month (actual monthly)
+    const outsourcedMonthly = outsourcedBillboards.reduce((sum, b) => sum + (b.monthlyPayout || 0), 0);
+    
+    // Add operational expenses for this month
+    const operationalMonthly = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === monthIndex && d.getFullYear() === year;
+    }).reduce((sum, e) => sum + e.amount, 0);
+    
+    const cogs = monthCOGS + outsourcedMonthly + operationalMonthly;
+    const grossProfit = revenue - cogs;
     
     result.push({
       name: monthName,
       revenue: revenue,
-      margin: margin,
-      expenses: expenseTotal
+      margin: grossProfit, // renamed to margin for backward compatibility with chart
+      expenses: cogs,
     });
   }
   

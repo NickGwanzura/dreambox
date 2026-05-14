@@ -14,6 +14,7 @@ import { BillboardType } from '../types';
 import { generateGreeting, fetchIndustryNews } from '../services/aiService';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { logger } from '../utils/logger';
+import { getGrossProfit, getNetProfit, getTotalCOGS, getTotalMonthlyRecurringRevenue } from '../services/profitAnalytics';
 
 const typeIs = (val: any, target: string) => String(val || '').toLowerCase() === target.toLowerCase();
 
@@ -61,7 +62,7 @@ export const Dashboard: React.FC = () => {
   const clients    = useMemo(() => getClients(),    [refreshKey]);
   const expenses   = useMemo(() => getExpenses(),   [refreshKey]);
 
-  const metrics = useMemo(() => {
+   const metrics = useMemo(() => {
     const today = new Date();
     const thisMonth = today.getMonth();
     const thisYear  = today.getFullYear();
@@ -121,6 +122,16 @@ export const Dashboard: React.FC = () => {
       return c.status === 'Active' && s <= lastMonthDate && e >= lastMonthDate;
     }).length;
 
+    // Total Revenue (all invoices)
+    const totalRevenue = invoices.filter(i => typeIs(i.type, 'Invoice')).reduce((s, i) => s + i.total, 0);
+
+    // Gross Profit & COGS from profit analytics
+    const gp = getGrossProfit();
+    const grossProfit = gp.grossProfit;
+    const grossMargin = gp.grossMargin;
+    const totalCOGS = getTotalCOGS();
+    const netProfit = getNetProfit();
+
     // Occupancy
     const ledBillboards    = billboards.filter(b => b.type === BillboardType.LED);
     const staticBillboards = billboards.filter(b => b.type === BillboardType.Static);
@@ -151,8 +162,6 @@ export const Dashboard: React.FC = () => {
     const topClientsData = clients
       .map(c => ({ name: c.companyName, value: invoices.filter(i => i.clientId === c.id && typeIs(i.type, 'Invoice')).reduce((s, i) => s + i.total, 0) }))
       .sort((a, b) => b.value - a.value).slice(0, 5);
-
-    const totalRevenue = invoices.filter(i => typeIs(i.type, 'Invoice')).reduce((s, i) => s + i.total, 0);
 
     // Revenue by location
     const revenueByTownData = billboards
@@ -221,6 +230,7 @@ export const Dashboard: React.FC = () => {
     return {
       mrr, outstanding, collectedThisMonth, billedThisMonth,
       activeContractsCount, totalRevenue,
+      grossProfit, grossMargin, totalCOGS, netProfit,
       ledBillboards: ledBillboards.length, staticBillboards: staticBillboards.length,
       totalLedSlots, rentedLedSlots, digitalOccupancyRate,
       totalStaticSides, rentedStaticSides, staticOccupancyRate, occupancyRate,
@@ -281,53 +291,60 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KPICard
-          title="Monthly Recurring"
-          value={`$${Math.round(metrics.mrr).toLocaleString()}`}
-          subtitle="Active contract MRR"
-          icon={Zap}
-          color="indigo"
-          change={metrics.mrrChange !== 0 ? `${metrics.mrrChange > 0 ? '+' : ''}${metrics.mrrChange}%` : undefined}
-          trend={metrics.mrrChange >= 0 ? 'up' : 'down'}
-        />
-        <KPICard
-          title="Collected This Month"
-          value={`$${Math.round(metrics.collectedThisMonth).toLocaleString()}`}
-          subtitle={`Billed: $${Math.round(metrics.billedThisMonth).toLocaleString()}`}
-          icon={CreditCard}
-          color="emerald"
-          change={metrics.billedChange !== 0 ? `${metrics.billedChange > 0 ? '+' : ''}${metrics.billedChange}% billed` : undefined}
-          trend={metrics.billedChange >= 0 ? 'up' : 'down'}
-        />
-        <KPICard
-          title="Outstanding Balance"
-          value={`$${Math.round(metrics.outstanding).toLocaleString()}`}
-          subtitle={`${overdueInvoices.length} overdue`}
-          icon={DollarSign}
-          color={metrics.outstanding > 0 ? 'amber' : 'emerald'}
-          alert={overdueInvoices.length > 0}
-        />
-        <KPICard
-          title="Active Contracts"
-          value={metrics.activeContractsCount.toString()}
-          subtitle={`${metrics.occupancyRate}% occupancy`}
-          icon={FileText}
-          color="blue"
-          change={metrics.contractsChange !== 0 ? `${metrics.contractsChange > 0 ? '+' : ''}${metrics.contractsChange}%` : undefined}
-          trend={metrics.contractsChange >= 0 ? 'up' : 'down'}
-        />
-        <KPICard
-          title="Expenses This Month"
-          value={`$${Math.round(metrics.expensesThisMonth).toLocaleString()}`}
-          subtitle={`${metrics.expenseByCategoryData.length} categories`}
-          icon={Wallet}
-          color="red"
-          change={metrics.expenseChange !== 0 ? `${metrics.expenseChange > 0 ? '+' : ''}${metrics.expenseChange}%` : undefined}
-          trend={metrics.expenseChange <= 0 ? 'up' : 'down'}
-        />
-      </div>
+       {/* KPI Row */}
+       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+         <KPICard
+           title="Monthly Recurring"
+           value={`$${Math.round(metrics.mrr).toLocaleString()}`}
+           subtitle="Active contract MRR"
+           icon={Zap}
+           color="indigo"
+           change={metrics.mrrChange !== 0 ? `${metrics.mrrChange > 0 ? '+' : ''}${metrics.mrrChange}%` : undefined}
+           trend={metrics.mrrChange >= 0 ? 'up' : 'down'}
+         />
+         <KPICard
+           title="Gross Profit"
+           value={`$${Math.round(metrics.grossProfit).toLocaleString()}`}
+           subtitle={`${metrics.grossMargin.toFixed(1)}% margin`}
+           icon={TrendingUp}
+           color="emerald"
+         />
+         <KPICard
+           title="Collected This Month"
+           value={`$${Math.round(metrics.collectedThisMonth).toLocaleString()}`}
+           subtitle={`Billed: $${Math.round(metrics.billedThisMonth).toLocaleString()}`}
+           icon={CreditCard}
+           color="blue"
+           change={metrics.billedChange !== 0 ? `${metrics.billedChange > 0 ? '+' : ''}${metrics.billedChange}% billed` : undefined}
+           trend={metrics.billedChange >= 0 ? 'up' : 'down'}
+         />
+         <KPICard
+           title="Outstanding Balance"
+           value={`$${Math.round(metrics.outstanding).toLocaleString()}`}
+           subtitle={`${overdueInvoices.length} overdue`}
+           icon={DollarSign}
+           color={metrics.outstanding > 0 ? 'amber' : 'emerald'}
+           alert={overdueInvoices.length > 0}
+         />
+         <KPICard
+           title="Active Contracts"
+           value={metrics.activeContractsCount.toString()}
+           subtitle={`${metrics.occupancyRate}% occupancy`}
+           icon={FileText}
+           color="blue"
+           change={metrics.contractsChange !== 0 ? `${metrics.contractsChange > 0 ? '+' : ''}${metrics.contractsChange}%` : undefined}
+           trend={metrics.contractsChange >= 0 ? 'up' : 'down'}
+         />
+         <KPICard
+           title="Expenses This Month"
+           value={`$${Math.round(metrics.expensesThisMonth).toLocaleString()}`}
+           subtitle={`COGS: $${Math.round(metrics.totalCOGS).toLocaleString()}`}
+           icon={Wallet}
+           color="red"
+           change={metrics.expenseChange !== 0 ? `${metrics.expenseChange > 0 ? '+' : ''}${metrics.expenseChange}%` : undefined}
+           trend={metrics.expenseChange <= 0 ? 'up' : 'down'}
+         />
+       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left / Main */}
@@ -362,11 +379,11 @@ export const Dashboard: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => `$${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
-                    itemStyle={{ fontSize: '12px', fontWeight: 600 }}
-                    formatter={(val: any, name: string) => [`$${Number(val).toLocaleString()}`, name === 'revenue' ? 'Billed' : name === 'collected' ? 'Collected' : 'Net Margin']}
-                  />
+                   <Tooltip
+                     contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
+                     itemStyle={{ fontSize: '12px', fontWeight: 600 }}
+                     formatter={(val: any, name: string) => [`$${Number(val).toLocaleString()}`, name === 'revenue' ? 'Billed' : name === 'collected' ? 'Collected' : 'Gross Profit']}
+                   />
                   <Bar dataKey="revenue"   barSize={18} fill="url(#billedGrad)"    radius={[5, 5, 0, 0]} />
                   <Bar dataKey="collected" barSize={18} fill="url(#collectedGrad)" radius={[5, 5, 0, 0]} />
                   <Line type="monotone" dataKey="margin" stroke="#6366f1" strokeWidth={2} dot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }} />
