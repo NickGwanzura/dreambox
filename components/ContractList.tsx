@@ -122,10 +122,18 @@ export const ContractList: React.FC = () => {
     setSendModal({ contract, client });
   };
 
+  interface AvailabilityResult {
+      ok: boolean;
+      reason?: string;
+  }
+
   // Check availability for edited dates
-  const checkAvailabilityForEdit = (contract: Contract, newStart: string, newEnd: string): boolean => {
+  const checkAvailabilityForEdit = (contract: Contract, newStart: string, newEnd: string): AvailabilityResult => {
       const billboard = getBillboard(contract.billboardId);
-      if (!billboard) return false;
+      if (!billboard) {
+          console.warn('[ContractList] checkAvailabilityForEdit: billboard not found', contract.billboardId);
+          return { ok: false, reason: 'Billboard not found' };
+      }
 
       // Get all contracts for this billboard except current one
       const existingContracts = getContracts().filter(c => 
@@ -144,19 +152,46 @@ export const ContractList: React.FC = () => {
           return (newStartTime <= cEnd && newEndTime >= cStart);
       });
 
+      let ok = false;
+      let reason = '';
+
       if (billboard.type === BillboardType.Static) {
           if (contract.side === 'Both') {
-              return !overlappingContracts.some(c => c.side === 'A' || c.side === 'B' || c.side === 'Both');
+              const conflict = overlappingContracts.find(c => c.side === 'A' || c.side === 'B' || c.side === 'Both');
+              ok = !conflict;
+              if (conflict) reason = `Side conflict with ${conflict.id} (${conflict.details}, ${conflict.startDate}–${conflict.endDate})`;
           } else {
-              return !overlappingContracts.some(c => c.side === contract.side || c.side === 'Both');
+              const conflict = overlappingContracts.find(c => c.side === contract.side || c.side === 'Both');
+              ok = !conflict;
+              if (conflict) reason = `Side conflict with ${conflict.id} (${conflict.details}, ${conflict.startDate}–${conflict.endDate})`;
           }
       } else {
           if (contract.slotNumber) {
-              return !overlappingContracts.some(c => c.slotNumber === contract.slotNumber);
+              const conflict = overlappingContracts.find(c => c.slotNumber === contract.slotNumber);
+              ok = !conflict;
+              if (conflict) reason = `Slot ${contract.slotNumber} conflict with ${conflict.id} (${conflict.details}, ${conflict.startDate}–${conflict.endDate})`;
+          } else {
+              ok = overlappingContracts.length < (billboard.totalSlots || 1);
+              if (!ok) reason = `All ${billboard.totalSlots || 1} slots full (${overlappingContracts.length} overlaps)`;
           }
-          // Digital fallback: available if overlap count < total slots
-          return overlappingContracts.length < (billboard.totalSlots || 1);
       }
+
+      if (!ok) {
+          console.warn('[ContractList] Availability FAILED:', {
+              contractId: contract.id,
+              billboardId: contract.billboardId,
+              billboardName: billboard.name,
+              side: contract.side,
+              slotNumber: contract.slotNumber,
+              newStart,
+              newEnd,
+              overlappingCount: overlappingContracts.length,
+              reason,
+              overlappingContracts: overlappingContracts.map(c => ({ id: c.id, side: c.side, slot: c.slotNumber, start: c.startDate, end: c.endDate, status: c.status }))
+          });
+      }
+
+      return { ok, reason };
   };
 
   const handleEditSave = async () => {
@@ -178,9 +213,9 @@ export const ContractList: React.FC = () => {
       
       // Validate dates don't cause double booking
       const available = checkAvailabilityForEdit(editContract, editContract.startDate, editContract.endDate);
-      console.log('[ContractList] Availability check result:', available, { billboardId: editContract.billboardId, side: editContract.side, slotNumber: editContract.slotNumber, start: editContract.startDate, end: editContract.endDate });
-      if (!available) {
-          setEditError('Selected dates overlap with an existing contract for this asset. Please choose different dates.');
+      console.log('[ContractList] Availability check result:', available.ok, available.reason, { billboardId: editContract.billboardId, side: editContract.side, slotNumber: editContract.slotNumber, start: editContract.startDate, end: editContract.endDate });
+      if (!available.ok) {
+          setEditError(`Selected dates overlap with an existing contract: ${available.reason || 'Conflict detected'}. Please choose different dates.`);
           return;
       }
       
@@ -237,8 +272,8 @@ export const ContractList: React.FC = () => {
           
           // Check availability for renewed dates
           const available = checkAvailabilityForEdit(renewContract, newStart.toISOString().split('T')[0], newEnd.toISOString().split('T')[0]);
-          console.log('[ContractList] Renew availability check:', available, { start: newStart.toISOString().split('T')[0], end: newEnd.toISOString().split('T')[0] });
-          if (!available) {
+          console.log('[ContractList] Renew availability check:', available.ok, available.reason, { start: newStart.toISOString().split('T')[0], end: newEnd.toISOString().split('T')[0] });
+          if (!available.ok) {
               setEditError('Cannot renew: The next 12-month period overlaps with an existing contract. Please check availability.');
               setSaving(false);
               return;

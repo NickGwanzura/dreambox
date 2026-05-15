@@ -172,11 +172,16 @@ export const Rentals: React.FC = () => {
           (Number(line.productionCost) || 0);
   };
 
+  interface AvailabilityResult {
+      ok: boolean;
+      reason?: string;
+  }
+
   // --- Dynamic Availability Check ---
-  const checkAvailability = (billboardId: string, side: 'A' | 'B' | 'Both', start: string, end: string, excludeContractId?: string, slotNumber?: number, ignoredContractIds: string[] = []) => {
-      if (!start || !end || !billboardId) return true; // Assume available if dates not set to allow editing
+  const checkAvailability = (billboardId: string, side: 'A' | 'B' | 'Both', start: string, end: string, excludeContractId?: string, slotNumber?: number, ignoredContractIds: string[] = []): AvailabilityResult => {
+      if (!start || !end || !billboardId) return { ok: true }; // Assume available if dates not set to allow editing
       const billboard = getBillboard(billboardId);
-      if (!billboard) return false;
+      if (!billboard) return { ok: false, reason: 'Billboard not found' };
 
       // Filter contracts for this billboard that are Active
       const existingContracts = getContracts().filter(c =>
@@ -197,21 +202,47 @@ export const Rentals: React.FC = () => {
           return (newStart <= cEnd && newEnd >= cStart);
       });
 
+      let ok = false;
+      let reason = '';
+
       if (billboard.type === BillboardType.Static) {
           if (side === 'Both') {
-              // Unavailable if ANY overlap exists on A or B
-              return !overlappingContracts.some(c => c.side === 'A' || c.side === 'B' || c.side === 'Both');
+              const conflict = overlappingContracts.find(c => c.side === 'A' || c.side === 'B' || c.side === 'Both');
+              ok = !conflict;
+              if (conflict) reason = `Side conflict with ${conflict.id} (${conflict.details}, ${conflict.startDate}–${conflict.endDate})`;
           } else {
-              // Unavailable if overlap exists on specific side OR Both
-              return !overlappingContracts.some(c => c.side === side || c.side === 'Both');
+              const conflict = overlappingContracts.find(c => c.side === side || c.side === 'Both');
+              ok = !conflict;
+              if (conflict) reason = `Side conflict with ${conflict.id} (${conflict.details}, ${conflict.startDate}–${conflict.endDate})`;
           }
       } else {
           if (slotNumber) {
-              return !overlappingContracts.some(c => c.slotNumber === slotNumber);
+              const conflict = overlappingContracts.find(c => c.slotNumber === slotNumber);
+              ok = !conflict;
+              if (conflict) reason = `Slot ${slotNumber} conflict with ${conflict.id} (${conflict.details}, ${conflict.startDate}–${conflict.endDate})`;
+          } else {
+              ok = overlappingContracts.length < (billboard.totalSlots || 1);
+              if (!ok) reason = `All ${billboard.totalSlots || 1} slots full (${overlappingContracts.length} overlaps)`;
           }
-          // Digital fallback: available if overlap count < total slots
-          return overlappingContracts.length < (billboard.totalSlots || 1);
       }
+
+      if (!ok) {
+          console.warn('[Rentals] Availability FAILED:', {
+              billboardId,
+              billboardName: billboard.name,
+              side,
+              slotNumber,
+              start,
+              end,
+              excludeContractId,
+              ignoredContractIds,
+              overlappingCount: overlappingContracts.length,
+              reason,
+              overlappingContracts: overlappingContracts.map(c => ({ id: c.id, side: c.side, slot: c.slotNumber, start: c.startDate, end: c.endDate, status: c.status }))
+          });
+      }
+
+      return { ok, reason };
   };
 
   const getDigitalOccupancy = (billboardId: string, start: string, end: string) => {
@@ -231,7 +262,7 @@ export const Rentals: React.FC = () => {
   // Pre-calculate side availability for UI state
   const sideAAvailable = checkAvailability(newRental.billboardId, 'A', newRental.startDate, newRental.endDate);
   const sideBAvailable = checkAvailability(newRental.billboardId, 'B', newRental.startDate, newRental.endDate);
-  const bothAvailable = sideAAvailable && sideBAvailable;
+  const bothAvailable = sideAAvailable.ok && sideBAvailable.ok;
   const digitalOccupancy = getDigitalOccupancy(newRental.billboardId, newRental.startDate, newRental.endDate);
   const digitalFull = selectedBillboard?.type === BillboardType.LED && digitalOccupancy >= (selectedBillboard.totalSlots || 1);
 
@@ -245,10 +276,10 @@ export const Rentals: React.FC = () => {
   useEffect(() => {
     if (selectedBillboard?.type === BillboardType.Static) {
         // Auto-select available side if current selection is blocked
-        if (!checkAvailability(newRental.billboardId, newRental.side, newRental.startDate, newRental.endDate)) {
-             if (checkAvailability(newRental.billboardId, 'A', newRental.startDate, newRental.endDate)) {
+        if (!checkAvailability(newRental.billboardId, newRental.side, newRental.startDate, newRental.endDate).ok) {
+             if (checkAvailability(newRental.billboardId, 'A', newRental.startDate, newRental.endDate).ok) {
                  setNewRental(prev => ({ ...prev, side: 'A', monthlyRate: selectedBillboard.sideARate || 0 }));
-             } else if (checkAvailability(newRental.billboardId, 'B', newRental.startDate, newRental.endDate)) {
+             } else if (checkAvailability(newRental.billboardId, 'B', newRental.startDate, newRental.endDate).ok) {
                  setNewRental(prev => ({ ...prev, side: 'B', monthlyRate: selectedBillboard.sideBRate || 0 }));
              }
         } else {
@@ -267,7 +298,7 @@ export const Rentals: React.FC = () => {
   const handleCreateRental = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedBillboard?.type === BillboardType.Static) {
-        if (!checkAvailability(newRental.billboardId, newRental.side, newRental.startDate, newRental.endDate)) {
+        if (!checkAvailability(newRental.billboardId, newRental.side, newRental.startDate, newRental.endDate).ok) {
             alert(`Selected side option (${newRental.side}) is not available for these dates.`);
             return;
         }
@@ -276,7 +307,7 @@ export const Rentals: React.FC = () => {
             alert("All slots for this digital billboard are fully booked for the selected dates.");
             return;
         }
-        if (!checkAvailability(newRental.billboardId, undefined, newRental.startDate, newRental.endDate, undefined, newRental.slotNumber)) {
+        if (!checkAvailability(newRental.billboardId, undefined, newRental.startDate, newRental.endDate, undefined, newRental.slotNumber).ok) {
             alert(`Slot ${newRental.slotNumber} is already booked for the selected dates. Please choose a different slot.`);
             return;
         }
@@ -404,10 +435,10 @@ export const Rentals: React.FC = () => {
                   return;
               }
               const avail = checkAvailability(line.billboardId, line.side || 'A', line.startDate, line.endDate, line.id, line.slotNumber, deletedEditLineIds);
-              console.log('[Rentals] Availability check for line', line.id, ':', avail, { billboardId: line.billboardId, side: line.side, slot: line.slotNumber, start: line.startDate, end: line.endDate });
-              if (!avail) {
-                  console.warn('[Rentals] Validation failed: external overlap on line', line.id);
-                  setEditError(`${billboard.name} is already booked for the selected dates, side, or slot.`);
+              console.log('[Rentals] Availability check for line', line.id, ':', avail.ok, avail.reason, { billboardId: line.billboardId, side: line.side, slot: line.slotNumber, start: line.startDate, end: line.endDate });
+              if (!avail.ok) {
+                  console.warn('[Rentals] Validation failed: external overlap on line', line.id, avail.reason);
+                  setEditError(`${billboard.name} is already booked: ${avail.reason || 'Conflict detected'}.`);
                   return;
               }
           }
@@ -473,8 +504,8 @@ export const Rentals: React.FC = () => {
           
           // Check availability for renewed dates
           const avail = checkAvailability(renewRental.billboardId, renewRental.side || 'A', newStart.toISOString().split('T')[0], newEnd.toISOString().split('T')[0]);
-          console.log('[Rentals] Renew availability check:', avail, { start: newStart.toISOString().split('T')[0], end: newEnd.toISOString().split('T')[0] });
-          if (!avail) {
+          console.log('[Rentals] Renew availability check:', avail.ok, avail.reason, { start: newStart.toISOString().split('T')[0], end: newEnd.toISOString().split('T')[0] });
+          if (!avail.ok) {
               setEditError('Cannot renew: The next 12-month period overlaps with an existing contract. Please check availability.');
               return;
           }
@@ -894,7 +925,7 @@ export const Rentals: React.FC = () => {
                                         <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Select Sides (Based on availability)</p>
                                         <div className="flex flex-col sm:flex-row gap-4">
                                             {(['A', 'B', 'Both'] as const).map(side => {
-                                                const available = checkAvailability(newRental.billboardId, side, newRental.startDate, newRental.endDate);
+                                                const available = checkAvailability(newRental.billboardId, side, newRental.startDate, newRental.endDate).ok;
                                                 let price = 0;
                                                 if(side === 'A') price = selectedBillboard.sideARate || 0;
                                                 else if(side === 'B') price = selectedBillboard.sideBRate || 0;
