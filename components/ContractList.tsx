@@ -6,7 +6,7 @@ import { SendDocumentModal } from './SendDocumentModal';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { addMonths, calculateContractMonths } from '../utils/contractDate';
-import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, RotateCcw, Send, Loader2 } from 'lucide-react';
+import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, RotateCcw, Send, Loader2, Search } from 'lucide-react';
 
 export const ContractList: React.FC = () => {
   const vatRate = getEffectiveVatRate();
@@ -18,6 +18,22 @@ export const ContractList: React.FC = () => {
   const [editError, setEditError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sendModal, setSendModal] = useState<{ contract: Contract; client: any } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredContracts = contracts.filter(contract => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const clientName = getClientName(contract.clientId).toLowerCase();
+      const billboardName = getBillboardName(contract.billboardId).toLowerCase();
+      return (
+          clientName.includes(q) ||
+          billboardName.includes(q) ||
+          contract.id.toLowerCase().includes(q) ||
+          contract.details.toLowerCase().includes(q) ||
+          contract.startDate.includes(q) ||
+          contract.endDate.includes(q)
+      );
+  });
 
   // Close modals on Escape
   useEffect(() => {
@@ -144,18 +160,26 @@ export const ContractList: React.FC = () => {
   };
 
   const handleEditSave = async () => {
-      if (!editContract || saving) return;
+      console.log('[ContractList] handleEditSave called', { editContractId: editContract?.id, saving });
+      if (!editContract || saving) {
+          console.warn('[ContractList] handleEditSave aborted — no editContract or already saving');
+          return;
+      }
       if (!editContract.startDate || !editContract.endDate) {
+          console.warn('[ContractList] Validation failed: missing dates', { startDate: editContract.startDate, endDate: editContract.endDate });
           setEditError('Start date and end date are required before saving a contract term.');
           return;
       }
       if (new Date(editContract.endDate) < new Date(editContract.startDate)) {
+          console.warn('[ContractList] Validation failed: endDate before startDate', { startDate: editContract.startDate, endDate: editContract.endDate });
           setEditError('End date cannot be before the start date. Pick a later end date to extend, or move the start date first.');
           return;
       }
       
       // Validate dates don't cause double booking
-      if (!checkAvailabilityForEdit(editContract, editContract.startDate, editContract.endDate)) {
+      const available = checkAvailabilityForEdit(editContract, editContract.startDate, editContract.endDate);
+      console.log('[ContractList] Availability check result:', available, { billboardId: editContract.billboardId, side: editContract.side, slotNumber: editContract.slotNumber, start: editContract.startDate, end: editContract.endDate });
+      if (!available) {
           setEditError('Selected dates overlap with an existing contract for this asset. Please choose different dates.');
           return;
       }
@@ -176,25 +200,32 @@ export const ContractList: React.FC = () => {
               lastModifiedBy: 'Current User'
           };
           
+          console.log('[ContractList] Calling updateContract with:', updatedContract);
           updateContract(updatedContract);
           
           // Force a complete refresh by getting the latest data
           const latestContracts = getContracts();
+          console.log('[ContractList] Post-update contract count:', latestContracts.length);
           setContracts(latestContracts);
           setEditContract(null);
           setSelectedContract(updatedContract);
           
-          console.log('Contract updated successfully:', updatedContract.id);
+          console.log('[ContractList] Contract updated successfully:', updatedContract.id);
       } catch (error) {
-          console.error('Failed to update contract:', error);
+          console.error('[ContractList] CRITICAL ERROR in handleEditSave:', error);
           alert('Failed to save contract changes. Please try again.');
       } finally {
           setSaving(false);
+          console.log('[ContractList] handleEditSave finished, saving=false');
       }
   };
 
   const handleRenew = async () => {
-      if (!renewContract || saving) return;
+      console.log('[ContractList] handleRenew called', { renewContractId: renewContract?.id, saving });
+      if (!renewContract || saving) {
+          console.warn('[ContractList] handleRenew aborted — no renewContract or already saving');
+          return;
+      }
       
       setSaving(true);
       try {
@@ -205,7 +236,9 @@ export const ContractList: React.FC = () => {
           newEnd.setFullYear(newEnd.getFullYear() + 1);
           
           // Check availability for renewed dates
-          if (!checkAvailabilityForEdit(renewContract, newStart.toISOString().split('T')[0], newEnd.toISOString().split('T')[0])) {
+          const available = checkAvailabilityForEdit(renewContract, newStart.toISOString().split('T')[0], newEnd.toISOString().split('T')[0]);
+          console.log('[ContractList] Renew availability check:', available, { start: newStart.toISOString().split('T')[0], end: newEnd.toISOString().split('T')[0] });
+          if (!available) {
               setEditError('Cannot renew: The next 12-month period overlaps with an existing contract. Please check availability.');
               setSaving(false);
               return;
@@ -226,6 +259,7 @@ export const ContractList: React.FC = () => {
               lastModifiedBy: 'Current User'
           };
           
+          console.log('[ContractList] Calling addContract for renewal:', renewedContract);
           addContract(renewedContract);
           
           const latestContracts = getContracts();
@@ -233,12 +267,13 @@ export const ContractList: React.FC = () => {
           setRenewContract(null);
           setSelectedContract(renewedContract);
           
-          console.log('Contract renewed successfully:', renewedContract.id);
+          console.log('[ContractList] Contract renewed successfully:', renewedContract.id);
       } catch (error) {
-          console.error('Failed to renew contract:', error);
+          console.error('[ContractList] CRITICAL ERROR in handleRenew:', error);
           alert('Failed to renew contract. Please try again.');
       } finally {
           setSaving(false);
+          console.log('[ContractList] handleRenew finished, saving=false');
       }
   };
 
@@ -278,9 +313,29 @@ export const ContractList: React.FC = () => {
   return (
     <>
       <div className="space-y-8 animate-fade-in">
-        <div className="flex justify-between items-center"><div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Contracts</h2><p className="text-slate-500 font-medium">Active agreements, billing cycles, and rental history</p></div><button className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2"><PlusIcon size={18} /> New Contract</button></div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Contracts</h2>
+            <p className="text-slate-500 font-medium">Active agreements, billing cycles, and rental history</p>
+          </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search contracts..."
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400"
+              />
+            </div>
+            <button className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2 shrink-0">
+              <PlusIcon size={18} /> <span className="hidden sm:inline">New Contract</span>
+            </button>
+          </div>
+        </div>
         <div className="grid gap-4">
-          {contracts.map(contract => (
+          {filteredContracts.map(contract => (
             <div key={contract.id} className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group">
               <div className="flex items-start gap-4 w-full md:w-auto">
                 <div className="p-3 sm:p-4 bg-indigo-50 rounded-2xl group-hover:bg-indigo-600 transition-colors group-hover:text-white text-indigo-600 shrink-0">
@@ -334,6 +389,15 @@ export const ContractList: React.FC = () => {
               </div>
             </div>
           ))}
+          {filteredContracts.length === 0 && (
+            <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="text-slate-300" size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-1">No contracts found</h3>
+              <p className="text-slate-500 text-sm">Try adjusting your search terms.</p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -7,7 +7,7 @@ import { Contract, BillboardType, Invoice } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
 import { addMonths, calculateContractMonths } from '../utils/contractDate';
-import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle, Loader2 } from 'lucide-react';
+import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle, Loader2, Search } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
 import { getProductionFee } from '../utils/productionFee';
@@ -70,6 +70,22 @@ export const Rentals: React.FC = () => {
   const [editExtraLines, setEditExtraLines] = useState<Contract[]>([]);
   const [deletedEditLineIds, setDeletedEditLineIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRentals = rentals.filter(contract => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const clientName = getClientName(contract.clientId).toLowerCase();
+      const billboardName = getBillboardName(contract.billboardId).toLowerCase();
+      return (
+          clientName.includes(q) ||
+          billboardName.includes(q) ||
+          contract.id.toLowerCase().includes(q) ||
+          contract.details.toLowerCase().includes(q) ||
+          contract.startDate.includes(q) ||
+          contract.endDate.includes(q)
+      );
+  });
 
   // Close modals on Escape
   useEffect(() => {
@@ -332,20 +348,28 @@ export const Rentals: React.FC = () => {
   };
 
   const handleEditSave = () => {
-      if (!editRental || saving) return;
+      console.log('[Rentals] handleEditSave called', { editRentalId: editRental?.id, saving, extraLinesCount: editExtraLines.length, deletedLinesCount: deletedEditLineIds.length });
+      if (!editRental || saving) {
+          console.warn('[Rentals] handleEditSave aborted — no editRental or already saving');
+          return;
+      }
       setSaving(true);
       try {
           const allLines = [editRental, ...editExtraLines];
+          console.log('[Rentals] Validating', allLines.length, 'lines');
           for (const line of allLines) {
               if (!line.billboardId) {
+                  console.warn('[Rentals] Validation failed: missing billboardId on line', line.id);
                   setEditError('Every contract line must have a billboard selected.');
                   return;
               }
               if (!line.startDate || !line.endDate) {
+                  console.warn('[Rentals] Validation failed: missing dates on line', line.id, { startDate: line.startDate, endDate: line.endDate });
                   setEditError('Start date and end date are required for every billboard line.');
                   return;
               }
               if (new Date(line.endDate) < new Date(line.startDate)) {
+                  console.warn('[Rentals] Validation failed: endDate before startDate on line', line.id);
                   setEditError('End date cannot be before the start date on any billboard line.');
                   return;
               }
@@ -364,6 +388,7 @@ export const Rentals: React.FC = () => {
                   const sameDigitalSlot = billboard?.type === BillboardType.LED &&
                       (a.slotNumber || 1) === (b.slotNumber || 1);
                   if (sameStaticSide || sameDigitalSlot) {
+                      console.warn('[Rentals] Validation failed: internal duplicate', { a: a.id, b: b.id, billboard: billboard?.name });
                       setEditError(`${billboard?.name || 'A billboard'} is duplicated within this contract for overlapping dates.`);
                       return;
                   }
@@ -374,10 +399,14 @@ export const Rentals: React.FC = () => {
           for (const line of allLines) {
               const billboard = getBillboard(line.billboardId);
               if (!billboard) {
+                  console.warn('[Rentals] Validation failed: billboard not found', line.billboardId);
                   setEditError('One selected billboard could not be found. Please reselect it.');
                   return;
               }
-              if (!checkAvailability(line.billboardId, line.side || 'A', line.startDate, line.endDate, line.id, line.slotNumber, deletedEditLineIds)) {
+              const avail = checkAvailability(line.billboardId, line.side || 'A', line.startDate, line.endDate, line.id, line.slotNumber, deletedEditLineIds);
+              console.log('[Rentals] Availability check for line', line.id, ':', avail, { billboardId: line.billboardId, side: line.side, slot: line.slotNumber, start: line.startDate, end: line.endDate });
+              if (!avail) {
+                  console.warn('[Rentals] Validation failed: external overlap on line', line.id);
                   setEditError(`${billboard.name} is already booked for the selected dates, side, or slot.`);
                   return;
               }
@@ -393,8 +422,9 @@ export const Rentals: React.FC = () => {
               lastModifiedBy: 'Current User'
           };
           
+          console.log('[Rentals] Calling updateContract for primary:', updatedContract);
           updateContract(updatedContract);
-          editExtraLines.forEach(line => {
+          editExtraLines.forEach((line, idx) => {
               const normalized: Contract = {
                   ...line,
                   clientId: updatedContract.clientId,
@@ -405,9 +435,11 @@ export const Rentals: React.FC = () => {
                   lastModifiedBy: 'Current User',
               };
               const exists = getContracts().some(c => c.id === normalized.id);
+              console.log('[Rentals] Processing extra line', idx, { id: normalized.id, exists });
               if (exists) updateContract(normalized);
               else addContract(normalized);
           });
+          console.log('[Rentals] Deleting lines:', deletedEditLineIds);
           deletedEditLineIds.forEach(id => deleteContract(id));
           setRentals([...getContracts()]);
           setEditRental(null);
@@ -415,17 +447,22 @@ export const Rentals: React.FC = () => {
           setDeletedEditLineIds([]);
           setSelectedRental(updatedContract);
           
-          console.log('Contract updated successfully:', updatedContract.id);
+          console.log('[Rentals] Contract updated successfully:', updatedContract.id);
       } catch (error) {
-          console.error('Failed to update contract:', error);
+          console.error('[Rentals] CRITICAL ERROR in handleEditSave:', error);
           alert('Failed to save contract changes. Please try again.');
       } finally {
           setSaving(false);
+          console.log('[Rentals] handleEditSave finished, saving=false');
       }
   };
 
   const handleRenew = () => {
-      if (!renewRental || saving) return;
+      console.log('[Rentals] handleRenew called', { renewRentalId: renewRental?.id, saving });
+      if (!renewRental || saving) {
+          console.warn('[Rentals] handleRenew aborted — no renewRental or already saving');
+          return;
+      }
       setSaving(true);
       try {
           const newStart = new Date(renewRental.endDate);
@@ -435,7 +472,9 @@ export const Rentals: React.FC = () => {
           newEnd.setFullYear(newEnd.getFullYear() + 1);
           
           // Check availability for renewed dates
-          if (!checkAvailability(renewRental.billboardId, renewRental.side || 'A', newStart.toISOString().split('T')[0], newEnd.toISOString().split('T')[0])) {
+          const avail = checkAvailability(renewRental.billboardId, renewRental.side || 'A', newStart.toISOString().split('T')[0], newEnd.toISOString().split('T')[0]);
+          console.log('[Rentals] Renew availability check:', avail, { start: newStart.toISOString().split('T')[0], end: newEnd.toISOString().split('T')[0] });
+          if (!avail) {
               setEditError('Cannot renew: The next 12-month period overlaps with an existing contract. Please check availability.');
               return;
           }
@@ -455,17 +494,19 @@ export const Rentals: React.FC = () => {
               lastModifiedBy: 'Current User'
           };
           
+          console.log('[Rentals] Calling addContract for renewal:', renewedContract);
           addContract(renewedContract);
           setRentals([...getContracts()]);
           setRenewRental(null);
           setSelectedRental(renewedContract);
           
-          console.log('Contract renewed successfully:', renewedContract.id);
+          console.log('[Rentals] Contract renewed successfully:', renewedContract.id);
       } catch (error) {
-          console.error('Failed to renew contract:', error);
+          console.error('[Rentals] CRITICAL ERROR in handleRenew:', error);
           alert('Failed to renew contract. Please try again.');
       } finally {
           setSaving(false);
+          console.log('[Rentals] handleRenew finished, saving=false');
       }
   };
 
@@ -555,7 +596,7 @@ export const Rentals: React.FC = () => {
 
                       {/* Body Rows */}
                       {billboards.map(b => {
-                          const activeContracts = rentals.filter(r =>
+                          const activeContracts = filteredRentals.filter(r =>
                               r.billboardId === b.id && String(r.status || '').toLowerCase() === 'active' &&
                               (new Date(r.startDate) <= new Date(year, month, daysInMonth) && new Date(r.endDate) >= new Date(year, month, 1))
                           );
@@ -621,6 +662,16 @@ export const Rentals: React.FC = () => {
             <p className="text-slate-500 font-medium text-sm sm:text-base">Active contracts, renewals, and availability</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search rentals..."
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400"
+              />
+            </div>
               <button onClick={() => generateActiveContractsPDF(rentals, getClientName, getBillboardName)} className="bg-white border border-slate-200 text-slate-600 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2">
                   <Download size={18}/> Report
               </button>
@@ -636,7 +687,7 @@ export const Rentals: React.FC = () => {
 
         {viewMode === 'gantt' ? renderGanttChart() : (
             <div className="grid gap-4">
-            {rentals.map(contract => (
+            {filteredRentals.map(contract => (
                 <div key={contract.id} className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 group hover:-translate-y-0.5 duration-300">
                 <div className="flex items-start gap-4 w-full lg:w-auto">
                     <div className="p-3 sm:p-4 bg-indigo-50 rounded-2xl group-hover:bg-indigo-600 transition-colors group-hover:text-white text-indigo-600 shrink-0">
@@ -698,13 +749,13 @@ export const Rentals: React.FC = () => {
                 </div>
                 </div>
             ))}
-            {rentals.length === 0 && (
+            {filteredRentals.length === 0 && (
                 <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <FileText className="text-slate-300" size={32}/>
+                        {searchQuery ? <Search className="text-slate-300" size={32}/> : <FileText className="text-slate-300" size={32}/>}
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-1">No Active Rentals</h3>
-                    <p className="text-slate-500 text-sm">Create a new rental agreement to get started.</p>
+                    <h3 className="text-lg font-bold text-slate-900 mb-1">{searchQuery ? 'No rentals found' : 'No Active Rentals'}</h3>
+                    <p className="text-slate-500 text-sm">{searchQuery ? 'Try adjusting your search terms.' : 'Create a new rental agreement to get started.'}</p>
                 </div>
             )}
             </div>
