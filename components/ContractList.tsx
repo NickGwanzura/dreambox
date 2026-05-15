@@ -1,27 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, addContract, updateContract, subscribe, getEffectiveVatRate } from '../services/mockData';
 import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
-import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, RotateCcw, Send } from 'lucide-react';
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-const addMonths = (dateValue: string, months: number) => {
-  const date = new Date(`${dateValue}T00:00:00`);
-  date.setMonth(date.getMonth() + months);
-  return date.toISOString().split('T')[0];
-};
-
-const calculateContractMonths = (startDate: string, endDate: string) => {
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
-  if (Number.isNaN(start) || Number.isNaN(end)) return 1;
-  const days = (end - start) / MS_PER_DAY;
-  return Math.max(1, Math.ceil(days / 30));
-};
+import { addMonths, calculateContractMonths } from '../utils/contractDate';
+import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, RotateCcw, Send, Loader2 } from 'lucide-react';
 
 export const ContractList: React.FC = () => {
   const vatRate = getEffectiveVatRate();
@@ -31,6 +16,22 @@ export const ContractList: React.FC = () => {
   const [renewContract, setRenewContract] = useState<Contract | null>(null);
   const [contracts, setContracts] = useState<Contract[]>(initialContracts);
   const [editError, setEditError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [sendModal, setSendModal] = useState<{ contract: Contract; client: any } | null>(null);
+
+  // Close modals on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (sendModal) { setSendModal(null); return; }
+        if (renewContract) { setRenewContract(null); return; }
+        if (editContract) { setEditContract(null); return; }
+        if (selectedContract) { setSelectedContract(null); return; }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sendModal, renewContract, editContract, selectedContract]);
 
   // Subscribe to real-time updates from other components
   useEffect(() => {
@@ -44,12 +45,14 @@ export const ContractList: React.FC = () => {
   useEffect(() => {
       const interval = setInterval(() => {
           const freshData = getContracts();
-          if (freshData.length !== contracts.length) {
+          const changed = freshData.length !== contracts.length ||
+              freshData.some((c, i) => contracts[i] && JSON.stringify(c) !== JSON.stringify(contracts[i]));
+          if (changed) {
               setContracts(freshData);
           }
       }, 2000);
       return () => clearInterval(interval);
-  }, [contracts.length]);
+  }, [contracts]);
 
   const getClient = (id: string) => clients.find(c => c.id === id);
   const getClientName = (id: string) => getClient(id)?.companyName || 'Unknown';
@@ -71,9 +74,22 @@ export const ContractList: React.FC = () => {
   };
   const withBillboardDefaults = (contract: Contract, billboardId: string): Contract => {
       const billboard = getBillboard(billboardId);
-      const side: Contract['side'] = billboard?.type === BillboardType.Static ? 'A' : undefined;
-      const slotNumber = billboard?.type === BillboardType.LED ? 1 : undefined;
-      const next = { ...contract, billboardId, side, slotNumber, monthlyRate: getDefaultRate(billboardId, side) };
+
+      const nextSide: Contract['side'] =
+        billboard?.type === BillboardType.Static
+          ? (contract.side === 'A' || contract.side === 'B' || contract.side === 'Both' ? contract.side : 'A')
+          : undefined;
+
+      const nextSlotNumber = billboard?.type === BillboardType.LED ? (contract.slotNumber ?? 1) : undefined;
+
+      const next = {
+        ...contract,
+        billboardId,
+        side: nextSide,
+        slotNumber: nextSlotNumber,
+        monthlyRate: getDefaultRate(billboardId, nextSide)
+      };
+
       return { ...next, details: getLineDetails(next) };
   };
 
@@ -83,8 +99,6 @@ export const ContractList: React.FC = () => {
       generateLegalContractPDF(contract, client, getBillboard(contract.billboardId));
     }
   };
-
-  const [sendModal, setSendModal] = useState<{ contract: Contract; client: any } | null>(null);
 
   const handleSendEmail = (contract: Contract) => {
     const client = getClient(contract.clientId);
@@ -101,7 +115,7 @@ export const ContractList: React.FC = () => {
       const existingContracts = getContracts().filter(c => 
           c.billboardId === contract.billboardId && 
           c.id !== contract.id && 
-          c.status === 'Active'
+          String(c.status || '').toLowerCase() === 'active'
       );
       
       const newStartTime = new Date(newStart).getTime();
@@ -130,7 +144,7 @@ export const ContractList: React.FC = () => {
   };
 
   const handleEditSave = async () => {
-      if (!editContract) return;
+      if (!editContract || saving) return;
       if (!editContract.startDate || !editContract.endDate) {
           setEditError('Start date and end date are required before saving a contract term.');
           return;
@@ -147,6 +161,7 @@ export const ContractList: React.FC = () => {
       }
       
       setEditError(null);
+      setSaving(true);
       
       try {
           // Recalculate total contract value
@@ -173,12 +188,15 @@ export const ContractList: React.FC = () => {
       } catch (error) {
           console.error('Failed to update contract:', error);
           alert('Failed to save contract changes. Please try again.');
+      } finally {
+          setSaving(false);
       }
   };
 
   const handleRenew = async () => {
-      if (!renewContract) return;
+      if (!renewContract || saving) return;
       
+      setSaving(true);
       try {
           const newStart = new Date(renewContract.endDate);
           newStart.setDate(newStart.getDate() + 1);
@@ -189,11 +207,12 @@ export const ContractList: React.FC = () => {
           // Check availability for renewed dates
           if (!checkAvailabilityForEdit(renewContract, newStart.toISOString().split('T')[0], newEnd.toISOString().split('T')[0])) {
               setEditError('Cannot renew: The next 12-month period overlaps with an existing contract. Please check availability.');
+              setSaving(false);
               return;
           }
           
           const months = 12;
-          const gross = (renewContract.monthlyRate * months) + renewContract.installationCost + renewContract.printingCost;
+          const gross = (renewContract.monthlyRate * months) + renewContract.installationCost + renewContract.printingCost + (renewContract.productionCost || 0);
 
           const renewedContract: Contract = {
               ...renewContract,
@@ -218,6 +237,8 @@ export const ContractList: React.FC = () => {
       } catch (error) {
           console.error('Failed to renew contract:', error);
           alert('Failed to renew contract. Please try again.');
+      } finally {
+          setSaving(false);
       }
   };
 
@@ -318,8 +339,8 @@ export const ContractList: React.FC = () => {
 
       {/* View Modal */}
       {selectedContract && !editContract && !renewContract && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget) setSelectedContract(null); }}>
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Contract Details</h3>
@@ -419,14 +440,14 @@ export const ContractList: React.FC = () => {
 
       {/* Edit Modal */}
       {editContract && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setEditContract(null); }}>
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                <div>
                  <h3 className="text-xl font-bold text-slate-900">Edit Contract</h3>
                  <p className="text-xs text-slate-500 mt-0.5">{getClientName(editContract.clientId)} &bull; {getBillboardName(editContract.billboardId)}</p>
                </div>
-              <button onClick={() => setEditContract(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => { if (!saving) setEditContract(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-400" /></button>
             </div>
             <div className="p-8 space-y-6">
               {/* Context card */}
@@ -567,8 +588,10 @@ export const ContractList: React.FC = () => {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setEditContract(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                <button onClick={handleEditSave} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Save Changes</button>
+                <button onClick={() => { if (!saving) setEditContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Saving…' : 'Save Changes'}
+                </button>
               </div>
             </div>
           </div>
@@ -577,14 +600,14 @@ export const ContractList: React.FC = () => {
 
       {/* Renew Modal */}
       {renewContract && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setRenewContract(null); }}>
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Renew Contract</h3>
                 <p className="text-xs text-slate-400 mt-0.5">Creates a new 12-month agreement from the expired one</p>
               </div>
-              <button onClick={() => setRenewContract(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => { if (!saving) setRenewContract(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-400" /></button>
             </div>
             <div className="p-8 space-y-6">
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
@@ -663,8 +686,10 @@ export const ContractList: React.FC = () => {
               })()}
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setRenewContract(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                <button onClick={handleRenew} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew Contract</button>
+                <button onClick={() => { if (!saving) setRenewContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                <button onClick={handleRenew} disabled={saving} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} {saving ? 'Renewing…' : 'Renew Contract'}
+                </button>
               </div>
             </div>
           </div>

@@ -6,26 +6,11 @@ import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, Invoice } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
-import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle } from 'lucide-react';
+import { addMonths, calculateContractMonths } from '../utils/contractDate';
+import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle, Loader2 } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
 import { getProductionFee } from '../utils/productionFee';
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-const addMonths = (dateValue: string, months: number) => {
-  const date = new Date(`${dateValue}T00:00:00`);
-  date.setMonth(date.getMonth() + months);
-  return date.toISOString().split('T')[0];
-};
-
-const calculateContractMonths = (startDate: string, endDate: string) => {
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
-  if (Number.isNaN(start) || Number.isNaN(end)) return 1;
-  const days = (end - start) / MS_PER_DAY;
-  return Math.max(1, Math.ceil(days / 30));
-};
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -84,6 +69,22 @@ export const Rentals: React.FC = () => {
   const [editError, setEditError] = useState<string | null>(null);
   const [editExtraLines, setEditExtraLines] = useState<Contract[]>([]);
   const [deletedEditLineIds, setDeletedEditLineIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Close modals on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (rentalToDelete) { setRentalToDelete(null); return; }
+        if (renewRental) { setRenewRental(null); return; }
+        if (editRental) { setEditRental(null); return; }
+        if (selectedRental) { setSelectedRental(null); return; }
+        if (isCreateModalOpen) { setIsCreateModalOpen(false); setCreateStep(1); return; }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [rentalToDelete, renewRental, editRental, selectedRental, isCreateModalOpen]);
 
   // Gantt State
   const [ganttDate, setGanttDate] = useState(new Date());
@@ -218,6 +219,13 @@ export const Rentals: React.FC = () => {
   const digitalOccupancy = getDigitalOccupancy(newRental.billboardId, newRental.startDate, newRental.endDate);
   const digitalFull = selectedBillboard?.type === BillboardType.LED && digitalOccupancy >= (selectedBillboard.totalSlots || 1);
 
+  // Auto-populate production fee when billboard changes (not on date changes)
+  useEffect(() => {
+    if (!selectedBillboard) return;
+    setNewRental(prev => ({ ...prev, productionCost: getProductionFee(selectedBillboard) }));
+  }, [newRental.billboardId]);
+
+  // Auto-select available side and sync rates
   useEffect(() => {
     if (selectedBillboard?.type === BillboardType.Static) {
         // Auto-select available side if current selection is blocked
@@ -238,9 +246,7 @@ export const Rentals: React.FC = () => {
     } else if (selectedBillboard?.type === BillboardType.LED) {
         setNewRental(prev => ({ ...prev, monthlyRate: selectedBillboard.ratePerSlot || 0 }));
     }
-    // Auto-populate production fee from billboard size (Static only; LED stays at 0)
-    setNewRental(prev => ({ ...prev, productionCost: getProductionFee(selectedBillboard) }));
-  }, [newRental.billboardId, newRental.startDate, newRental.endDate]); // Re-run when dates change
+  }, [newRental.billboardId, newRental.startDate, newRental.endDate, newRental.side, selectedBillboard]);
 
   const handleCreateRental = (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,6 +258,10 @@ export const Rentals: React.FC = () => {
     } else if (selectedBillboard?.type === BillboardType.LED) {
         if (digitalFull) {
             alert("All slots for this digital billboard are fully booked for the selected dates.");
+            return;
+        }
+        if (!checkAvailability(newRental.billboardId, undefined, newRental.startDate, newRental.endDate, undefined, newRental.slotNumber)) {
+            alert(`Slot ${newRental.slotNumber} is already booked for the selected dates. Please choose a different slot.`);
             return;
         }
     }
@@ -322,58 +332,59 @@ export const Rentals: React.FC = () => {
   };
 
   const handleEditSave = () => {
-      if (!editRental) return;
-      const allLines = [editRental, ...editExtraLines];
-      for (const line of allLines) {
-          if (!line.billboardId) {
-              setEditError('Every contract line must have a billboard selected.');
-              return;
-          }
-          if (!line.startDate || !line.endDate) {
-              setEditError('Start date and end date are required for every billboard line.');
-              return;
-          }
-          if (new Date(line.endDate) < new Date(line.startDate)) {
-              setEditError('End date cannot be before the start date on any billboard line.');
-              return;
-          }
-      }
-      for (let i = 0; i < allLines.length; i += 1) {
-          for (let j = i + 1; j < allLines.length; j += 1) {
-              const a = allLines[i];
-              const b = allLines[j];
-              if (a.billboardId !== b.billboardId) continue;
-              const overlaps = new Date(a.startDate).getTime() <= new Date(b.endDate).getTime() &&
-                  new Date(a.endDate).getTime() >= new Date(b.startDate).getTime();
-              if (!overlaps) continue;
-              const billboard = getBillboard(a.billboardId);
-              const sameStaticSide = billboard?.type === BillboardType.Static &&
-                  (a.side === 'Both' || b.side === 'Both' || a.side === b.side);
-              const sameDigitalSlot = billboard?.type === BillboardType.LED &&
-                  (a.slotNumber || 1) === (b.slotNumber || 1);
-              if (sameStaticSide || sameDigitalSlot) {
-                  setEditError(`${billboard?.name || 'A billboard'} is duplicated within this contract for overlapping dates.`);
+      if (!editRental || saving) return;
+      setSaving(true);
+      try {
+          const allLines = [editRental, ...editExtraLines];
+          for (const line of allLines) {
+              if (!line.billboardId) {
+                  setEditError('Every contract line must have a billboard selected.');
+                  return;
+              }
+              if (!line.startDate || !line.endDate) {
+                  setEditError('Start date and end date are required for every billboard line.');
+                  return;
+              }
+              if (new Date(line.endDate) < new Date(line.startDate)) {
+                  setEditError('End date cannot be before the start date on any billboard line.');
                   return;
               }
           }
-      }
-      
-      // Validate dates don't cause double booking
-      for (const line of allLines) {
-          const billboard = getBillboard(line.billboardId);
-          if (!billboard) {
-              setEditError('One selected billboard could not be found. Please reselect it.');
-              return;
+          for (let i = 0; i < allLines.length; i += 1) {
+              for (let j = i + 1; j < allLines.length; j += 1) {
+                  const a = allLines[i];
+                  const b = allLines[j];
+                  if (a.billboardId !== b.billboardId) continue;
+                  const overlaps = new Date(a.startDate).getTime() <= new Date(b.endDate).getTime() &&
+                      new Date(a.endDate).getTime() >= new Date(b.startDate).getTime();
+                  if (!overlaps) continue;
+                  const billboard = getBillboard(a.billboardId);
+                  const sameStaticSide = billboard?.type === BillboardType.Static &&
+                      (a.side === 'Both' || b.side === 'Both' || a.side === b.side);
+                  const sameDigitalSlot = billboard?.type === BillboardType.LED &&
+                      (a.slotNumber || 1) === (b.slotNumber || 1);
+                  if (sameStaticSide || sameDigitalSlot) {
+                      setEditError(`${billboard?.name || 'A billboard'} is duplicated within this contract for overlapping dates.`);
+                      return;
+                  }
+              }
           }
-          if (!checkAvailability(line.billboardId, line.side || 'A', line.startDate, line.endDate, line.id, line.slotNumber, deletedEditLineIds)) {
-              setEditError(`${billboard.name} is already booked for the selected dates, side, or slot.`);
-              return;
+          
+          // Validate dates don't cause double booking
+          for (const line of allLines) {
+              const billboard = getBillboard(line.billboardId);
+              if (!billboard) {
+                  setEditError('One selected billboard could not be found. Please reselect it.');
+                  return;
+              }
+              if (!checkAvailability(line.billboardId, line.side || 'A', line.startDate, line.endDate, line.id, line.slotNumber, deletedEditLineIds)) {
+                  setEditError(`${billboard.name} is already booked for the selected dates, side, or slot.`);
+                  return;
+              }
           }
-      }
-      
-      setEditError(null);
-      
-      try {
+          
+          setEditError(null);
+          
           const updatedContract: Contract = {
               ...editRental,
               details: getLineDetails(editRental),
@@ -408,12 +419,14 @@ export const Rentals: React.FC = () => {
       } catch (error) {
           console.error('Failed to update contract:', error);
           alert('Failed to save contract changes. Please try again.');
+      } finally {
+          setSaving(false);
       }
   };
 
   const handleRenew = () => {
-      if (!renewRental) return;
-      
+      if (!renewRental || saving) return;
+      setSaving(true);
       try {
           const newStart = new Date(renewRental.endDate);
           newStart.setDate(newStart.getDate() + 1);
@@ -451,6 +464,8 @@ export const Rentals: React.FC = () => {
       } catch (error) {
           console.error('Failed to renew contract:', error);
           alert('Failed to renew contract. Please try again.');
+      } finally {
+          setSaving(false);
       }
   };
 
@@ -968,8 +983,8 @@ export const Rentals: React.FC = () => {
 
       {/* View Modal */}
       {selectedRental && !editRental && !renewRental && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget) setSelectedRental(null); }}>
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Contract Details</h3>
@@ -1086,14 +1101,14 @@ export const Rentals: React.FC = () => {
 
       {/* Edit Modal */}
       {editRental && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setEditRental(null); }}>
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Rental</h3>
                         <p className="text-xs text-slate-400 mt-0.5">{getClientName(editRental.clientId)} &bull; {getBillboardName(editRental.billboardId)}</p>
                     </div>
-                    <button onClick={() => setEditRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                    <button onClick={() => { if (!saving) setEditRental(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-400" /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     {/* Context card */}
@@ -1353,8 +1368,10 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => setEditRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                        <button onClick={handleEditSave} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Save Changes</button>
+                        <button onClick={() => { if (!saving) setEditRental(null); }} disabled={saving} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                        <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                          {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Saving…' : 'Save Changes'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1363,14 +1380,14 @@ export const Rentals: React.FC = () => {
 
       {/* Renew Modal */}
       {renewRental && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setRenewRental(null); }}>
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Renew Contract</h3>
                         <p className="text-xs text-slate-400 mt-0.5">Creates a new 12-month agreement from the expired one</p>
                     </div>
-                    <button onClick={() => setRenewRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                    <button onClick={() => { if (!saving) setRenewRental(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-400" /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
@@ -1453,8 +1470,10 @@ export const Rentals: React.FC = () => {
                     })()}
 
                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => setRenewRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                        <button onClick={handleRenew} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew Contract</button>
+                        <button onClick={() => { if (!saving) setRenewRental(null); }} disabled={saving} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                        <button onClick={handleRenew} disabled={saving} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                          {saving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} {saving ? 'Renewing…' : 'Renew Contract'}
+                        </button>
                     </div>
                 </div>
             </div>

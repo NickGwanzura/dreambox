@@ -97,13 +97,10 @@ function money(n: number): string {
   return `$${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+import { calculateContractMonths } from './contractDate';
+
 function monthsBetween(start: string, end: string): number {
-  const s = new Date(start);
-  const e = new Date(end);
-  if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
-  const days = (e.getTime() - s.getTime()) / 86_400_000;
-  if (days <= 0) return 0;
-  return Math.max(1, Math.round(days / 30.4375));
+  return calculateContractMonths(start, end);
 }
 
 function buildRateBlock(contract: Contract, billboard: Billboard | undefined, advertiser: string, vatRate: number = VAT_RATE): string {
