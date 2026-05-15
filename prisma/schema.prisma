@@ -163,6 +163,32 @@ model Contract {
   @@map("contracts")
 }
 
+model ContractAmendment {
+  id                String   @id @default(uuid())
+  contractId        String
+  type              String   // "extension", "reduction", "rate_change", "other"
+  oldStartDate      String
+  oldEndDate        String
+  newStartDate      String
+  newEndDate        String
+  oldMonthlyRate    Float
+  newMonthlyRate    Float
+  oldTotalValue     Float
+  newTotalValue     Float
+  monthsChanged     Float
+  financialImpact   Float    // positive = additional revenue, negative = credit due
+  reason            String?
+  requestedBy       String?
+  approvedBy        String?
+  status            String   @default("applied") // "pending", "approved", "rejected", "applied"
+  invoiceImpactNote String?
+  createdAt         DateTime @default(now())
+  appliedAt         DateTime?
+
+  @@index([contractId])
+  @@map("contract_amendments")
+}
+
 model Invoice {
   id                  String        @id @default(uuid())
   contractId          String?

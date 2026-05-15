@@ -1,0 +1,75 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma';
+import { requireAuth, cors } from '../lib/auth';
+
+const amendmentSchema = z.object({
+  contractId: z.string().min(1, 'Contract ID is required'),
+  type: z.enum(['extension', 'reduction', 'rate_change', 'other']),
+  oldStartDate: z.string().min(1),
+  oldEndDate: z.string().min(1),
+  newStartDate: z.string().min(1),
+  newEndDate: z.string().min(1),
+  oldMonthlyRate: z.number(),
+  newMonthlyRate: z.number(),
+  oldTotalValue: z.number(),
+  newTotalValue: z.number(),
+  monthsChanged: z.number(),
+  financialImpact: z.number(),
+  reason: z.string().optional(),
+  requestedBy: z.string().optional(),
+  approvedBy: z.string().optional(),
+  status: z.enum(['pending', 'approved', 'rejected', 'applied']).default('applied'),
+  invoiceImpactNote: z.string().optional(),
+});
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  cors(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  const payload = requireAuth(req, res);
+  if (!payload) return;
+
+  try {
+    if (req.method === 'GET') {
+      const { contractId } = req.query;
+      const where = contractId ? { contractId: contractId as string } : {};
+      const rows = await prisma.contractAmendment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+      });
+      return res.status(200).json(rows);
+    }
+
+    if (req.method === 'POST') {
+      const parsed = amendmentSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
+      const { id, ...data } = req.body ?? {};
+      const row = await prisma.contractAmendment.create({ data });
+      return res.status(201).json(row);
+    }
+
+    if (req.method === 'PUT') {
+      const { id } = req.query;
+      if (!id) return res.status(400).json({ error: 'id required' });
+      const { id: _id, ...data } = req.body ?? {};
+      const existing = await prisma.contractAmendment.findUnique({ where: { id: id as string } });
+      if (!existing) return res.status(404).json({ error: 'Not found' });
+      const row = await prisma.contractAmendment.update({ where: { id: id as string }, data });
+      return res.status(200).json(row);
+    }
+
+    if (req.method === 'DELETE') {
+      const { id } = req.query;
+      if (!id) return res.status(400).json({ error: 'id required' });
+      await prisma.contractAmendment.delete({ where: { id: id as string } });
+      return res.status(200).json({ success: true });
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch (e: any) {
+    console.error('[contract-amendments]', e);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}

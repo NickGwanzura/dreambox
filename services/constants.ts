@@ -61,6 +61,7 @@ export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const STORAGE_KEYS = {
   BILLBOARDS: 'db_billboards',
   CONTRACTS: 'db_contracts',
+  CONTRACT_AMENDMENTS: 'db_contract_amendments',
   INVOICES: 'db_invoices',
   EXPENSES: 'db_expenses',
   USERS: 'db_users',

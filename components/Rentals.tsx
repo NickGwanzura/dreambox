@@ -1,16 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe } from '../services/mockData';
+import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract } from '../services/mockData';
 import { generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, Invoice } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
 import { addMonths, calculateContractMonths } from '../utils/contractDate';
-import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle, Loader2, Search } from 'lucide-react';
+import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle, Loader2, Search, History } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
 import { getProductionFee } from '../utils/productionFee';
+import { ContractAmendmentModal } from './ContractAmendmentModal';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -61,6 +62,7 @@ export const Rentals: React.FC = () => {
   const [selectedRental, setSelectedRental] = useState<Contract | null>(null);
   const [editRental, setEditRental] = useState<Contract | null>(null);
   const [renewRental, setRenewRental] = useState<Contract | null>(null);
+  const [amendContract, setAmendContract] = useState<Contract | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
   const [rentalToDelete, setRentalToDelete] = useState<Contract | null>(null);
@@ -564,10 +566,7 @@ export const Rentals: React.FC = () => {
 
   const openTermAdjustment = (contract: Contract) => {
       setSelectedRental(null);
-      setEditRental({ ...contract });
-      setEditExtraLines(getContractGroupLines(contract).map(line => ({ ...line })));
-      setDeletedEditLineIds([]);
-      setEditError(null);
+      setAmendContract({ ...contract });
   };
 
   // --- Gantt Chart Helpers ---
@@ -763,7 +762,7 @@ export const Rentals: React.FC = () => {
                             <Edit size={14} /> <span className="hidden sm:inline">Edit</span>
                         </button>
                         <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
-                            <Calendar size={14} /> <span className="hidden sm:inline">Adjust Term</span><span className="sm:hidden">Term</span>
+                            <Calendar size={14} /> <span className="hidden sm:inline">Amend</span><span className="sm:hidden">Amend</span>
                         </button>
                         {isContractExpired(contract) && (
                             <button onClick={() => { setRenewRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1">
@@ -1157,6 +1156,36 @@ export const Rentals: React.FC = () => {
                         </div>
                     )}
 
+                    {(() => {
+                        const amends = getContractAmendmentsForContract(selectedRental.id);
+                        if (amends.length === 0) return null;
+                        return (
+                            <div className="border border-slate-100 rounded-xl overflow-hidden">
+                                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
+                                    <History size={14} />
+                                    Amendment History ({amends.length})
+                                </div>
+                                <div className="p-4 space-y-3 max-h-40 overflow-y-auto">
+                                    {amends.slice(0, 3).map(a => (
+                                        <div key={a.id} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${a.type === 'extension' ? 'bg-emerald-500' : a.type === 'reduction' ? 'bg-amber-500' : 'bg-slate-400'}`} />
+                                                <span className="font-medium text-slate-700 capitalize">{a.type}</span>
+                                                <span className="text-xs text-slate-400">{new Date(a.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                            <span className={`text-xs font-bold ${a.financialImpact >= 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                {a.financialImpact >= 0 ? '+' : '-'}${Math.abs(a.financialImpact).toLocaleString()}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    {amends.length > 3 && (
+                                        <p className="text-xs text-slate-400 text-center">+{amends.length - 3} more amendments</p>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     <div className="pt-2">
                         <button
                             onClick={() => {
@@ -1173,7 +1202,7 @@ export const Rentals: React.FC = () => {
                     </div>
                     <div className="flex gap-3 pt-2">
                         <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
-                        <button onClick={() => openTermAdjustment(selectedRental)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Calendar size={14} /> Adjust Term</button>
+                        <button onClick={() => openTermAdjustment(selectedRental)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Calendar size={14} /> Amend Contract</button>
                         {isContractExpired(selectedRental) && <button onClick={() => { setSelectedRental(null); setRenewRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>}
                     </div>
                 </div>
@@ -1458,6 +1487,18 @@ export const Rentals: React.FC = () => {
                 </div>
             </div>
         </div>
+      )}
+
+      {/* Contract Amendment Modal */}
+      {amendContract && (
+        <ContractAmendmentModal
+          contract={amendContract}
+          onClose={() => setAmendContract(null)}
+          onApplied={() => {
+            setAmendContract(null);
+            setRentals([...getContracts()]);
+          }}
+        />
       )}
 
       {/* Renew Modal */}

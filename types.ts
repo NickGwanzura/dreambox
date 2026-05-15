@@ -104,6 +104,29 @@ export interface Contract {
   masterContractId?: string; // Links additional billboard lines to the primary contract
 }
 
+export interface ContractAmendment {
+  id: string;
+  contractId: string;
+  type: 'extension' | 'reduction' | 'rate_change' | 'other';
+  oldStartDate: string;
+  oldEndDate: string;
+  newStartDate: string;
+  newEndDate: string;
+  oldMonthlyRate: number;
+  newMonthlyRate: number;
+  oldTotalValue: number;
+  newTotalValue: number;
+  monthsChanged: number;
+  financialImpact: number; // positive = additional revenue, negative = credit due
+  reason?: string;
+  requestedBy?: string;
+  approvedBy?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'applied';
+  invoiceImpactNote?: string;
+  createdAt: string;
+  appliedAt?: string;
+}
+
 export interface Invoice {
   id: string;
   contractId?: string;

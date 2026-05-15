@@ -1,4 +1,4 @@
-import { Billboard, BillboardType, Client, Contract, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
+import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
 import { api, isConfigured } from './apiClient';
 import { logger } from '../utils/logger';
 import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS, splitInclusiveVat, VAT_RATE } from './constants';
@@ -23,6 +23,7 @@ const notifyListeners = () => {
 const INITIAL_BILLBOARDS: Billboard[] = [];
 const INITIAL_CLIENTS: Client[] = [];
 const INITIAL_CONTRACTS: Contract[] = [];
+const INITIAL_CONTRACT_AMENDMENTS: ContractAmendment[] = [];
 
 // Storage keys are now imported from constants.ts
 // Using STORAGE_KEYS from './constants'
@@ -62,6 +63,7 @@ window.addEventListener('storage', (event) => {
         switch(event.key) {
             case STORAGE_KEYS.BILLBOARDS: billboards = loadFromStorage(STORAGE_KEYS.BILLBOARDS, []) || []; break;
             case STORAGE_KEYS.CONTRACTS: contracts = loadFromStorage(STORAGE_KEYS.CONTRACTS, []) || []; break;
+            case STORAGE_KEYS.CONTRACT_AMENDMENTS: contractAmendments = loadFromStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, []) || []; break;
             case STORAGE_KEYS.CLIENTS: clients = loadFromStorage(STORAGE_KEYS.CLIENTS, []) || []; break;
             case STORAGE_KEYS.INVOICES: invoices = loadFromStorage(STORAGE_KEYS.INVOICES, []) || []; break;
             case STORAGE_KEYS.EXPENSES: expenses = loadFromStorage(STORAGE_KEYS.EXPENSES, []) || []; break;
@@ -79,7 +81,7 @@ const syncToCloudMirror = () => {
         const payload = {
             timestamp: new Date().toISOString(),
             data: {
-                billboards, contracts, clients, invoices, expenses, 
+                billboards, contracts, contractAmendments, clients, invoices, expenses, 
                 users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs
             }
         };
@@ -154,6 +156,7 @@ export const triggerFullSync = async () => {
         { apiPath: 'billboards',    setter: (d) => { billboards = d; },       storageKey: STORAGE_KEYS.BILLBOARDS },
         { apiPath: 'clients',       setter: (d) => { clients = d; },          storageKey: STORAGE_KEYS.CLIENTS },
         { apiPath: 'contracts',     setter: (d) => { contracts = d; },        storageKey: STORAGE_KEYS.CONTRACTS },
+        { apiPath: 'contract-amendments', setter: (d) => { contractAmendments = d; }, storageKey: STORAGE_KEYS.CONTRACT_AMENDMENTS },
         { apiPath: 'invoices',      setter: (d) => { invoices = d; },         storageKey: STORAGE_KEYS.INVOICES },
         { apiPath: 'expenses',      setter: (d) => { expenses = d; },         storageKey: STORAGE_KEYS.EXPENSES },
         { apiPath: 'users',         setter: (d) => { users = d; },            storageKey: STORAGE_KEYS.USERS },
@@ -222,6 +225,7 @@ export const getStorageUsage = () => { let total = 0; for (const key in localSto
 export let billboards: Billboard[] = loadFromStorage(STORAGE_KEYS.BILLBOARDS, null) || INITIAL_BILLBOARDS; if (!loadFromStorage(STORAGE_KEYS.BILLBOARDS, null)) saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards);
 export let clients: Client[] = loadFromStorage(STORAGE_KEYS.CLIENTS, null) || INITIAL_CLIENTS; if (!loadFromStorage(STORAGE_KEYS.CLIENTS, null)) saveToStorage(STORAGE_KEYS.CLIENTS, clients);
 export let contracts: Contract[] = loadFromStorage(STORAGE_KEYS.CONTRACTS, null) || INITIAL_CONTRACTS; if (!loadFromStorage(STORAGE_KEYS.CONTRACTS, null)) saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
+export let contractAmendments: ContractAmendment[] = loadFromStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, null) || INITIAL_CONTRACT_AMENDMENTS; if (!loadFromStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, null)) saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments);
 export let invoices: Invoice[] = loadFromStorage(STORAGE_KEYS.INVOICES, []) || [];
 export let expenses: Expense[] = loadFromStorage(STORAGE_KEYS.EXPENSES, []) || [];
 export let auditLogs: AuditLogEntry[] = loadFromStorage(STORAGE_KEYS.LOGS, [{ id: 'log-init', timestamp: new Date().toLocaleString(), action: 'System Init', details: 'System started', user: 'System' }]) || [];
@@ -283,7 +287,7 @@ let lastBackupDate = loadFromStorage(STORAGE_KEYS.LAST_BACKUP, null) || 'Never';
 // ... (Other getters/setters/helpers remain same)
 export const setCompanyLogo = (url: string) => { companyLogo = url; saveToStorage(STORAGE_KEYS.LOGO, companyLogo); syncToNeon('company-profile', { ...companyProfile, id: 'profile_v1', logo: url }); notifyListeners(); };
 export const updateCompanyProfile = (profile: CompanyProfile) => { companyProfile = profile; saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); syncToNeon('company-profile', { ...profile, id: 'profile_v1', logo: companyLogo }); logAction('Settings Update', 'Updated company profile details'); notifyListeners(); };
-export const createSystemBackup = () => { const now = new Date().toLocaleString(); lastBackupDate = now; saveToStorage(STORAGE_KEYS.LAST_BACKUP, lastBackupDate); syncToCloudMirror(); return JSON.stringify({ version: '1.9.25', timestamp: new Date().toISOString(), data: { billboards, contracts, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }, null, 2); };
+export const createSystemBackup = () => { const now = new Date().toLocaleString(); lastBackupDate = now; saveToStorage(STORAGE_KEYS.LAST_BACKUP, lastBackupDate); syncToCloudMirror(); return JSON.stringify({ version: '1.9.25', timestamp: new Date().toISOString(), data: { billboards, contracts, contractAmendments, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }, null, 2); };
 export const simulateCloudSync = async () => { await new Promise(resolve => setTimeout(resolve, 2000)); syncToCloudMirror(); await triggerFullSync(); lastCloudBackup = new Date().toLocaleString(); saveToStorage(STORAGE_KEYS.CLOUD_BACKUP, lastCloudBackup); logAction('System', 'Cloud backup completed successfully'); notifyListeners(); return lastCloudBackup; };
 export const getLastCloudBackupDate = () => lastCloudBackup; export const restoreDefaultBillboards = () => 0; export const triggerAutoBackup = () => { saveToStorage(STORAGE_KEYS.AUTO_BACKUP, { timestamp: new Date().toISOString(), data: { billboards, contracts, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }); syncToCloudMirror(); return new Date().toLocaleString(); };
 export const runAutoBilling = () => {
@@ -326,6 +330,7 @@ export const restoreSystemBackup = async (jsonString: string) => {
     let count = 0;
     if (Array.isArray(d.billboards))        { billboards = d.billboards;               saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards);         count += billboards.length; }
     if (Array.isArray(d.contracts))         { contracts = d.contracts;                 saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);           count += contracts.length; }
+    if (Array.isArray(d.contractAmendments)) { contractAmendments = d.contractAmendments; saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments); count += contractAmendments.length; }
     if (Array.isArray(d.clients))           { clients = d.clients;                     saveToStorage(STORAGE_KEYS.CLIENTS, clients);               count += clients.length; }
     if (Array.isArray(d.invoices))          { invoices = d.invoices;                   saveToStorage(STORAGE_KEYS.INVOICES, invoices);             count += invoices.length; }
     if (Array.isArray(d.expenses))          { expenses = d.expenses;                   saveToStorage(STORAGE_KEYS.EXPENSES, expenses);             count += expenses.length; }
@@ -615,6 +620,29 @@ export const RELEASE_NOTES = [
 
 export const getBillboards = () => billboards || [];
 export const getContracts = () => contracts || [];
+export const getContractAmendments = () => contractAmendments || [];
+export const getContractAmendmentsForContract = (contractId: string) => contractAmendments.filter(a => a.contractId === contractId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+export const addContractAmendment = (amendment: ContractAmendment) => {
+    contractAmendments = [amendment, ...contractAmendments];
+    saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments);
+    syncToNeon('contract-amendments', amendment);
+    syncToCloudMirror();
+    logAction('Contract Amendment', `${amendment.type} on contract ${amendment.contractId}: ${amendment.monthsChanged > 0 ? '+' : ''}${amendment.monthsChanged.toFixed(1)} months, impact $${amendment.financialImpact.toLocaleString()}`);
+    notifyListeners();
+};
+
+export const deleteContractAmendment = (id: string) => {
+    const target = contractAmendments.find(a => a.id === id);
+    if (target) {
+        contractAmendments = contractAmendments.filter(a => a.id !== id);
+        saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments);
+        syncToCloudMirror();
+        queueForDeletion('contract-amendments', id);
+        logAction('Delete Amendment', `Removed amendment ${id} from contract ${target.contractId}`);
+        notifyListeners();
+    }
+};
 export const getInvoices = () => invoices || [];
 export const getExpenses = () => expenses || [];
 export const getAuditLogs = () => auditLogs || [];
