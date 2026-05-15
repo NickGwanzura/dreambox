@@ -379,7 +379,7 @@ export const ContractList: React.FC = () => {
 
               {/* Financial breakdown */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Financial Breakdown</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Financial Breakdown</p>
                 <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100">
                   <div className="flex justify-between items-center px-4 py-3 text-sm">
                     <span className="text-slate-500">Monthly Rate</span>
@@ -417,7 +417,7 @@ export const ContractList: React.FC = () => {
                     <span className="text-lg font-extrabold text-slate-900">${selectedContract.totalContractValue.toLocaleString()}</span>
                   </div>
                 </div>
-                {selectedContract.hasVat && <p className="text-xs text-slate-400 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
+                {selectedContract.hasVat && <p className="text-xs text-slate-500 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
               </div>
 
               {selectedContract.lastModifiedDate && (
@@ -629,26 +629,26 @@ export const ContractList: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">New Rental Period</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">New Rental Period</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Start Date</label>
+                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Start Date</label>
                     <input type="date" value={(() => { const d = new Date(renewContract.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-2">End Date</label>
+                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">End Date</label>
                     <input type="date" value={(() => { const d = new Date(renewContract.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
                   </div>
                 </div>
-                <p className="text-xs text-slate-400">Period is auto-calculated (12 months). Dates are locked.</p>
+                <p className="text-xs text-slate-500">Period is auto-calculated (12 months). Dates are locked.</p>
               </div>
 
               <div className="space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</p>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label>
+                  <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Monthly Rate ($)</label>
                   <input type="number" value={renewContract.monthlyRate} onChange={(e) => setRenewContract({...renewContract, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
-                  <p className="text-[10px] text-slate-400 mt-1">Adjust the rate if pricing has changed since last term.</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Adjust the rate if pricing has changed since last term.</p>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={renewContract.hasVat} onChange={(e) => setRenewContract({...renewContract, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />

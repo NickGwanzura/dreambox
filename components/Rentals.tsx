@@ -840,7 +840,7 @@ export const Rentals: React.FC = () => {
 
                                 {selectedBillboard?.type === BillboardType.Static && (
                                     <div className="space-y-2">
-                                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Select Sides (Based on availability)</p>
+                                        <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Select Sides (Based on availability)</p>
                                         <div className="flex flex-col sm:flex-row gap-4">
                                             {(['A', 'B', 'Both'] as const).map(side => {
                                                 const available = checkAvailability(newRental.billboardId, side, newRental.startDate, newRental.endDate);
@@ -885,23 +885,23 @@ export const Rentals: React.FC = () => {
                                 )}
 
                                 <div className="bg-slate-50 p-6 rounded-2xl space-y-6">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</h4>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
                                             <MinimalInput label="Monthly Rate ($)" type="number" value={newRental.monthlyRate} onChange={(e: any) => setNewRental({...newRental, monthlyRate: Number(e.target.value)})} />
                                             {newRental.hasVat && newRental.monthlyRate > 0 && (
-                                                <p className="text-[10px] text-slate-400 mt-2">Net: ${splitInclusiveVat(newRental.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newRental.monthlyRate, vatRate).vat.toFixed(2)}</p>
+                                                <p className="text-[10px] text-slate-500 mt-2">Net: ${splitInclusiveVat(newRental.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newRental.monthlyRate, vatRate).vat.toFixed(2)}</p>
                                             )}
                                         </div>
                                         <div>
                                             <MinimalInput label="Install Fee ($)" type="number" value={newRental.installationCost} onChange={(e: any) => setNewRental({...newRental, installationCost: Number(e.target.value)})} />
-                                            <p className="text-[10px] text-slate-400 mt-2">One-time setup charge billed in month 1</p>
+                                            <p className="text-[10px] text-slate-500 mt-2">One-time setup charge billed in month 1</p>
                                         </div>
                                     </div>
                                     {selectedBillboard?.type === BillboardType.Static && (
                                         <div>
                                             <MinimalInput label="Production Fee ($)" type="number" value={newRental.productionCost} onChange={(e: any) => setNewRental({...newRental, productionCost: Number(e.target.value)})} />
-                                            <p className="text-[10px] text-slate-400 mt-2">
+                                            <p className="text-[10px] text-slate-500 mt-2">
                                                 {newRental.productionCost > 0
                                                     ? `Auto-set from size ${selectedBillboard.width}m × ${selectedBillboard.height}m. Edit if needed.`
                                                     : 'No standard fee for this size — enter manually if applicable.'}
@@ -912,7 +912,7 @@ export const Rentals: React.FC = () => {
                                         <input type="checkbox" checked={newRental.hasVat} onChange={e => setNewRental({...newRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"/>
                                         <label className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</label>
                                     </div>
-                                    <p className="text-[10px] text-slate-400 -mt-2">When checked, VAT-inclusive — the system extracts {vatPct} for invoicing. Uncheck only for VAT-exempt clients.</p>
+                                    <p className="text-[10px] text-slate-500 -mt-2">When checked, VAT-inclusive — the system extracts {vatPct} for invoicing. Uncheck only for VAT-exempt clients.</p>
                                 </div>
                                 <MinimalInput label="Assigned Sales Agent (Optional)" value={newRental.assignedTo} onChange={(e: any) => setNewRental({...newRental, assignedTo: e.target.value})} />
 
@@ -1001,7 +1001,7 @@ export const Rentals: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-4 border-t border-slate-700 pt-3">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Billboard</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Billboard</p>
                                 <p className="font-semibold text-sm">{getBillboardName(selectedRental.billboardId)}</p>
                                 <p className="text-xs text-slate-400 mt-0.5">{selectedRental.details}</p>
                             </div>
@@ -1015,7 +1015,7 @@ export const Rentals: React.FC = () => {
 
                     {/* Financial breakdown */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Financial Breakdown</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Financial Breakdown</p>
                         <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100">
                             <div className="flex justify-between items-center px-4 py-3 text-sm">
                                 <span className="text-slate-500">Monthly Rate</span>
@@ -1059,7 +1059,7 @@ export const Rentals: React.FC = () => {
                                 <span className="text-lg font-extrabold text-slate-900">${selectedRental.totalContractValue.toLocaleString()}</span>
                             </div>
                         </div>
-                        {selectedRental.hasVat && <p className="text-xs text-slate-400 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
+                        {selectedRental.hasVat && <p className="text-xs text-slate-500 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
                     </div>
 
                     {selectedRental.assignedTo && (
@@ -1087,7 +1087,7 @@ export const Rentals: React.FC = () => {
                         >
                             <FileText size={14} /> Generate Full Legal Contract
                         </button>
-                        <p className="text-[10px] text-slate-400 mt-2 text-center">Uses your editable contract template from Settings &rarr; Company Profile.</p>
+                        <p className="text-[10px] text-slate-500 mt-2 text-center">Uses your editable contract template from Settings &rarr; Company Profile.</p>
                     </div>
                     <div className="flex gap-3 pt-2">
                         <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
@@ -1114,12 +1114,12 @@ export const Rentals: React.FC = () => {
                     {/* Context card */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 grid grid-cols-2 gap-4">
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Billboard</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Billboard</p>
                             <p className="font-semibold text-slate-800 text-sm">{getBillboardName(editRental.billboardId)}</p>
                             <p className="text-xs text-slate-500">{editRental.details}</p>
                         </div>
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Contract ID</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Contract ID</p>
                             <p className="font-semibold text-slate-800 text-sm">{editRental.id}</p>
                         </div>
                     </div>
@@ -1136,7 +1136,7 @@ export const Rentals: React.FC = () => {
                     )}
 
                     <div className="space-y-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Primary Billboard Line</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Primary Billboard Line</p>
                         <select
                             value={editRental.billboardId}
                             onChange={(e) => setEditRental(withBillboardDefaults(editRental, e.target.value))}
@@ -1168,7 +1168,7 @@ export const Rentals: React.FC = () => {
                             }
                             return (
                                 <div>
-                                    <label className="block text-xs font-bold uppercase text-slate-400 mb-2">LED Slot</label>
+                                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">LED Slot</label>
                                     <select
                                         value={editRental.slotNumber || 1}
                                         onChange={(e) => {
@@ -1185,7 +1185,7 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Contract Status</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Contract Status</p>
                         <select value={editRental.status} onChange={(e) => setEditRental({...editRental, status: e.target.value as 'Active' | 'Pending' | 'Expired'})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800">
                             <option value="Active">Active</option>
                             <option value="Pending">Pending</option>
@@ -1194,15 +1194,15 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Rental Period</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Rental Period</p>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Start Date</label>
-                                <input type="date" value={editRental.startDate} onChange={(e) => setEditRental({...editRental, startDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Start Date</label>
+                                <input type="date" value={editRental.startDate} onChange={(e) => setEditRental({...editRental, startDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">End Date</label>
-                                <input type="date" value={editRental.endDate} onChange={(e) => setEditRental({...editRental, endDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">End Date</label>
+                                <input type="date" value={editRental.endDate} onChange={(e) => setEditRental({...editRental, endDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1218,28 +1218,28 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</p>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label>
-                                <input type="number" value={editRental.monthlyRate} onChange={(e) => setEditRental({...editRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Monthly Rate ($)</label>
+                                <input type="number" value={editRental.monthlyRate} onChange={(e) => setEditRental({...editRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
                                 {editRental.hasVat && editRental.monthlyRate > 0 && (
-                                    <p className="text-[10px] text-slate-400 mt-1">Net: ${splitInclusiveVat(editRental.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editRental.monthlyRate, vatRate).vat.toFixed(2)}</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">Net: ${splitInclusiveVat(editRental.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editRental.monthlyRate, vatRate).vat.toFixed(2)}</p>
                                 )}
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Installation Cost ($)</label>
-                                <input type="number" value={editRental.installationCost} onChange={(e) => setEditRental({...editRental, installationCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Installation Cost ($)</label>
+                                <input type="number" value={editRental.installationCost} onChange={(e) => setEditRental({...editRental, installationCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Printing Cost ($)</label>
-                                <input type="number" value={editRental.printingCost} onChange={(e) => setEditRental({...editRental, printingCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Printing Cost ($)</label>
+                                <input type="number" value={editRental.printingCost} onChange={(e) => setEditRental({...editRental, printingCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Production Fee ($)</label>
-                                <input type="number" value={editRental.productionCost || 0} onChange={(e) => setEditRental({...editRental, productionCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
+                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Production Fee ($)</label>
+                                <input type="number" value={editRental.productionCost || 0} onChange={(e) => setEditRental({...editRental, productionCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
                             </div>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
@@ -1250,7 +1250,7 @@ export const Rentals: React.FC = () => {
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Additional Billboard Lines</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Additional Billboard Lines</p>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1283,7 +1283,7 @@ export const Rentals: React.FC = () => {
                         </div>
 
                         {editExtraLines.length === 0 && (
-                            <div className="border border-dashed border-slate-200 rounded-xl p-4 text-sm text-slate-500">
+                            <div className="border border-dashed border-slate-200 rounded-xl p-4 text-sm text-slate-600">
                                 No additional billboards on this contract yet.
                             </div>
                         )}
@@ -1295,7 +1295,7 @@ export const Rentals: React.FC = () => {
                                     <div key={line.id} className="rounded-2xl border border-slate-200 p-4 space-y-4">
                                         <div className="flex items-start justify-between gap-3">
                                             <div>
-                                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Line {index + 2}</p>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Line {index + 2}</p>
                                                 <p className="text-sm font-semibold text-slate-800">{billboard?.name || 'Unknown billboard'} &bull; {line.details}</p>
                                             </div>
                                             <button
@@ -1352,10 +1352,10 @@ export const Rentals: React.FC = () => {
                                         ) : null}
 
                                         <div className="grid grid-cols-2 gap-3">
-                                            <input type="date" value={line.startDate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, startDate: e.target.value } : l))} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
-                                            <input type="date" value={line.endDate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, endDate: e.target.value } : l))} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
-                                            <input type="number" value={line.monthlyRate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, monthlyRate: Number(e.target.value) } : l))} placeholder="Monthly rate" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
-                                            <input type="number" value={line.productionCost || 0} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, productionCost: Number(e.target.value) } : l))} placeholder="Production fee" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm" />
+                                            <input type="date" value={line.startDate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, startDate: e.target.value } : l))} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900" />
+                                            <input type="date" value={line.endDate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, endDate: e.target.value } : l))} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900" />
+                                            <input type="number" value={line.monthlyRate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, monthlyRate: Number(e.target.value) } : l))} placeholder="Monthly rate" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400" />
+                                            <input type="number" value={line.productionCost || 0} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, productionCost: Number(e.target.value) } : l))} placeholder="Production fee" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400" />
                                         </div>
                                         <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
                                             <span className="text-slate-500 font-medium">Line value</span>
@@ -1411,27 +1411,27 @@ export const Rentals: React.FC = () => {
 
                     {/* New period (read-only) */}
                     <div className="space-y-3">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">New Rental Period</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">New Rental Period</p>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Start Date</label>
+                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Start Date</label>
                                 <input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">End Date</label>
+                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">End Date</label>
                                 <input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
                             </div>
                         </div>
-                        <p className="text-xs text-slate-400">Period is auto-calculated (12 months). Dates are locked.</p>
+                        <p className="text-xs text-slate-500">Period is auto-calculated (12 months). Dates are locked.</p>
                     </div>
 
                     {/* Financials */}
                     <div className="space-y-3">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Financials</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</p>
                         <div>
-                            <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Monthly Rate ($)</label>
-                            <input type="number" value={renewRental.monthlyRate} onChange={(e) => setRenewRental({...renewRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
-                            <p className="text-[10px] text-slate-400 mt-1">Adjust the rate if pricing has changed since last term.</p>
+                            <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Monthly Rate ($)</label>
+                            <input type="number" value={renewRental.monthlyRate} onChange={(e) => setRenewRental({...renewRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
+                            <p className="text-[10px] text-slate-500 mt-1">Adjust the rate if pricing has changed since last term.</p>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={renewRental.hasVat} onChange={(e) => setRenewRental({...renewRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
