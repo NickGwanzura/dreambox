@@ -486,6 +486,20 @@ export const addInvoice = (invoice: Invoice) => {
 };
 export const markInvoiceAsPaid = (id: string) => { invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i); saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); const updated = invoices.find(i => i.id === id); if(updated) syncToNeon('invoices', updated); logAction('Payment', `Marked Invoice #${id} as Paid`); notifyListeners(); };
 
+export const updateInvoice = (updated: Invoice) => {
+    const old = invoices.find(i => i.id === updated.id);
+    if (!old) {
+        console.error('Invoice not found for update:', updated.id);
+        return;
+    }
+    invoices = invoices.map(i => i.id === updated.id ? updated : i);
+    saveToStorage(STORAGE_KEYS.INVOICES, invoices);
+    syncToCloudMirror();
+    syncToNeon('invoices', updated);
+    logAction('Update Invoice', `Updated ${updated.type} #${updated.id}`);
+    notifyListeners();
+};
+
 export const deleteInvoice = (id: string) => {
     const target = invoices.find(i => i.id === id);
     if (target) {

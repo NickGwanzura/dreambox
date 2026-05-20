@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { getInvoices, getContracts, getClients, getBillboards, addInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe } from '../services/mockData';
+import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe } from '../services/mockData';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
-import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe, Send } from 'lucide-react';
+import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe, Send, Edit } from 'lucide-react';
 import { Invoice, Contract, BillboardType } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
@@ -47,6 +47,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
   const [discountValue, setDiscountValue] = useState(0);
   const [discountDescription, setDiscountDescription] = useState('');
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [convertingQuotation, setConvertingQuotation] = useState<Invoice | null>(null);
   const [convertForm, setConvertForm] = useState({ billboardId: '', startDate: '', endDate: '' });
   const [billboardSelections, setBillboardSelections] = useState<Record<string, { sideA?: boolean; sideB?: boolean; slots?: number }>>({});
@@ -176,10 +177,37 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const receiptIsLinkedToInvoice = activeTab === 'Receipts' && !!selectedInvoiceToPay;
   const handleCreate = (e: React.FormEvent) => {
       e.preventDefault();
-      const newDoc: Invoice = { id: `${activeTab === 'Quotations' ? 'QT' : activeTab === 'Receipts' ? 'RCT' : 'INV'}-${Date.now().toString().slice(-4)}`, clientId: formData.clientId!, date: formData.date!, items: formData.items || [], subtotal, discountAmount, discountDescription: discountAmount > 0 ? discountDescription.trim() || undefined : undefined, vatAmount, total, status: activeTab === 'Receipts' ? 'Paid' : 'Pending', type: activeTab === 'Invoices' ? 'Invoice' : activeTab === 'Quotations' ? 'Quotation' : 'Receipt', contractId: formData.contractId, paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined, paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined };
-      addInvoice(newDoc);
-      if (activeTab === 'Receipts' && selectedInvoiceToPay) { markInvoiceAsPaid(selectedInvoiceToPay); }
-      setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+      if (editingInvoice) {
+          // Edit mode: update existing invoice
+          const updatedDoc: Invoice = {
+              ...editingInvoice,
+              clientId: formData.clientId!,
+              date: formData.date!,
+              items: formData.items || [],
+              subtotal,
+              discountAmount,
+              discountDescription: discountAmount > 0 ? discountDescription.trim() || undefined : undefined,
+              vatAmount,
+              total,
+              status: editingInvoice.type === 'Receipt' ? 'Paid' : formData.status || editingInvoice.status,
+              contractId: formData.contractId,
+              paymentMethod: editingInvoice.type === 'Receipt' ? formData.paymentMethod : undefined,
+              paymentReference: editingInvoice.type === 'Receipt' ? formData.paymentReference : undefined,
+          };
+          updateInvoice(updatedDoc);
+          setInvoices(getInvoices());
+          setIsModalOpen(false);
+          setEditingInvoice(null);
+          setFormData(getEmptyFormData());
+          setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription('');
+          setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch('');
+          alert(`${editingInvoice.type} Updated Successfully!`);
+      } else {
+          const newDoc: Invoice = { id: `${activeTab === 'Quotations' ? 'QT' : activeTab === 'Receipts' ? 'RCT' : 'INV'}-${Date.now().toString().slice(-4)}`, clientId: formData.clientId!, date: formData.date!, items: formData.items || [], subtotal, discountAmount, discountDescription: discountAmount > 0 ? discountDescription.trim() || undefined : undefined, vatAmount, total, status: activeTab === 'Receipts' ? 'Paid' : 'Pending', type: activeTab === 'Invoices' ? 'Invoice' : activeTab === 'Quotations' ? 'Quotation' : 'Receipt', contractId: formData.contractId, paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined, paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined };
+          addInvoice(newDoc);
+          if (activeTab === 'Receipts' && selectedInvoiceToPay) { markInvoiceAsPaid(selectedInvoiceToPay); }
+          setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+      }
   };
   const downloadPDF = (doc: Invoice) => { const client = allClients.find(c => c.id === doc.clientId); if (client) { generateInvoicePDF(doc, client); } else { alert(`Could not generate PDF: Client data missing for ID ${doc.clientId}`); } };
   const [sendModal, setSendModal] = useState<{ doc: Invoice; client: any } | null>(null);
@@ -202,6 +230,34 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     return { subject, message };
   };
   const initiatePayment = (invoice: Invoice) => { setActiveTab('Receipts'); setIsModalOpen(true); setTimeout(() => handleInvoiceSelect(invoice.id), 0); };
+
+  const handleEdit = (doc: Invoice) => {
+      const client = allClients.find(c => c.id === doc.clientId);
+      setEditingInvoice(doc);
+      setFormData({
+          clientId: doc.clientId,
+          items: [...doc.items],
+          date: doc.date,
+          status: doc.status,
+          contractId: doc.contractId || '',
+          paymentMethod: doc.paymentMethod || 'Bank Transfer',
+          paymentReference: doc.paymentReference || ''
+      });
+      setHasVat(doc.vatAmount > 0);
+      if (doc.discountAmount && doc.discountAmount > 0) {
+          setDiscountType('amount');
+          setDiscountValue(doc.discountAmount);
+          setDiscountDescription(doc.discountDescription || '');
+      } else {
+          setDiscountType('amount');
+          setDiscountValue(0);
+          setDiscountDescription('');
+      }
+      setNewItem({ description: '', amount: 0 });
+      setBillboardSelections({});
+      setBillboardSearch('');
+      setIsModalOpen(true);
+  };
 
   const handleDelete = (doc: Invoice) => {
       if(window.confirm(`Are you sure you want to delete ${doc.type} #${doc.id}? This action cannot be undone.`)) {
@@ -255,7 +311,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : 'Financial Documents'}</h2><p className="text-slate-500 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : 'Create invoices, manage VAT, and track payment history'}</p></div>
-          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64 hidden sm:block"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
+          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
         </div>
 
         {/* Mobile-friendly tabs */}
@@ -366,7 +422,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Actions</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2"><button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Quotations' && (<button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-400 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
@@ -379,8 +435,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
                 <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-white/20 max-h-[90vh] overflow-y-auto">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                        <h3 className="text-xl font-bold text-slate-900">Create New {activeTab.slice(0, -1)}</h3>
-                        <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                        <h3 className="text-xl font-bold text-slate-900">{editingInvoice ? `Edit ${editingInvoice.type}` : `Create New ${activeTab.slice(0, -1)}`}</h3>
+                        <button onClick={() => { setIsModalOpen(false); setEditingInvoice(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
                     </div>
                     <form onSubmit={handleCreate} className="p-8 space-y-6">
                         {activeTab === 'Receipts' && (<div className="p-4 bg-green-50 rounded-xl border border-green-100 mb-2"><MinimalSelect label="Link to Pending Invoice" value={selectedInvoiceToPay} onChange={(e: any) => handleInvoiceSelect(e.target.value)} options={[{value: '', label: 'Select Invoice to Pay...'}, ...getInvoices().filter(i => String(i.status || '').toLowerCase() === 'pending' && String(i.type || '').toLowerCase() === 'invoice').map(i => ({ value: i.id, label: `Inv #${i.id} - $${i.total} (${allClients.find(c => c.id === i.clientId)?.companyName})`}))]}/></div>)}
@@ -523,7 +579,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                 <span className="text-xl font-black">${total.toLocaleString()}</span>
                             </div>
                         </div>
-                        <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all"><Save size={18} /> Create {activeTab.slice(0, -1)}</button>
+                        <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all"><Save size={18} /> {editingInvoice ? `Update ${editingInvoice.type}` : `Create ${activeTab.slice(0, -1)}`}</button>
                     </form>
                 </div>
             </div>

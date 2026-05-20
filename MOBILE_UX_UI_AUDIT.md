@@ -238,11 +238,25 @@ Empty state messages could be more prominent on mobile with larger touch targets
 
 ---
 
+## Recent Improvements (2026-04-16)
+
+### ✅ Search Functionality Added
+- **Tasks.tsx**: Added search bar with client-side filtering by title, description, and assignee. Search-aware empty states.
+- **Expenses.tsx**: Added search across General Expenses (description, category, reference) and Printing Jobs (client name, description).
+- **Payments.tsx**: Search already existed for Invoices, History, and Statements tabs.
+- **Financials.tsx**: Search already existed for document filtering.
+- **Maintenance.tsx**: Search already existed for billboard assets.
+- **Rentals.tsx**: Search already existed for contract filtering.
+
+### ✅ Invoice Editing
+- **Financials.tsx**: Added full edit capability for invoices, quotations, and receipts. Opens the existing modal pre-filled with document data. Supports editing client, dates, line items, discount, and VAT settings.
+- **mockData.ts**: Added `updateInvoice()` function with proper storage sync, cloud mirror, and Neon sync.
+
 ## Recommended Action Items
 
 ### Phase 1: Critical Fixes (Same Day)
 1. [ ] Fix Gantt chart visibility on mobile (hide or provide alternative)
-2. [ ] Add `overflow-x-auto` to all tables
+2. [x] Add `overflow-x-auto` to all tables (already done)
 3. [ ] Fix CRM search input width
 4. [ ] Fix ContractList card layout on mobile
 

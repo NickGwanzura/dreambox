@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import { getTasks, addTask, updateTask, deleteTask, getUsers, getBillboards, updateBillboard } from '../services/mockData';
-import { CheckSquare, Plus, Trash2, Calendar, User, Clock, X, Save, AlertTriangle, Flag, CheckCircle2 } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, Calendar, User, Clock, X, Save, AlertTriangle, Flag, CheckCircle2, Search } from 'lucide-react';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
   <div className="group relative">
@@ -23,6 +23,7 @@ export const Tasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(getTasks());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [newTask, setNewTask] = useState<Partial<Task>>({
     title: '', description: '', assignedTo: 'Unassigned', priority: 'Medium', status: 'Todo', dueDate: new Date().toISOString().split('T')[0]
@@ -75,7 +76,10 @@ export const Tasks: React.FC = () => {
           case 'Medium': return 'text-amber-600 bg-amber-50 border-amber-100';
           default: return 'text-slate-600 bg-slate-50 border-slate-100';
       }
-  };
+  };  const filteredTasks = tasks.filter(task => {
+      const q = searchTerm.toLowerCase();
+      return !q || task.title.toLowerCase().includes(q) || task.description.toLowerCase().includes(q) || task.assignedTo.toLowerCase().includes(q);
+  });
 
   return (
     <>
@@ -85,13 +89,19 @@ export const Tasks: React.FC = () => {
             <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Tasks & Maintenance</h2>
             <p className="text-slate-500 font-medium">Track operational activities and staff assignments</p>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2">
-            <Plus size={18} /> New Task
-          </button>
+          <div className="flex gap-4 w-full sm:w-auto justify-end">
+            <div className="relative group flex-1 sm:w-56">
+              <Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={16} />
+              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search tasks..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:bg-white focus:border-slate-800 transition-all text-sm" />
+            </div>
+            <button onClick={() => setIsModalOpen(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2">
+              <Plus size={18} /> <span className="hidden sm:inline">New Task</span><span className="sm:hidden">New</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tasks.map(task => (
+            {filteredTasks.map(task => (
                 <div key={task.id} className={`bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between h-full ${task.status === 'Done' ? 'opacity-75' : ''}`}>
                     <div>
                         <div className="flex justify-between items-start mb-4">
@@ -139,13 +149,13 @@ export const Tasks: React.FC = () => {
                     </div>
                 </div>
             ))}
-            {tasks.length === 0 && (
+            {filteredTasks.length === 0 && (
                 <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-dashed border-slate-200">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <CheckSquare className="text-slate-300" size={32}/>
+                        {searchTerm ? <Search className="text-slate-300" size={32}/> : <CheckSquare className="text-slate-300" size={32}/>}
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-1">No Tasks Found</h3>
-                    <p className="text-slate-500 text-sm">Create a new task to get started.</p>
+                    <h3 className="text-lg font-bold text-slate-900 mb-1">{searchTerm ? 'No tasks match your search' : 'No Tasks Found'}</h3>
+                    <p className="text-slate-500 text-sm">{searchTerm ? 'Try adjusting your search terms.' : 'Create a new task to get started.'}</p>
                 </div>
             )}
         </div>
