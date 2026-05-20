@@ -71,6 +71,20 @@ window.addEventListener('storage', (event) => {
             case STORAGE_KEYS.TASKS: tasks = loadFromStorage(STORAGE_KEYS.TASKS, []) || []; break;
             case STORAGE_KEYS.MAINTENANCE: maintenanceLogs = loadFromStorage(STORAGE_KEYS.MAINTENANCE, []) || []; break;
             case STORAGE_KEYS.PROFILE: companyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || companyProfile; break;
+            case 'db_last_sync':
+                billboards = loadFromStorage(STORAGE_KEYS.BILLBOARDS, []) || [];
+                contracts = loadFromStorage(STORAGE_KEYS.CONTRACTS, []) || [];
+                contractAmendments = loadFromStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, []) || [];
+                clients = loadFromStorage(STORAGE_KEYS.CLIENTS, []) || [];
+                invoices = loadFromStorage(STORAGE_KEYS.INVOICES, []) || [];
+                expenses = loadFromStorage(STORAGE_KEYS.EXPENSES, []) || [];
+                users = loadFromStorage(STORAGE_KEYS.USERS, []) || [];
+                tasks = loadFromStorage(STORAGE_KEYS.TASKS, []) || [];
+                maintenanceLogs = loadFromStorage(STORAGE_KEYS.MAINTENANCE, []) || [];
+                outsourcedBillboards = loadFromStorage(STORAGE_KEYS.OUTSOURCED, []) || [];
+                printingJobs = loadFromStorage(STORAGE_KEYS.PRINTING, []) || [];
+                companyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || companyProfile;
+                break;
         }
         notifyListeners();
     }
@@ -111,6 +125,8 @@ const deleteFromApi = async (table: string, id: string) => {
     } catch (e) { console.error(`API Delete Error (${table}):`, e); }
 };
 
+import { forceSyncNow } from './neonSyncManager';
+
 export const syncToNeon = async (table: string, data: any) => {
     if (!isConfigured()) return;
     try {
@@ -138,84 +154,6 @@ export const fetchLatestUsers = async () => {
     return null;
 };
 
-export const triggerFullSync = async () => {
-    if (!isConfigured()) return false;
-    let hasChanges = false;
-
-    // Flush deletions
-    if (deletedQueue.length > 0) {
-        const remaining: DeletedItem[] = [];
-        for (const item of deletedQueue) {
-            try { await api.delete(`/api/${item.table}`, { id: item.id }); }
-            catch (e) { remaining.push(item); }
-        }
-        if (deletedQueue.length !== remaining.length) { deletedQueue = remaining; saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue); }
-    }
-
-    const tables: { apiPath: string; setter: (d: any[]) => void; storageKey: string }[] = [
-        { apiPath: 'billboards',    setter: (d) => { billboards = d; },       storageKey: STORAGE_KEYS.BILLBOARDS },
-        { apiPath: 'clients',       setter: (d) => { clients = d; },          storageKey: STORAGE_KEYS.CLIENTS },
-        { apiPath: 'contracts',     setter: (d) => { contracts = d; },        storageKey: STORAGE_KEYS.CONTRACTS },
-        { apiPath: 'contract-amendments', setter: (d) => { contractAmendments = d; }, storageKey: STORAGE_KEYS.CONTRACT_AMENDMENTS },
-        { apiPath: 'invoices',      setter: (d) => { invoices = d; },         storageKey: STORAGE_KEYS.INVOICES },
-        { apiPath: 'expenses',      setter: (d) => { expenses = d; },         storageKey: STORAGE_KEYS.EXPENSES },
-        { apiPath: 'users',         setter: (d) => { users = d; },            storageKey: STORAGE_KEYS.USERS },
-        { apiPath: 'tasks',         setter: (d) => { tasks = d; },            storageKey: STORAGE_KEYS.TASKS },
-        { apiPath: 'maintenance',   setter: (d) => { maintenanceLogs = d; },  storageKey: STORAGE_KEYS.MAINTENANCE },
-        { apiPath: 'outsourced',    setter: (d) => { outsourcedBillboards = d; }, storageKey: STORAGE_KEYS.OUTSOURCED },
-        { apiPath: 'printing-jobs', setter: (d) => { printingJobs = d; },  storageKey: STORAGE_KEYS.PRINTING },
-    ];
-
-    try {
-        await Promise.all(tables.map(async ({ apiPath, setter, storageKey }) => {
-            try {
-                const remoteData = await api.get<any[]>(`/api/${apiPath}`);
-                if (remoteData) {
-                    // Tombstone filter: any id still in the deleted queue for this table
-                    // must not be re-hydrated from the server, even if the server-side
-                    // DELETE hasn't yet succeeded.
-                    const tombstoned = new Set(
-                        deletedQueue.filter(i => i.table === apiPath).map(i => i.id)
-                    );
-                    const filtered = tombstoned.size > 0
-                        ? remoteData.filter((row: any) => !tombstoned.has(row?.id))
-                        : remoteData;
-
-                    // Merge: keep local items that don't exist on the server yet
-                    // (unsynced creates that syncToNeon may have failed to push)
-                    const remoteIds = new Set((filtered || []).map((r: any) => r.id).filter(Boolean));
-                    const localData = loadFromStorage<any[]>(storageKey, []);
-                    const localItems = Array.isArray(localData) ? localData : [];
-                    const unsynced = localItems.filter((item: any) => item.id && !remoteIds.has(item.id));
-                    const merged = [...filtered, ...unsynced];
-
-                    setter(merged);
-                    saveToStorage(storageKey, merged);
-                    if (unsynced.length > 0) {
-                        console.log(`[Sync] Preserved ${unsynced.length} unsynced item(s) in ${apiPath}`);
-                    }
-                    hasChanges = true;
-                }
-            } catch (e) { console.error(`Sync error ${apiPath}:`, e); }
-        }));
-
-        // Profile sync
-        try {
-            const profileData = await api.get('/api/company-profile');
-            if (profileData && Object.keys(profileData).length > 0) {
-                const { logo, ...rest } = profileData;
-                companyProfile = rest;
-                saveToStorage(STORAGE_KEYS.PROFILE, companyProfile);
-                if (logo) { companyLogo = logo; saveToStorage(STORAGE_KEYS.LOGO, companyLogo); }
-                hasChanges = true;
-            }
-        } catch (e) { console.error('Profile sync error:', e); }
-
-        if (hasChanges) notifyListeners();
-        return true;
-    } catch (e) { return false; }
-};
-
 export const verifyDataIntegrity = async () => {
     if (!isConfigured()) return null;
     const report = { billboards: { local: billboards.length, remote: 0 }, clients: { local: clients.length, remote: 0 }, contracts: { local: contracts.length, remote: 0 }, invoices: { local: invoices.length, remote: 0 }, users: { local: users.length, remote: 0 } };
@@ -230,7 +168,6 @@ export const verifyDataIntegrity = async () => {
     } catch (e) { return null; }
 };
 
-if (isConfigured()) { setTimeout(() => triggerFullSync(), 500); }
 export const getStorageUsage = () => { let total = 0; for (const key in localStorage) { if (localStorage.hasOwnProperty(key) && key.startsWith('db_')) { total += (localStorage[key].length * 2); } } return (total / 1024).toFixed(2); };
 
 // --- Entity Exports & Initialization ---
@@ -300,7 +237,7 @@ let lastBackupDate = loadFromStorage(STORAGE_KEYS.LAST_BACKUP, null) || 'Never';
 export const setCompanyLogo = (url: string) => { companyLogo = url; saveToStorage(STORAGE_KEYS.LOGO, companyLogo); syncToNeon('company-profile', { ...companyProfile, id: 'profile_v1', logo: url }); notifyListeners(); };
 export const updateCompanyProfile = (profile: CompanyProfile) => { companyProfile = profile; saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); syncToNeon('company-profile', { ...profile, id: 'profile_v1', logo: companyLogo }); logAction('Settings Update', 'Updated company profile details'); notifyListeners(); };
 export const createSystemBackup = () => { const now = new Date().toLocaleString(); lastBackupDate = now; saveToStorage(STORAGE_KEYS.LAST_BACKUP, lastBackupDate); syncToCloudMirror(); return JSON.stringify({ version: '1.9.25', timestamp: new Date().toISOString(), data: { billboards, contracts, contractAmendments, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }, null, 2); };
-export const simulateCloudSync = async () => { await new Promise(resolve => setTimeout(resolve, 2000)); syncToCloudMirror(); await triggerFullSync(); lastCloudBackup = new Date().toLocaleString(); saveToStorage(STORAGE_KEYS.CLOUD_BACKUP, lastCloudBackup); logAction('System', 'Cloud backup completed successfully'); notifyListeners(); return lastCloudBackup; };
+export const simulateCloudSync = async () => { await new Promise(resolve => setTimeout(resolve, 2000)); syncToCloudMirror(); await forceSyncNow(); lastCloudBackup = new Date().toLocaleString(); saveToStorage(STORAGE_KEYS.CLOUD_BACKUP, lastCloudBackup); logAction('System', 'Cloud backup completed successfully'); notifyListeners(); return lastCloudBackup; };
 export const getLastCloudBackupDate = () => lastCloudBackup; export const restoreDefaultBillboards = () => 0; export const triggerAutoBackup = () => { saveToStorage(STORAGE_KEYS.AUTO_BACKUP, { timestamp: new Date().toISOString(), data: { billboards, contracts, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }); syncToCloudMirror(); return new Date().toLocaleString(); };
 export const runAutoBilling = () => {
   const today = new Date();
@@ -354,7 +291,7 @@ export const restoreSystemBackup = async (jsonString: string) => {
     if (Array.isArray(d.printingJobs))      { printingJobs = d.printingJobs;           saveToStorage(STORAGE_KEYS.PRINTING, printingJobs); }
     if (d.companyLogo)                      { companyLogo = d.companyLogo;             saveToStorage(STORAGE_KEYS.LOGO, companyLogo); }
     if (d.companyProfile)                   { companyProfile = d.companyProfile;       saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); }
-    await triggerFullSync();
+    await forceSyncNow();
     logAction('System Restore', `Backup restored from ${backup.timestamp || 'unknown date'} — ${count} records`);
     syncToCloudMirror();
     notifyListeners();

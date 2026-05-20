@@ -220,7 +220,7 @@ export const pullAllFromNeon = async (): Promise<{
 
   lastSyncTime = Date.now();
   localStorage.setItem('db_last_sync', lastSyncTime.toString());
-  window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new StorageEvent('storage', { key: 'db_last_sync' }));
   notifyListeners();
 
   return { success: !hasFailures, results };
