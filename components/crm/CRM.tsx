@@ -12,7 +12,6 @@ import {
   subscribe,
   exportToCSV,
   importCSV,
-  loadCRMFromAPI,
   CSVImportResult
 } from '../../services/crmService';
 import { CRMOpportunity, OpportunityStatus } from '../../types';
@@ -57,10 +56,8 @@ export const CRM: React.FC = () => {
   
   const { showToast } = useToast();
   // Load shared data from Neon on mount, then subscribe to local changes
+  // Subscribe to local changes; cloud sync happens automatically every 30s via neonSyncManager
   useEffect(() => {
-    loadCRMFromAPI().then(() => {
-      showToast('CRM data synced from cloud', 'info', 3000);
-    }).catch(() => {});
     const unsubscribe = subscribe(() => {
       setRefreshKey(k => k + 1);
     });

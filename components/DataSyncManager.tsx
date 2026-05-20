@@ -9,11 +9,10 @@ import {
   Clock,
   ShieldCheck,
   Server,
-  Play,
-  Pause,
   HardDrive,
   Wifi,
   WifiOff,
+  CheckCircle2,
 } from 'lucide-react';
 import { useToast } from './ToastProvider';
 import {
@@ -24,8 +23,6 @@ import {
 import {
   useSync,
   forceSyncNow,
-  startAutoSync,
-  stopAutoSync,
   pullAllFromNeon,
   pushAllToNeon,
 } from '../services/neonSyncManager';
@@ -107,20 +104,8 @@ export const DataSyncManager: React.FC = () => {
     setIsPushing(false);
   };
 
-  const handleToggleAutoSync = () => {
-    if (syncStatus.isAutoSyncRunning) {
-      stopAutoSync();
-      showToast('Auto-sync stopped', 'info');
-    } else {
-      const started = startAutoSync();
-      if (started) {
-        showToast('Auto-sync started (30s interval)', 'success');
-      } else {
-        showToast('Failed to start auto-sync. Check authentication.', 'error');
-      }
-    }
-    // Don't optimistically flip state — let the hook pick up the real value
-  };
+  // Auto-sync is now enforced — always active when connected.
+  // No toggle needed.
 
   const handleExport = useCallback(async () => {
     setIsExporting(true);
@@ -283,25 +268,23 @@ export const DataSyncManager: React.FC = () => {
           </div>
         </button>
 
-        <button
-          onClick={handleToggleAutoSync}
-          disabled={!connectionStatus?.connected}
-          className={`flex items-center justify-center gap-3 px-4 py-4 rounded-xl font-medium transition-all ${
-            syncStatus.isAutoSyncRunning
-              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              : 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 disabled:bg-slate-100'
+        <div
+          className={`flex items-center justify-center gap-3 px-4 py-4 rounded-xl font-medium ${
+            connectionStatus?.connected
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+              : 'bg-slate-50 border border-slate-200 text-slate-400'
           }`}
         >
-          {syncStatus.isAutoSyncRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+          <CheckCircle2 className="w-5 h-5" />
           <div className="text-left">
             <div className="text-sm font-bold">
-              {syncStatus.isAutoSyncRunning ? 'Stop Auto-Sync' : 'Start Auto-Sync'}
+              Auto-Sync Active
             </div>
-            <div className={`text-xs ${syncStatus.isAutoSyncRunning ? 'opacity-75' : 'text-slate-500'}`}>
-              {syncStatus.isAutoSyncRunning ? 'Currently running' : 'Enable 30s sync'}
+            <div className="text-xs opacity-75">
+              Always on when connected
             </div>
           </div>
-        </button>
+        </div>
       </div>
 
       {/* Database Stats */}

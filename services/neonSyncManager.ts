@@ -69,6 +69,14 @@ const TABLE_MAP = [
   { key: STORAGE_KEYS.MAINTENANCE, table: 'maintenance' },
   { key: STORAGE_KEYS.OUTSOURCED, table: 'outsourced' },
   { key: STORAGE_KEYS.PRINTING, table: 'printing-jobs' },
+  // CRM tables — unified sync cycle
+  { key: STORAGE_KEYS.CRM_COMPANIES, table: 'crm/companies' },
+  { key: STORAGE_KEYS.CRM_CONTACTS, table: 'crm/contacts' },
+  { key: STORAGE_KEYS.CRM_OPPORTUNITIES, table: 'crm/opportunities' },
+  { key: STORAGE_KEYS.CRM_TOUCHPOINTS, table: 'crm/touchpoints' },
+  { key: STORAGE_KEYS.CRM_TASKS, table: 'crm/tasks' },
+  { key: STORAGE_KEYS.CRM_EMAIL_THREADS, table: 'crm/email-threads' },
+  { key: STORAGE_KEYS.CRM_CALL_LOGS, table: 'crm/call-logs' },
 ] as const;
 
 // ============================================================
@@ -353,8 +361,11 @@ const storedSyncTime = localStorage.getItem('db_last_sync');
 if (storedSyncTime) lastSyncTime = parseInt(storedSyncTime, 10);
 pendingSyncs = loadPendingQueue();
 
-// Auto-sync starts lazily — NOT on module import.
-// Call startAutoSync() explicitly from the app shell when ready.
+// Auto-start auto-sync when authenticated — enforces continuous background sync
+// without requiring manual activation from the UI.
+if (isConfigured()) {
+  setTimeout(() => startAutoSync(), 1000);
+}
 
 // ============================================================
 // REACT HOOK (event-driven, not 1s polling)

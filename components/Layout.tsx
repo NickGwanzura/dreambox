@@ -13,12 +13,12 @@ import {
   triggerAutoBackup, 
   runAutoBilling, 
   runMaintenanceCheck, 
-  triggerFullSync,
   subscribe
 } from '../services/mockData';
 // Realtime subscriptions removed — sync is handled by neonSyncManager polling
 import { logger } from '../utils/logger';
 import { canAccessSettings } from '../utils/settingsAccess';
+import { startAutoSync, useSync, forceSyncNow } from '../services/neonSyncManager';
 import { 
   ALERT_CHECK_INTERVAL_MS,
   BACKUP_INTERVAL_MS,
@@ -38,8 +38,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
   const [dbConnected, setDbConnected] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const syncStatus = useSync();
+
   const [user, setUser] = useState<Awaited<ReturnType<typeof getCurrentUser>>>(
     () => {
       try { const cached = localStorage.getItem('billboard_user'); return cached ? JSON.parse(cached) : null; } catch { return null; }
@@ -119,35 +119,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   // Use refs for intervals to properly clean up
   const intervalsRef = useRef<NodeJS.Timeout[]>([]);
 
-  // Sync function with debouncing
-  const performSync = useCallback(async (showNotification = false) => {
-    if (!dbConnected || isSyncing) return;
-    
-    setIsSyncing(true);
-    try {
-      const ok = await triggerFullSync();
-      setLastSyncTime(new Date());
-      
-      if (showNotification) {
-        showToast(ok ? 'Cloud sync complete' : 'Cloud sync failed', ok ? 'success' : 'error');
-      }
-      
-      if (ok) {
-        logger.debug('Cloud sync completed successfully');
-      } else {
-        logger.warn('Cloud sync failed');
-      }
-    } catch (error) {
-      logger.error('Sync error:', error);
-      if (showNotification) {
-        showToast('Sync error occurred', 'error');
-      }
-    } finally {
-      // Keep "Syncing..." visible briefly for user feedback
-      setTimeout(() => setIsSyncing(false), 500);
-    }
-  }, [dbConnected, isSyncing, showToast]);
-
   // Initialize and setup intervals
   useEffect(() => {
     let isMounted = true;
@@ -188,10 +159,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       maintenanceInterval,
     ];
 
-    // Window focus handler for sync
+    // Window focus handler for sync — uses neonSyncManager
     const handleFocus = () => {
       logger.debug('Window focused - triggering sync');
-      performSync(false);
+      forceSyncNow();
     };
     window.addEventListener('focus', handleFocus);
 
@@ -208,7 +179,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       window.removeEventListener('focus', handleFocus);
       unsubscribe();
     };
-  }, [performSync]);
+  }, []);
+
+  // Start neonSyncManager auto-sync whenever the database connection is established
+  useEffect(() => {
+    if (dbConnected) {
+      startAutoSync();
+    }
+  }, [dbConnected]);
 
   // Realtime subscriptions removed — sync is handled by neonSyncManager auto-sync polling
 
@@ -331,15 +309,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                     <p className="text-[10px] text-slate-500 truncate uppercase tracking-wider">{user?.role || 'Guest'}</p>
                     <span className="text-[10px] text-slate-700">·</span>
                     <button
-                      onClick={() => performSync(true)}
-                      disabled={isSyncing || !dbConnected}
+                      onClick={async () => {
+                        const ok = await forceSyncNow();
+                        showToast(ok ? 'Cloud sync complete' : 'Cloud sync failed', ok ? 'success' : 'error');
+                      }}
+                      disabled={syncStatus.isSyncing || !dbConnected}
                       className={`flex items-center gap-1 text-[10px] font-medium transition-colors ${
                         dbConnected ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-slate-500'
-                      } ${isSyncing ? 'cursor-wait' : 'cursor-pointer'}`}
-                      title={lastSyncTime ? `Last sync: ${lastSyncTime.toLocaleTimeString()}` : 'Click to sync'}
+                      } ${syncStatus.isSyncing ? 'cursor-wait' : 'cursor-pointer'}`}
+                      title={syncStatus.lastSyncTime ? `Last sync: ${new Date(syncStatus.lastSyncTime).toLocaleTimeString()}` : 'Click to sync'}
                     >
                         {dbConnected ? (
-                            isSyncing ? (
+                            syncStatus.isSyncing ? (
                                 <RefreshCw size={9} className="animate-spin text-emerald-400" />
                             ) : (
                                 <Database size={9} />
@@ -347,7 +328,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                         ) : (
                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
                         )}
-                        {dbConnected ? (isSyncing ? 'Syncing...' : 'Connected') : 'Local'}
+                        {dbConnected ? (syncStatus.isSyncing ? 'Syncing...' : 'Connected') : 'Local'}
                     </button>
                     <span className="text-[10px] font-mono text-slate-700 ml-auto">v{APP_VERSION}</span>
                  </div>
@@ -389,6 +370,36 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                 <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                 <span>Harare, ZW</span>
              </div>
+
+             {/* Sync Status Indicator */}
+             <div
+               className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-[11px] font-medium transition-all shadow-sm"
+               title={`Last sync: ${syncStatus.lastSyncTime ? new Date(syncStatus.lastSyncTime).toLocaleTimeString() : 'Never'} | Pending: ${syncStatus.pendingCount}`}
+             >
+               {syncStatus.isSyncing ? (
+                 <RefreshCw size={11} className="animate-spin text-indigo-500" />
+               ) : syncStatus.isAutoSyncRunning ? (
+                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+               ) : (
+                 <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+               )}
+               <span className="text-slate-500">
+                 {syncStatus.lastSyncTime
+                   ? (seconds =>
+                       seconds < 5 ? 'now' :
+                       seconds < 60 ? `${seconds}s` :
+                       `${Math.floor(seconds / 60)}m`
+                     )(Math.floor((Date.now() - syncStatus.lastSyncTime) / 1000))
+                   : '--'
+                 }
+               </span>
+               {syncStatus.pendingCount > 0 && (
+                 <span className="flex items-center justify-center min-w-[16px] h-4 px-1 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold leading-none">
+                   {syncStatus.pendingCount > 9 ? '9+' : syncStatus.pendingCount}
+                 </span>
+               )}
+             </div>
+
              <button 
                onClick={() => onNavigate('dashboard')} 
                className="relative p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300" 

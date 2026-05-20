@@ -148,44 +148,7 @@ const syncRecordToApi = async (stateKey: string, record: any) => {
   }
 };
 
-/**
- * Load all CRM data from the API and replace local state.
- * Call this on CRM mount so all accounts share the same data.
- */
-export const loadCRMFromAPI = async (): Promise<void> => {
-  try {
-    const endpoints: { key: keyof CRMState; path: string; storageKey: string }[] = [
-      { key: 'companies',     path: '/api/crm/companies',     storageKey: STORAGE_KEYS.CRM_COMPANIES },
-      { key: 'contacts',      path: '/api/crm/contacts',      storageKey: STORAGE_KEYS.CRM_CONTACTS },
-      { key: 'opportunities', path: '/api/crm/opportunities', storageKey: STORAGE_KEYS.CRM_OPPORTUNITIES },
-      { key: 'touchpoints',   path: '/api/crm/touchpoints',   storageKey: STORAGE_KEYS.CRM_TOUCHPOINTS },
-      { key: 'tasks',         path: '/api/crm/tasks',         storageKey: STORAGE_KEYS.CRM_TASKS },
-      { key: 'emailThreads',  path: '/api/crm/email-threads', storageKey: STORAGE_KEYS.CRM_EMAIL_THREADS },
-      { key: 'callLogs',      path: '/api/crm/call-logs',     storageKey: STORAGE_KEYS.CRM_CALL_LOGS },
-    ];
 
-    const results = await Promise.allSettled(endpoints.map(e => api.get<any[]>(e.path)));
-
-    const updates: Partial<CRMState> = {};
-    endpoints.forEach(({ key, storageKey }, i) => {
-      const result = results[i];
-      if (result.status === 'fulfilled' && result.value?.length > 0) {
-        updates[key] = result.value as any;
-        saveToStorage(storageKey, result.value);
-      } else if (result.status === 'rejected') {
-        logger.error(`API load error for ${key}:`, result.reason);
-      }
-    });
-
-    if (Object.keys(updates).length > 0) {
-      state = { ...state, ...updates };
-      notifyListeners();
-      logger.info('CRM state loaded from API');
-    }
-  } catch (e) {
-    logger.error('loadCRMFromAPI error:', e);
-  }
-};
 
 // ==========================================
 // COMPANY OPERATIONS
