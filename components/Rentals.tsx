@@ -6,7 +6,7 @@ import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, Invoice } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
-import { addMonths, calculateContractMonths } from '../utils/contractDate';
+import { addMonths, calculateContractMonths, calculateContractMonthsSafe } from '../utils/contractDate';
 import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle, Loader2, Search, History } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
@@ -734,7 +734,7 @@ export const Rentals: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
                         <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
-                        <span className="text-slate-300">{calculateContractMonths(contract.startDate, contract.endDate)} mo</span>
+                        <span className="text-slate-300">{calculateContractMonthsSafe(contract.startDate, contract.endDate)} mo</span>
                         <span>ID: {contract.id}</span>
                         {contract.assignedTo && <span className="flex items-center gap-1 text-indigo-400"><UserCircle size={11}/> {contract.assignedTo}</span>}
                         {contract.lastModifiedDate && <span className="text-slate-300">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
@@ -1324,7 +1324,7 @@ export const Rentals: React.FC = () => {
                         </div>
                         <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
                             <span className="text-slate-500 font-medium">Updated term length</span>
-                            <span className="text-slate-900 font-bold">{calculateContractMonths(editRental.startDate, editRental.endDate)} month(s)</span>
+                            <span className="text-slate-900 font-bold">{calculateContractMonthsSafe(editRental.startDate, editRental.endDate)} month(s)</span>
                         </div>
                     </div>
 

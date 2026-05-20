@@ -81,24 +81,26 @@ async function registerRoutes() {
   const tasks        = await import('./api/tasks.js');
   const maintenance  = await import('./api/maintenance.js');
   const outsourced   = await import('./api/outsourced.js');
-  const printingJobs = await import('./api/printing-jobs.js');
-  const companyProf  = await import('./api/company-profile.js');
-  const users        = await import('./api/users.js');
-  const ai           = await import('./api/ai.js');
+  const printingJobs      = await import('./api/printing-jobs.js');
+  const companyProf       = await import('./api/company-profile.js');
+  const users             = await import('./api/users.js');
+  const ai                = await import('./api/ai.js');
+  const contractAmendments = await import('./api/contract-amendments.js');
 
-  app.all('/api/billboards',       adapt(billboards,   'billboards'));
-  app.all('/api/clients',          adapt(clients,      'clients'));
-  app.all('/api/contracts',        adapt(contracts,    'contracts'));
-  app.all('/api/invoices',         adapt(invoices,     'invoices'));
-  app.all('/api/expenses',         adapt(expenses,     'expenses'));
-  app.all('/api/tasks',            adapt(tasks,        'tasks'));
-  app.all('/api/maintenance',      adapt(maintenance,  'maintenance'));
-  app.all('/api/outsourced',       adapt(outsourced,   'outsourced'));
-  app.all('/api/printing-jobs',    adapt(printingJobs, 'printing-jobs'));
-  app.all('/api/company-profile',  adapt(companyProf,  'company-profile'));
-  app.all('/api/users',            adapt(users,        'users'));
-  app.all('/api/ai',               adapt(ai,           'ai'));
-  log.boot('  Core routes        ✓  (billboards, clients, contracts, invoices, expenses, tasks, maintenance, outsourced, printing-jobs, company-profile, users, ai)');
+  app.all('/api/billboards',            adapt(billboards,          'billboards'));
+  app.all('/api/clients',               adapt(clients,             'clients'));
+  app.all('/api/contracts',             adapt(contracts,           'contracts'));
+  app.all('/api/contract-amendments',   adapt(contractAmendments,  'contract-amendments'));
+  app.all('/api/invoices',              adapt(invoices,            'invoices'));
+  app.all('/api/expenses',              adapt(expenses,            'expenses'));
+  app.all('/api/tasks',                 adapt(tasks,               'tasks'));
+  app.all('/api/maintenance',           adapt(maintenance,         'maintenance'));
+  app.all('/api/outsourced',            adapt(outsourced,          'outsourced'));
+  app.all('/api/printing-jobs',         adapt(printingJobs,        'printing-jobs'));
+  app.all('/api/company-profile',       adapt(companyProf,         'company-profile'));
+  app.all('/api/users',                 adapt(users,               'users'));
+  app.all('/api/ai',                    adapt(ai,                  'ai'));
+  log.boot('  Core routes        ✓  (billboards, clients, contracts, contract-amendments, invoices, expenses, tasks, maintenance, outsourced, printing-jobs, company-profile, users, ai)');
 
   // CRM
   const crmCompanies     = await import('./api/crm/companies.js');

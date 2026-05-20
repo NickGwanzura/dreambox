@@ -153,8 +153,8 @@ export const Analytics: React.FC = () => {
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800 mb-6">Gross Profit Trend (Last 6 Months)</h3>
                     <div className="h-72">
-                         <ResponsiveContainer width="100%" height="100%">
-                             {monthlyData.length > 0 ? (
+                         {monthlyData.length > 0 ? (
+                             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                  <AreaChart data={monthlyData}>
                                      <defs>
                                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -178,18 +178,18 @@ export const Analytics: React.FC = () => {
                                      <Area type="monotone" dataKey="cogs" stackId="2" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorCOGS)" />
                                      <Area type="monotone" dataKey="grossProfit" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorGrossProfit)" />
                                  </AreaChart>
-                             ) : (
-                                 <div className="flex items-center justify-center h-full text-slate-400">No data available yet.</div>
-                             )}
-                         </ResponsiveContainer>
+                             </ResponsiveContainer>
+                         ) : (
+                             <div className="flex items-center justify-center h-full text-slate-400">No data available yet.</div>
+                         )}
                     </div>
                 </div>
 
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800 mb-6">Top Clients by Gross Profit</h3>
                     <div className="h-72">
-                         <ResponsiveContainer width="100%" height="100%">
-                              {clientProfitData.length > 0 ? (
+                         {clientProfitData.length > 0 ? (
+                             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                   <BarChart data={clientProfitData} layout="vertical">
                                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                                       <XAxis type="number" axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
@@ -201,10 +201,10 @@ export const Analytics: React.FC = () => {
                                           ))}
                                       </Bar>
                                   </BarChart>
-                              ) : (
-                                 <div className="flex items-center justify-center h-full text-slate-400">No client profitability data available.</div>
-                              )}
-                         </ResponsiveContainer>
+                             </ResponsiveContainer>
+                         ) : (
+                             <div className="flex items-center justify-center h-full text-slate-400">No client profitability data available.</div>
+                         )}
                     </div>
                 </div>
             </div>

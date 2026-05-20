@@ -6,7 +6,7 @@ import { SendDocumentModal } from './SendDocumentModal';
 import { ContractAmendmentModal } from './ContractAmendmentModal';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
-import { addMonths, calculateContractMonths } from '../utils/contractDate';
+import { addMonths, calculateContractMonths, calculateContractMonthsSafe } from '../utils/contractDate';
 import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, RotateCcw, Send, Loader2, Search } from 'lucide-react';
 
 export const ContractList: React.FC = () => {
@@ -387,7 +387,7 @@ export const ContractList: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
                     <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
-                    <span className="text-slate-300 hidden sm:inline">• {calculateContractMonths(contract.startDate, contract.endDate)} mo</span>
+                    <span className="text-slate-300 hidden sm:inline">• {calculateContractMonthsSafe(contract.startDate, contract.endDate)} mo</span>
                     <span className="hidden sm:inline">ID: {contract.id}</span>
                     {contract.lastModifiedDate && <span className="text-slate-300 hidden sm:inline">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
                   </div>
@@ -653,7 +653,7 @@ export const ContractList: React.FC = () => {
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
                   <span className="text-slate-500 font-medium">Updated term length</span>
-                  <span className="text-slate-900 font-bold">{calculateContractMonths(editContract.startDate, editContract.endDate)} month(s)</span>
+                  <span className="text-slate-900 font-bold">{calculateContractMonthsSafe(editContract.startDate, editContract.endDate)} month(s)</span>
                 </div>
               </div>
 

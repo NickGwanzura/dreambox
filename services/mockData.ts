@@ -28,13 +28,26 @@ const INITIAL_CONTRACT_AMENDMENTS: ContractAmendment[] = [];
 // Storage keys are now imported from constants.ts
 // Using STORAGE_KEYS from './constants'
 
-const loadFromStorage = <T>(key: string, defaultValue: T | null): T | null => {
+const loadFromStorage = (key: string, defaultValue: any): any => {
     try {
         const stored = localStorage.getItem(key);
         if (stored === null) return defaultValue;
         return JSON.parse(stored);
     } catch (e) {
         console.error(`Error loading ${key}`, e);
+        // Attempt to recover raw string values (e.g. data URLs stored without JSON.stringify)
+        const raw = localStorage.getItem(key);
+        if (raw !== null && typeof raw === 'string' && raw.length > 0) {
+            // If the raw value is a plain string (not valid JSON), return it directly.
+            // This handles cases where values were stored with raw localStorage.setItem()
+            // instead of through saveToStorage() which JSON.stringifies.
+            // Re-save properly so the error doesn't repeat on next load.
+            try {
+                localStorage.setItem(key, JSON.stringify(raw));
+            } catch (_) {}
+            return raw as any;
+        }
+        localStorage.removeItem(key); // Clean up irrecoverable corrupt data
         return defaultValue;
     }
 };
