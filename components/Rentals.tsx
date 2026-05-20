@@ -565,7 +565,7 @@ export const Rentals: React.FC = () => {
   };
 
   const openTermAdjustment = (contract: Contract) => {
-      setSelectedRental(null);
+      // Keep detail modal open underneath — amendment overlays on top
       setAmendContract({ ...contract });
   };
 

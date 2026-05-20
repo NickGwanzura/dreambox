@@ -61,6 +61,7 @@ const TABLE_MAP = [
   { key: STORAGE_KEYS.BILLBOARDS, table: 'billboards' },
   { key: STORAGE_KEYS.CLIENTS, table: 'clients' },
   { key: STORAGE_KEYS.CONTRACTS, table: 'contracts' },
+  { key: STORAGE_KEYS.CONTRACT_AMENDMENTS, table: 'contract-amendments' },
   { key: STORAGE_KEYS.INVOICES, table: 'invoices' },
   { key: STORAGE_KEYS.EXPENSES, table: 'expenses' },
   { key: STORAGE_KEYS.USERS, table: 'users' },
@@ -170,14 +171,15 @@ export const pullAllFromNeon = async (): Promise<{
       const data = await api.get<any[]>(`/api/${table}`);
       const remote = Array.isArray(data) ? data : [];
 
-      // Merge: keep local-only items (no id or ids not in remote) to avoid data loss
+      // Merge: keep local-only items (ids not in remote) to avoid data loss
+      // This preserves newly created items that haven't been synced to Neon yet
       try {
         const raw = localStorage.getItem(key);
         if (raw) {
           const local: any[] = JSON.parse(raw);
-          const remoteIds = new Set(remote.map((r: any) => r.id));
+          const remoteIds = new Set(remote.map((r: any) => r.id).filter(Boolean));
           const localOnly = local.filter(
-            (item: any) => item.id && !remoteIds.has(item.id) && item._localOnly
+            (item: any) => item.id && !remoteIds.has(item.id)
           );
           if (localOnly.length > 0) {
             remote.push(...localOnly);

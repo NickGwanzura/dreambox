@@ -3,9 +3,9 @@ import { Contract, ContractAmendment, Invoice } from '../types';
 import { addMonths, calculateContractMonths } from '../utils/contractDate';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
-import { getContractAmendmentsForContract, addContractAmendment, updateContract, invoices } from '../services/mockData';
+import { getContractAmendmentsForContract, addContractAmendment, updateContract, invoices, getContracts, getBillboards, addInvoice } from '../services/mockData';
 import { getCurrentUser } from '../services/authServiceSecure';
-import { X, AlertTriangle, CheckCircle, Calendar, TrendingUp, TrendingDown, FileText, History, ArrowRight, Loader2, Clock } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, Calendar, TrendingUp, TrendingDown, FileText, History, ArrowRight, Loader2, Clock, DollarSign } from 'lucide-react';
 
 interface Props {
   contract: Contract;
@@ -13,12 +13,12 @@ interface Props {
   onApplied: () => void;
 }
 
-type AmendmentMode = 'extension' | 'reduction';
-
 const formatDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onApplied }) => {
-  const [mode, setMode] = useState<AmendmentMode>('extension');
+  type AmendmentTab = 'extension' | 'reduction' | 'rate_change';
+  const [activeTab, setActiveTab] = useState<AmendmentTab>('extension');
+  const [newMonthlyRate, setNewMonthlyRate] = useState(contract.monthlyRate);
   const [newEndDate, setNewEndDate] = useState(contract.endDate);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -32,18 +32,24 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
   const originalMonths = calculateContractMonths(contract.startDate, contract.endDate);
   const newMonths = calculateContractMonths(contract.startDate, newEndDate);
   const monthsDelta = newMonths - originalMonths;
-  const financialImpact = monthsDelta * contract.monthlyRate;
+  const rateDelta = newMonthlyRate - contract.monthlyRate;
+  const financialImpact = activeTab === 'rate_change'
+    ? rateDelta * originalMonths
+    : monthsDelta * contract.monthlyRate;
   const isExtension = newEndDate > contract.endDate;
   const isReduction = newEndDate < contract.endDate;
-  const isValidChange = isExtension || isReduction;
+  const isValidChange = activeTab === 'rate_change'
+    ? rateDelta !== 0
+    : (isExtension || isReduction);
 
-  // Affected invoices for reductions
+  // Affected invoices for reductions — fixed date comparison
   const affectedInvoices = useMemo(() => {
     if (!isReduction) return [];
+    const newEndDateTime = new Date(newEndDate).getTime();
     return invoices.filter(i => 
       i.contractId === contract.id && 
       String(i.type || '').toLowerCase() === 'invoice' &&
-      i.date > newEndDate
+      new Date(i.date).getTime() > newEndDateTime
     );
   }, [isReduction, contract.id, newEndDate]);
 
@@ -65,10 +71,8 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
     extStart.setDate(extStart.getDate() + 1);
     const extStartStr = extStart.toISOString().split('T')[0];
 
-    // We need to use the same checkAvailability logic from Rentals.tsx
-    // Since we don't have direct access here, we'll do a simplified overlap check
-    const allContracts = JSON.parse(localStorage.getItem('db_contracts') || '[]');
-    const activeContracts = allContracts.filter((c: any) => 
+    const allContracts = getContracts();
+    const activeContracts = allContracts.filter((c: Contract) => 
       c.billboardId === contract.billboardId &&
       String(c.status || '').toLowerCase() === 'active' &&
       c.id !== contract.id
@@ -77,7 +81,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
     const newStart = new Date(extStartStr).getTime();
     const newEnd = new Date(newEndDate).getTime();
 
-    const overlapping = activeContracts.filter((c: any) => {
+    const overlapping = activeContracts.filter((c: Contract) => {
       const cStart = new Date(c.startDate).getTime();
       const cEnd = new Date(c.endDate).getTime();
       return newStart <= cEnd && newEnd >= cStart;
@@ -85,17 +89,27 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
 
     if (overlapping.length === 0) return { ok: true };
 
-    // Side/slot specific check
-    const billboard = JSON.parse(localStorage.getItem('db_billboards') || '[]').find((b: any) => b.id === contract.billboardId);
+    // Side/slot specific check — also parse details field for side info
+    const billboard = getBillboards().find((b: any) => b.id === contract.billboardId);
     if (!billboard) return { ok: true };
 
+    const detailsIncludesSide = (c: Contract, side: string): boolean => {
+      const d = (c.details || '').toLowerCase();
+      return d.includes(`side ${side.toLowerCase()}`) ||
+        d.includes('both') ||
+        d.includes('sides a & b');
+    };
+
     if (billboard.type === 'Static') {
-      const conflict = overlapping.find((c: any) => 
-        c.side === contract.side || c.side === 'Both' || contract.side === 'Both'
+      const conflict = overlapping.find((c: Contract) => 
+        c.side === contract.side ||
+        c.side === 'Both' ||
+        (contract.side && (contract.side === 'A' || contract.side === 'B') && detailsIncludesSide(c, contract.side)) ||
+        (contract.side && detailsIncludesSide(c, 'Both'))
       );
       if (conflict) return { ok: false, reason: `Side conflict with ${conflict.id} (${conflict.details})` };
     } else {
-      const conflict = overlapping.find((c: any) => c.slotNumber === contract.slotNumber);
+      const conflict = overlapping.find((c: Contract) => c.slotNumber === contract.slotNumber);
       if (conflict) return { ok: false, reason: `Slot ${contract.slotNumber} conflict with ${conflict.id}` };
     }
 
@@ -112,7 +126,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
       return;
     }
 
-    if (newEndDate <= contract.startDate) {
+    if (activeTab !== 'rate_change' && newEndDate <= contract.startDate) {
       setError('New end date must be after the contract start date.');
       return;
     }
@@ -122,16 +136,22 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
       return;
     }
 
+    // Save previous state for rollback
+    const previousContract = { ...contract };
     setSaving(true);
+
     try {
-      const newTotalValue = (contract.monthlyRate * newMonths) +
+      const effectiveMonths = activeTab === 'rate_change' ? originalMonths : newMonths;
+      const effectiveMonthlyRate = activeTab === 'rate_change' ? newMonthlyRate : contract.monthlyRate;
+      const newTotalValue = (effectiveMonthlyRate * effectiveMonths) +
         (contract.installationCost || 0) +
         (contract.printingCost || 0) +
         (contract.productionCost || 0);
 
       const updatedContract: Contract = {
         ...contract,
-        endDate: newEndDate,
+        endDate: activeTab === 'rate_change' ? contract.endDate : newEndDate,
+        monthlyRate: effectiveMonthlyRate,
         totalContractValue: newTotalValue,
         lastModifiedDate: new Date().toISOString(),
         lastModifiedBy: `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || currentUser?.email || 'Current User',
@@ -140,16 +160,16 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
       const amendment: ContractAmendment = {
         id: `AM-${Date.now().toString().slice(-6)}`,
         contractId: contract.id,
-        type: mode,
+        type: activeTab,
         oldStartDate: contract.startDate,
         oldEndDate: contract.endDate,
         newStartDate: contract.startDate,
-        newEndDate: newEndDate,
+        newEndDate: activeTab === 'rate_change' ? contract.endDate : newEndDate,
         oldMonthlyRate: contract.monthlyRate,
-        newMonthlyRate: contract.monthlyRate,
+        newMonthlyRate: effectiveMonthlyRate,
         oldTotalValue: contract.totalContractValue,
         newTotalValue: newTotalValue,
-        monthsChanged: Math.abs(monthsDelta),
+        monthsChanged: Math.abs(activeTab === 'rate_change' ? 0 : monthsDelta),
         financialImpact: financialImpact,
         reason: reason || undefined,
         requestedBy: `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || currentUser?.email || 'Staff',
@@ -162,8 +182,39 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
         appliedAt: new Date().toISOString(),
       };
 
+      // Apply with rollback: update contract first, then add amendment
       updateContract(updatedContract);
-      addContractAmendment(amendment);
+      try {
+        addContractAmendment(amendment);
+      } catch (amendmentErr) {
+        // Rollback contract to previous state if amendment fails
+        updateContract(previousContract);
+        throw new Error('Failed to record amendment. Contract has been reverted.');
+      }
+
+      // Auto-generate invoices for extension months
+      if (isExtension && monthsDelta > 0) {
+        for (let i = 1; i <= monthsDelta; i++) {
+          const monthDate = addMonths(contract.endDate, i);
+          const gross = contract.monthlyRate;
+          const { subtotal, vat: vatAmount } = contract.hasVat
+            ? splitInclusiveVat(gross, vatRate)
+            : { subtotal: gross, vat: 0 };
+          addInvoice({
+            id: `INV-AM-${contract.id}-${monthDate.replace(/-/g, '')}`,
+            contractId: contract.id,
+            clientId: contract.clientId,
+            date: monthDate,
+            items: [{ description: `Monthly Rental (Amendment Extension) — ${monthDate}`, amount: gross }],
+            subtotal,
+            vatAmount,
+            total: gross,
+            status: 'Pending',
+            type: 'Invoice',
+          });
+        }
+      }
+
       onApplied();
     } catch (err: any) {
       setError(err.message || 'Failed to apply amendment. Please try again.');
@@ -200,7 +251,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[60] p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }} role="dialog" aria-modal="true" aria-label="Contract Amendment">
       <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
@@ -214,19 +265,25 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
         </div>
 
         <div className="p-8 space-y-6">
-          {/* Mode Tabs */}
+          {/* Amendment Tabs: Extend / Reduce / Rate Change */}
           <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200">
             <button
-              onClick={() => { setMode('extension'); setNewEndDate(contract.endDate); setError(null); }}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${mode === 'extension' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
+              onClick={() => { setActiveTab('extension'); setNewEndDate(contract.endDate); setError(null); }}
+              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'extension' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <TrendingUp size={14} /> Extend
             </button>
             <button
-              onClick={() => { setMode('reduction'); setNewEndDate(contract.endDate); setError(null); }}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${mode === 'reduction' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}
+              onClick={() => { setActiveTab('reduction'); setNewEndDate(contract.endDate); setError(null); }}
+              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'reduction' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <TrendingDown size={14} /> Reduce
+            </button>
+            <button
+              onClick={() => { setActiveTab('rate_change'); setNewMonthlyRate(contract.monthlyRate); setError(null); }}
+              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'rate_change' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <DollarSign size={14} /> Rate
             </button>
           </div>
 
@@ -246,6 +303,12 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
               <p className="text-xs text-slate-400">Monthly Rate</p>
               <p className="text-sm font-bold">${contract.monthlyRate.toLocaleString()}/mo {contract.hasVat && <span className="text-slate-500 font-normal">(incl. {vatPct})</span>}</p>
             </div>
+            {activeTab === 'rate_change' && (
+              <div className="border-t border-indigo-700/50 pt-3 flex justify-between items-center">
+                <p className="text-xs font-bold uppercase tracking-wider text-indigo-300">New Rate</p>
+                <p className="text-sm font-bold">${newMonthlyRate.toLocaleString()}/mo {contract.hasVat && <span className="text-slate-500 font-normal">(incl. {vatPct})</span>}</p>
+              </div>
+            )}
           </div>
 
           {/* Error */}
@@ -256,49 +319,89 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             </div>
           )}
 
-          {/* Date Input */}
-          <div className="space-y-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
-              {mode === 'extension' ? 'New End Date (Extension)' : 'New End Date (Early Termination)'}
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Current End</label>
-                <input type="date" value={contract.endDate} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+          {/* Rate Change Input */}
+          {activeTab === 'rate_change' ? (
+            <div className="space-y-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">New Monthly Rate</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Current Rate</label>
+                  <input type="number" value={contract.monthlyRate} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-600 mb-2">New Rate ($)</label>
+                  <input
+                    type="number"
+                    value={newMonthlyRate}
+                    min={0}
+                    onChange={(e) => { setNewMonthlyRate(Number(e.target.value)); setError(null); }}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">New End Date</label>
-                <input
-                  type="date"
-                  value={newEndDate}
-                  min={mode === 'reduction' ? contract.startDate : contract.endDate}
-                  onChange={(e) => { setNewEndDate(e.target.value); setError(null); }}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900"
-                />
+              <div className="flex flex-wrap gap-2">
+                {[50, 100, 200, 500].map(inc => (
+                  <button key={inc} type="button" onClick={() => setNewMonthlyRate(prev => prev + inc)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors flex items-center gap-1">
+                    <DollarSign size={10} /> +{inc}
+                  </button>
+                ))}
+                {[50, 100, 200].map(dec => (
+                  <button key={dec} type="button" onClick={() => setNewMonthlyRate(prev => Math.max(0, prev - dec))} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1">
+                    <DollarSign size={10} /> -{dec}
+                  </button>
+                ))}
               </div>
-            </div>
-
-            {/* Quick buttons */}
-            <div className="flex flex-wrap gap-2">
-              {mode === 'extension' ? (
-                <>
-                  {[1, 3, 6, 12].map(m => (
-                    <button key={m} type="button" onClick={() => handleQuickDate(m)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors flex items-center gap-1">
-                      <Calendar size={10} /> +{m} Mo
-                    </button>
-                  ))}
-                </>
-              ) : (
-                <>
-                  {[-1, -3, -6].map(m => (
-                    <button key={m} type="button" onClick={() => handleQuickDate(m)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-1">
-                      <Calendar size={10} /> {m} Mo
-                    </button>
-                  ))}
-                </>
+              {contract.hasVat && newMonthlyRate > 0 && (
+                <p className="text-xs text-slate-500">
+                  Net: ${splitInclusiveVat(newMonthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newMonthlyRate, vatRate).vat.toFixed(2)}
+                </p>
               )}
             </div>
-          </div>
+          ) : (
+            /* Date Input for Extension/Reduction */
+            <div className="space-y-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                {activeTab === 'extension' ? 'New End Date (Extension)' : 'New End Date (Early Termination)'}
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Current End</label>
+                  <input type="date" value={contract.endDate} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-600 mb-2">New End Date</label>
+                  <input
+                    type="date"
+                    value={newEndDate}
+                    min={activeTab === 'reduction' ? contract.startDate : contract.endDate}
+                    onChange={(e) => { setNewEndDate(e.target.value); setError(null); }}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900"
+                  />
+                </div>
+              </div>
+
+              {/* Quick buttons */}
+              <div className="flex flex-wrap gap-2">
+                {activeTab === 'extension' ? (
+                  <>
+                    {[1, 3, 6, 12].map(m => (
+                      <button key={m} type="button" onClick={() => handleQuickDate(m)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors flex items-center gap-1">
+                        <Calendar size={10} /> +{m} Mo
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {[-1, -3, -6].map(m => (
+                      <button key={m} type="button" onClick={() => handleQuickDate(m)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-1">
+                        <Calendar size={10} /> {m} Mo
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Visual Timeline */}
           {isValidChange && (
@@ -342,14 +445,21 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           )}
 
           {/* Financial Impact */}
-          {isValidChange && (
-            <div className={`rounded-2xl p-5 space-y-3 ${mode === 'extension' ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'}`}>
+          {isValidChange && (() => {
+            const isPositiveImpact = financialImpact > 0;
+            const effectiveNewValue = (() => {
+              const rate = activeTab === 'rate_change' ? newMonthlyRate : contract.monthlyRate;
+              const months = activeTab === 'rate_change' ? originalMonths : newMonths;
+              return (rate * months) + (contract.installationCost || 0) + (contract.printingCost || 0) + (contract.productionCost || 0);
+            })();
+            return (
+            <div className={`rounded-2xl p-5 space-y-3 ${activeTab === 'extension' ? 'bg-emerald-50 border border-emerald-100' : activeTab === 'reduction' ? 'bg-amber-50 border border-amber-100' : 'bg-indigo-50 border border-indigo-100'}`}>
               <div className="flex justify-between items-center">
-                <p className={`text-xs font-bold uppercase tracking-wider ${mode === 'extension' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                <p className={`text-xs font-bold uppercase tracking-wider ${activeTab === 'extension' ? 'text-emerald-700' : activeTab === 'reduction' ? 'text-amber-700' : 'text-indigo-700'}`}>
                   Financial Impact
                 </p>
-                <span className={`text-xs font-bold px-2 py-1 rounded ${mode === 'extension' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {mode === 'extension' ? 'Additional Revenue' : 'Credit Due'}
+                <span className={`text-xs font-bold px-2 py-1 rounded ${activeTab === 'extension' ? 'bg-emerald-100 text-emerald-700' : activeTab === 'reduction' ? 'bg-amber-100 text-amber-700' : isPositiveImpact ? 'bg-indigo-100 text-indigo-700' : 'bg-red-100 text-red-700'}`}>
+                  {activeTab === 'extension' ? 'Additional Revenue' : activeTab === 'reduction' ? 'Credit Due' : isPositiveImpact ? 'Revenue Increase' : 'Revenue Decrease'}
                 </span>
               </div>
 
@@ -360,13 +470,13 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">New contract value</span>
-                  <span className="font-semibold text-slate-800">${((contract.monthlyRate * newMonths) + (contract.installationCost || 0) + (contract.printingCost || 0) + (contract.productionCost || 0)).toLocaleString()}</span>
+                  <span className="font-semibold text-slate-800">${effectiveNewValue.toLocaleString()}</span>
                 </div>
-                <div className={`flex justify-between text-sm font-bold pt-2 border-t ${mode === 'extension' ? 'border-emerald-200' : 'border-amber-200'}`}>
-                  <span className={mode === 'extension' ? 'text-emerald-700' : 'text-amber-700'}>
-                    {mode === 'extension' ? 'Additional revenue' : 'Credit to client'}
+                <div className={`flex justify-between text-sm font-bold pt-2 border-t ${activeTab === 'extension' ? 'border-emerald-200' : activeTab === 'reduction' ? 'border-amber-200' : 'border-indigo-200'}`}>
+                  <span className={activeTab === 'extension' ? 'text-emerald-700' : activeTab === 'reduction' ? 'text-amber-700' : isPositiveImpact ? 'text-indigo-700' : 'text-red-600'}>
+                    {activeTab === 'extension' ? 'Additional revenue' : activeTab === 'reduction' ? 'Credit to client' : isPositiveImpact ? 'Revenue increase' : 'Revenue reduction'}
                   </span>
-                  <span className={mode === 'extension' ? 'text-emerald-700' : 'text-amber-700'}>
+                  <span className={activeTab === 'extension' ? 'text-emerald-700' : activeTab === 'reduction' ? 'text-amber-700' : isPositiveImpact ? 'text-indigo-700' : 'text-red-600'}>
                     ${Math.abs(financialImpact).toLocaleString()}
                   </span>
                 </div>
@@ -377,7 +487,8 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                 )}
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* Affected Invoices Warning */}
           {isReduction && affectedInvoices.length > 0 && (
@@ -425,7 +536,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={mode === 'extension' ? 'e.g., Client wants to extend campaign for Q4...' : 'e.g., Client requested early termination due to budget cuts...'}
+              placeholder={activeTab === 'extension' ? 'e.g., Client wants to extend campaign for Q4...' : activeTab === 'reduction' ? 'e.g., Client requested early termination due to budget cuts...' : 'e.g., Adjusting rate due to market conditions...'}
               className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400 min-h-[80px] resize-y"
             />
           </div>
@@ -481,13 +592,15 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
               onClick={handleApply}
               disabled={saving || !isValidChange || (isExtension && !availability.ok)}
               className={`flex-1 py-3 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60 ${
-                mode === 'extension'
+                activeTab === 'extension'
                   ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : 'bg-amber-600 hover:bg-amber-700'
+                  : activeTab === 'reduction'
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
               }`}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-              {saving ? 'Applying…' : mode === 'extension' ? 'Apply Extension' : 'Apply Reduction'}
+              {saving ? 'Applying…' : activeTab === 'extension' ? 'Apply Extension' : activeTab === 'reduction' ? 'Apply Reduction' : 'Apply Rate Change'}
             </button>
           </div>
         </div>

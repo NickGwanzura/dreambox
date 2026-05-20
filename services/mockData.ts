@@ -180,8 +180,20 @@ export const triggerFullSync = async () => {
                     const filtered = tombstoned.size > 0
                         ? remoteData.filter((row: any) => !tombstoned.has(row?.id))
                         : remoteData;
-                    setter(filtered);
-                    saveToStorage(storageKey, filtered);
+
+                    // Merge: keep local items that don't exist on the server yet
+                    // (unsynced creates that syncToNeon may have failed to push)
+                    const remoteIds = new Set((filtered || []).map((r: any) => r.id).filter(Boolean));
+                    const localData = loadFromStorage<any[]>(storageKey, []);
+                    const localItems = Array.isArray(localData) ? localData : [];
+                    const unsynced = localItems.filter((item: any) => item.id && !remoteIds.has(item.id));
+                    const merged = [...filtered, ...unsynced];
+
+                    setter(merged);
+                    saveToStorage(storageKey, merged);
+                    if (unsynced.length > 0) {
+                        console.log(`[Sync] Preserved ${unsynced.length} unsynced item(s) in ${apiPath}`);
+                    }
                     hasChanges = true;
                 }
             } catch (e) { console.error(`Sync error ${apiPath}:`, e); }
