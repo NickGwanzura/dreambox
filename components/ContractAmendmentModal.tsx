@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Contract, ContractAmendment, Invoice } from '../types';
-import { addMonths, calculateContractMonths } from '../utils/contractDate';
+import { addMonths, calculateContractMonths, calculateContractMonthsSafe } from '../utils/contractDate';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
-import { getContractAmendmentsForContract, addContractAmendment, updateContract, invoices, getContracts, getBillboards, addInvoice } from '../services/mockData';
+import { getContractAmendmentsForContract, addContractAmendment, deleteContractAmendment, updateContract, invoices, getContracts, getBillboards, addInvoice } from '../services/mockData';
 import { getCurrentUser } from '../services/authServiceSecure';
-import { X, AlertTriangle, CheckCircle, Calendar, TrendingUp, TrendingDown, FileText, History, ArrowRight, Loader2, Clock, DollarSign } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, Calendar, TrendingUp, TrendingDown, FileText, History, ArrowRight, Loader2, Clock, DollarSign, Trash2 } from 'lucide-react';
 
 interface Props {
   contract: Contract;
@@ -29,15 +29,24 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
   const vatPct = formatVatPercent(vatRate);
   const currentUser = getCurrentUser();
 
-  const originalMonths = calculateContractMonths(contract.startDate, contract.endDate);
-  const newMonths = calculateContractMonths(contract.startDate, newEndDate);
+  // FIX #3: Use calculateContractMonthsSafe for display (shows 1 as fallback).
+  // The throwing version calculateContractMonths is used in handleApply for business logic.
+  const originalMonths = calculateContractMonthsSafe(contract.startDate, contract.endDate, 1);
+  const newMonths = calculateContractMonthsSafe(contract.startDate, newEndDate, 1);
   const monthsDelta = newMonths - originalMonths;
   const rateDelta = newMonthlyRate - contract.monthlyRate;
+
+  // FIX #4: Compare dates using getTime() numeric comparison, not string comparison.
+  // String comparison "2025-01-31" > "2025-02-01" works lexicographically for ISO dates,
+  // but using timestamps is safer and avoids any locale/format issues.
+  const currentEndTime = new Date(contract.endDate).getTime();
+  const newEndTime = new Date(newEndDate).getTime();
+  const isExtension = newEndTime > currentEndTime;
+  const isReduction = newEndTime < currentEndTime;
+
   const financialImpact = activeTab === 'rate_change'
     ? rateDelta * originalMonths
     : monthsDelta * contract.monthlyRate;
-  const isExtension = newEndDate > contract.endDate;
-  const isReduction = newEndDate < contract.endDate;
   const isValidChange = activeTab === 'rate_change'
     ? rateDelta !== 0
     : (isExtension || isReduction);
@@ -72,9 +81,9 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
     const extStartStr = extStart.toISOString().split('T')[0];
 
     const allContracts = getContracts();
-    const activeContracts = allContracts.filter((c: Contract) => 
+    const activeContracts = allContracts.filter((c: Contract) =>
       c.billboardId === contract.billboardId &&
-      String(c.status || '').toLowerCase() === 'active' &&
+      ['active', 'pending'].includes(String(c.status || '').toLowerCase()) &&
       c.id !== contract.id
     );
 
@@ -136,8 +145,19 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
       return;
     }
 
-    // Save previous state for rollback
-    const previousContract = { ...contract };
+
+
+    // FIX #5: Validate dates WILL produce a meaningful month count before proceeding.
+    // Use the throwing version of calculateContractMonths to catch invalid dates early.
+    try {
+      if (activeTab !== 'rate_change') {
+        calculateContractMonths(contract.startDate, newEndDate);
+      }
+    } catch (dateErr: any) {
+      setError(dateErr.message || 'Invalid dates selected. Please check the start and end dates.');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -158,7 +178,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
       };
 
       const amendment: ContractAmendment = {
-        id: `AM-${Date.now().toString().slice(-6)}`,
+        id: `AM-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
         contractId: contract.id,
         type: activeTab,
         oldStartDate: contract.startDate,
@@ -182,21 +202,44 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
         appliedAt: new Date().toISOString(),
       };
 
-      // Apply with rollback: update contract first, then add amendment
-      updateContract(updatedContract);
+
+
+      // FIX #1 (REVISED): Contract-first strategy prevents orphan amendments.
+      // Update the contract FIRST so that if it fails, nothing is persisted.
+      // Then save the amendment; if the amendment fails, roll back the contract
+      // using a snapshot of the original contract state.
+      
+      const originalSnapshot = { ...contract };
+      
+      try {
+        updateContract(updatedContract);
+      } catch (contractErr) {
+        console.error('Contract update failed. No changes were applied.');
+        setError('Failed to update contract. No changes were applied.');
+        setSaving(false);
+        return;
+      }
+      
       try {
         addContractAmendment(amendment);
       } catch (amendmentErr) {
-        // Rollback contract to previous state if amendment fails
-        updateContract(previousContract);
-        throw new Error('Failed to record amendment. Contract has been reverted.');
+        console.error('Amendment record failed. Rolling back contract...');
+        try {
+          updateContract(originalSnapshot);
+          setError('Contract was updated but the amendment record failed. The contract has been rolled back. Please try again.');
+        } catch (rollbackErr) {
+          console.error('CRITICAL: Rollback also failed.', rollbackErr);
+          setError('Contract updated but amendment failed AND rollback error. Check data integrity.');
+        }
+        setSaving(false);
+        return;
       }
 
       // Auto-generate invoices for extension months
       if (isExtension && monthsDelta > 0) {
         for (let i = 1; i <= monthsDelta; i++) {
           const monthDate = addMonths(contract.endDate, i);
-          const gross = contract.monthlyRate;
+          const gross = effectiveMonthlyRate;
           const { subtotal, vat: vatAmount } = contract.hasVat
             ? splitInclusiveVat(gross, vatRate)
             : { subtotal: gross, vat: 0 };
@@ -557,7 +600,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
               {showHistory && (
                 <div className="p-4 space-y-3 max-h-48 overflow-y-auto">
                   {history.map((amendment) => (
-                    <div key={amendment.id} className="flex items-start gap-3 text-sm">
+                    <div key={amendment.id} className="flex items-start gap-3 text-sm group">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${amendment.type === 'extension' ? 'bg-emerald-500' : amendment.type === 'reduction' ? 'bg-amber-500' : 'bg-slate-400'}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -576,6 +619,18 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                         </p>
                         {amendment.reason && <p className="text-xs text-slate-400 mt-0.5 italic truncate">"{amendment.reason}"</p>}
                       </div>
+                      <button
+                        onClick={() => {
+                          if (confirm('Delete this amendment record? This cannot be undone.')) {
+                            deleteContractAmendment(amendment.id);
+                            onApplied();
+                          }
+                        }}
+                        className="shrink-0 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 text-slate-300 hover:text-red-500 transition-all"
+                        title="Delete amendment"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   ))}
                 </div>

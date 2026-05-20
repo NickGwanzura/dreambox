@@ -3,6 +3,7 @@ import { contracts as initialContracts, clients, billboards, getContracts, getBi
 import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
+import { ContractAmendmentModal } from './ContractAmendmentModal';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { addMonths, calculateContractMonths } from '../utils/contractDate';
@@ -18,6 +19,7 @@ export const ContractList: React.FC = () => {
   const [editError, setEditError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sendModal, setSendModal] = useState<{ contract: Contract; client: any } | null>(null);
+  const [amendContract, setAmendContract] = useState<Contract | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredContracts = contracts.filter(contract => {
@@ -136,10 +138,10 @@ export const ContractList: React.FC = () => {
       }
 
       // Get all contracts for this billboard except current one
-      const existingContracts = getContracts().filter(c => 
-          c.billboardId === contract.billboardId && 
-          c.id !== contract.id && 
-          String(c.status || '').toLowerCase() === 'active'
+      const existingContracts = getContracts().filter(c =>
+          c.billboardId === contract.billboardId &&
+          c.id !== contract.id &&
+          ['active', 'pending'].includes(String(c.status || '').toLowerCase())
       );
       
       const newStartTime = new Date(newStart).getTime();
@@ -314,8 +316,8 @@ export const ContractList: React.FC = () => {
 
   const openTermAdjustment = (contract: Contract) => {
       setSelectedContract(null);
-      setEditContract({ ...contract });
-      setEditError(null);
+      setEditContract(null);
+      setAmendContract(contract);
   };
   
   const getBillingDayDisplay = (contract: Contract) => {
@@ -793,6 +795,16 @@ export const ContractList: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {amendContract && (
+        <ContractAmendmentModal
+          contract={amendContract}
+          onClose={() => setAmendContract(null)}
+          onApplied={() => {
+            setAmendContract(null);
+            setContracts([...getContracts()]);
+          }}
+        />
       )}
       {sendModal && (() => {
         const { contract, client } = sendModal;

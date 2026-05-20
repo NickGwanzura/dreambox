@@ -350,6 +350,15 @@ export const deleteContract = (id: string) => {
             logAction('Delete Contract', `Cascade-deleted ${linkedInvoices.length} invoice(s) from contract ${id}`);
         }
 
+        // Cascade-delete amendments tied to this contract.
+        const linkedAmendments = contractAmendments.filter(a => a.contractId === id);
+        if (linkedAmendments.length > 0) {
+            linkedAmendments.forEach(a => queueForDeletion('contract-amendments', a.id));
+            contractAmendments = contractAmendments.filter(a => a.contractId !== id);
+            saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments);
+            logAction('Delete Contract', `Cascade-deleted ${linkedAmendments.length} amendment(s) from contract ${id}`);
+        }
+
         const billboard = billboards.find(b => b.id === contract.billboardId);
         if(billboard) {
             if(billboard.type === BillboardType.Static) {

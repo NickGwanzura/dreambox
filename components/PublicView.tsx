@@ -1,9 +1,16 @@
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { getBillboards, getCompanyLogo } from '../services/mockData';
-import { Billboard } from '../types';
+import { getBillboards, getCompanyLogo, getContracts } from '../services/mockData';
+import { Billboard, Contract } from '../types';
 import L from 'leaflet';
-import { MapPin, Maximize2, Car, Layers, Zap, X, ExternalLink } from 'lucide-react';
+import { MapPin, Maximize2, Car, Layers, Zap, X, ExternalLink, DollarSign, CheckCircle, XCircle, Clock, Phone, Mail, AlertTriangle } from 'lucide-react';
+
+const toSlug = (name: string): string =>
+    name.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+const billboardLink = (b: Billboard): string => `/billboard/${toSlug(b.name)}-${b.id.slice(-8)}`;
 
 interface PublicViewProps {
     type: 'billboard' | 'map';
@@ -13,6 +20,7 @@ interface PublicViewProps {
 export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => {
     const [billboard, setBillboard] = useState<Billboard | null>(null);
     const [allBillboards, setAllBillboards] = useState<Billboard[]>([]);
+    const [contracts, setContracts] = useState<Contract[]>([]);
     const mapRef = useRef<L.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const logo = getCompanyLogo();
@@ -20,9 +28,12 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
     useEffect(() => {
         const boards = getBillboards();
         setAllBillboards(boards);
+        setContracts(getContracts());
         if (type === 'billboard' && billboardId) {
-            const found = boards.find(b => b.id === billboardId);
-            setBillboard(found || null);
+            // Try to find by slug first (matches at end of slugged ID), then by exact ID
+            const bySlug = boards.find(b => billboardLink(b).endsWith('/' + billboardId) || b.id === billboardId);
+            const byId = boards.find(b => b.id === billboardId);
+            setBillboard(bySlug || byId || null);
         }
     }, [type, billboardId]);
 
@@ -75,7 +86,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                 <strong>${b.name}</strong><br/>
                 <span style="font-size:10px; color:#666;">${b.type} • ${b.width}x${b.height}m</span><br/>
                 <span style="font-size:10px; color:#666;">${b.location}, ${b.town}</span><br/>
-                <a href="?public=true&type=billboard&id=${b.id}" style="color:#6366f1; font-size:10px; text-decoration:none; font-weight:bold;">View Details &rarr;</a>
+                <a href="${billboardLink(b)}" style="color:#6366f1; font-size:10px; text-decoration:none; font-weight:bold;">View Details &rarr;</a>
             </div>
         `;
 
@@ -131,7 +142,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                 <MapPin size={48} className="mb-4 text-slate-300"/>
                 <h2 className="text-xl font-bold text-slate-800">Billboard Not Found</h2>
                 <p className="text-sm">The requested billboard ID is invalid or does not exist.</p>
-                <a href="?public=true&type=map" className="mt-6 px-6 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-slate-800 transition-all">View Full Map</a>
+                <a href="/locations" className="mt-6 px-6 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-slate-800 transition-all">View Full Map</a>
             </div>
         );
     }
@@ -149,7 +160,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                 </div>
                 <div className="flex gap-3">
                     {type === 'billboard' && (
-                        <a href="?public=true&type=map" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-colors">
+                        <a href="/locations" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-colors">
                             <Layers size={14}/> View Full Map
                         </a>
                     )}
@@ -199,7 +210,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             </div>
                         </div>
 
-                        {/* Right: Info & Map */}
+                        {/* Right: Info, Pricing & Map */}
                         <div className="space-y-6 flex flex-col h-full">
                             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
                                 <h1 className="text-3xl font-black text-slate-900 mb-2 leading-tight">{billboard.name}</h1>
@@ -211,7 +222,104 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 </div>
                             </div>
 
-                            <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative min-h-[300px]">
+                            {/* Pricing Card */}
+                            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <DollarSign size={18} className="text-emerald-600" />
+                                    <h2 className="text-lg font-black text-slate-900">Pricing & Availability</h2>
+                                </div>
+                                {billboard.type === 'Static' ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-3 h-3 rounded-full ${billboard.sideAStatus === 'Available' ? 'bg-emerald-500' : billboard.sideAStatus === 'Rented' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                                                <span className="font-bold text-slate-700 text-sm">Side A</span>
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${billboard.sideAStatus === 'Available' ? 'bg-emerald-50 text-emerald-700' : billboard.sideAStatus === 'Rented' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}>
+                                                    {billboard.sideAStatus || 'Unknown'}
+                                                </span>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-black text-slate-900">${(billboard.sideARate || 0).toLocaleString()}<span className="text-xs text-slate-400 font-normal">/mo</span></div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-3 h-3 rounded-full ${billboard.sideBStatus === 'Available' ? 'bg-emerald-500' : billboard.sideBStatus === 'Rented' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                                                <span className="font-bold text-slate-700 text-sm">Side B</span>
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${billboard.sideBStatus === 'Available' ? 'bg-emerald-50 text-emerald-700' : billboard.sideBStatus === 'Rented' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}>
+                                                    {billboard.sideBStatus || 'Unknown'}
+                                                </span>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-black text-slate-900">${(billboard.sideBRate || 0).toLocaleString()}<span className="text-xs text-slate-400 font-normal">/mo</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <div className="flex items-center gap-2">
+                                                <Zap size={16} className="text-amber-500" />
+                                                <span className="font-bold text-slate-700 text-sm">Rate per Slot</span>
+                                            </div>
+                                            <div className="font-black text-slate-900">${(billboard.ratePerSlot || 0).toLocaleString()}<span className="text-xs text-slate-400 font-normal">/mo</span></div>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                            <div className="flex items-center gap-2">
+                                                <Layers size={16} className="text-indigo-500" />
+                                                <span className="font-bold text-slate-700 text-sm">Available Slots</span>
+                                            </div>
+                                            <div className="font-black text-slate-900">{Math.max(0, (billboard.totalSlots || 0) - (billboard.rentedSlots || 0))}<span className="text-xs text-slate-400 font-normal"> / {billboard.totalSlots || 0}</span></div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
+                                    {billboard.type === 'Static' && (billboard.sideAStatus === 'Available' || billboard.sideBStatus === 'Available') ? (
+                                        <span className="flex items-center gap-1 text-emerald-600 font-bold"><CheckCircle size={12} /> Space available — inquire today</span>
+                                    ) : billboard.type === 'LED' && (billboard.rentedSlots || 0) < (billboard.totalSlots || 0) ? (
+                                        <span className="flex items-center gap-1 text-emerald-600 font-bold"><CheckCircle size={12} /> Slots available — inquire today</span>
+                                    ) : (
+                                        <span className="flex items-center gap-1 text-amber-600 font-bold"><AlertTriangle size={12} /> Currently fully occupied — contact for waitlist</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Monthly Cost Estimate Card */}
+                            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Clock size={18} className="text-indigo-500" />
+                                    <h2 className="text-lg font-black text-slate-900">What&rsquo;s Included</h2>
+                                </div>
+                                <ul className="space-y-2.5 text-sm">
+                                    <li className="flex items-start gap-3 text-slate-600">
+                                        <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                        <span><strong className="text-slate-800">Prime Placement</strong> — High-visibility location in {billboard.town} with excellent daily traffic exposure</span>
+                                    </li>
+                                    <li className="flex items-start gap-3 text-slate-600">
+                                        <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                        <span><strong className="text-slate-800">Professional Printing</strong> — High-quality vinyl or digital print production included in setup</span>
+                                    </li>
+                                    <li className="flex items-start gap-3 text-slate-600">
+                                        <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                        <span><strong className="text-slate-800">Installation & Maintenance</strong> — Full rigging, installation, and ongoing structural maintenance</span>
+                                    </li>
+                                    <li className="flex items-start gap-3 text-slate-600">
+                                        <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                        <span><strong className="text-slate-800">Illumination</strong> — Nightly lighting for 24/7 visibility (where applicable)</span>
+                                    </li>
+                                    <li className="flex items-start gap-3 text-slate-600">
+                                        <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                        <span><strong className="text-slate-800">Traffic Data</strong> — Verified daily view counts and monthly impression reports</span>
+                                    </li>
+                                </ul>
+                                <div className="mt-4 pt-4 border-t border-slate-100">
+                                    <p className="text-xs text-slate-400 leading-relaxed">
+                                        <strong className="text-slate-500">Note:</strong> Actual campaign costs may vary based on creative production, additional placements, and contract duration. Contact our team for a detailed quote.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative min-h-[280px]">
                                 <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-slate-100"></div>
                                 <div className="absolute top-4 left-4 z-[400] bg-white/95 backdrop-blur px-3 py-2 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
                                     <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
@@ -237,7 +345,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 <h2 className="text-xl font-black text-slate-900 leading-tight">More Locations</h2>
                                 <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">Explore our full network of {allBillboards.length} sites</p>
                             </div>
-                            <a href="?public=true&type=map" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-800 transition-colors">
+                            <a href="/locations" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-800 transition-colors">
                                 <Layers size={14}/> View Full Map
                             </a>
                         </div>
@@ -245,7 +353,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             {otherBillboards.slice(0, 6).map(b => (
                                 <a
                                     key={b.id}
-                                    href={`?public=true&type=billboard&id=${b.id}`}
+                                    href={billboardLink(b)}
                                     className="group block rounded-2xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all overflow-hidden"
                                 >
                                     <div className="h-32 bg-slate-900 relative overflow-hidden">
@@ -283,6 +391,28 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                         <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-3 rounded-2xl shadow-lg border border-slate-200">
                             <h2 className="font-bold text-slate-800 text-sm">Inventory Map</h2>
                             <p className="text-xs text-slate-500 font-medium">{allBillboards.length} Locations</p>
+                        </div>
+                    </div>
+                )}
+                {/* Contact CTA */}
+                {type === 'billboard' && billboard && (
+                    <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-8 sm:p-10 text-white shadow-xl">
+                        <div className="max-w-2xl">
+                            <h2 className="text-2xl sm:text-3xl font-black leading-tight mb-3">Interested in this location?</h2>
+                            <p className="text-indigo-200 text-sm sm:text-base leading-relaxed mb-6">
+                                Get in touch with our team to discuss pricing, availability, and custom campaign packages tailored to your brand.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <a href="tel:+263242700291" className="inline-flex items-center gap-2.5 px-6 py-3 bg-white text-indigo-700 font-bold rounded-xl hover:bg-indigo-50 transition-colors shadow-lg text-sm">
+                                    <Phone size={16} /> Call +263 242 700 291
+                                </a>
+                                <a href="mailto:info@dreamboxadvertising.co.zw?subject=Inquiry: Billboard - {billboard.name}" className="inline-flex items-center gap-2.5 px-6 py-3 bg-indigo-500/30 text-white border border-indigo-400/40 font-bold rounded-xl hover:bg-indigo-500/50 transition-colors text-sm">
+                                    <Mail size={16} /> Send Enquiry
+                                </a>
+                                <a href="/locations" className="inline-flex items-center gap-2.5 px-6 py-3 bg-white/10 text-white border border-white/20 font-bold rounded-xl hover:bg-white/20 transition-colors text-sm">
+                                    <Layers size={16} /> Browse All Locations
+                                </a>
+                            </div>
                         </div>
                     </div>
                 )}

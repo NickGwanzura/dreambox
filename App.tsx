@@ -121,6 +121,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
+      const path = window.location.pathname.replace(/\/+$/, '') || '/';
       
       // Check for Client Portal
       const isPortal = params.get('portal') === 'true';
@@ -130,16 +131,27 @@ const App: React.FC = () => {
           return;
       }
 
-      // Check for Public Share
+      // Check for clean URL paths: /billboard/:slug or /locations
+      const billboardMatch = path.match(/^\/billboard\/(.+)$/i);
+      if (billboardMatch) {
+          setPublicMode({ active: true, type: 'billboard', id: billboardMatch[1] });
+          return;
+      }
+      if (path === '/locations') {
+          setPublicMode({ active: true, type: 'map' });
+          return;
+      }
+
+      // Check for legacy query-param public share
       const isPublic = params.get('public') === 'true';
-      const type = params.get('type'); // 'billboard' or 'map'
+      const type = params.get('type');
       const id = params.get('id');
 
       if (isPublic) {
-          setPublicMode({ 
-              active: true, 
-              type: (type === 'billboard' || type === 'map') ? type : 'map', 
-              id: id || undefined 
+          setPublicMode({
+              active: true,
+              type: (type === 'billboard' || type === 'map') ? type : 'map',
+              id: id || undefined
           });
       }
   }, []);
