@@ -6,8 +6,10 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync, readdirSync } from 'fs';
 import type { Request, Response } from 'express';
 import { log, requestLogger, errorHandler, logStartupInfo } from './lib/serverLogger.js';
+import { prisma } from './lib/prisma.js';
 
 // ─── Patch global console so all handlers' console.* calls get structured ────
 // The logger writes directly to process.stdout/stderr so there is no loop.
@@ -46,6 +48,37 @@ function adapt(handlerModule: { default: Function }, routeName: string) {
       if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
     }
   };
+}
+
+// ─── Apply pending SQL migrations on startup ──────────────────────────────────
+
+const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'prisma', 'migrations');
+
+async function runMigrations() {
+  try {
+    const files = readdirSync(MIGRATIONS_DIR)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
+
+    if (files.length === 0) {
+      log.boot('  Migrations         —  no .sql files found');
+      return;
+    }
+
+    for (const file of files) {
+      const sql = readFileSync(path.join(MIGRATIONS_DIR, file), 'utf-8');
+      log.boot(`  Migration          →  ${file}`);
+      try {
+        await prisma.$executeRawUnsafe(sql);
+        log.boot(`  Migration          ✓  ${file}`);
+      } catch (e: any) {
+        // Log but don't crash — some migrations may have been applied manually
+        log.boot(`  Migration          ⚠  ${file}: ${e?.message ?? e}`);
+      }
+    }
+  } catch (e: any) {
+    log.boot(`  Migrations         ⚠  cannot read directory: ${e?.message ?? e}`);
+  }
 }
 
 // Health check (no auth required)
@@ -201,7 +234,8 @@ function startCronScheduler() {
 
 registerShutdownHandlers();
 
-registerRoutes()
+runMigrations()
+  .then(() => registerRoutes())
   .then(() => {
     serveStatic();
     // Global error handler must come after routes
