@@ -139,7 +139,7 @@ export interface Invoice {
   vatAmount: number; // 0 if hasVat is false
   total: number;
   status: 'Paid' | 'Pending' | 'Overdue';
-  type: 'Invoice' | 'Quotation' | 'Receipt';
+  type: 'Invoice' | 'Quotation' | 'Proforma' | 'Receipt';
   
   // Audit Trail
   paymentMethod?: 'Cash' | 'Bank Transfer' | 'EcoCash' | 'Other';

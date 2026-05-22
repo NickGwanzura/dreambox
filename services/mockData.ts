@@ -410,6 +410,47 @@ export const updateContract = (updated: Contract) => {
     notifyListeners();
 };
 
+export const endContract = (id: string) => {
+    const contract = contracts.find(c => c.id === id);
+    if (!contract) {
+        console.error('Contract not found for ending:', id);
+        return;
+    }
+
+    const endedContract: Contract = {
+        ...contract,
+        status: 'Expired',
+        lastModifiedDate: new Date().toISOString(),
+        lastModifiedBy: `${(() => { try { const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER); if (stored) { const u = JSON.parse(stored); return u?.firstName || u?.name || u?.email || 'Current User'; } } catch (_) {} return 'Current User'; })()}`,
+    };
+
+    contracts = contracts.map(c => c.id === endedContract.id ? endedContract : c);
+    saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
+    syncToNeon('contracts', endedContract);
+
+    // Recalculate billboard availability to free up side/slot
+    recalcBillboardAvailability(contract.billboardId);
+
+    syncToCloudMirror();
+    logAction('End Contract', `Ended contract ${id} — marked as Expired, availability freed`);
+    notifyListeners();
+};
+
+export const convertInvoiceType = (id: string, newType: Invoice['type']) => {
+    const invoice = invoices.find(i => i.id === id);
+    if (!invoice) {
+        console.error('Invoice not found for type conversion:', id);
+        return;
+    }
+    const updated: Invoice = { ...invoice, type: newType };
+    invoices = invoices.map(i => i.id === updated.id ? updated : i);
+    saveToStorage(STORAGE_KEYS.INVOICES, invoices);
+    syncToCloudMirror();
+    syncToNeon('invoices', updated);
+    logAction('Convert Invoice Type', `Converted Invoice #${id} to ${newType}`);
+    notifyListeners();
+};
+
 const recalcBillboardAvailability = (billboardId: string) => {
     const b = billboards.find(x => x.id === billboardId);
     if (!b) return;

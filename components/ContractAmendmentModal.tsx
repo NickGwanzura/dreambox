@@ -3,7 +3,7 @@ import { Contract, ContractAmendment, Invoice } from '../types';
 import { addMonths, calculateContractMonths, calculateContractMonthsSafe } from '../utils/contractDate';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
-import { getContractAmendmentsForContract, addContractAmendment, deleteContractAmendment, updateContract, invoices, getContracts, getBillboards, addInvoice } from '../services/mockData';
+import { getContractAmendmentsForContract, addContractAmendment, deleteContractAmendment, updateContract, invoices, getContracts, getBillboards, addInvoice, updateInvoice, deleteInvoice, logAction } from '../services/mockData';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { X, AlertTriangle, CheckCircle, Calendar, TrendingUp, TrendingDown, FileText, History, ArrowRight, Loader2, Clock, DollarSign, Trash2 } from 'lucide-react';
 
@@ -255,6 +255,52 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             status: 'Pending',
             type: 'Invoice',
           });
+        }
+      }
+
+      // --- FEATURE: Amend invoices tied to this contract ---
+
+      // For rate changes: update all pending/unpaid invoices tied to this contract with the new rate
+      if (activeTab === 'rate_change' && effectiveMonthlyRate !== contract.monthlyRate) {
+        const contractInvoices = invoices.filter(i =>
+          i.contractId === contract.id &&
+          String(i.type || '').toLowerCase() === 'invoice' &&
+          (i.status === 'Pending' || i.status === 'Overdue')
+        );
+        contractInvoices.forEach(inv => {
+          // Recalculate each invoice with the new monthly rate
+          // If the invoice has a single line item matching the contract's monthly rental, update it
+          const updatedItems = inv.items.map(item => {
+            // Match items that look like monthly rental lines
+            if (item.description && (item.description.toLowerCase().includes('monthly rental') || item.description.includes(contract.id))) {
+              return { ...item, amount: effectiveMonthlyRate };
+            }
+            return item;
+          });
+          const newGross = updatedItems.reduce((sum, it) => sum + it.amount, 0);
+          const { subtotal: newSubtotal, vat: newVat } = contract.hasVat
+            ? splitInclusiveVat(newGross, vatRate)
+            : { subtotal: newGross, vat: 0 };
+          updateInvoice({
+            ...inv,
+            items: updatedItems,
+            subtotal: newSubtotal,
+            vatAmount: newVat,
+            total: newGross,
+          });
+        });
+        if (contractInvoices.length > 0) {
+          logAction('Rate Change', `Updated ${contractInvoices.length} invoice(s) for contract ${contract.id} with new rate $${effectiveMonthlyRate}`);
+        }
+      }
+
+      // For reductions: delete/cancel invoices that fall beyond the new end date
+      if (activeTab === 'reduction' && isReduction && affectedInvoices.length > 0) {
+        affectedInvoices.forEach(inv => {
+          deleteInvoice(inv.id);
+        });
+        if (affectedInvoices.length > 0) {
+          logAction('Reduction', `Removed ${affectedInvoices.length} invoice(s) beyond new end date for contract ${contract.id}`);
         }
       }
 

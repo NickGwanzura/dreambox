@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract } from '../services/mockData';
+import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract, endContract } from '../services/mockData';
 import { generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, Invoice } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
 import { addMonths, calculateContractMonths, calculateContractMonthsSafe } from '../utils/contractDate';
-import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle, Loader2, Search, History } from 'lucide-react';
+import { FileText, Calendar, Download, Eye, Plus, X, Wand2, RefreshCw, CheckCircle, Trash2, AlertTriangle, GanttChart, List, Lock, Edit, RotateCcw, MessageCircle, UserCircle, Loader2, Search, History, XCircle } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
 import { getProductionFee } from '../utils/productionFee';
@@ -764,6 +764,11 @@ export const Rentals: React.FC = () => {
                         <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
                             <Calendar size={14} /> <span className="hidden sm:inline">Amend</span><span className="sm:hidden">Amend</span>
                         </button>
+                        {!isContractExpired(contract) && (
+                            <button onClick={() => { if (window.confirm(`End contract ${contract.id}? This will mark it as Expired, free billboard availability, and stop all future billing.`)) { endContract(contract.id); } }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                                <XCircle size={14} /> <span className="hidden sm:inline">End Contract</span><span className="sm:hidden">End</span>
+                            </button>
+                        )}
                         {isContractExpired(contract) && (
                             <button onClick={() => { setRenewRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1">
                                 <RotateCcw size={14} /> <span className="hidden sm:inline">Renew</span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, addContract, updateContract, subscribe, getEffectiveVatRate } from '../services/mockData';
+import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, addContract, updateContract, subscribe, getEffectiveVatRate, endContract } from '../services/mockData';
 import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
@@ -7,7 +7,7 @@ import { ContractAmendmentModal } from './ContractAmendmentModal';
 import { Contract, BillboardType } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { addMonths, calculateContractMonths, calculateContractMonthsSafe } from '../utils/contractDate';
-import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, RotateCcw, Send, Loader2, Search } from 'lucide-react';
+import { FileText, Calendar, Download, X, Eye, Clock, Plus as PlusIcon, Edit, CheckCircle, AlertTriangle, RotateCcw, Send, Loader2, Search, XCircle } from 'lucide-react';
 
 export const ContractList: React.FC = () => {
   const vatRate = getEffectiveVatRate();
@@ -414,6 +414,11 @@ export const ContractList: React.FC = () => {
                 <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
                   <Calendar size={14} /> <span className="hidden sm:inline">Adjust Term</span><span className="sm:hidden">Term</span>
                 </button>
+                {!isContractExpired(contract) && (
+                  <button onClick={() => { if (window.confirm(`End contract ${contract.id}? This will mark it as Expired, free billboard availability, and stop all future billing.`)) { endContract(contract.id); } }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                    <XCircle size={14} /> <span className="hidden sm:inline">End Contract</span><span className="sm:hidden">End</span>
+                  </button>
+                )}
                 {isContractExpired(contract) && <button onClick={() => { setRenewContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1">
                   <RotateCcw size={14} /> <span className="sm:hidden">Renew</span><span className="hidden sm:inline">Renew</span>
                 </button>}

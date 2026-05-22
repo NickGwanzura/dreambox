@@ -503,6 +503,7 @@ enum InvoiceStatus {
 enum InvoiceType {
   Invoice
   Quotation
+  Proforma
   Receipt
 }
 
