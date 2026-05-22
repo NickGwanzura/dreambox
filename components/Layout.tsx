@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  LayoutDashboard, Map, Users, FileText, CreditCard, Receipt, Settings as SettingsIcon,
+  LayoutDashboard, Map, MapPin, Users, FileText, CreditCard, Receipt, Settings as SettingsIcon,
   Menu, X, Bell, LogOut, Printer, Globe, PieChart, Wallet, ChevronRight, CheckSquare, Wrench, Database, RefreshCw,
   Building2, Target, FileSignature
 } from 'lucide-react';
@@ -195,6 +195,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     { id: 'analytics', label: 'Profit & Analytics', icon: PieChart, roles: ['Admin', 'Manager'] },
     { id: 'crm', label: 'CRM & Outreach', icon: Target, roles: null },
     { id: 'billboards', label: 'Billboards', icon: Map, roles: null },
+    { id: 'locations', label: 'Billboard Locations', icon: MapPin, roles: null, external: true },
     { id: 'contracts', label: 'Contracts', icon: FileText, roles: null },
     { id: 'maintenance', label: 'Maintenance', icon: Wrench, roles: ['Admin', 'Manager', 'Staff'] },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, roles: ['Admin', 'Manager', 'Staff'] },
@@ -276,7 +277,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             return (
               <button
                 key={item.id}
-                onClick={() => { onNavigate(item.id); setSidebarOpen(false); }}
+                onClick={() => {
+                  if ((item as any).external) {
+                    window.open('/locations', '_blank');
+                  } else {
+                    onNavigate(item.id);
+                  }
+                  setSidebarOpen(false);
+                }}
                 className={`group flex items-center w-full px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 relative overflow-hidden ${
                   isActive 
                     ? 'text-white shadow-md shadow-indigo-900/20' 

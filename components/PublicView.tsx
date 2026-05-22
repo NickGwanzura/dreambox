@@ -1,9 +1,9 @@
-
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { getBillboards, getCompanyLogo, getContracts } from '../services/mockData';
 import { Billboard, Contract } from '../types';
+import { estimateDailyViews } from '../services/aiService';
 import L from 'leaflet';
-import { MapPin, Maximize2, Car, Layers, Zap, X, ExternalLink, DollarSign, CheckCircle, XCircle, Clock, Phone, Mail, AlertTriangle } from 'lucide-react';
+import { MapPin, Maximize2, Car, Layers, Zap, X, ExternalLink, DollarSign, CheckCircle, XCircle, Clock, Phone, Mail, AlertTriangle, Search, Filter, ImageIcon } from 'lucide-react';
 
 const toSlug = (name: string): string =>
     name.toLowerCase()
@@ -17,6 +17,20 @@ interface PublicViewProps {
     billboardId?: string;
 }
 
+// Zimbabwe approximate bounding box
+const ZIM_BOUNDS = L.latLngBounds(
+    L.latLng(-22.4, 25.2),  // SW corner
+    L.latLng(-15.6, 33.1)   // NE corner
+);
+
+const ZIM_DEFAULT_CENTER: [number, number] = [-19.0, 29.9];
+
+const formatCompactNumber = (n: number): string => {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(0) + 'K';
+    return n.toLocaleString();
+};
+
 export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => {
     const [billboard, setBillboard] = useState<Billboard | null>(null);
     const [allBillboards, setAllBillboards] = useState<Billboard[]>([]);
@@ -24,6 +38,62 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
     const mapRef = useRef<L.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const logo = getCompanyLogo();
+
+    // Map view state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [townFilter, setTownFilter] = useState<string>('all');
+    const [typeFilter, setTypeFilter] = useState<string>('all');
+    const [viewEstimates, setViewEstimates] = useState<Record<string, { dailyTraffic: number; description: string }>>({});
+    const [estimating, setEstimating] = useState<Set<string>>(new Set());
+    const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
+
+    // Towns list for filter
+    const towns = useMemo(() => {
+        const unique = new Set(allBillboards.map(b => b.town).filter(Boolean));
+        return Array.from(unique).sort();
+    }, [allBillboards]);
+
+    // Filtered billboards for map sidebar
+    const filteredBillboards = useMemo(() => {
+        let result = allBillboards.filter(b => b.coordinates);
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(b =>
+                b.name.toLowerCase().includes(q) ||
+                b.location.toLowerCase().includes(q) ||
+                b.town.toLowerCase().includes(q)
+            );
+        }
+        if (townFilter !== 'all') {
+            result = result.filter(b => b.town === townFilter);
+        }
+        if (typeFilter !== 'all') {
+            result = result.filter(b => b.type === typeFilter);
+        }
+        return result;
+    }, [allBillboards, searchQuery, townFilter, typeFilter]);
+
+    // Fetch Groq estimate for a billboard
+    const fetchViewEstimate = useCallback(async (board: Billboard) => {
+        if (estimating.has(board.id) || viewEstimates[board.id]) return;
+        setEstimating(prev => new Set(prev).add(board.id));
+        try {
+            const result = await estimateDailyViews(board);
+            setViewEstimates(prev => ({ ...prev, [board.id]: result }));
+        } finally {
+            setEstimating(prev => {
+                const next = new Set(prev);
+                next.delete(board.id);
+                return next;
+            });
+        }
+    }, [estimating, viewEstimates]);
+
+    // Pre-fetch estimates for billboards without dailyTraffic on mount
+    useEffect(() => {
+        const boardsWithoutTraffic = allBillboards.filter(b => !b.dailyTraffic);
+        boardsWithoutTraffic.forEach(b => fetchViewEstimate(b));
+    }, [allBillboards.length]);
 
     useEffect(() => {
         const boards = getBillboards();
@@ -42,19 +112,49 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
         [allBillboards, billboard?.id]
     );
 
+    // Focus map on a specific billboard
+    const focusMapOnBillboard = useCallback((boardId: string) => {
+        const board = allBillboards.find(b => b.id === boardId);
+        if (board?.coordinates && mapRef.current) {
+            mapRef.current.setView([board.coordinates.lat, board.coordinates.lng], 14, { animate: true });
+            setSelectedBoardId(boardId);
+        }
+    }, [allBillboards]);
+
+    // Get effective daily views (data or AI estimate)
+    const getEffectiveViews = useCallback((board: Billboard): number => {
+        if (board.dailyTraffic) return board.dailyTraffic;
+        const estimate = viewEstimates[board.id];
+        return estimate?.dailyTraffic || board.dailyTraffic || 0;
+    }, [viewEstimates]);
+
     useEffect(() => {
         // Initialize Map
         if (!mapContainerRef.current) return;
         
         // If map doesn't exist, create it
         if (!mapRef.current) {
-            const defaultCoords: [number, number] = [-17.824858, 31.053028]; // Harare Default
+            const map = L.map(mapContainerRef.current, {
+                maxBounds: ZIM_BOUNDS,
+                maxBoundsViscosity: 1.0,
+                minZoom: 6,
+            }).setView(ZIM_DEFAULT_CENTER, 7);
             
-            const map = L.map(mapContainerRef.current).setView(defaultCoords, 13);
             mapRef.current = map;
             
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
-                attribution: 'OpenStreetMap' 
+                attribution: 'OpenStreetMap',
+                noWrap: true,
+                bounds: ZIM_BOUNDS,
+            }).addTo(map);
+
+            // Add Zimbabwe outline overlay hint
+            L.rectangle(ZIM_BOUNDS, {
+                color: '#4f46e5',
+                weight: 2,
+                fill: false,
+                dashArray: '5, 10',
+                opacity: 0.3,
             }).addTo(map);
         }
 
@@ -80,12 +180,20 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             iconAnchor: [6, 6],
             popupAnchor: [0, -8]
         });
+        const SelectedIcon = L.divIcon({
+            className: 'dreambox-selected-marker',
+            html: `<div style="width:28px;height:28px;border-radius:50%;background:#059669;border:3px solid #fff;box-shadow:0 0 0 4px rgba(5,150,105,0.35),0 4px 14px rgba(15,23,42,0.4);"></div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+            popupAnchor: [0, -16]
+        });
 
         const renderOtherPopup = (b: Billboard) => `
             <div style="min-width:170px;">
                 <strong>${b.name}</strong><br/>
                 <span style="font-size:10px; color:#666;">${b.type} • ${b.width}x${b.height}m</span><br/>
                 <span style="font-size:10px; color:#666;">${b.location}, ${b.town}</span><br/>
+                <span style="font-size:10px; color:#666;">Views: ${formatCompactNumber(getEffectiveViews(b))}/day</span><br/>
                 <a href="${billboardLink(b)}" style="color:#6366f1; font-size:10px; text-decoration:none; font-weight:bold;">View Details &rarr;</a>
             </div>
         `;
@@ -97,7 +205,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             }
         });
 
-        const boards = allBillboards;
+        const boards = type === 'map' ? filteredBillboards : allBillboards;
 
         if (type === 'billboard' && billboard && billboard.coordinates) {
             // Plot every other location as a muted secondary marker
@@ -121,11 +229,16 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                     boards.filter(b => b.coordinates).map(b => [b.coordinates.lat, b.coordinates.lng])
                 );
                 map.fitBounds(bounds, { padding: [50, 50] });
+                // Don't zoom out past Zimbabwe
+                if (map.getZoom() > 12) map.setZoom(12);
             }
 
             boards.forEach(b => {
                 if (b.coordinates) {
-                    L.marker([b.coordinates.lat, b.coordinates.lng], { icon: DefaultIcon })
+                    const isSelected = b.id === selectedBoardId;
+                    const icon = isSelected ? SelectedIcon : DefaultIcon;
+                    const zIndex = isSelected ? 1000 : 0;
+                    L.marker([b.coordinates.lat, b.coordinates.lng], { icon, zIndexOffset: zIndex })
                         .addTo(map)
                         .bindPopup(renderOtherPopup(b));
                 }
@@ -134,7 +247,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
         map.invalidateSize();
 
-    }, [billboard, type, allBillboards]);
+    }, [billboard, type, filteredBillboards, allBillboards, selectedBoardId, viewEstimates]);
 
     if (type === 'billboard' && !billboard) {
         return (
@@ -181,9 +294,12 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 {billboard.imageUrl ? (
                                     <img src={billboard.imageUrl} className="w-full h-full object-cover" alt={billboard.name} />
                                 ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center text-white/30 gap-2">
-                                        <div className="p-4 rounded-full bg-white/5"><Maximize2 size={32}/></div>
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-white/30 gap-3">
+                                        <div className="p-4 rounded-full bg-white/5"><ImageIcon size={40}/></div>
                                         <span className="text-xs uppercase tracking-widest font-bold">No Image Available</span>
+                                        <span className="text-[10px] text-white/20 px-4 text-center max-w-xs leading-relaxed">
+                                            Billboard images are coming soon. Check back for a visual preview of this location.
+                                        </span>
                                     </div>
                                 )}
                                 <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full border border-white/30 shadow-lg">
@@ -199,8 +315,29 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 </div>
                                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-md transition-shadow">
                                     <div className="text-indigo-500 mb-2 flex justify-center"><Car size={24}/></div>
-                                    <div className="font-black text-slate-800 text-lg">{billboard.dailyTraffic?.toLocaleString() || '-'}</div>
-                                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Daily Views</div>
+                                    <div className="font-black text-slate-800 text-lg">
+                                        {billboard.dailyTraffic 
+                                            ? billboard.dailyTraffic.toLocaleString() 
+                                            : viewEstimates[billboard.id]
+                                                ? viewEstimates[billboard.id].dailyTraffic.toLocaleString() + '*'
+                                                : estimating.has(billboard.id)
+                                                    ? '...'
+                                                    : '-'
+                                        }
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                                        {billboard.dailyTraffic 
+                                            ? 'Daily Views'
+                                            : viewEstimates[billboard.id]
+                                                ? 'Est. Daily Views*'
+                                                : 'Daily Views'
+                                        }
+                                    </div>
+                                    {viewEstimates[billboard.id] && !billboard.dailyTraffic && (
+                                        <div className="text-[8px] text-slate-400 mt-1 italic px-2 leading-tight">
+                                            {viewEstimates[billboard.id].description}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-md transition-shadow">
                                     <div className="text-indigo-500 mb-2 flex justify-center"><Layers size={24}/></div>
@@ -360,8 +497,9 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                         {b.imageUrl ? (
                                             <img src={b.imageUrl} alt={b.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-white/30">
-                                                <Maximize2 size={28}/>
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-white/30 gap-1">
+                                                <ImageIcon size={24}/>
+                                                <span className="text-[8px] uppercase tracking-widest font-bold opacity-60">Coming Soon</span>
                                             </div>
                                         )}
                                         <span className="absolute top-2 right-2 bg-white/20 backdrop-blur text-white text-[9px] font-bold px-2 py-0.5 rounded-full border border-white/30">
@@ -375,7 +513,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                         </div>
                                         <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-3 pt-3 border-t border-slate-100">
                                             <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
-                                            <span className="flex items-center gap-1"><Car size={10}/> {b.dailyTraffic ? (b.dailyTraffic / 1000).toFixed(0) + 'k' : '-'}</span>
+                                            <span className="flex items-center gap-1"><Car size={10}/> {b.dailyTraffic ? formatCompactNumber(b.dailyTraffic) : viewEstimates[b.id] ? formatCompactNumber(viewEstimates[b.id].dailyTraffic) + '*' : '-'}</span>
                                         </div>
                                     </div>
                                 </a>
@@ -384,16 +522,150 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                     </div>
                 )}
 
-                {/* Full Map View */}
+                {/* Full Map View with Sidebar Inventory Panel */}
                 {type === 'map' && (
-                    <div className="h-[calc(100vh-140px)] bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden relative">
-                        <div ref={mapContainerRef} className="w-full h-full bg-slate-100 z-0"></div>
-                        <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-3 rounded-2xl shadow-lg border border-slate-200">
-                            <h2 className="font-bold text-slate-800 text-sm">Inventory Map</h2>
-                            <p className="text-xs text-slate-500 font-medium">{allBillboards.length} Locations</p>
+                    <div className="flex gap-0 h-[calc(100vh-140px)]">
+                        {/* Sidebar Inventory Panel */}
+                        <div className="w-[340px] shrink-0 bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col mr-4">
+                            {/* Header */}
+                            <div className="p-4 border-b border-slate-100">
+                                <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <Layers size={16} className="text-indigo-500"/> 
+                                    Inventory
+                                    <span className="text-[10px] font-medium text-slate-400 ml-auto">{filteredBillboards.length} of {allBillboards.length} sites</span>
+                                </h2>
+                                
+                                {/* Search */}
+                                <div className="relative mt-3">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search locations..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200 transition-colors"
+                                    />
+                                    {searchQuery && (
+                                        <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            <X size={14} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Filters */}
+                                <div className="flex gap-2 mt-2">
+                                    <select
+                                        value={townFilter}
+                                        onChange={(e) => setTownFilter(e.target.value)}
+                                        className="flex-1 text-[10px] px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-300 text-slate-600 font-medium"
+                                    >
+                                        <option value="all">All Towns</option>
+                                        {towns.map(t => (
+                                            <option key={t} value={t}>{t}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={typeFilter}
+                                        onChange={(e) => setTypeFilter(e.target.value)}
+                                        className="flex-1 text-[10px] px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-300 text-slate-600 font-medium"
+                                    >
+                                        <option value="all">All Types</option>
+                                        <option value="Static">Static</option>
+                                        <option value="LED">LED</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Billboard List */}
+                            <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+                                {filteredBillboards.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-xs p-4">
+                                        <Search size={24} className="mb-2 opacity-50"/>
+                                        <p>No billboards match your filters.</p>
+                                        <button 
+                                            onClick={() => { setSearchQuery(''); setTownFilter('all'); setTypeFilter('all'); }}
+                                            className="mt-2 text-indigo-500 font-bold hover:text-indigo-700"
+                                        >
+                                            Clear filters
+                                        </button>
+                                    </div>
+                                ) : (
+                                    filteredBillboards.map(b => {
+                                        const effectiveTraffic = getEffectiveViews(b);
+                                        const isSelected = selectedBoardId === b.id;
+                                        return (
+                                            <button
+                                                key={b.id}
+                                                onClick={() => focusMapOnBillboard(b.id)}
+                                                className={`w-full text-left p-3 hover:bg-slate-50 transition-colors border-l-2 ${
+                                                    isSelected ? 'border-l-indigo-500 bg-indigo-50/50' : 'border-l-transparent'
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    {/* Thumbnail placeholder */}
+                                                    <div className="w-10 h-10 rounded-lg bg-slate-200 shrink-0 flex items-center justify-center overflow-hidden">
+                                                        {b.imageUrl ? (
+                                                            <img src={b.imageUrl} alt="" className="w-full h-full object-cover"/>
+                                                        ) : (
+                                                            <ImageIcon size={16} className="text-slate-400" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-bold text-slate-800 text-xs truncate">{b.name}</div>
+                                                        <div className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                                                            <MapPin size={9} className="shrink-0"/> {b.town}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-1.5 text-[9px] text-slate-400 uppercase tracking-wider font-medium">
+                                                            <span>{b.type}</span>
+                                                            <span>·</span>
+                                                            <span>{b.width}x{b.height}m</span>
+                                                            {effectiveTraffic > 0 && (
+                                                                <>
+                                                                    <span>·</span>
+                                                                    <span className="flex items-center gap-0.5">
+                                                                        <Car size={8}/> {formatCompactNumber(effectiveTraffic)}{!b.dailyTraffic && viewEstimates[b.id] ? '*' : ''}/d
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-3 border-t border-slate-100 bg-slate-50/50">
+                                <p className="text-[9px] text-slate-400 leading-relaxed">
+                                    <strong>Note:</strong> Billboard images are coming soon.{' '}
+                                    {Object.keys(viewEstimates).length > 0 && (
+                                        <span>* AI-estimated daily views via Groq.</span>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Map */}
+                        <div className="flex-1 bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden relative">
+                            <div ref={mapContainerRef} className="w-full h-full bg-slate-100 z-0"></div>
+                            
+                            {/* Map overlay info */}
+                            <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-3 rounded-2xl shadow-lg border border-slate-200">
+                                <h2 className="font-bold text-slate-800 text-sm">Zimbabwe Billboard Map</h2>
+                                <p className="text-xs text-slate-500 font-medium">{filteredBillboards.length} Locations</p>
+                            </div>
+
+                            {/* Images coming soon badge */}
+                            <div className="absolute bottom-4 left-4 z-[400] bg-amber-50/90 backdrop-blur px-3 py-2 rounded-xl shadow-sm border border-amber-200 flex items-center gap-2">
+                                <ImageIcon size={12} className="text-amber-500" />
+                                <span className="text-[10px] font-medium text-amber-700">Billboard images coming soon</span>
+                            </div>
                         </div>
                     </div>
                 )}
+
                 {/* Contact CTA */}
                 {type === 'billboard' && billboard && (
                     <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-8 sm:p-10 text-white shadow-xl">

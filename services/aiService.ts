@@ -96,6 +96,43 @@ export const generateBillboardDescription = async (billboard: Billboard): Promis
   }
 };
 
+export const estimateDailyViews = async (billboard: Billboard): Promise<{ dailyTraffic: number; description: string }> => {
+  try {
+    const locationInfo = [
+      'Location: ' + billboard.location + ', ' + billboard.town + ', Zimbabwe',
+      'Type: ' + billboard.type,
+      'Dimensions: ' + billboard.width + 'x' + billboard.height + 'm',
+      billboard.dailyTraffic ? 'Current estimate: ' + billboard.dailyTraffic + ' daily views' : 'No current traffic data',
+    ].join('\n');
+
+    const content = await callAI(
+      [{
+        role: 'user',
+        content: 'You are a traffic analyst for Dreambox Advertising in Zimbabwe. Estimate daily views for this billboard.\n\n' +
+          locationInfo + '\n\n' +
+          'Consider: road classification (highway/arterial/urban), population density of the town/city, typical traffic patterns, pedestrian flow, and commercial activity.\n\n' +
+          'Return ONLY a valid JSON object with:\n' +
+          '{\n' +
+          '  "dailyTraffic": <integer between 500 and 50000>,\n' +
+          '  "description": "<one sentence explaining the estimate based on location factors>"\n' +
+          '}',
+      }],
+      { temperature: 0.3, max_tokens: 150, response_format: { type: 'json_object' } }
+    );
+    const json = JSON.parse(content || '{}');
+    return {
+      dailyTraffic: json.dailyTraffic || billboard.dailyTraffic || 5000,
+      description: json.description || 'Estimated based on location and traffic patterns.',
+    };
+  } catch (e) {
+    logAIError('Daily view estimation failed', e, { feature: 'estimateDailyViews', billboardId: billboard.id });
+    return {
+      dailyTraffic: billboard.dailyTraffic || 5000,
+      description: 'Average estimated daily views based on location.',
+    };
+  }
+};
+
 export const analyzeBillboardLocation = async (location: string, town: string): Promise<{ visibility: string; dailyTraffic: number; coordinates?: { lat: number; lng: number } }> => {
   try {
     const content = await callAI(
