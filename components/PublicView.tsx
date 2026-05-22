@@ -53,9 +53,18 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
         return Array.from(unique).sort();
     }, [allBillboards]);
 
+    // Valid coordinates check: non-null, non-zero lat/lng within Zimbabwe range
+    const hasValidCoordinates = useCallback((b: Billboard): boolean => {
+        return !!(
+            b.coordinates &&
+            b.coordinates.lat !== 0 &&
+            b.coordinates.lng !== 0
+        );
+    }, []);
+
     // Filtered billboards for map sidebar
     const filteredBillboards = useMemo(() => {
-        let result = allBillboards.filter(b => b.coordinates);
+        let result = allBillboards.filter(b => hasValidCoordinates(b));
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             result = result.filter(b =>
@@ -108,18 +117,18 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
     }, [type, billboardId]);
 
     const otherBillboards = useMemo(
-        () => allBillboards.filter(b => b.id !== billboard?.id && b.coordinates),
-        [allBillboards, billboard?.id]
+        () => allBillboards.filter(b => b.id !== billboard?.id && hasValidCoordinates(b)),
+        [allBillboards, billboard?.id, hasValidCoordinates]
     );
 
     // Focus map on a specific billboard
     const focusMapOnBillboard = useCallback((boardId: string) => {
         const board = allBillboards.find(b => b.id === boardId);
-        if (board?.coordinates && mapRef.current) {
-            mapRef.current.setView([board.coordinates.lat, board.coordinates.lng], 14, { animate: true });
+        if (board && hasValidCoordinates(board) && mapRef.current) {
+            mapRef.current.setView([board.coordinates!.lat, board.coordinates!.lng], 14, { animate: true });
             setSelectedBoardId(boardId);
         }
-    }, [allBillboards]);
+    }, [allBillboards, hasValidCoordinates]);
 
     // Get effective daily views (data or AI estimate)
     const getEffectiveViews = useCallback((board: Billboard): number => {
@@ -207,10 +216,10 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
         const boards = type === 'map' ? filteredBillboards : allBillboards;
 
-        if (type === 'billboard' && billboard && billboard.coordinates) {
+        if (type === 'billboard' && billboard && hasValidCoordinates(billboard)) {
             // Plot every other location as a muted secondary marker
             boards.forEach(b => {
-                if (b.id === billboard.id || !b.coordinates) return;
+                if (b.id === billboard.id || !hasValidCoordinates(b)) return;
                 L.marker([b.coordinates.lat, b.coordinates.lng], { icon: OtherIcon, zIndexOffset: 0 })
                     .addTo(map)
                     .bindPopup(renderOtherPopup(b));
@@ -225,16 +234,19 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                 .openPopup();
         } else if (type === 'map') {
             if (boards.length > 0) {
-                const bounds = L.latLngBounds(
-                    boards.filter(b => b.coordinates).map(b => [b.coordinates.lat, b.coordinates.lng])
-                );
-                map.fitBounds(bounds, { padding: [50, 50] });
-                // Don't zoom out past Zimbabwe
-                if (map.getZoom() > 12) map.setZoom(12);
+                const validBoards = boards.filter(b => hasValidCoordinates(b));
+                if (validBoards.length > 0) {
+                    const bounds = L.latLngBounds(
+                        validBoards.map(b => [b.coordinates!.lat, b.coordinates!.lng])
+                    );
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                    // Don't zoom out past Zimbabwe
+                    if (map.getZoom() > 12) map.setZoom(12);
+                }
             }
 
             boards.forEach(b => {
-                if (b.coordinates) {
+                if (hasValidCoordinates(b)) {
                     const isSelected = b.id === selectedBoardId;
                     const icon = isSelected ? SelectedIcon : DefaultIcon;
                     const zIndex = isSelected ? 1000 : 0;
@@ -247,7 +259,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
         map.invalidateSize();
 
-    }, [billboard, type, filteredBillboards, allBillboards, selectedBoardId, viewEstimates]);
+    }, [billboard, type, filteredBillboards, allBillboards, selectedBoardId, viewEstimates, hasValidCoordinates]);
 
     if (type === 'billboard' && !billboard) {
         return (

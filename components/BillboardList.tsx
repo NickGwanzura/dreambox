@@ -273,7 +273,7 @@ export const BillboardList: React.FC = () => {
         const DefaultIcon = L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
         
         filteredBillboards.forEach(b => {
-            if (b.coordinates) {
+            if (b.coordinates && b.coordinates.lat !== 0 && b.coordinates.lng !== 0) {
                 const popupContent = isClientView ? `<div><strong>${b.name}</strong></div>` : `<div><strong>${b.name}</strong><div>${b.location}</div></div>`;
                 L.marker([b.coordinates.lat, b.coordinates.lng], { icon: DefaultIcon }).addTo(map).bindPopup(popupContent);
             }
