@@ -151,13 +151,13 @@ export const SendDocumentModal: React.FC<Props> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">Send {typeLabel}</h2>
-              <p className="text-xs text-slate-500">{documentLabel} &middot; {clientName}</p>
+              <p className="text-xs text-slate-900">{documentLabel} &middot; {clientName}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={sending}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"
+            className="p-2 text-slate-900 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"
             aria-label="Close"
           >
             <X size={20} />
@@ -168,7 +168,7 @@ export const SendDocumentModal: React.FC<Props> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* To */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">To</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">To</label>
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition">
               {to.map((e) => <Chip key={e} value={e} onRemove={() => setTo(to.filter(x => x !== e))} />)}
               <input
@@ -181,12 +181,12 @@ export const SendDocumentModal: React.FC<Props> = ({
                 type="email"
               />
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">Press Enter, comma, or semicolon to add. Backspace removes the last chip.</p>
+            <p className="text-[11px] text-slate-900 mt-1">Press Enter, comma, or semicolon to add. Backspace removes the last chip.</p>
           </div>
 
           {/* CC */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">CC <span className="text-slate-400 font-normal lowercase">(optional)</span></label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">CC <span className="text-slate-900 font-normal lowercase">(optional)</span></label>
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition">
               {cc.map((e) => <Chip key={e} value={e} onRemove={() => setCc(cc.filter(x => x !== e))} tone="slate" />)}
               <input
@@ -203,7 +203,7 @@ export const SendDocumentModal: React.FC<Props> = ({
 
           {/* Subject */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Subject</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Subject</label>
             <input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
@@ -213,14 +213,14 @@ export const SendDocumentModal: React.FC<Props> = ({
 
           {/* Message */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Message</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Message</label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={6}
               className="w-full px-3 py-2 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-900 leading-relaxed resize-y transition"
             />
-            <p className="text-[11px] text-slate-400 mt-1">Replaces the intro paragraph. The {documentType === 'contract' ? 'contract details' : 'itemised breakdown'} and PDF attachment are added automatically.</p>
+            <p className="text-[11px] text-slate-900 mt-1">Replaces the intro paragraph. The {documentType === 'contract' ? 'contract details' : 'itemised breakdown'} and PDF attachment are added automatically.</p>
           </div>
 
           {error && (
@@ -232,13 +232,13 @@ export const SendDocumentModal: React.FC<Props> = ({
 
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center flex-shrink-0">
-          <p className="text-[11px] text-slate-500">PDF will be attached automatically.</p>
+          <p className="text-[11px] text-slate-900">PDF will be attached automatically.</p>
           <div className="flex gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={sending}
-              className="px-5 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
+              className="px-5 py-2 rounded-xl text-sm font-medium text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-40"
             >
               Cancel
             </button>

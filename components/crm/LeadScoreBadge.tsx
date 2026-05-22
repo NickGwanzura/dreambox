@@ -44,7 +44,7 @@ const qualityConfig: Record<LeadQuality, {
   },
   dead: {
     label: 'Dead',
-    color: 'text-slate-600',
+    color: 'text-slate-900',
     bgColor: 'bg-slate-100',
     borderColor: 'border-slate-200',
     icon: AlertCircle,
@@ -84,7 +84,7 @@ export const LeadScoreBadge: React.FC<LeadScoreBadgeProps> = ({
 }) => {
   if (!score) {
     return (
-      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-xs ${className}`}>
+      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-900 text-xs ${className}`}>
         <Sparkles className="w-3 h-3" />
         <span>Not scored</span>
       </div>
@@ -123,7 +123,7 @@ export const LeadScorePill: React.FC<{
 }> = ({ score, onClick }) => {
   if (!score) {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-[10px] text-slate-500 border border-slate-200">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-[10px] text-slate-900 border border-slate-200">
         --
       </span>
     );
@@ -177,7 +177,7 @@ export const LeadScoreBar: React.FC<{
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <p className="text-xs text-slate-500">{config.description}</p>
+      <p className="text-xs text-slate-900">{config.description}</p>
     </div>
   );
 };
@@ -190,8 +190,8 @@ export const ScoreTrend: React.FC<{
   const config = {
     improving: { icon: TrendingUp, color: 'text-emerald-600', label: 'Rising' },
     declining: { icon: TrendingDown, color: 'text-red-600', label: 'Falling' },
-    stable: { icon: Minus, color: 'text-slate-500', label: 'Stable' },
-    unknown: { icon: Minus, color: 'text-slate-400', label: 'No data' },
+    stable: { icon: Minus, color: 'text-slate-900', label: 'Stable' },
+    unknown: { icon: Minus, color: 'text-slate-900', label: 'No data' },
   };
 
   const { icon: Icon, color, label } = config[trend];
@@ -210,7 +210,7 @@ const ScoreTrendIndicator: React.FC<{ score: LeadScore }> = ({ score }) => {
   const config = {
     improving: { icon: TrendingUp, color: 'text-emerald-600' },
     declining: { icon: TrendingDown, color: 'text-red-600' },
-    stable: { icon: Minus, color: 'text-slate-500' },
+    stable: { icon: Minus, color: 'text-slate-900' },
   };
   const { icon: Icon, color } = config[trend];
   
@@ -247,7 +247,7 @@ export const QualityDistribution: React.FC<{
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-slate-900">{count}</span>
-                <span className="text-xs text-slate-500">({percentage}%)</span>
+                <span className="text-xs text-slate-900">({percentage}%)</span>
               </div>
             </div>
             <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">

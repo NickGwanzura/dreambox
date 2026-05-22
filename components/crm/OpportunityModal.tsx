@@ -322,7 +322,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
             {isEditing && leadScore && (
               <div className="flex items-center gap-2 mt-0.5">
                 <LeadScoreBadge score={leadScore} size="sm" />
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-900">
                   {existingContact?.fullName}
                 </span>
               </div>
@@ -356,7 +356,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="px-5 py-2.5 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+              className="px-5 py-2.5 text-sm text-slate-900 hover:text-slate-900 transition-colors"
             >
               Cancel
             </button>
@@ -383,14 +383,14 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 className={`relative flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all ${
                   activeTab === tab.id
                     ? 'bg-white text-slate-900 shadow-md ring-1 ring-slate-200'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                    : 'text-slate-900 hover:text-slate-700 hover:bg-white/50'
                 }`}
               >
                 <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-indigo-600' : ''}`} />
                 <span>{tab.label}</span>
                 {tab.count > 0 && (
                   <span className={`ml-1 px-2 py-0.5 text-xs rounded-full font-bold ${
-                    activeTab === tab.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'
+                    activeTab === tab.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-900'
                   }`}>
                     {tab.count}
                   </span>
@@ -508,7 +508,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                     </div>
                     <div>
                       <h4 className="font-bold text-slate-900">AI Lead Score</h4>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-900 mt-0.5">
                         Updated {new Date(leadScore.calculatedAt).toLocaleTimeString()}
                       </p>
                     </div>
@@ -548,7 +548,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 </FormField>
                 <FormField label="Website">
                   <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                     <input
                       type="text"
                       value={formData.company?.website || ''}
@@ -563,7 +563,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 </FormField>
                 <FormField label="City">
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                     <input
                       type="text"
                       value={formData.company?.city || ''}
@@ -596,7 +596,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 </FormField>
                 <FormField label="Job Title">
                   <div className="relative">
-                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                     <input
                       type="text"
                       value={formData.contact?.jobTitle || ''}
@@ -611,7 +611,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 </FormField>
                 <FormField label="Email">
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                     <input
                       type="email"
                       value={formData.contact?.email || ''}
@@ -626,7 +626,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 </FormField>
                 <FormField label="Phone">
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                     <input
                       type="tel"
                       value={formData.contact?.phone || ''}
@@ -658,7 +658,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 </FormField>
                 <FormField label="Estimated Value">
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                     <input
                       type="number"
                       value={formData.estimatedValue || ''}
@@ -670,7 +670,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 </FormField>
                 <FormField label="Location Interest">
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                     <input
                       type="text"
                       value={formData.locationInterest || ''}
@@ -693,7 +693,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 </FormField>
                 <FormField label="Campaign Duration">
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                     <input
                       type="text"
                       value={formData.campaignDuration || ''}
@@ -721,7 +721,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="Next Follow-up Date">
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                       <input
                         type="date"
                         value={formData.nextFollowUpDate || ''}
@@ -732,7 +732,7 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                   </FormField>
                   <FormField label="Last Contact Date">
                     <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
                       <input
                         type="date"
                         value={formData.lastContactDate || ''}
@@ -857,7 +857,7 @@ const Section: React.FC<{ title: string; icon: any; children: React.ReactNode }>
 
 const FormField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div>
-    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+    <label className="block text-xs font-bold text-slate-900 mb-1.5 uppercase tracking-wider">
       {label}
     </label>
     {children}
@@ -878,12 +878,12 @@ const ActionButton: React.FC<{ onClick: () => void; icon: any; label: string; lo
 );
 
 const EmptyState: React.FC<{ icon: any; title: string; description: string }> = ({ icon: Icon, title, description }) => (
-  <div className="text-center py-12 text-slate-500">
+  <div className="text-center py-12 text-slate-900">
     <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-      <Icon className="w-8 h-8 text-slate-400" />
+      <Icon className="w-8 h-8 text-slate-900" />
     </div>
     <p className="text-lg font-bold text-slate-700">{title}</p>
-    <p className="text-sm text-slate-500 mt-1">{description}</p>
+    <p className="text-sm text-slate-900 mt-1">{description}</p>
   </div>
 );
 
@@ -897,7 +897,7 @@ const ActivityItem: React.FC<{ touchpoint: CRMTouchpoint }> = ({ touchpoint }) =
   const getColor = () => {
     if (touchpoint.type.includes('call')) return 'bg-blue-50 text-blue-600 border-blue-100';
     if (touchpoint.type.includes('email')) return 'bg-indigo-50 text-indigo-600 border-indigo-100';
-    return 'bg-slate-100 text-slate-600 border-slate-200';
+    return 'bg-slate-100 text-slate-900 border-slate-200';
   };
 
   return (
@@ -910,15 +910,15 @@ const ActivityItem: React.FC<{ touchpoint: CRMTouchpoint }> = ({ touchpoint }) =
           <span className="text-sm font-bold text-slate-900 capitalize">
             {touchpoint.type.replace(/_/g, ' ')}
           </span>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-900">
             {new Date(touchpoint.createdAt).toLocaleDateString()}
           </span>
         </div>
         {touchpoint.content && (
-          <p className="text-sm text-slate-600 mt-1">{touchpoint.content}</p>
+          <p className="text-sm text-slate-900 mt-1">{touchpoint.content}</p>
         )}
         {touchpoint.outcome && (
-          <span className="inline-block mt-2 px-2.5 py-1 bg-slate-100 rounded-lg text-xs text-slate-500 border border-slate-200">
+          <span className="inline-block mt-2 px-2.5 py-1 bg-slate-100 rounded-lg text-xs text-slate-900 border border-slate-200">
             {touchpoint.outcome.replace(/_/g, ' ')}
           </span>
         )}
@@ -947,10 +947,10 @@ const TaskItem: React.FC<{ task: CRMTask }> = ({ task }) => {
         {task.status === 'completed' && <CheckCircle2 className="w-4 h-4" />}
       </button>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-bold ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+        <p className={`text-sm font-bold ${task.status === 'completed' ? 'text-slate-900 line-through' : 'text-slate-900'}`}>
           {task.title}
         </p>
-        <p className={`text-xs ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}`}>
+        <p className={`text-xs ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-900'}`}>
           Due {new Date(task.dueDate).toLocaleDateString()}
           {isOverdue && ' (Overdue)'}
         </p>
@@ -960,7 +960,7 @@ const TaskItem: React.FC<{ task: CRMTask }> = ({ task }) => {
           ? 'bg-red-100 text-red-700 border-red-200'
           : task.priority === 'medium'
             ? 'bg-amber-100 text-amber-700 border-amber-200'
-            : 'bg-slate-100 text-slate-600 border-slate-200'
+            : 'bg-slate-100 text-slate-900 border-slate-200'
       }`}>
         {task.priority}
       </span>

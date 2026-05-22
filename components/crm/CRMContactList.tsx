@@ -67,7 +67,7 @@ export const CRMContactList: React.FC<CRMContactListProps> = ({
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Table Header */}
-      <div className="grid grid-cols-12 gap-4 p-5 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+      <div className="grid grid-cols-12 gap-4 p-5 border-b border-slate-200 text-xs font-bold text-slate-900 uppercase tracking-wider">
         <div className="col-span-3">Company & Contact</div>
         <div className="col-span-1">Score</div>
         <div className="col-span-2">Status</div>
@@ -89,12 +89,12 @@ export const CRMContactList: React.FC<CRMContactListProps> = ({
       </div>
 
       {opportunities.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+        <div className="flex flex-col items-center justify-center py-16 text-slate-900">
           <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-            <Building2 className="w-8 h-8 text-slate-400" />
+            <Building2 className="w-8 h-8 text-slate-900" />
           </div>
           <p className="text-lg font-bold text-slate-700">No opportunities found</p>
-          <p className="text-sm text-slate-500 mt-1">Try adjusting your filters or add a new opportunity</p>
+          <p className="text-sm text-slate-900 mt-1">Try adjusting your filters or add a new opportunity</p>
         </div>
       )}
     </div>
@@ -137,11 +137,11 @@ const ContactRow: React.FC<ContactRowProps> = ({ opportunity, onClick }) => {
             {company?.name || 'Unknown Company'}
           </h4>
           <div className="flex items-center gap-2">
-            <p className="text-xs text-slate-500 truncate">
+            <p className="text-xs text-slate-900 truncate">
               {primaryContact?.fullName || 'No primary contact'}
             </p>
             {allContacts.length > 1 && (
-              <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full border border-slate-200">
+              <span className="text-[10px] text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded-full border border-slate-200">
                 +{allContacts.length - 1}
               </span>
             )}
@@ -164,13 +164,13 @@ const ContactRow: React.FC<ContactRowProps> = ({ opportunity, onClick }) => {
       {/* Location & Type */}
       <div className="col-span-2 flex flex-col justify-center gap-1">
         {opportunity.locationInterest && (
-          <div className="flex items-center gap-1.5 text-sm text-slate-600">
-            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center gap-1.5 text-sm text-slate-900">
+            <MapPin className="w-3.5 h-3.5 text-slate-900" />
             <span className="truncate">{opportunity.locationInterest}</span>
           </div>
         )}
         {opportunity.billboardType && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <div className="flex items-center gap-1.5 text-xs text-slate-900">
             <Layers className="w-3.5 h-3.5" />
             <span>{opportunity.billboardType}</span>
           </div>
@@ -184,7 +184,7 @@ const ContactRow: React.FC<ContactRowProps> = ({ opportunity, onClick }) => {
             {formatCurrency(opportunity.estimatedValue)}
           </p>
           {opportunity.campaignDuration && (
-            <p className="text-xs text-slate-500">{opportunity.campaignDuration}</p>
+            <p className="text-xs text-slate-900">{opportunity.campaignDuration}</p>
           )}
         </div>
       </div>
@@ -197,19 +197,19 @@ const ContactRow: React.FC<ContactRowProps> = ({ opportunity, onClick }) => {
               ? 'bg-red-100 text-red-700 border-red-200' 
               : isToday(opportunity.nextFollowUpDate)
                 ? 'bg-amber-100 text-amber-700 border-amber-200'
-                : 'bg-slate-100 text-slate-600 border-slate-200'
+                : 'bg-slate-100 text-slate-900 border-slate-200'
           }`}>
             <Calendar className="w-3 h-3" />
             {formatDate(opportunity.nextFollowUpDate)}
           </span>
         ) : (
-          <span className="text-xs text-slate-400">-</span>
+          <span className="text-xs text-slate-900">-</span>
         )}
       </div>
 
       {/* Actions */}
       <div className="col-span-1 flex items-center justify-end">
-        <button className="p-2 text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-indigo-50 rounded-xl">
+        <button className="p-2 text-slate-900 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-indigo-50 rounded-xl">
           <ArrowUpRight className="w-4 h-4" />
         </button>
       </div>

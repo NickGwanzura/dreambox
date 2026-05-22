@@ -31,7 +31,7 @@ export const LoadingButton: React.FC<LoadingButtonProps> = ({
     primary: 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/25 focus:ring-indigo-500/50 active:scale-[0.98] border border-white/10',
     secondary: 'bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 focus:ring-white/20',
     danger: 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/20 focus:ring-red-500',
-    ghost: 'bg-transparent hover:bg-white/5 text-slate-400 hover:text-white focus:ring-white/10',
+    ghost: 'bg-transparent hover:bg-white/5 text-slate-900 hover:text-white focus:ring-white/10',
   };
   
   const sizeStyles = {

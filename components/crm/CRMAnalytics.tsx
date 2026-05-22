@@ -83,7 +83,7 @@ export const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ metrics }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold text-slate-900">Analytics Overview</h3>
-          <p className="text-sm text-slate-500">Performance metrics and pipeline insights</p>
+          <p className="text-sm text-slate-900">Performance metrics and pipeline insights</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -238,7 +238,7 @@ export const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ metrics }) => {
                   className="w-3 h-3 rounded-full" 
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-sm text-slate-600">{item.name}</span>
+                <span className="text-sm text-slate-900">{item.name}</span>
               </div>
             ))}
           </div>
@@ -257,14 +257,14 @@ export const CRMAnalytics: React.FC<CRMAnalyticsProps> = ({ metrics }) => {
                   <item.icon className="w-5 h-5 text-indigo-600" />
                 </div>
                 <p className="text-2xl font-black text-slate-900">{item.value}</p>
-                <p className="text-xs text-slate-500 mt-1 font-medium">{item.name}</p>
+                <p className="text-xs text-slate-900 mt-1 font-medium">{item.name}</p>
               </div>
             ))}
           </div>
 
           {/* Conversion Rates */}
           <div className="mt-6 pt-6 border-t border-slate-100">
-            <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Conversion Rates</h4>
+            <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Conversion Rates</h4>
             <div className="grid grid-cols-4 gap-4">
               <ConversionRate 
                 label="Lead → Contacted" 
@@ -313,13 +313,13 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon: Icon,
   return (
     <div className={`${c.bg} rounded-3xl p-5 border ${c.border} shadow-sm`}>
       <div className="flex items-start justify-between mb-3">
-        <span className="text-sm font-bold text-slate-600 uppercase tracking-wider">{title}</span>
+        <span className="text-sm font-bold text-slate-900 uppercase tracking-wider">{title}</span>
         <div className={`w-10 h-10 rounded-xl ${c.iconBg} flex items-center justify-center`}>
           <Icon className={`w-5 h-5 ${c.text}`} />
         </div>
       </div>
       <p className="text-2xl font-black text-slate-900">{value}</p>
-      <p className="text-xs text-slate-500 mt-1 font-medium">{subtitle}</p>
+      <p className="text-xs text-slate-900 mt-1 font-medium">{subtitle}</p>
     </div>
   );
 };
@@ -352,6 +352,6 @@ const ConversionRate: React.FC<{ label: string; rate: number }> = ({ label, rate
         {rate}%
       </span>
     </div>
-    <p className="text-xs text-slate-500 font-medium">{label}</p>
+    <p className="text-xs text-slate-900 font-medium">{label}</p>
   </div>
 );

@@ -146,14 +146,14 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 text-sm font-semibold uppercase tracking-wider">
+        <button onClick={onBack} className="flex items-center gap-2 text-slate-900 hover:text-slate-900 text-sm font-semibold uppercase tracking-wider">
           <ArrowLeft size={16} /> Back to Directory
         </button>
         <div className="flex gap-3">
-          <button onClick={() => onEdit(client)} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-slate-50 flex items-center gap-2">
+          <button onClick={() => onEdit(client)} className="bg-white border border-slate-200 text-slate-900 px-4 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-slate-50 flex items-center gap-2">
             <Edit2 size={14} /> Edit Client
           </button>
-          <button onClick={() => openCreate('Quotation')} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-slate-50 flex items-center gap-2">
+          <button onClick={() => openCreate('Quotation')} className="bg-white border border-slate-200 text-slate-900 px-4 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-slate-50 flex items-center gap-2">
             <FileText size={14} /> New Quotation
           </button>
           <button onClick={() => openCreate('Invoice')} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg">
@@ -172,10 +172,10 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
             <h2 className="text-3xl font-extrabold tracking-tight">{client.companyName}</h2>
             <p className="text-sm text-slate-300 mt-1 flex items-center gap-2"><User size={14} className="text-indigo-300"/> {client.contactPerson}</p>
             <div className="flex flex-wrap gap-4 mt-4 text-sm text-slate-300">
-              <span className="flex items-center gap-2"><Mail size={14} className="text-slate-400" /> {client.email || '—'}</span>
-              <span className="flex items-center gap-2"><Phone size={14} className="text-slate-400" /> {client.phone || '—'}</span>
+              <span className="flex items-center gap-2"><Mail size={14} className="text-slate-900" /> {client.email || '—'}</span>
+              <span className="flex items-center gap-2"><Phone size={14} className="text-slate-900" /> {client.phone || '—'}</span>
               {client.billingDay && (
-                <span className="flex items-center gap-2"><Calendar size={14} className="text-slate-400" /> Bills on day {client.billingDay}</span>
+                <span className="flex items-center gap-2"><Calendar size={14} className="text-slate-900" /> Bills on day {client.billingDay}</span>
               )}
               <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${client.status === 'Active' ? 'bg-green-500/20 text-green-300' : 'bg-slate-500/20 text-slate-300'}`}>{client.status}</span>
             </div>
@@ -195,20 +195,20 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
       {contracts.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Contracts ({contracts.length})</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">Contracts ({contracts.length})</h3>
           </div>
           <div className="divide-y divide-slate-100">
             {contracts.map(c => (
               <div key={c.id} className="px-6 py-3 flex items-center justify-between text-sm">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-mono text-xs text-slate-400 shrink-0">{c.id}</span>
+                  <span className="font-mono text-xs text-slate-900 shrink-0">{c.id}</span>
                   <span className="font-semibold text-slate-800 truncate">{getBillboardName(c.billboardId) || 'Unknown Billboard'}</span>
-                  <span className="text-xs text-slate-400 shrink-0">{c.details}</span>
+                  <span className="text-xs text-slate-900 shrink-0">{c.details}</span>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
-                  <span className="text-xs text-slate-500">{c.startDate} → {c.endDate}</span>
+                  <span className="text-xs text-slate-900">{c.startDate} → {c.endDate}</span>
                   <span className="font-bold text-slate-800">${c.totalContractValue.toLocaleString()}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${c.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : c.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{c.status}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${c.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : c.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-900 border-slate-100'}`}>{c.status}</span>
                 </div>
               </div>
             ))}
@@ -219,10 +219,10 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
       {/* Documents Section */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Financial Documents</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">Financial Documents</h3>
           <div className="flex gap-1 bg-slate-100 p-1 rounded-full">
             {(['Invoice', 'Quotation', 'Receipt'] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors ${tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors ${tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-900 hover:text-slate-700'}`}>
                 {t}s ({invoices.filter(i => i.type === t).length})
               </button>
             ))}
@@ -230,7 +230,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
         </div>
 
         {filteredDocs.length === 0 ? (
-          <div className="px-6 py-16 text-center text-slate-400">
+          <div className="px-6 py-16 text-center text-slate-900">
             <FileText size={32} className="mx-auto mb-3 opacity-30" />
             <p className="text-sm font-medium">No {tab.toLowerCase()}s for this client yet.</p>
             {tab !== 'Receipt' && (
@@ -243,7 +243,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
-                <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-900">
                   <th className="px-6 py-3">ID</th>
                   <th className="px-6 py-3">Date</th>
                   <th className="px-6 py-3">Description</th>
@@ -255,8 +255,8 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.map(doc => (
                   <tr key={doc.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs text-slate-500">{doc.id}</td>
-                    <td className="px-6 py-3 text-slate-600">{doc.date}</td>
+                    <td className="px-6 py-3 font-mono text-xs text-slate-900">{doc.id}</td>
+                    <td className="px-6 py-3 text-slate-900">{doc.date}</td>
                     <td className="px-6 py-3 text-slate-800 max-w-xs truncate">{doc.items[0]?.description || '—'}{doc.items.length > 1 ? ` +${doc.items.length - 1} more` : ''}</td>
                     <td className="px-6 py-3 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td>
                     <td className="px-6 py-3">
@@ -264,16 +264,16 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
                     </td>
                     <td className="px-6 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => downloadPdf(doc)} title="Download PDF" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors">
+                        <button onClick={() => downloadPdf(doc)} title="Download PDF" className="p-2 text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors">
                           <Download size={14} />
                         </button>
                         {doc.type === 'Invoice' && doc.status !== 'Paid' && (
-                          <button onClick={() => { markInvoiceAsPaid(doc.id); }} title="Mark as paid" className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors">
+                          <button onClick={() => { markInvoiceAsPaid(doc.id); }} title="Mark as paid" className="p-2 text-slate-900 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors">
                             <CheckCircle size={14} />
                           </button>
                         )}
                         {canUserDelete && (
-                          <button onClick={() => { if (confirm(`Delete ${doc.type} ${doc.id}?`)) deleteInvoice(doc.id); }} title="Delete" className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
+                          <button onClick={() => { if (confirm(`Delete ${doc.type} ${doc.id}?`)) deleteInvoice(doc.id); }} title="Delete" className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
                             <Trash2 size={14} />
                           </button>
                         )}
@@ -294,19 +294,19 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">New {docType}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">For {client.companyName}</p>
+                <p className="text-xs text-slate-900 mt-0.5">For {client.companyName}</p>
               </div>
-              <button onClick={() => setIsCreateOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => setIsCreateOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
             </div>
             <form onSubmit={handleCreate} className="p-8 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Date</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Date</label>
                   <input type="date" required value={newDoc.date} onChange={e => setNewDoc({ ...newDoc, date: e.target.value })}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Link Contract (Optional)</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Link Contract (Optional)</label>
                   <select value={newDoc.contractId} onChange={e => setNewDoc({ ...newDoc, contractId: e.target.value })}
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium bg-white">
                     <option value="">None</option>
@@ -319,7 +319,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Line Items</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Line Items</p>
                   <button type="button" onClick={addLine} className="text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
                     <Plus size={12} /> Add Line
                   </button>
@@ -334,7 +334,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
                         onChange={e => updateItem(idx, 'amount', Number(e.target.value))}
                         className="w-32 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-semibold" />
                       {newDoc.items.length > 1 && (
-                        <button type="button" onClick={() => removeLine(idx)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                        <button type="button" onClick={() => removeLine(idx)} className="p-2.5 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
                           <X size={16} />
                         </button>
                       )}
@@ -346,7 +346,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={newDoc.hasVat} onChange={e => setNewDoc({ ...newDoc, hasVat: e.target.checked })}
                   className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                <span className="text-sm font-medium text-slate-600">Amounts include VAT ({vatPct})</span>
+                <span className="text-sm font-medium text-slate-900">Amounts include VAT ({vatPct})</span>
               </label>
 
               {/* Summary */}
@@ -370,7 +370,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setIsCreateOpen(false)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider">Cancel</button>
+                <button type="button" onClick={() => setIsCreateOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider">Cancel</button>
                 <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider flex items-center justify-center gap-2">
                   <CheckCircle size={14} /> Create {docType}
                 </button>
@@ -388,13 +388,13 @@ const MetricCard: React.FC<{ icon: React.ReactNode; label: string; value: string
     indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
     green: 'bg-green-50 text-green-600 border-green-100',
     amber: 'bg-amber-50 text-amber-600 border-amber-100',
-    slate: 'bg-slate-50 text-slate-600 border-slate-100',
+    slate: 'bg-slate-50 text-slate-900 border-slate-100',
   };
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center gap-2 mb-2">
         <div className={`w-8 h-8 rounded-lg border flex items-center justify-center ${tones[tone]}`}>{icon}</div>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">{label}</span>
       </div>
       <p className="text-2xl font-extrabold text-slate-900">{value}</p>
     </div>

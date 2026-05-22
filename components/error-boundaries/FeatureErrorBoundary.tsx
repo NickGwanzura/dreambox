@@ -60,14 +60,14 @@ export class FeatureErrorBoundary extends React.Component<Props, State> {
               {featureName} Error
             </h3>
             
-            <p className="text-slate-500 mb-6 max-w-md mx-auto">
+            <p className="text-slate-900 mb-6 max-w-md mx-auto">
               Something went wrong in the {featureName.toLowerCase()} section. 
               Try refreshing or go back to the dashboard.
             </p>
             
             {error && (
               <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left max-w-lg mx-auto">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Error Details</p>
+                <p className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-2">Error Details</p>
                 <code className="text-xs text-red-600 block overflow-x-auto">
                   {error.message}
                 </code>

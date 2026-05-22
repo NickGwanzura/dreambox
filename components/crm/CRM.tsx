@@ -199,7 +199,7 @@ export const CRM: React.FC = () => {
               {opportunities.length} leads
             </span>
           </div>
-          <p className="text-slate-500">Track leads, manage outreach, and close billboard advertising deals</p>
+          <p className="text-slate-900">Track leads, manage outreach, and close billboard advertising deals</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -233,7 +233,7 @@ export const CRM: React.FC = () => {
             
             {showPdfMenu && (
               <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-lg py-2 z-50">
-                <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <div className="px-3 py-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
                   Generate PDF Reports
                 </div>
                 <button
@@ -308,9 +308,9 @@ export const CRM: React.FC = () => {
               )}
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">{stat.label}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">{stat.label}</p>
               <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stat.value}</h3>
-              <p className="text-xs text-slate-500 mt-1">{stat.subtext}</p>
+              <p className="text-xs text-slate-900 mt-1">{stat.subtext}</p>
             </div>
           </div>
         ))}
@@ -327,7 +327,7 @@ export const CRM: React.FC = () => {
               className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 view === tab.id
                   ? 'bg-slate-900 text-white shadow-md'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  : 'text-slate-900 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -345,7 +345,7 @@ export const CRM: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
           {/* Search */}
           <div className="relative group w-full sm:w-64">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900 group-focus-within:text-indigo-500 transition-colors" />
             <input
               type="text"
               placeholder="Search leads..."
@@ -357,7 +357,7 @@ export const CRM: React.FC = () => {
 
           {/* Status Filter */}
           <div className="relative">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as OpportunityStatus | 'all')}
@@ -368,7 +368,7 @@ export const CRM: React.FC = () => {
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900 pointer-events-none" />
           </div>
         </div>
       </div>

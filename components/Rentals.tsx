@@ -26,8 +26,8 @@ const MinimalInput = ({ label, value, onChange, type = "text", required = false,
         placeholder=" "
         className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:opacity-50" 
         />
-        <label className={`absolute left-0 -top-0 text-xs text-slate-400 font-medium transition-all uppercase tracking-wide 
-            ${isDate ? '' : 'peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-6'} 
+        <label className={`absolute left-0 -top-0 text-xs text-slate-900 font-medium transition-all uppercase tracking-wide 
+            ${isDate ? '' : 'peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-6'} 
             peer-focus:-top-0 peer-focus:text-xs peer-focus:text-slate-800 pointer-events-none`}>
         {label}
         </label>
@@ -47,7 +47,7 @@ const MinimalSelect = ({ label, value, onChange, options, disabled = false }: an
         <option key={opt.value} value={opt.value}>{opt.label}</option>
       ))}
     </select>
-    <label className="absolute left-0 -top-0 text-xs text-slate-400 font-medium uppercase tracking-wide">
+    <label className="absolute left-0 -top-0 text-xs text-slate-900 font-medium uppercase tracking-wide">
       {label}
     </label>
   </div>
@@ -616,10 +616,10 @@ export const Rentals: React.FC = () => {
                   <div className="min-w-[1000px]">
                       {/* Header Row */}
                       <div className="flex border-b border-slate-100">
-                          <div className="w-48 p-3 text-xs font-bold text-slate-500 bg-slate-50 sticky left-0 z-10 border-r border-slate-100">Billboard Asset</div>
+                          <div className="w-48 p-3 text-xs font-bold text-slate-900 bg-slate-50 sticky left-0 z-10 border-r border-slate-100">Billboard Asset</div>
                           <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${daysInMonth}, 1fr)` }}>
                               {days.map(d => (
-                                  <div key={d} className="text-[10px] text-center text-slate-400 border-r border-slate-50 py-2">{d}</div>
+                                  <div key={d} className="text-[10px] text-center text-slate-900 border-r border-slate-50 py-2">{d}</div>
                               ))}
                           </div>
                       </div>
@@ -635,7 +635,7 @@ export const Rentals: React.FC = () => {
                               <div key={b.id} className="flex border-b border-slate-100 h-14 relative group hover:bg-slate-50">
                                   <div className="w-48 p-3 text-xs font-bold text-slate-700 bg-white sticky left-0 z-10 border-r border-slate-100 flex flex-col justify-center group-hover:bg-slate-50">
                                       <span className="truncate">{b.name}</span>
-                                      <span className="text-[10px] text-slate-400 font-normal">{b.location}</span>
+                                      <span className="text-[10px] text-slate-900 font-normal">{b.location}</span>
                                   </div>
                                   <div className="flex-1 relative bg-white/50 group-hover:bg-transparent">
                                       {/* Grid Lines */}
@@ -689,25 +689,25 @@ export const Rentals: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Rentals Module</h2>
-            <p className="text-slate-500 font-medium text-sm sm:text-base">Active contracts, renewals, and availability</p>
+            <p className="text-slate-900 font-medium text-sm sm:text-base">Active contracts, renewals, and availability</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-64">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search rentals..."
-                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400"
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900"
               />
             </div>
-              <button onClick={() => generateActiveContractsPDF(rentals, getClientName, getBillboardName)} className="bg-white border border-slate-200 text-slate-600 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2">
+              <button onClick={() => generateActiveContractsPDF(rentals, getClientName, getBillboardName)} className="bg-white border border-slate-200 text-slate-900 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2">
                   <Download size={18}/> Report
               </button>
               <div className="flex bg-slate-100 rounded-full p-1 border border-slate-200">
-                  <button onClick={() => setViewMode('list')} className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}><List size={14}/> List</button>
-                  <button onClick={() => setViewMode('gantt')} className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'gantt' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}><GanttChart size={14}/> Calendar</button>
+                  <button onClick={() => setViewMode('list')} className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-900 hover:text-slate-900'}`}><List size={14}/> List</button>
+                  <button onClick={() => setViewMode('gantt')} className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${viewMode === 'gantt' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-900 hover:text-slate-900'}`}><GanttChart size={14}/> Calendar</button>
               </div>
               <button onClick={() => { setCreateStep(1); setIsCreateModalOpen(true); }} className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2">
                 <Plus size={18} /> <span className="hidden sm:inline">New Rental</span><span className="sm:hidden">New</span>
@@ -725,14 +725,14 @@ export const Rentals: React.FC = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                     <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{getClientName(contract.clientId)}</h3>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 mt-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-900 mt-1">
                         <span className="font-medium text-slate-700 truncate">{getBillboardName(contract.billboardId)}</span>
                         <span className="hidden sm:inline text-slate-300">•</span>
                         <span className={`font-bold px-2 py-0.5 rounded text-[10px] sm:text-xs w-fit ${contract.side ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
                         {contract.details}
                         </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
+                    <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-900 uppercase tracking-wide font-medium flex-wrap">
                         <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
                         <span className="text-slate-300">{calculateContractMonthsSafe(contract.startDate, contract.endDate)} mo</span>
                         <span>ID: {contract.id}</span>
@@ -746,19 +746,19 @@ export const Rentals: React.FC = () => {
                 <div className="flex flex-row lg:flex-col lg:items-end gap-2 w-full lg:w-auto pl-0 lg:pl-16 justify-between lg:justify-start items-center">
                     <div className="flex flex-col lg:items-end">
                         <div className="flex items-center gap-2">
-                            <span className="text-xs sm:text-sm text-slate-400 font-medium hidden sm:inline">Value:</span>
+                            <span className="text-xs sm:text-sm text-slate-900 font-medium hidden sm:inline">Value:</span>
                             <span className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">${contract.totalContractValue.toLocaleString()}</span>
                         </div>
-                        <div className="flex gap-2 text-[10px] text-slate-500 uppercase tracking-wide">
+                        <div className="flex gap-2 text-[10px] text-slate-900 uppercase tracking-wide">
                             {contract.monthlyRate > 0 && <span>${contract.monthlyRate}/mo</span>}
                         </div>
                     </div>
                     
                     <div className="flex gap-2">
-                        <button onClick={() => setSelectedRental(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                        <button onClick={() => setSelectedRental(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
                             <Eye size={14} /> <span className="hidden sm:inline">View</span>
                         </button>
-                        <button onClick={() => { setEditRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                        <button onClick={() => { setEditRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
                             <Edit size={14} /> <span className="hidden sm:inline">Edit</span>
                         </button>
                         <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
@@ -790,7 +790,7 @@ export const Rentals: React.FC = () => {
                         {searchQuery ? <Search className="text-slate-300" size={32}/> : <FileText className="text-slate-300" size={32}/>}
                     </div>
                     <h3 className="text-lg font-bold text-slate-900 mb-1">{searchQuery ? 'No rentals found' : 'No Active Rentals'}</h3>
-                    <p className="text-slate-500 text-sm">{searchQuery ? 'Try adjusting your search terms.' : 'Create a new rental agreement to get started.'}</p>
+                    <p className="text-slate-900 text-sm">{searchQuery ? 'Try adjusting your search terms.' : 'Create a new rental agreement to get started.'}</p>
                 </div>
             )}
             </div>
@@ -805,9 +805,9 @@ export const Rentals: React.FC = () => {
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50 sticky top-0 z-10 backdrop-blur-sm">
                         <div>
                             <h3 className="text-xl font-bold text-slate-900">New Rental Agreement</h3>
-                            <p className="text-xs text-slate-400 mt-0.5">Creates a contract and generates the first month's invoice</p>
+                            <p className="text-xs text-slate-900 mt-0.5">Creates a contract and generates the first month's invoice</p>
                         </div>
-                        <button onClick={() => { setIsCreateModalOpen(false); setCreateStep(1); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                        <button onClick={() => { setIsCreateModalOpen(false); setCreateStep(1); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
                     </div>
                     {/* Progress Stepper */}
                     <div className="px-8 pt-6 pb-4 bg-slate-50/60 border-b border-slate-100">
@@ -822,10 +822,10 @@ export const Rentals: React.FC = () => {
                                 return (
                                     <React.Fragment key={s.n}>
                                         <div className="flex flex-col items-center gap-1">
-                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${done ? 'bg-emerald-500 border-emerald-500 text-white' : active ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border-slate-200 text-slate-400'}`}>
+                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${done ? 'bg-emerald-500 border-emerald-500 text-white' : active ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border-slate-200 text-slate-900'}`}>
                                                 {done ? <CheckCircle size={16}/> : s.n}
                                             </div>
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${active ? 'text-slate-900' : done ? 'text-emerald-600' : 'text-slate-400'}`}>{s.label}</span>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${active ? 'text-slate-900' : done ? 'text-emerald-600' : 'text-slate-900'}`}>{s.label}</span>
                                         </div>
                                         {idx < arr.length - 1 && (
                                             <div className={`flex-1 h-0.5 mx-2 transition-colors ${createStep > s.n ? 'bg-emerald-500' : 'bg-slate-200'}`} />
@@ -844,11 +844,11 @@ export const Rentals: React.FC = () => {
                             <div className="space-y-4 animate-fade-in">
                                 <div>
                                     <h4 className="text-lg font-bold text-slate-900">Who is the client?</h4>
-                                    <p className="text-xs text-slate-400 mt-0.5">Pick the advertiser this contract is for.</p>
+                                    <p className="text-xs text-slate-900 mt-0.5">Pick the advertiser this contract is for.</p>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1">
                                     {clients.length === 0 && (
-                                        <p className="col-span-2 text-sm text-slate-400 italic text-center py-8">No clients found. Add one first under Clients.</p>
+                                        <p className="col-span-2 text-sm text-slate-900 italic text-center py-8">No clients found. Add one first under Clients.</p>
                                     )}
                                     {clients.map(c => {
                                         const isSelected = newRental.clientId === c.id;
@@ -857,12 +857,12 @@ export const Rentals: React.FC = () => {
                                                 className={`text-left p-4 rounded-2xl border-2 transition-all ${isSelected ? 'border-slate-900 bg-slate-900/5 shadow-lg' : 'border-slate-100 hover:border-slate-300 bg-white'}`}>
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="flex items-center gap-3 min-w-0">
-                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isSelected ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isSelected ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-900'}`}>
                                                             {c.companyName.charAt(0)}
                                                         </div>
                                                         <div className="min-w-0">
                                                             <p className="font-bold text-slate-900 truncate">{c.companyName}</p>
-                                                            <p className="text-xs text-slate-400 truncate">{c.contactPerson}</p>
+                                                            <p className="text-xs text-slate-900 truncate">{c.contactPerson}</p>
                                                         </div>
                                                     </div>
                                                     {isSelected && <CheckCircle size={18} className="text-slate-900 shrink-0" />}
@@ -879,11 +879,11 @@ export const Rentals: React.FC = () => {
                             <div className="space-y-4 animate-fade-in">
                                 <div>
                                     <h4 className="text-lg font-bold text-slate-900">Which billboard?</h4>
-                                    <p className="text-xs text-slate-400 mt-0.5">Pick the asset to rent. Side/slot availability is checked on the next step.</p>
+                                    <p className="text-xs text-slate-900 mt-0.5">Pick the asset to rent. Side/slot availability is checked on the next step.</p>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1">
                                     {getBillboards().length === 0 && (
-                                        <p className="col-span-2 text-sm text-slate-400 italic text-center py-8">No billboards in inventory.</p>
+                                        <p className="col-span-2 text-sm text-slate-900 italic text-center py-8">No billboards in inventory.</p>
                                     )}
                                     {getBillboards().map(b => {
                                         const isSelected = newRental.billboardId === b.id;
@@ -899,8 +899,8 @@ export const Rentals: React.FC = () => {
                                                             <p className="font-bold text-slate-900 truncate">{b.name}</p>
                                                             <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${b.type === BillboardType.LED ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>{b.type}</span>
                                                         </div>
-                                                        <p className="text-xs text-slate-500 truncate">{b.location}, {b.town}</p>
-                                                        <p className="text-[11px] text-slate-400 mt-2">{b.width}m × {b.height}m · {rateHint}</p>
+                                                        <p className="text-xs text-slate-900 truncate">{b.location}, {b.town}</p>
+                                                        <p className="text-[11px] text-slate-900 mt-2">{b.width}m × {b.height}m · {rateHint}</p>
                                                     </div>
                                                     {isSelected && <CheckCircle size={18} className="text-slate-900 shrink-0" />}
                                                 </div>
@@ -916,7 +916,7 @@ export const Rentals: React.FC = () => {
                             <div className="space-y-6 animate-fade-in">
                                 <div>
                                     <h4 className="text-lg font-bold text-slate-900">How long and what's the price?</h4>
-                                    <p className="text-xs text-slate-400 mt-0.5">Set dates, side/slot, and pricing.</p>
+                                    <p className="text-xs text-slate-900 mt-0.5">Set dates, side/slot, and pricing.</p>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -926,7 +926,7 @@ export const Rentals: React.FC = () => {
 
                                 {selectedBillboard?.type === BillboardType.Static && (
                                     <div className="space-y-2">
-                                        <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Select Sides (Based on availability)</p>
+                                        <p className="text-xs font-bold uppercase tracking-wide text-slate-900">Select Sides (Based on availability)</p>
                                         <div className="flex flex-col sm:flex-row gap-4">
                                             {(['A', 'B', 'Both'] as const).map(side => {
                                                 const available = checkAvailability(newRental.billboardId, side, newRental.startDate, newRental.endDate).ok;
@@ -942,7 +942,7 @@ export const Rentals: React.FC = () => {
                                                     <label key={side} className={`flex-1 relative cursor-pointer border rounded-xl p-3 text-center transition-all ${disabled ? 'opacity-40 bg-slate-50 cursor-not-allowed border-slate-100' : isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}>
                                                         <input type="radio" name="side" className="hidden" disabled={disabled} checked={isSelected} onChange={() => !disabled && setNewRental({...newRental, side, monthlyRate: price})} />
                                                         <div className="font-bold text-slate-800">{side === 'Both' ? 'Both A&B' : `Side ${side}`}</div>
-                                                        <div className="text-xs text-slate-500">${price.toLocaleString()}</div>
+                                                        <div className="text-xs text-slate-900">${price.toLocaleString()}</div>
                                                         {disabled && (
                                                             <div className="text-[10px] text-red-500 font-bold uppercase mt-1 flex items-center justify-center gap-1">
                                                                 <Lock size={10}/> Booked
@@ -960,7 +960,7 @@ export const Rentals: React.FC = () => {
                                 {selectedBillboard?.type === BillboardType.LED && (
                                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                                         <div className="flex justify-between items-center mb-2">
-                                            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Digital Availability</h4>
+                                            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-900">Digital Availability</h4>
                                             <span className={`text-xs font-bold px-2 py-1 rounded ${digitalFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                                                 {digitalOccupancy} / {selectedBillboard.totalSlots} Slots Booked
                                             </span>
@@ -971,23 +971,23 @@ export const Rentals: React.FC = () => {
                                 )}
 
                                 <div className="bg-slate-50 p-6 rounded-2xl space-y-6">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</h4>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Financials</h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
                                             <MinimalInput label="Monthly Rate ($)" type="number" value={newRental.monthlyRate} onChange={(e: any) => setNewRental({...newRental, monthlyRate: Number(e.target.value)})} />
                                             {newRental.hasVat && newRental.monthlyRate > 0 && (
-                                                <p className="text-[10px] text-slate-500 mt-2">Net: ${splitInclusiveVat(newRental.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newRental.monthlyRate, vatRate).vat.toFixed(2)}</p>
+                                                <p className="text-[10px] text-slate-900 mt-2">Net: ${splitInclusiveVat(newRental.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newRental.monthlyRate, vatRate).vat.toFixed(2)}</p>
                                             )}
                                         </div>
                                         <div>
                                             <MinimalInput label="Install Fee ($)" type="number" value={newRental.installationCost} onChange={(e: any) => setNewRental({...newRental, installationCost: Number(e.target.value)})} />
-                                            <p className="text-[10px] text-slate-500 mt-2">One-time setup charge billed in month 1</p>
+                                            <p className="text-[10px] text-slate-900 mt-2">One-time setup charge billed in month 1</p>
                                         </div>
                                     </div>
                                     {selectedBillboard?.type === BillboardType.Static && (
                                         <div>
                                             <MinimalInput label="Production Fee ($)" type="number" value={newRental.productionCost} onChange={(e: any) => setNewRental({...newRental, productionCost: Number(e.target.value)})} />
-                                            <p className="text-[10px] text-slate-500 mt-2">
+                                            <p className="text-[10px] text-slate-900 mt-2">
                                                 {newRental.productionCost > 0
                                                     ? `Auto-set from size ${selectedBillboard.width}m × ${selectedBillboard.height}m. Edit if needed.`
                                                     : 'No standard fee for this size — enter manually if applicable.'}
@@ -996,9 +996,9 @@ export const Rentals: React.FC = () => {
                                     )}
                                     <div className="flex items-center gap-2">
                                         <input type="checkbox" checked={newRental.hasVat} onChange={e => setNewRental({...newRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"/>
-                                        <label className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</label>
+                                        <label className="text-sm font-medium text-slate-900">Rate includes VAT ({vatPct})</label>
                                     </div>
-                                    <p className="text-[10px] text-slate-500 -mt-2">When checked, VAT-inclusive — the system extracts {vatPct} for invoicing. Uncheck only for VAT-exempt clients.</p>
+                                    <p className="text-[10px] text-slate-900 -mt-2">When checked, VAT-inclusive — the system extracts {vatPct} for invoicing. Uncheck only for VAT-exempt clients.</p>
                                 </div>
                                 <MinimalInput label="Assigned Sales Agent (Optional)" value={newRental.assignedTo} onChange={(e: any) => setNewRental({...newRental, assignedTo: e.target.value})} />
 
@@ -1008,11 +1008,11 @@ export const Rentals: React.FC = () => {
                                         <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Wand2 size={16}/></div>
                                         <div>
                                             <h4 className="font-bold text-slate-800 text-sm">AI Proposal Draft</h4>
-                                            <p className="text-xs text-slate-500">Optional pitch email for this rental</p>
+                                            <p className="text-xs text-slate-900">Optional pitch email for this rental</p>
                                         </div>
                                     </summary>
                                     <div className="p-4 border-t border-slate-100 space-y-3">
-                                        <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-4 min-h-[140px] text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+                                        <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-4 min-h-[140px] text-sm text-slate-900 whitespace-pre-wrap leading-relaxed">
                                             {aiProposal || "Click 'Generate' to create a professional pitch draft..."}
                                         </div>
                                         <div className="flex gap-2">
@@ -1033,11 +1033,11 @@ export const Rentals: React.FC = () => {
                         {/* Navigation Footer */}
                         <div className="flex gap-3 pt-4 border-t border-slate-100">
                             {createStep > 1 ? (
-                                <button type="button" onClick={() => setCreateStep((prev) => (prev - 1) as 1 | 2 | 3)} className="px-6 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                                <button type="button" onClick={() => setCreateStep((prev) => (prev - 1) as 1 | 2 | 3)} className="px-6 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
                                     Back
                                 </button>
                             ) : (
-                                <button type="button" onClick={() => { setIsCreateModalOpen(false); setCreateStep(1); }} className="px-6 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                                <button type="button" onClick={() => { setIsCreateModalOpen(false); setCreateStep(1); }} className="px-6 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
                                     Cancel
                                 </button>
                             )}
@@ -1074,54 +1074,54 @@ export const Rentals: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Contract Details</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">ID: {selectedRental.id} &bull; Status: <span className={`font-bold ${selectedRental.status === 'Active' ? 'text-emerald-600' : selectedRental.status === 'Expired' ? 'text-red-500' : 'text-amber-600'}`}>{selectedRental.status}</span></p>
+                        <p className="text-xs text-slate-900 mt-0.5">ID: {selectedRental.id} &bull; Status: <span className={`font-bold ${selectedRental.status === 'Active' ? 'text-emerald-600' : selectedRental.status === 'Expired' ? 'text-red-500' : 'text-amber-600'}`}>{selectedRental.status}</span></p>
                     </div>
-                    <button onClick={() => setSelectedRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                    <button onClick={() => setSelectedRental(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     {/* Context summary card */}
                     <div className="bg-slate-900 text-white p-5 rounded-2xl flex flex-col gap-3">
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Client</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Client</p>
                             <p className="text-lg font-bold">{getClientName(selectedRental.clientId)}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-4 border-t border-slate-700 pt-3">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Billboard</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Billboard</p>
                                 <p className="font-semibold text-sm">{getBillboardName(selectedRental.billboardId)}</p>
-                                <p className="text-xs text-slate-400 mt-0.5">{selectedRental.details}</p>
+                                <p className="text-xs text-slate-900 mt-0.5">{selectedRental.details}</p>
                             </div>
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Duration</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Duration</p>
                                 <p className="font-semibold text-sm">{selectedRental.startDate}</p>
-                                <p className="text-xs text-slate-400 mt-0.5">to {selectedRental.endDate}</p>
+                                <p className="text-xs text-slate-900 mt-0.5">to {selectedRental.endDate}</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Financial breakdown */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Financial Breakdown</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Financial Breakdown</p>
                         <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100">
                             <div className="flex justify-between items-center px-4 py-3 text-sm">
-                                <span className="text-slate-500">Monthly Rate</span>
+                                <span className="text-slate-900">Monthly Rate</span>
                                 <span className="font-semibold text-slate-800">${selectedRental.monthlyRate.toLocaleString()}</span>
                             </div>
                             {selectedRental.installationCost > 0 && (
                                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                                    <span className="text-slate-500">Installation Fee</span>
+                                    <span className="text-slate-900">Installation Fee</span>
                                     <span className="font-semibold text-slate-800">${selectedRental.installationCost.toLocaleString()}</span>
                                 </div>
                             )}
                             {(selectedRental.productionCost || 0) > 0 && (
                                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                                    <span className="text-slate-500">Production Fee</span>
+                                    <span className="text-slate-900">Production Fee</span>
                                     <span className="font-semibold text-slate-800">${(selectedRental.productionCost || 0).toLocaleString()}</span>
                                 </div>
                             )}
                             {selectedRental.printingCost > 0 && (
                                 <div className="flex justify-between items-center px-4 py-3 text-sm">
-                                    <span className="text-slate-500">Printing Cost</span>
+                                    <span className="text-slate-900">Printing Cost</span>
                                     <span className="font-semibold text-slate-800">${selectedRental.printingCost.toLocaleString()}</span>
                                 </div>
                             )}
@@ -1130,11 +1130,11 @@ export const Rentals: React.FC = () => {
                                 return (
                                     <>
                                         <div className="flex justify-between items-center px-4 py-3 text-sm">
-                                            <span className="text-slate-500">Net (excl. VAT)</span>
+                                            <span className="text-slate-900">Net (excl. VAT)</span>
                                             <span className="font-semibold text-slate-800">${net.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center px-4 py-3 text-sm">
-                                            <span className="text-slate-500">VAT ({vatPct})</span>
+                                            <span className="text-slate-900">VAT ({vatPct})</span>
                                             <span className="font-semibold text-slate-800">${vat.toFixed(2)}</span>
                                         </div>
                                     </>
@@ -1145,7 +1145,7 @@ export const Rentals: React.FC = () => {
                                 <span className="text-lg font-extrabold text-slate-900">${selectedRental.totalContractValue.toLocaleString()}</span>
                             </div>
                         </div>
-                        {selectedRental.hasVat && <p className="text-xs text-slate-500 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
+                        {selectedRental.hasVat && <p className="text-xs text-slate-900 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
                     </div>
 
                     {selectedRental.assignedTo && (
@@ -1166,7 +1166,7 @@ export const Rentals: React.FC = () => {
                         if (amends.length === 0) return null;
                         return (
                             <div className="border border-slate-100 rounded-xl overflow-hidden">
-                                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
+                                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-900">
                                     <History size={14} />
                                     Amendment History ({amends.length})
                                 </div>
@@ -1176,7 +1176,7 @@ export const Rentals: React.FC = () => {
                                             <div className="flex items-center gap-2">
                                                 <div className={`w-2 h-2 rounded-full ${a.type === 'extension' ? 'bg-emerald-500' : a.type === 'reduction' ? 'bg-amber-500' : 'bg-slate-400'}`} />
                                                 <span className="font-medium text-slate-700 capitalize">{a.type}</span>
-                                                <span className="text-xs text-slate-400">{new Date(a.createdAt).toLocaleDateString()}</span>
+                                                <span className="text-xs text-slate-900">{new Date(a.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             <span className={`text-xs font-bold ${a.financialImpact >= 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
                                                 {a.financialImpact >= 0 ? '+' : '-'}${Math.abs(a.financialImpact).toLocaleString()}
@@ -1184,7 +1184,7 @@ export const Rentals: React.FC = () => {
                                         </div>
                                     ))}
                                     {amends.length > 3 && (
-                                        <p className="text-xs text-slate-400 text-center">+{amends.length - 3} more amendments</p>
+                                        <p className="text-xs text-slate-900 text-center">+{amends.length - 3} more amendments</p>
                                     )}
                                 </div>
                             </div>
@@ -1203,10 +1203,10 @@ export const Rentals: React.FC = () => {
                         >
                             <FileText size={14} /> Generate Full Legal Contract
                         </button>
-                        <p className="text-[10px] text-slate-500 mt-2 text-center">Uses your editable contract template from Settings &rarr; Company Profile.</p>
+                        <p className="text-[10px] text-slate-900 mt-2 text-center">Uses your editable contract template from Settings &rarr; Company Profile.</p>
                     </div>
                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
+                        <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
                         <button onClick={() => openTermAdjustment(selectedRental)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Calendar size={14} /> Amend Contract</button>
                         {isContractExpired(selectedRental) && <button onClick={() => { setSelectedRental(null); setRenewRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>}
                     </div>
@@ -1222,20 +1222,20 @@ export const Rentals: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Rental</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">{getClientName(editRental.clientId)} &bull; {getBillboardName(editRental.billboardId)}</p>
+                        <p className="text-xs text-slate-900 mt-0.5">{getClientName(editRental.clientId)} &bull; {getBillboardName(editRental.billboardId)}</p>
                     </div>
-                    <button onClick={() => { if (!saving) setEditRental(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-400" /></button>
+                    <button onClick={() => { if (!saving) setEditRental(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     {/* Context card */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 grid grid-cols-2 gap-4">
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Billboard</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Billboard</p>
                             <p className="font-semibold text-slate-800 text-sm">{getBillboardName(editRental.billboardId)}</p>
-                            <p className="text-xs text-slate-500">{editRental.details}</p>
+                            <p className="text-xs text-slate-900">{editRental.details}</p>
                         </div>
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Contract ID</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Contract ID</p>
                             <p className="font-semibold text-slate-800 text-sm">{editRental.id}</p>
                         </div>
                     </div>
@@ -1252,7 +1252,7 @@ export const Rentals: React.FC = () => {
                     )}
 
                     <div className="space-y-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Primary Billboard Line</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Primary Billboard Line</p>
                         <select
                             value={editRental.billboardId}
                             onChange={(e) => setEditRental(withBillboardDefaults(editRental, e.target.value))}
@@ -1274,7 +1274,7 @@ export const Rentals: React.FC = () => {
                                                     const next = { ...editRental, side, slotNumber: undefined, monthlyRate: getDefaultRate(editRental.billboardId, side) };
                                                     setEditRental({ ...next, details: getLineDetails(next) });
                                                 }}
-                                                className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${editRental.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}
+                                                className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${editRental.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
                                             >
                                                 {side === 'Both' ? 'Both A&B' : `Side ${side}`}
                                             </button>
@@ -1284,7 +1284,7 @@ export const Rentals: React.FC = () => {
                             }
                             return (
                                 <div>
-                                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">LED Slot</label>
+                                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">LED Slot</label>
                                     <select
                                         value={editRental.slotNumber || 1}
                                         onChange={(e) => {
@@ -1301,7 +1301,7 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Contract Status</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Contract Status</p>
                         <select value={editRental.status} onChange={(e) => setEditRental({...editRental, status: e.target.value as 'Active' | 'Pending' | 'Expired'})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800">
                             <option value="Active">Active</option>
                             <option value="Pending">Pending</option>
@@ -1310,63 +1310,63 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Rental Period</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Rental Period</p>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Start Date</label>
+                                <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Start Date</label>
                                 <input type="date" value={editRental.startDate} onChange={(e) => setEditRental({...editRental, startDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">End Date</label>
+                                <label className="block text-xs font-bold uppercase text-slate-900 mb-2">End Date</label>
                                 <input type="date" value={editRental.endDate} onChange={(e) => setEditRental({...editRental, endDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <button type="button" onClick={() => setEditRental({...editRental, endDate: new Date().toISOString().split('T')[0]})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">End Today</button>
+                            <button type="button" onClick={() => setEditRental({...editRental, endDate: new Date().toISOString().split('T')[0]})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">End Today</button>
                             <button type="button" onClick={() => setEditRental({...editRental, endDate: addMonths(editRental.endDate, 1)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+1 Month</button>
                             <button type="button" onClick={() => setEditRental({...editRental, endDate: addMonths(editRental.endDate, 3)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+3 Months</button>
                             <button type="button" onClick={() => setEditRental({...editRental, endDate: addMonths(editRental.endDate, 12)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+12 Months</button>
                         </div>
                         <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
-                            <span className="text-slate-500 font-medium">Updated term length</span>
+                            <span className="text-slate-900 font-medium">Updated term length</span>
                             <span className="text-slate-900 font-bold">{calculateContractMonthsSafe(editRental.startDate, editRental.endDate)} month(s)</span>
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Financials</p>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Monthly Rate ($)</label>
+                                <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Monthly Rate ($)</label>
                                 <input type="number" value={editRental.monthlyRate} onChange={(e) => setEditRental({...editRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
                                 {editRental.hasVat && editRental.monthlyRate > 0 && (
-                                    <p className="text-[10px] text-slate-500 mt-1">Net: ${splitInclusiveVat(editRental.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editRental.monthlyRate, vatRate).vat.toFixed(2)}</p>
+                                    <p className="text-[10px] text-slate-900 mt-1">Net: ${splitInclusiveVat(editRental.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editRental.monthlyRate, vatRate).vat.toFixed(2)}</p>
                                 )}
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Installation Cost ($)</label>
+                                <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Installation Cost ($)</label>
                                 <input type="number" value={editRental.installationCost} onChange={(e) => setEditRental({...editRental, installationCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Printing Cost ($)</label>
+                                <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Printing Cost ($)</label>
                                 <input type="number" value={editRental.printingCost} onChange={(e) => setEditRental({...editRental, printingCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Production Fee ($)</label>
+                                <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Production Fee ($)</label>
                                 <input type="number" value={editRental.productionCost || 0} onChange={(e) => setEditRental({...editRental, productionCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
                             </div>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={editRental.hasVat} onChange={(e) => setEditRental({...editRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                            <span className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</span>
+                            <span className="text-sm font-medium text-slate-900">Rate includes VAT ({vatPct})</span>
                         </label>
                     </div>
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Additional Billboard Lines</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Additional Billboard Lines</p>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1399,7 +1399,7 @@ export const Rentals: React.FC = () => {
                         </div>
 
                         {editExtraLines.length === 0 && (
-                            <div className="border border-dashed border-slate-200 rounded-xl p-4 text-sm text-slate-600">
+                            <div className="border border-dashed border-slate-200 rounded-xl p-4 text-sm text-slate-900">
                                 No additional billboards on this contract yet.
                             </div>
                         )}
@@ -1411,7 +1411,7 @@ export const Rentals: React.FC = () => {
                                     <div key={line.id} className="rounded-2xl border border-slate-200 p-4 space-y-4">
                                         <div className="flex items-start justify-between gap-3">
                                             <div>
-                                                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Line {index + 2}</p>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Line {index + 2}</p>
                                                 <p className="text-sm font-semibold text-slate-800">{billboard?.name || 'Unknown billboard'} &bull; {line.details}</p>
                                             </div>
                                             <button
@@ -1420,7 +1420,7 @@ export const Rentals: React.FC = () => {
                                                     if (getContracts().some(c => c.id === line.id)) setDeletedEditLineIds([...deletedEditLineIds, line.id]);
                                                     setEditExtraLines(editExtraLines.filter(l => l.id !== line.id));
                                                 }}
-                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                 aria-label="Remove billboard line"
                                             >
                                                 <Trash2 size={16} />
@@ -1448,7 +1448,7 @@ export const Rentals: React.FC = () => {
                                                             const next = { ...line, side, slotNumber: undefined, monthlyRate: getDefaultRate(line.billboardId, side) };
                                                             setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...next, details: getLineDetails(next) } : l));
                                                         }}
-                                                        className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${line.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}
+                                                        className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${line.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
                                                     >
                                                         {side === 'Both' ? 'Both A&B' : `Side ${side}`}
                                                     </button>
@@ -1470,11 +1470,11 @@ export const Rentals: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-3">
                                             <input type="date" value={line.startDate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, startDate: e.target.value } : l))} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900" />
                                             <input type="date" value={line.endDate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, endDate: e.target.value } : l))} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900" />
-                                            <input type="number" value={line.monthlyRate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, monthlyRate: Number(e.target.value) } : l))} placeholder="Monthly rate" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400" />
-                                            <input type="number" value={line.productionCost || 0} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, productionCost: Number(e.target.value) } : l))} placeholder="Production fee" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400" />
+                                            <input type="number" value={line.monthlyRate} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, monthlyRate: Number(e.target.value) } : l))} placeholder="Monthly rate" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900" />
+                                            <input type="number" value={line.productionCost || 0} onChange={(e) => setEditExtraLines(editExtraLines.map(l => l.id === line.id ? { ...line, productionCost: Number(e.target.value) } : l))} placeholder="Production fee" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900" />
                                         </div>
                                         <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
-                                            <span className="text-slate-500 font-medium">Line value</span>
+                                            <span className="text-slate-900 font-medium">Line value</span>
                                             <span className="text-slate-900 font-bold">${recalcContractValue(line).toLocaleString()}</span>
                                         </div>
                                     </div>
@@ -1484,7 +1484,7 @@ export const Rentals: React.FC = () => {
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => { if (!saving) setEditRental(null); }} disabled={saving} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                        <button onClick={() => { if (!saving) setEditRental(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
                         <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                           {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Saving…' : 'Save Changes'}
                         </button>
@@ -1513,9 +1513,9 @@ export const Rentals: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Renew Contract</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Creates a new 12-month agreement from the expired one</p>
+                        <p className="text-xs text-slate-900 mt-0.5">Creates a new 12-month agreement from the expired one</p>
                     </div>
-                    <button onClick={() => { if (!saving) setRenewRental(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-400" /></button>
+                    <button onClick={() => { if (!saving) setRenewRental(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
@@ -1531,39 +1531,39 @@ export const Rentals: React.FC = () => {
 
                     {/* Original contract summary */}
                     <div className="bg-slate-900 text-white p-4 rounded-2xl">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Original Contract</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Original Contract</p>
                         <p className="font-bold text-base">{getClientName(renewRental.clientId)}</p>
                         <p className="text-slate-300 text-sm mt-0.5">{getBillboardName(renewRental.billboardId)} &bull; {renewRental.details}</p>
-                        <p className="text-xs text-slate-400 mt-1">{renewRental.startDate} — {renewRental.endDate}</p>
+                        <p className="text-xs text-slate-900 mt-1">{renewRental.startDate} — {renewRental.endDate}</p>
                     </div>
 
                     {/* New period (read-only) */}
                     <div className="space-y-3">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">New Rental Period</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900">New Rental Period</p>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Start Date</label>
-                                <input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+                                <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Start Date</label>
+                                <input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-sm" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold uppercase text-slate-600 mb-2">End Date</label>
-                                <input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+                                <label className="block text-xs font-bold uppercase text-slate-900 mb-2">End Date</label>
+                                <input type="date" value={(() => { const d = new Date(renewRental.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-sm" />
                             </div>
                         </div>
-                        <p className="text-xs text-slate-500">Period is auto-calculated (12 months). Dates are locked.</p>
+                        <p className="text-xs text-slate-900">Period is auto-calculated (12 months). Dates are locked.</p>
                     </div>
 
                     {/* Financials */}
                     <div className="space-y-3">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Financials</p>
                         <div>
-                            <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Monthly Rate ($)</label>
+                            <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Monthly Rate ($)</label>
                             <input type="number" value={renewRental.monthlyRate} onChange={(e) => setRenewRental({...renewRental, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900" />
-                            <p className="text-[10px] text-slate-500 mt-1">Adjust the rate if pricing has changed since last term.</p>
+                            <p className="text-[10px] text-slate-900 mt-1">Adjust the rate if pricing has changed since last term.</p>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={renewRental.hasVat} onChange={(e) => setRenewRental({...renewRental, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                            <span className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</span>
+                            <span className="text-sm font-medium text-slate-900">Rate includes VAT ({vatPct})</span>
                         </label>
                     </div>
 
@@ -1592,13 +1592,13 @@ export const Rentals: React.FC = () => {
                                     <span className="text-sm font-bold uppercase tracking-wider">New Total Value</span>
                                     <span className="text-xl font-black">${gross.toLocaleString()}</span>
                                 </div>
-                                <p className="text-xs text-slate-400">12 months × ${renewRental.monthlyRate.toLocaleString()}{renewRental.installationCost > 0 ? ` + $${renewRental.installationCost} install` : ''}{(renewRental.productionCost || 0) > 0 ? ` + $${renewRental.productionCost} production` : ''}</p>
+                                <p className="text-xs text-slate-900">12 months × ${renewRental.monthlyRate.toLocaleString()}{renewRental.installationCost > 0 ? ` + $${renewRental.installationCost} install` : ''}{(renewRental.productionCost || 0) > 0 ? ` + $${renewRental.productionCost} production` : ''}</p>
                             </div>
                         );
                     })()}
 
                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => { if (!saving) setRenewRental(null); }} disabled={saving} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                        <button onClick={() => { if (!saving) setRenewRental(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
                         <button onClick={handleRenew} disabled={saving} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                           {saving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} {saving ? 'Renewing…' : 'Renew Contract'}
                         </button>
@@ -1626,11 +1626,11 @@ export const Rentals: React.FC = () => {
                  <div className="p-6 space-y-4">
                      {/* What's being deleted */}
                      <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-1.5">
-                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Rental Being Deleted</p>
+                         <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Rental Being Deleted</p>
                          <p className="font-bold text-slate-900">{getClientName(rentalToDelete.clientId)}</p>
-                         <p className="text-sm text-slate-600">{getBillboardName(rentalToDelete.billboardId)} &bull; {rentalToDelete.details}</p>
-                         <p className="text-xs text-slate-400">{rentalToDelete.startDate} — {rentalToDelete.endDate}</p>
-                         <p className="text-xs text-slate-400 font-mono">ID: {rentalToDelete.id}</p>
+                         <p className="text-sm text-slate-900">{getBillboardName(rentalToDelete.billboardId)} &bull; {rentalToDelete.details}</p>
+                         <p className="text-xs text-slate-900">{rentalToDelete.startDate} — {rentalToDelete.endDate}</p>
+                         <p className="text-xs text-slate-900 font-mono">ID: {rentalToDelete.id}</p>
                      </div>
                      {/* Warning about related records */}
                      <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">

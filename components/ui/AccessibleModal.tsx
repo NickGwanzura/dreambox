@@ -136,7 +136,7 @@ export const AccessibleModal: React.FC<AccessibleModalProps> = ({
           {showCloseButton && (
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              className="p-2 text-slate-900 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
               aria-label="Close dialog"
             >
               <X size={20} />

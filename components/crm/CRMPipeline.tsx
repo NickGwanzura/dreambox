@@ -150,12 +150,12 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({
                   <h3 className="font-bold text-slate-900">{column.title}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-2xl font-black text-slate-900">{columnOpportunities.length}</span>
-                    <span className="text-xs text-slate-500 font-medium">deals</span>
+                    <span className="text-xs text-slate-900 font-medium">deals</span>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-slate-900">{formatCurrency(totalValue)}</p>
-                  <p className="text-xs text-slate-500">total value</p>
+                  <p className="text-xs text-slate-900">total value</p>
                 </div>
               </div>
             </div>
@@ -174,9 +174,9 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({
               ))}
               
               {columnOpportunities.length === 0 && (
-                <div className={`flex flex-col items-center justify-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl bg-white transition-all duration-200 ${isDragOver ? 'bg-indigo-50 border-indigo-300' : ''}`}>
+                <div className={`flex flex-col items-center justify-center py-12 text-slate-900 border-2 border-dashed border-slate-200 rounded-3xl bg-white transition-all duration-200 ${isDragOver ? 'bg-indigo-50 border-indigo-300' : ''}`}>
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${isDragOver ? 'bg-indigo-100' : 'bg-slate-100'}`}>
-                    <Building2 className={`w-5 h-5 ${isDragOver ? 'text-indigo-500' : 'text-slate-400'}`} />
+                    <Building2 className={`w-5 h-5 ${isDragOver ? 'text-indigo-500' : 'text-slate-900'}`} />
                   </div>
                   <p className="text-sm font-medium">
                     {isDragOver ? 'Drop here' : 'No deals'}
@@ -236,16 +236,16 @@ const PipelineCard: React.FC<PipelineCardProps> = ({
             <h4 className="font-semibold text-slate-900 text-sm truncate group-hover:text-indigo-600 transition-colors">
               {company?.name || 'Unknown Company'}
             </h4>
-            <p className="text-xs text-slate-500 truncate">
+            <p className="text-xs text-slate-900 truncate">
               {primaryContact?.fullName || 'No contact assigned'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <div className="text-slate-300 cursor-grab active:cursor-grabbing p-1 hover:text-slate-400 transition-colors">
+          <div className="text-slate-300 cursor-grab active:cursor-grabbing p-1 hover:text-slate-900 transition-colors">
             <GripVertical className="w-4 h-4" />
           </div>
-          <button className="text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-all">
+          <button className="text-slate-900 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-all">
             <ArrowUpRight className="w-4 h-4" />
           </button>
         </div>
@@ -266,7 +266,7 @@ const PipelineCard: React.FC<PipelineCardProps> = ({
             {formatCurrency(opportunity.estimatedValue)}
           </span>
         </div>
-        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-2 py-1 bg-slate-100 rounded-lg">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-900 px-2 py-1 bg-slate-100 rounded-lg">
           {STAGE_LABELS[opportunity.stage]}
         </span>
       </div>
@@ -274,14 +274,14 @@ const PipelineCard: React.FC<PipelineCardProps> = ({
       {/* Details */}
       <div className="space-y-2 text-sm mb-4">
         {opportunity.locationInterest && (
-          <div className="flex items-center gap-2 text-slate-600">
-            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center gap-2 text-slate-900">
+            <MapPin className="w-3.5 h-3.5 text-slate-900" />
             <span className="truncate">{opportunity.locationInterest}</span>
           </div>
         )}
         {opportunity.billboardType && (
-          <div className="flex items-center gap-2 text-slate-600">
-            <Layers className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center gap-2 text-slate-900">
+            <Layers className="w-3.5 h-3.5 text-slate-900" />
             <span>{opportunity.billboardType}</span>
           </div>
         )}
@@ -291,7 +291,7 @@ const PipelineCard: React.FC<PipelineCardProps> = ({
       <div className="flex items-center justify-between pt-4 border-t border-slate-100">
         <div className="flex items-center gap-3">
           {opportunity.numberOfAttempts > 0 && (
-            <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="flex items-center gap-1 text-xs text-slate-900">
               <Phone className="w-3 h-3" />
               {opportunity.numberOfAttempts}
             </span>
@@ -304,7 +304,7 @@ const PipelineCard: React.FC<PipelineCardProps> = ({
               ? 'bg-red-50 text-red-600 border border-red-200' 
               : isToday(opportunity.nextFollowUpDate)
                 ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                : 'bg-slate-100 text-slate-600'
+                : 'bg-slate-100 text-slate-900'
           }`}>
             <Calendar className="w-3 h-3" />
             {formatDate(opportunity.nextFollowUpDate)}

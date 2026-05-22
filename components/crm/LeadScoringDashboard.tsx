@@ -121,7 +121,7 @@ export const LeadScoringDashboard: React.FC<LeadScoringDashboardProps> = ({ clas
               AI Powered
             </span>
           </div>
-          <p className="text-slate-500">Intelligent lead qualification powered by engagement analysis</p>
+          <p className="text-slate-900">Intelligent lead qualification powered by engagement analysis</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -193,7 +193,7 @@ export const LeadScoringDashboard: React.FC<LeadScoringDashboardProps> = ({ clas
             label="Total Scored"
             value={summary.totalScored}
             icon={PieChart}
-            color="text-slate-600"
+            color="text-slate-900"
             bgColor="bg-slate-50"
             borderColor="border-slate-200"
           />
@@ -230,10 +230,10 @@ export const LeadScoringDashboard: React.FC<LeadScoringDashboardProps> = ({ clas
                       </span>
                       <LeadScorePill score={lead} />
                     </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-900">
                       <span className="capitalize">{getOpportunityStage(lead.opportunityId).replace(/_/g, ' ')}</span>
                       {lead.insights.slice(0, 1).map((insight, i) => (
-                        <span key={i} className="text-slate-400 truncate">• {insight.message.slice(0, 40)}...</span>
+                        <span key={i} className="text-slate-900 truncate">• {insight.message.slice(0, 40)}...</span>
                       ))}
                     </div>
                   </button>
@@ -309,7 +309,7 @@ export const LeadScoringDashboard: React.FC<LeadScoringDashboardProps> = ({ clas
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="text-left text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                  <tr className="text-left text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200">
                     <th className="pb-3">Company</th>
                     <th className="pb-3">Score</th>
                     <th className="pb-3">Stage</th>
@@ -335,23 +335,23 @@ export const LeadScoringDashboard: React.FC<LeadScoringDashboardProps> = ({ clas
                         />
                       </td>
                       <td className="py-4">
-                        <span className="text-sm text-slate-600 capitalize">
+                        <span className="text-sm text-slate-900 capitalize">
                           {getOpportunityStage(lead.opportunityId).replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td className="py-4">
                         {lead.insights[0] ? (
-                          <span className="text-sm text-slate-500 truncate max-w-[200px] block">
+                          <span className="text-sm text-slate-900 truncate max-w-[200px] block">
                             {lead.insights[0].message}
                           </span>
                         ) : (
-                          <span className="text-sm text-slate-400">No insights yet</span>
+                          <span className="text-sm text-slate-900">No insights yet</span>
                         )}
                       </td>
                       <td className="py-4">
                         <button
                           onClick={() => handleLeadClick(lead)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-indigo-50 rounded-xl"
+                          className="p-2 text-slate-900 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-indigo-50 rounded-xl"
                         >
                           <ChevronRight size={18} />
                         </button>
@@ -363,7 +363,7 @@ export const LeadScoringDashboard: React.FC<LeadScoringDashboardProps> = ({ clas
             </div>
 
             {filteredLeads.length === 0 && (
-              <div className="text-center py-12 text-slate-500">
+              <div className="text-center py-12 text-slate-900">
                 <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                   <Target size={32} className="text-slate-300" />
                 </div>
@@ -416,8 +416,8 @@ const SummaryCard: React.FC<{
     </div>
     <div className="mt-3">
       <div className={`text-2xl font-black text-slate-900`}>{value}</div>
-      <div className="text-sm text-slate-600 font-medium">{label}</div>
-      {subtext && <div className="text-xs text-slate-500 mt-0.5">{subtext}</div>}
+      <div className="text-sm text-slate-900 font-medium">{label}</div>
+      {subtext && <div className="text-xs text-slate-900 mt-0.5">{subtext}</div>}
     </div>
   </div>
 );

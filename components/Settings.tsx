@@ -44,13 +44,13 @@ const DEFAULT_PERMISSIONS: Record<string, UserPermissions> = {
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, placeholder = "", disabled = false }: any) => (
   <div className="group relative">
     <input type={type} required={required} value={value || ''} onChange={onChange} disabled={disabled} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:opacity-60 disabled:cursor-not-allowed" />
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 const MinimalTextarea = ({ label, value, onChange, rows = 3, placeholder = "" }: any) => (
   <div className="group relative">
     <textarea rows={rows} value={value || ''} onChange={onChange} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent resize-none" />
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 const MinimalSelect = ({ label, value, onChange, options }: any) => (
@@ -58,7 +58,7 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
     <select value={value} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer">
       {options.map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
     </select>
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium uppercase tracking-wide">{label}</label>
   </div>
 );
 
@@ -74,7 +74,7 @@ export const Settings: React.FC = () => {
           <Shield size={26} className="text-red-500" />
         </div>
         <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
-        <p className="text-slate-500 text-sm leading-relaxed">
+        <p className="text-slate-900 text-sm leading-relaxed">
           Settings (users, company profile, audit logs, backups) are limited to the finance/admin team.
           Please contact Rufaro, Brian, or Nick if something needs to be changed.
         </p>
@@ -364,9 +364,9 @@ export const Settings: React.FC = () => {
       Active: 'bg-green-50 text-green-700',
       Pending: 'bg-amber-50 text-amber-700',
       Rejected: 'bg-red-50 text-red-600',
-      Inactive: 'bg-slate-100 text-slate-500',
+      Inactive: 'bg-slate-100 text-slate-900',
     };
-    return map[status] || 'bg-slate-100 text-slate-500';
+    return map[status] || 'bg-slate-100 text-slate-900';
   };
 
   const roleBadge = (role: string) => {
@@ -376,7 +376,7 @@ export const Settings: React.FC = () => {
       Staff: 'bg-blue-50 text-blue-700',
       'Sales Agent': 'bg-emerald-50 text-emerald-700',
     };
-    return map[role] || 'bg-slate-50 text-slate-600';
+    return map[role] || 'bg-slate-50 text-slate-900';
   };
 
   return (
@@ -386,13 +386,13 @@ export const Settings: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">System Settings</h2>
-            <p className="text-slate-500 font-medium">Manage organization profile, users, and data</p>
+            <p className="text-slate-900 font-medium">Manage organization profile, users, and data</p>
           </div>
           <div className="flex bg-white rounded-full border border-slate-200 p-1 shadow-sm overflow-x-auto max-w-full">
-            <button onClick={() => setActiveTab('General')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'General' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>General</button>
-            <button onClick={() => setActiveTab('Data')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Data' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Data & Sync</button>
-            <button onClick={() => setActiveTab('Audit')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Audit' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Audit Logs</button>
-            <button onClick={() => setActiveTab('ReleaseNotes')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'ReleaseNotes' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Release Notes</button>
+            <button onClick={() => setActiveTab('General')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'General' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>General</button>
+            <button onClick={() => setActiveTab('Data')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Data' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>Data & Sync</button>
+            <button onClick={() => setActiveTab('Audit')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Audit' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>Audit Logs</button>
+            <button onClick={() => setActiveTab('ReleaseNotes')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'ReleaseNotes' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>Release Notes</button>
           </div>
         </div>
 
@@ -416,7 +416,7 @@ export const Settings: React.FC = () => {
                           <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold">{user.firstName.charAt(0)}</div>
                           <div>
                             <p className="font-bold text-slate-900">{user.firstName} {user.lastName}</p>
-                            <p className="text-xs text-slate-500">{user.email}</p>
+                            <p className="text-xs text-slate-900">{user.email}</p>
                           </div>
                         </div>
                         <button onClick={() => setApprovalUser(user)} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md transition-colors">
@@ -450,7 +450,7 @@ export const Settings: React.FC = () => {
                     />
                   </div>
                   <div className="border-t border-slate-50 pt-6">
-                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400 tracking-wider mb-6"><Phone size={14} /> Contact Information</h4>
+                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900 tracking-wider mb-6"><Phone size={14} /> Contact Information</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <MinimalInput label="General Email" value={profile.email} onChange={(e: any) => setProfile({ ...profile, email: e.target.value })} type="email" />
                       <MinimalInput label="Support Email" value={profile.supportEmail} onChange={(e: any) => setProfile({ ...profile, supportEmail: e.target.value })} type="email" />
@@ -459,7 +459,7 @@ export const Settings: React.FC = () => {
                     </div>
                   </div>
                   <div className="border-t border-slate-50 pt-6">
-                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400 tracking-wider mb-6"><MapPin size={14} /> Location Details</h4>
+                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900 tracking-wider mb-6"><MapPin size={14} /> Location Details</h4>
                     <div className="space-y-6">
                       <MinimalInput label="Street Address" value={profile.address} onChange={(e: any) => setProfile({ ...profile, address: e.target.value })} />
                       <div className="grid grid-cols-2 gap-8">
@@ -469,8 +469,8 @@ export const Settings: React.FC = () => {
                     </div>
                   </div>
                   <div className="border-t border-slate-50 pt-6">
-                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400 tracking-wider mb-6"><Database size={14} /> Banking &amp; Payment Details</h4>
-                    <p className="text-xs text-slate-400 mb-6 -mt-4">Shown on invoices, quotations, and outbound document emails.</p>
+                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900 tracking-wider mb-6"><Database size={14} /> Banking &amp; Payment Details</h4>
+                    <p className="text-xs text-slate-900 mb-6 -mt-4">Shown on invoices, quotations, and outbound document emails.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <MinimalInput label="Bank Name" value={profile.bankName} onChange={(e: any) => setProfile({ ...profile, bankName: e.target.value })} />
                       <MinimalInput label="Account Name" value={profile.bankAccountName} onChange={(e: any) => setProfile({ ...profile, bankAccountName: e.target.value })} />
@@ -481,8 +481,8 @@ export const Settings: React.FC = () => {
                     </div>
                   </div>
                   <div className="border-t border-slate-50 pt-6">
-                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400 tracking-wider mb-6"><Mail size={14} /> Outgoing Email</h4>
-                    <p className="text-xs text-slate-400 mb-6 -mt-4">Sender address must be a domain verified in Resend. Leave blank to use the default.</p>
+                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900 tracking-wider mb-6"><Mail size={14} /> Outgoing Email</h4>
+                    <p className="text-xs text-slate-900 mb-6 -mt-4">Sender address must be a domain verified in Resend. Leave blank to use the default.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                       <MinimalInput label="Sender Name" value={profile.senderName} onChange={(e: any) => setProfile({ ...profile, senderName: e.target.value })} placeholder="Dreambox CRM" />
                       <MinimalInput label="Sender Email" value={profile.senderEmail} onChange={(e: any) => setProfile({ ...profile, senderEmail: e.target.value })} type="email" placeholder="noreply@yourdomain.com" />
@@ -490,7 +490,7 @@ export const Settings: React.FC = () => {
                     <MinimalTextarea label="Email Signature / Footer" rows={4} value={profile.emailSignature} onChange={(e: any) => setProfile({ ...profile, emailSignature: e.target.value })} />
                   </div>
                   <div className="border-t border-slate-50 pt-6">
-                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400 tracking-wider mb-4"><FileText size={14} /> Legal Contract Template</h4>
+                    <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900 tracking-wider mb-4"><FileText size={14} /> Legal Contract Template</h4>
                     <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex items-start gap-3">
                       <div className="p-2 bg-white rounded-lg text-indigo-600 shrink-0"><FileText size={16} /></div>
                       <div className="text-sm text-indigo-900">
@@ -523,12 +523,12 @@ export const Settings: React.FC = () => {
                       <img src={logoPreview} alt="Logo" className="max-w-full max-h-full object-contain" />
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-black/50 text-white text-xs font-bold px-2 py-1 rounded">Change</div></div>
-                    <p className="text-sm font-medium text-slate-600">Company Logo</p>
-                    <p className="text-xs text-slate-400 mt-1">Click to Upload (Max 1MB)</p>
+                    <p className="text-sm font-medium text-slate-900">Company Logo</p>
+                    <p className="text-xs text-slate-900 mt-1">Click to Upload (Max 1MB)</p>
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
                   </div>
                 </div>
-                <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2"><Upload size={14} /> Upload New Logo</button>
+                <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-900 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2"><Upload size={14} /> Upload New Logo</button>
               </div>
 
               <div className="bg-gradient-to-br from-blue-900 to-slate-900 p-6 rounded-2xl shadow-lg text-white relative overflow-hidden group">
@@ -562,24 +562,24 @@ export const Settings: React.FC = () => {
                   <div className="p-6 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-green-50 rounded-xl"><Shield className="w-6 h-6 text-green-600" /></div>
-                      <h3 className="text-lg font-bold text-slate-800">All Team Members <span className="text-sm font-normal text-slate-400">({activeUsers.length})</span></h3>
+                      <h3 className="text-lg font-bold text-slate-800">All Team Members <span className="text-sm font-normal text-slate-900">({activeUsers.length})</span></h3>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={refreshUsers} className="flex items-center gap-1 text-xs text-slate-500 font-bold uppercase tracking-wider hover:bg-slate-50 px-3 py-2 rounded-lg transition-colors border border-slate-200"><RefreshCw size={13} /> Refresh</button>
+                      <button onClick={refreshUsers} className="flex items-center gap-1 text-xs text-slate-900 font-bold uppercase tracking-wider hover:bg-slate-50 px-3 py-2 rounded-lg transition-colors border border-slate-200"><RefreshCw size={13} /> Refresh</button>
                       <button onClick={() => setIsBulkInviteOpen(true)} className="flex items-center gap-1 text-xs text-indigo-600 font-bold uppercase tracking-wider hover:bg-indigo-50 px-3 py-2 rounded-lg transition-colors border border-indigo-200"><Users size={14} /> Bulk Invite</button>
                       <button onClick={() => setIsAddUserModalOpen(true)} className="flex items-center gap-1 text-sm text-blue-600 font-bold uppercase tracking-wider hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors"><Plus size={16} /> Add User</button>
                     </div>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-600 min-w-[640px]">
+                    <table className="w-full text-left text-sm text-slate-900 min-w-[640px]">
                       <thead className="bg-slate-50/50 border-b border-slate-100">
                         <tr>
-                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">User</th>
-                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Email</th>
-                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Role</th>
-                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Status</th>
-                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Last Login</th>
-                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Actions</th>
+                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">User</th>
+                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Email</th>
+                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Role</th>
+                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Status</th>
+                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Last Login</th>
+                          <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -587,39 +587,39 @@ export const Settings: React.FC = () => {
                           <tr key={user.id} className={`hover:bg-slate-50/50 transition-colors ${user.status === 'Inactive' ? 'opacity-60' : ''}`}>
                             <td className="px-6 py-4 font-medium text-slate-900">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold border border-slate-300">{user.firstName?.charAt(0) || '?'}</div>
+                                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-900 font-bold border border-slate-300">{user.firstName?.charAt(0) || '?'}</div>
                                 <div>
                                   <p className="font-bold text-slate-800">{user.firstName} {user.lastName}</p>
-                                  <p className="text-[10px] text-slate-400 font-mono">{user.username || ''}</p>
+                                  <p className="text-[10px] text-slate-900 font-mono">{user.username || ''}</p>
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-xs">{user.email}</td>
                             <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${roleBadge(user.role)}`}>{user.role}</span></td>
                             <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${statusBadge(user.status)}`}>{user.status}</span></td>
-                            <td className="px-6 py-4 text-[11px] text-slate-400 font-mono">
+                            <td className="px-6 py-4 text-[11px] text-slate-900 font-mono">
                               {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : '—'}
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex justify-end gap-1">
-                                <button title="Edit" onClick={() => setEditingUser(user)} className="p-1.5 text-slate-400 hover:bg-white hover:shadow-sm hover:text-slate-800 rounded-lg transition-all border border-transparent hover:border-slate-100"><Edit2 size={15} /></button>
-                                <button title="Permissions" onClick={() => openPermissionsModal(user)} className="p-1.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"><Key size={15} /></button>
-                                <button title="Login History" onClick={() => openHistoryModal(user)} className="p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"><History size={15} /></button>
-                                <button title="Send Password Reset" onClick={() => handleAdminResetPassword(user)} className="p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-600 rounded-lg transition-colors"><Mail size={15} /></button>
+                                <button title="Edit" onClick={() => setEditingUser(user)} className="p-1.5 text-slate-900 hover:bg-white hover:shadow-sm hover:text-slate-800 rounded-lg transition-all border border-transparent hover:border-slate-100"><Edit2 size={15} /></button>
+                                <button title="Permissions" onClick={() => openPermissionsModal(user)} className="p-1.5 text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"><Key size={15} /></button>
+                                <button title="Login History" onClick={() => openHistoryModal(user)} className="p-1.5 text-slate-900 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"><History size={15} /></button>
+                                <button title="Send Password Reset" onClick={() => handleAdminResetPassword(user)} className="p-1.5 text-slate-900 hover:bg-violet-50 hover:text-violet-600 rounded-lg transition-colors"><Mail size={15} /></button>
                                 <button
                                   title={user.status === 'Inactive' ? 'Reactivate' : 'Suspend'}
                                   onClick={() => handleSuspendUser(user)}
-                                  className={`p-1.5 rounded-lg transition-colors ${user.status === 'Inactive' ? 'text-green-500 hover:bg-green-50' : 'text-slate-400 hover:bg-amber-50 hover:text-amber-500'}`}
+                                  className={`p-1.5 rounded-lg transition-colors ${user.status === 'Inactive' ? 'text-green-500 hover:bg-green-50' : 'text-slate-900 hover:bg-amber-50 hover:text-amber-500'}`}
                                 >
                                   <UserX size={15} />
                                 </button>
-                                <button title="Delete" onClick={() => setUserToDelete(user)} className="p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={15} /></button>
+                                <button title="Delete" onClick={() => setUserToDelete(user)} className="p-1.5 text-slate-900 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={15} /></button>
                               </div>
                             </td>
                           </tr>
                         ))}
                         {activeUsers.length === 0 && (
-                          <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400 italic">No users found. Click Refresh to sync from cloud.</td></tr>
+                          <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-900 italic">No users found. Click Refresh to sync from cloud.</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -628,7 +628,7 @@ export const Settings: React.FC = () => {
               ) : (
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-center">
                   <Shield className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 font-medium">User management is restricted to Administrators.</p>
+                  <p className="text-slate-900 font-medium">User management is restricted to Administrators.</p>
                 </div>
               )}
           </div>
@@ -646,32 +646,32 @@ export const Settings: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><ScrollText size={20} /> Audit Log</h3>
-                <p className="text-xs text-slate-500">Track system activities and changes</p>
+                <p className="text-xs text-slate-900">Track system activities and changes</p>
               </div>
-              <button onClick={handleExportAuditLogs} className="flex items-center gap-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors uppercase tracking-wider">
+              <button onClick={handleExportAuditLogs} className="flex items-center gap-2 text-xs font-bold text-slate-900 bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors uppercase tracking-wider">
                 <Download size={14} /> Export CSV
               </button>
             </div>
             <div className="max-h-[600px] overflow-y-auto">
-              <table className="w-full text-left text-sm text-slate-600">
+              <table className="w-full text-left text-sm text-slate-900">
                 <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-100">
                   <tr>
-                    <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider w-40">Timestamp</th>
-                    <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider w-40">User</th>
-                    <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider w-40">Action</th>
-                    <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Details</th>
+                    <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider w-40">Timestamp</th>
+                    <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider w-40">User</th>
+                    <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider w-40">Action</th>
+                    <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {auditLogs.map((log: any) => (
                     <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-mono text-xs text-slate-500">{log.timestamp}</td>
+                      <td className="px-6 py-4 font-mono text-xs text-slate-900">{log.timestamp}</td>
                       <td className="px-6 py-4 font-bold text-slate-700">{log.user}</td>
-                      <td className="px-6 py-4"><span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold uppercase tracking-wider text-slate-600 border border-slate-200">{log.action}</span></td>
-                      <td className="px-6 py-4 text-slate-600">{log.details}</td>
+                      <td className="px-6 py-4"><span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold uppercase tracking-wider text-slate-900 border border-slate-200">{log.action}</span></td>
+                      <td className="px-6 py-4 text-slate-900">{log.details}</td>
                     </tr>
                   ))}
-                  {auditLogs.length === 0 && <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">No activity recorded yet.</td></tr>}
+                  {auditLogs.length === 0 && <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-900 italic">No activity recorded yet.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -686,12 +686,12 @@ export const Settings: React.FC = () => {
                 {index === 0 && <div className="absolute top-0 right-0 bg-indigo-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-widest">Latest Release</div>}
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-2xl font-black text-slate-900 tracking-tight">v{note.version}</span>
-                  <span className="text-sm font-medium text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">{note.date}</span>
+                  <span className="text-sm font-medium text-slate-900 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">{note.date}</span>
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-4">{note.title}</h3>
                 <ul className="space-y-3">
                   {note.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm text-slate-600 leading-relaxed">
+                    <li key={i} className="flex items-start gap-3 text-sm text-slate-900 leading-relaxed">
                       <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></div>
                       {feature}
                     </li>
@@ -712,7 +712,7 @@ export const Settings: React.FC = () => {
               <div className="bg-gradient-to-br from-slate-50 to-white p-6 rounded-2xl border border-slate-200 flex flex-col justify-between">
                 <div>
                   <h4 className="text-lg font-bold text-slate-900 mb-2">User Manual</h4>
-                  <p className="text-sm text-slate-600 mb-6">Quick start guide for new staff members.</p>
+                  <p className="text-sm text-slate-900 mb-6">Quick start guide for new staff members.</p>
                 </div>
                 <button onClick={generateUserManualPDF} className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2">
                   <Download size={16} /> Download Manual
@@ -735,16 +735,16 @@ export const Settings: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Add New User</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Invite a team member to Dreambox</p>
+                <p className="text-xs text-slate-900 mt-0.5">Invite a team member to Dreambox</p>
               </div>
-              <button onClick={() => setIsAddUserModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => setIsAddUserModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
             </div>
 
             {/* Body */}
             <form onSubmit={handleAddUser} className="p-8 space-y-6">
               {/* User Info section */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">User Info</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">User Info</p>
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 gap-6">
                     <MinimalInput label="First Name" value={newUser.firstName} onChange={(e: any) => setNewUser({ ...newUser, firstName: e.target.value })} required />
@@ -756,9 +756,9 @@ export const Settings: React.FC = () => {
 
               {/* Role section */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Permissions</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Permissions</p>
                 <MinimalSelect label="Role" value={newUser.role} onChange={(e: any) => setNewUser({ ...newUser, role: e.target.value })} options={ROLE_OPTIONS} />
-                <p className="text-xs text-slate-400 mt-2">
+                <p className="text-xs text-slate-900 mt-2">
                   {newUser.role === 'Admin' && 'Full system access including user management and settings.'}
                   {newUser.role === 'Manager' && 'Access to all modules except system settings and user admin.'}
                   {newUser.role === 'Staff' && 'Read access to billboards, contracts, and invoices. Write access to tasks.'}
@@ -768,7 +768,7 @@ export const Settings: React.FC = () => {
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setIsAddUserModalOpen(false)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                <button type="button" onClick={() => setIsAddUserModalOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
                   Cancel
                 </button>
                 <button type="submit" disabled={isUserLoading} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50">
@@ -789,9 +789,9 @@ export const Settings: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Edit User</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{editingUser.email} &bull; {editingUser.role}</p>
+                <p className="text-xs text-slate-900 mt-0.5">{editingUser.email} &bull; {editingUser.role}</p>
               </div>
-              <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
             </div>
 
             <form onSubmit={handleEditUser} className="p-8 space-y-6">
@@ -802,16 +802,16 @@ export const Settings: React.FC = () => {
                 </div>
                 <div>
                   <p className="font-bold text-base">{editingUser.firstName} {editingUser.lastName}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{editingUser.email}</p>
+                  <p className="text-xs text-slate-900 mt-0.5">{editingUser.email}</p>
                 </div>
-                <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${editingUser.status === 'Active' ? 'bg-green-900 text-green-300' : editingUser.status === 'Inactive' ? 'bg-slate-700 text-slate-400' : 'bg-amber-900 text-amber-300'}`}>
+                <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${editingUser.status === 'Active' ? 'bg-green-900 text-green-300' : editingUser.status === 'Inactive' ? 'bg-slate-700 text-slate-900' : 'bg-amber-900 text-amber-300'}`}>
                   {editingUser.status}
                 </span>
               </div>
 
               {/* User Info */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">User Info</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">User Info</p>
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 gap-6">
                     <MinimalInput label="First Name" value={editingUser.firstName} onChange={(e: any) => setEditingUser({ ...editingUser, firstName: e.target.value })} required />
@@ -823,7 +823,7 @@ export const Settings: React.FC = () => {
 
               {/* Role & Status */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Role & Status</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Role & Status</p>
                 <div className="space-y-5">
                   <MinimalSelect label="Role" value={editingUser.role} onChange={(e: any) => setEditingUser({ ...editingUser, role: e.target.value as any })} options={ROLE_OPTIONS} />
                   <MinimalSelect
@@ -837,13 +837,13 @@ export const Settings: React.FC = () => {
                       { value: 'Rejected', label: 'Rejected' },
                     ]}
                   />
-                  <p className="text-xs text-slate-400">Setting status to Inactive suspends login without deleting history or audit trails.</p>
+                  <p className="text-xs text-slate-900">Setting status to Inactive suspends login without deleting history or audit trails.</p>
                 </div>
               </div>
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
                   Cancel
                 </button>
                 <button type="submit" disabled={isUserLoading} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50">
@@ -866,9 +866,9 @@ export const Settings: React.FC = () => {
                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <Trash2 size={20} className="text-red-500" /> Delete User
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">{userToDelete.email} &bull; {userToDelete.role}</p>
+                <p className="text-xs text-slate-900 mt-0.5">{userToDelete.email} &bull; {userToDelete.role}</p>
               </div>
-              <button onClick={() => setUserToDelete(null)} className="p-2 hover:bg-red-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => setUserToDelete(null)} className="p-2 hover:bg-red-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
             </div>
 
             <div className="p-8 space-y-5">
@@ -879,7 +879,7 @@ export const Settings: React.FC = () => {
                 </div>
                 <div>
                   <p className="font-bold text-base">{userToDelete.firstName} {userToDelete.lastName}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{userToDelete.email}</p>
+                  <p className="text-xs text-slate-900 mt-0.5">{userToDelete.email}</p>
                 </div>
                 <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase ${userToDelete.role === 'Admin' ? 'bg-purple-900 text-purple-300' : 'bg-slate-700 text-slate-300'}`}>
                   {userToDelete.role}
@@ -898,7 +898,7 @@ export const Settings: React.FC = () => {
 
               {/* Actions — Cancel first */}
               <div className="flex gap-3 pt-1">
-                <button onClick={() => setUserToDelete(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                <button onClick={() => setUserToDelete(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
                   Cancel
                 </button>
                 <button onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold uppercase text-xs tracking-wider shadow-lg shadow-red-500/20 transition-colors">
@@ -918,9 +918,9 @@ export const Settings: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Review Access Request</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{approvalUser.email} &bull; Pending approval</p>
+                <p className="text-xs text-slate-900 mt-0.5">{approvalUser.email} &bull; Pending approval</p>
               </div>
-              <button onClick={() => setApprovalUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => setApprovalUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
             </div>
 
             <div className="p-8 space-y-6">
@@ -931,7 +931,7 @@ export const Settings: React.FC = () => {
                 </div>
                 <div>
                   <p className="font-bold text-base">{approvalUser.firstName} {approvalUser.lastName}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{approvalUser.email}</p>
+                  <p className="text-xs text-slate-900 mt-0.5">{approvalUser.email}</p>
                 </div>
                 <span className="ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase bg-amber-900 text-amber-300">
                   Pending
@@ -940,7 +940,7 @@ export const Settings: React.FC = () => {
 
               {/* Role selection */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Assign Role to Approve</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Assign Role to Approve</p>
                 <div className="space-y-2">
                   {ROLE_OPTIONS.map(opt => (
                     <button
@@ -953,7 +953,7 @@ export const Settings: React.FC = () => {
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-2">Approving grants immediate login access with the selected role&apos;s default permissions.</p>
+                <p className="text-xs text-slate-900 mt-2">Approving grants immediate login access with the selected role&apos;s default permissions.</p>
               </div>
 
               {/* Reject section */}
@@ -964,7 +964,7 @@ export const Settings: React.FC = () => {
                 >
                   <UserX size={14} /> Reject Request
                 </button>
-                <p className="text-xs text-slate-400 mt-2 text-center">Rejecting will notify the user and prevent login.</p>
+                <p className="text-xs text-slate-900 mt-2 text-center">Rejecting will notify the user and prevent login.</p>
               </div>
             </div>
           </div>
@@ -979,9 +979,9 @@ export const Settings: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Feature Permissions</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{permissionsUser.firstName} {permissionsUser.lastName} &bull; {permissionsUser.role}</p>
+                <p className="text-xs text-slate-900 mt-0.5">{permissionsUser.firstName} {permissionsUser.lastName} &bull; {permissionsUser.role}</p>
               </div>
-              <button onClick={() => setPermissionsUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => setPermissionsUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
             </div>
 
             <div className="p-8 space-y-6">
@@ -990,7 +990,7 @@ export const Settings: React.FC = () => {
                 <div className="p-2.5 bg-indigo-600 rounded-xl shrink-0"><Key size={18} /></div>
                 <div>
                   <p className="font-bold">{permissionsUser.firstName} {permissionsUser.lastName}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{permissionsUser.email}</p>
+                  <p className="text-xs text-slate-900 mt-0.5">{permissionsUser.email}</p>
                 </div>
                 <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase ${permissionsUser.role === 'Admin' ? 'bg-purple-900 text-purple-300' : permissionsUser.role === 'Manager' ? 'bg-indigo-900 text-indigo-300' : 'bg-slate-700 text-slate-300'}`}>
                   {permissionsUser.role}
@@ -998,14 +998,14 @@ export const Settings: React.FC = () => {
               </div>
 
               {/* Helper text */}
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-900">
                 Override default role permissions for this user. Changes apply immediately after saving.
                 Use &ldquo;Reset to Defaults&rdquo; to restore role-based access.
               </p>
 
               {/* Permissions section */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Module Access</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Module Access</p>
                 <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100">
                   {PERMISSION_RESOURCES.map(({ key, label }) => {
                     const options = key === 'reports'
@@ -1022,7 +1022,7 @@ export const Settings: React.FC = () => {
                               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                 editingPermissions[key] === opt.value
                                   ? opt.value === 'none' ? 'bg-red-100 text-red-700' : opt.value === 'read' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                                  : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-100'
+                                  : 'bg-white text-slate-900 border border-slate-200 hover:bg-slate-100'
                               }`}
                             >
                               {opt.label}
@@ -1039,7 +1039,7 @@ export const Settings: React.FC = () => {
               <div className="flex gap-3 pt-1">
                 <button
                   onClick={() => setEditingPermissions({ ...DEFAULT_PERMISSIONS[permissionsUser.role] })}
-                  className="flex-1 py-3 border border-slate-200 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-600 uppercase tracking-wider transition-colors"
+                  className="flex-1 py-3 border border-slate-200 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-900 uppercase tracking-wider transition-colors"
                 >
                   Reset to Defaults
                 </button>
@@ -1065,9 +1065,9 @@ export const Settings: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Login History</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{historyUser.firstName} {historyUser.lastName} &bull; {historyUser.email}</p>
+                <p className="text-xs text-slate-900 mt-0.5">{historyUser.firstName} {historyUser.lastName} &bull; {historyUser.email}</p>
               </div>
-              <button onClick={() => setHistoryUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => setHistoryUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
             </div>
 
             <div className="p-8 space-y-6">
@@ -1076,49 +1076,49 @@ export const Settings: React.FC = () => {
                 <div className="p-2.5 bg-blue-600 rounded-xl shrink-0"><History size={18} /></div>
                 <div>
                   <p className="font-bold">{historyUser.firstName} {historyUser.lastName}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-900 mt-0.5">
                     {historyUser.lastLoginAt ? `Last login ${new Date(historyUser.lastLoginAt).toLocaleDateString()}` : 'No logins recorded'}
                   </p>
                 </div>
-                <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase ${historyUser.status === 'Active' ? 'bg-green-900 text-green-300' : 'bg-slate-700 text-slate-400'}`}>
+                <span className={`ml-auto px-2 py-1 rounded text-[10px] font-bold uppercase ${historyUser.status === 'Active' ? 'bg-green-900 text-green-300' : 'bg-slate-700 text-slate-900'}`}>
                   {historyUser.status}
                 </span>
               </div>
 
               {/* Log table */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Access Log</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Access Log</p>
                 {isLoadingHistory ? (
                   <div className="bg-slate-50 rounded-2xl border border-slate-100 p-12 text-center">
-                    <Loader2 size={24} className="animate-spin text-slate-400 mx-auto" />
+                    <Loader2 size={24} className="animate-spin text-slate-900 mx-auto" />
                   </div>
                 ) : loginHistory.length === 0 ? (
-                  <div className="bg-slate-50 rounded-2xl border border-slate-100 p-12 text-center text-slate-400">
+                  <div className="bg-slate-50 rounded-2xl border border-slate-100 p-12 text-center text-slate-900">
                     <History size={28} className="mx-auto mb-3 opacity-40" />
                     <p className="font-medium">No login history recorded yet.</p>
                   </div>
                 ) : (
                   <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden">
-                    <table className="w-full text-sm text-slate-600">
+                    <table className="w-full text-sm text-slate-900">
                       <thead className="bg-white border-b border-slate-100">
                         <tr>
-                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">When</th>
-                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">Result</th>
-                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">IP</th>
-                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-400 tracking-wider">Details</th>
+                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-900 tracking-wider">When</th>
+                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-900 tracking-wider">Result</th>
+                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-900 tracking-wider">IP</th>
+                          <th className="px-4 py-3 text-left font-bold text-xs uppercase text-slate-900 tracking-wider">Details</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {loginHistory.map(entry => (
                           <tr key={entry.id} className="hover:bg-white/60 transition-colors">
-                            <td className="px-4 py-3 font-mono text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString()}</td>
+                            <td className="px-4 py-3 font-mono text-xs text-slate-900">{new Date(entry.createdAt).toLocaleString()}</td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${entry.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
                                 {entry.success ? 'Success' : 'Failed'}
                               </span>
                             </td>
                             <td className="px-4 py-3 font-mono text-xs">{entry.ip || '—'}</td>
-                            <td className="px-4 py-3 text-xs text-slate-400">{entry.reason ? entry.reason.replace(/_/g, ' ') : '—'}</td>
+                            <td className="px-4 py-3 text-xs text-slate-900">{entry.reason ? entry.reason.replace(/_/g, ' ') : '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1129,7 +1129,7 @@ export const Settings: React.FC = () => {
 
               {/* Close button */}
               <div className="flex gap-3 pt-1">
-                <button onClick={() => setHistoryUser(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                <button onClick={() => setHistoryUser(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
                   Close
                 </button>
               </div>
@@ -1146,13 +1146,13 @@ export const Settings: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Bulk Invite Users</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Send invitations to multiple team members at once</p>
+                <p className="text-xs text-slate-900 mt-0.5">Send invitations to multiple team members at once</p>
               </div>
               <button
                 onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }}
                 className="p-2 hover:bg-slate-100 rounded-full transition-colors"
               >
-                <X size={20} className="text-slate-400" />
+                <X size={20} className="text-slate-900" />
               </button>
             </div>
 
@@ -1161,7 +1161,7 @@ export const Settings: React.FC = () => {
                 <>
                   {/* Email input section */}
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Email Addresses</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Email Addresses</p>
                     <textarea
                       value={bulkInviteText}
                       onChange={e => setBulkInviteText(e.target.value)}
@@ -1169,21 +1169,21 @@ export const Settings: React.FC = () => {
                       placeholder={"alice@company.com\nbob@company.com\ncarol@company.com"}
                       className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-mono text-slate-700 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200 resize-none"
                     />
-                    <p className="text-xs text-slate-400 mt-1.5">Separate addresses with commas, semicolons, or new lines.</p>
+                    <p className="text-xs text-slate-900 mt-1.5">Separate addresses with commas, semicolons, or new lines.</p>
                   </div>
 
                   {/* Role section */}
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Default Role</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Default Role</p>
                     <MinimalSelect label="Assign Role" value={bulkInviteRole} onChange={(e: any) => setBulkInviteRole(e.target.value)} options={ROLE_OPTIONS} />
-                    <p className="text-xs text-slate-400 mt-2">Users are created as Active and will be prompted to set a password on first login.</p>
+                    <p className="text-xs text-slate-900 mt-2">Users are created as Active and will be prompted to set a password on first login.</p>
                   </div>
 
                   {/* Actions */}
                   <div className="flex gap-3 pt-1">
                     <button
                       onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }}
-                      className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                      className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
                     >
                       Cancel
                     </button>
@@ -1201,7 +1201,7 @@ export const Settings: React.FC = () => {
                 <>
                   {/* Results */}
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Invite Results</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Invite Results</p>
                     <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100 max-h-64 overflow-y-auto">
                       {bulkInviteResults.map((r, i) => (
                         <div key={i} className="flex items-center justify-between py-3 px-4">
@@ -1222,7 +1222,7 @@ export const Settings: React.FC = () => {
                   <div className="flex gap-3 pt-1">
                     <button
                       onClick={() => { setBulkInviteResults([]); setBulkInviteText(''); }}
-                      className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                      className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
                     >
                       Invite More
                     </button>

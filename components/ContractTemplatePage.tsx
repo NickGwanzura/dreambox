@@ -24,7 +24,7 @@ export const ContractTemplatePage: React.FC = () => {
       <div className="max-w-xl mx-auto mt-16 bg-slate-50 border border-slate-200 rounded-2xl p-10 text-center">
         <FileText className="w-10 h-10 text-slate-300 mx-auto mb-3" />
         <h2 className="text-lg font-bold text-slate-700">Access Restricted</h2>
-        <p className="text-slate-500 font-medium mt-2">The contract template editor is limited to the finance/admin team.</p>
+        <p className="text-slate-900 font-medium mt-2">The contract template editor is limited to the finance/admin team.</p>
       </div>
     );
   }
@@ -57,7 +57,7 @@ export const ContractTemplatePage: React.FC = () => {
           <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">
             Contract Template
           </h2>
-          <p className="text-slate-500 font-medium">Edit the legal contract body used for every rental agreement PDF.</p>
+          <p className="text-slate-900 font-medium">Edit the legal contract body used for every rental agreement PDF.</p>
         </div>
         <div className="flex items-center gap-3">
           {saved && (
@@ -67,7 +67,7 @@ export const ContractTemplatePage: React.FC = () => {
           )}
           <button
             onClick={() => setShowPreview(!showPreview)}
-            className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-slate-50 flex items-center gap-2"
+            className="bg-white border border-slate-200 text-slate-900 px-4 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider hover:bg-slate-50 flex items-center gap-2"
           >
             <Eye size={14} /> {showPreview ? 'Hide' : 'Preview'}
           </button>
@@ -109,11 +109,11 @@ export const ContractTemplatePage: React.FC = () => {
                   >
                     {`{{${p.key}}}`}
                   </button>
-                  <span className="text-xs text-slate-500 pt-0.5">{p.label}</span>
+                  <span className="text-xs text-slate-900 pt-0.5">{p.label}</span>
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-slate-400 mt-4 italic">Click any placeholder to copy it to your clipboard.</p>
+            <p className="text-[11px] text-slate-900 mt-4 italic">Click any placeholder to copy it to your clipboard.</p>
           </div>
         </details>
       </div>
@@ -124,21 +124,21 @@ export const ContractTemplatePage: React.FC = () => {
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-700">Template Body</h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-[11px] text-slate-900 mt-0.5">
                 {isDefault ? 'Empty — using built-in default' : `${charCount.toLocaleString()} chars — custom override`}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleLoadDefault}
-                className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                className="text-[10px] font-bold uppercase tracking-wider text-slate-900 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
               >
                 <RotateCcw size={11} /> Load Default
               </button>
               {!isDefault && (
                 <button
                   onClick={handleClear}
-                  className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
+                  className="text-[10px] font-bold uppercase tracking-wider text-slate-900 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   Clear
                 </button>
@@ -159,7 +159,7 @@ export const ContractTemplatePage: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-700">Preview</h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Raw template — placeholders show as {`{{…}}`}. They resolve with real data at PDF generation.</p>
+              <p className="text-[11px] text-slate-900 mt-0.5">Raw template — placeholders show as {`{{…}}`}. They resolve with real data at PDF generation.</p>
             </div>
             <div className="p-6 max-h-[700px] overflow-y-auto bg-slate-50/50">
               <div className="bg-white rounded-xl shadow-sm p-8 text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap font-serif">

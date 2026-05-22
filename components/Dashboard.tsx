@@ -283,9 +283,9 @@ export const Dashboard: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{greeting || `Welcome back${currentUser?.firstName ? `, ${currentUser.firstName}` : ''}`}</h1>
-          <p className="text-slate-500 mt-0.5 text-sm">Here's what's happening with your billboard business today.</p>
+          <p className="text-slate-900 mt-0.5 text-sm">Here's what's happening with your billboard business today.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-slate-900">
           <RefreshCw size={12} />
           <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
@@ -355,9 +355,9 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Financial Performance</h3>
-                <p className="text-sm text-slate-500">Billed vs Collected, last 6 months</p>
+                <p className="text-sm text-slate-900">Billed vs Collected, last 6 months</p>
               </div>
-              <div className="flex items-center gap-4 text-xs text-slate-500">
+              <div className="flex items-center gap-4 text-xs text-slate-900">
                 <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-slate-800 inline-block"></span>Billed</span>
                 <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-400 inline-block"></span>Collected</span>
                 <span className="flex items-center gap-1.5"><span className="w-3 h-1 bg-indigo-500 inline-block rounded"></span>Net</span>
@@ -402,7 +402,7 @@ export const Dashboard: React.FC = () => {
                 <OccupancyRing title="Static"     percentage={metrics.staticOccupancyRate}  color="#10b981" subtitle={`${metrics.rentedStaticSides}/${metrics.totalStaticSides}`} bgColor="bg-emerald-50" />
               </div>
               {/* Inventory summary */}
-              <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between text-xs text-slate-500">
+              <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between text-xs text-slate-900">
                 <span><strong className="text-slate-700">{metrics.ledBillboards}</strong> LED screens</span>
                 <span><strong className="text-slate-700">{metrics.staticBillboards}</strong> static boards</span>
                 <span><strong className="text-slate-700">{metrics.ledBillboards + metrics.staticBillboards}</strong> total</span>
@@ -436,7 +436,7 @@ export const Dashboard: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-slate-900">Top Clients</h3>
-              <span className="text-xs text-slate-400">by total billed</span>
+              <span className="text-xs text-slate-900">by total billed</span>
             </div>
             <div className="space-y-3">
               {metrics.topClientsData.map((client, i) => (
@@ -459,7 +459,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               ))}
               {metrics.topClientsData.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-4">No revenue data yet</p>
+                <p className="text-sm text-slate-900 text-center py-4">No revenue data yet</p>
               )}
             </div>
           </div>
@@ -472,7 +472,7 @@ export const Dashboard: React.FC = () => {
                   <Wallet size={16} className="text-red-500" />
                   <h3 className="text-lg font-bold text-slate-900">Expenses by Category</h3>
                 </div>
-                <span className="text-xs text-slate-400">this month</span>
+                <span className="text-xs text-slate-900">this month</span>
               </div>
               {metrics.expenseByCategoryData.length > 0 ? (
                 <div className="space-y-3">
@@ -483,7 +483,7 @@ export const Dashboard: React.FC = () => {
                     };
                     return metrics.expenseByCategoryData.map((cat, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <div className="w-20 text-xs font-semibold text-slate-600 shrink-0 truncate">{cat.name}</div>
+                        <div className="w-20 text-xs font-semibold text-slate-900 shrink-0 truncate">{cat.name}</div>
                         <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                           <div className="h-full rounded-full transition-all" style={{ width: `${(cat.value / maxExp) * 100}%`, backgroundColor: catColors[cat.name] || '#64748b' }} />
                         </div>
@@ -492,12 +492,12 @@ export const Dashboard: React.FC = () => {
                     ));
                   })()}
                   <div className="pt-3 border-t border-slate-100 flex justify-between text-sm">
-                    <span className="text-slate-500 font-medium">Total</span>
+                    <span className="text-slate-900 font-medium">Total</span>
                     <span className="font-bold text-slate-900">${Math.round(metrics.expensesThisMonth).toLocaleString()}</span>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-400 text-center py-8">No expenses recorded this month</p>
+                <p className="text-sm text-slate-900 text-center py-8">No expenses recorded this month</p>
               )}
             </div>
 
@@ -511,12 +511,12 @@ export const Dashboard: React.FC = () => {
                   <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-slate-900 truncate">{exp.description}</p>
-                      <p className="text-[10px] text-slate-400">{exp.date} · {exp.category}</p>
+                      <p className="text-[10px] text-slate-900">{exp.date} · {exp.category}</p>
                     </div>
                     <span className="text-xs font-bold text-red-600 ml-2 shrink-0">-${exp.amount.toLocaleString()}</span>
                   </div>
                 )) : (
-                  <p className="text-xs text-slate-400 text-center py-4">No expenses recorded yet</p>
+                  <p className="text-xs text-slate-900 text-center py-4">No expenses recorded yet</p>
                 )}
               </div>
             </div>
@@ -540,13 +540,13 @@ export const Dashboard: React.FC = () => {
 
             {upcomingBillings.length > 0 && (
               <div className="mb-4 pb-4 border-b border-slate-100">
-                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Upcoming Collections</h4>
+                <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider mb-2">Upcoming Collections</h4>
                 <div className="space-y-2">
                   {upcomingBillings.map((bill, i) => (
                     <div key={i} className="flex justify-between items-center p-2.5 bg-indigo-50 rounded-xl">
                       <div>
                         <p className="text-xs font-semibold text-slate-900">{bill.clientName}</p>
-                        <p className="text-[10px] text-slate-500">Due {bill.date}</p>
+                        <p className="text-[10px] text-slate-900">Due {bill.date}</p>
                       </div>
                       <span className="text-xs font-bold text-indigo-600">${bill.amount.toLocaleString()}</span>
                     </div>
@@ -563,7 +563,7 @@ export const Dashboard: React.FC = () => {
                     <div key={inv.id} className="flex justify-between items-center p-2.5 bg-red-50 rounded-xl">
                       <div>
                         <p className="text-xs font-semibold text-slate-900">{getClientName(inv.clientId)}</p>
-                        <p className="text-[10px] text-slate-500">{inv.date}</p>
+                        <p className="text-[10px] text-slate-900">{inv.date}</p>
                       </div>
                       <span className="text-xs font-bold text-red-600">${inv.total.toLocaleString()}</span>
                     </div>
@@ -581,7 +581,7 @@ export const Dashboard: React.FC = () => {
                       <AlertTriangle size={13} className="text-amber-600 mt-0.5 shrink-0" />
                       <div>
                         <p className="text-xs font-semibold text-slate-900">{getClientName(c.clientId)}</p>
-                        <p className="text-[10px] text-slate-500">Expires {c.endDate}</p>
+                        <p className="text-[10px] text-slate-900">Expires {c.endDate}</p>
                       </div>
                     </div>
                   ))}
@@ -592,8 +592,8 @@ export const Dashboard: React.FC = () => {
             {expiringContracts.length === 0 && overdueInvoices.length === 0 && upcomingBillings.length === 0 && (
               <div className="py-6 text-center bg-slate-50 rounded-2xl">
                 <CheckCircle2 size={22} className="text-emerald-500 mx-auto mb-2" />
-                <p className="text-sm font-medium text-slate-600">All caught up!</p>
-                <p className="text-xs text-slate-400 mt-0.5">No actions required</p>
+                <p className="text-sm font-medium text-slate-900">All caught up!</p>
+                <p className="text-xs text-slate-900 mt-0.5">No actions required</p>
               </div>
             )}
           </div>
@@ -609,12 +609,12 @@ export const Dashboard: React.FC = () => {
                 <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-slate-900 truncate">{getClientName(r.clientId)}</p>
-                    <p className="text-[10px] text-slate-400">{r.date} · {r.paymentMethod || 'Payment'}</p>
+                    <p className="text-[10px] text-slate-900">{r.date} · {r.paymentMethod || 'Payment'}</p>
                   </div>
                   <span className="text-xs font-bold text-emerald-600 ml-2 shrink-0">+${r.total.toLocaleString()}</span>
                 </div>
               )) : (
-                <p className="text-xs text-slate-400 text-center py-4">No payments recorded yet</p>
+                <p className="text-xs text-slate-900 text-center py-4">No payments recorded yet</p>
               )}
             </div>
           </div>
@@ -626,16 +626,16 @@ export const Dashboard: React.FC = () => {
                 <Newspaper size={16} className="text-indigo-600" />
                 <h3 className="font-bold text-slate-900">Industry News</h3>
               </div>
-              {news.length > 0 && <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{news.length} stories</span>}
+              {news.length > 0 && <span className="text-[10px] font-bold text-slate-900 uppercase tracking-wider">{news.length} stories</span>}
             </div>
             <div className="space-y-2">
               {news.length > 0 ? news.map((item, idx) => {
-                const catStyle = catColors[(item as any).category] || 'bg-slate-100 text-slate-600';
+                const catStyle = catColors[(item as any).category] || 'bg-slate-100 text-slate-900';
                 return (
                   <div key={idx} className="cursor-pointer group p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100" onClick={() => setSelectedNews(item)}>
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${catStyle}`}>{(item as any).category || item.source || 'News'}</span>
-                      <span className="text-[10px] text-slate-400">{item.date}</span>
+                      <span className="text-[10px] text-slate-900">{item.date}</span>
                     </div>
                     <h4 className="text-xs font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors leading-snug">{item.title}</h4>
                   </div>
@@ -670,7 +670,7 @@ export const Dashboard: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Industry News</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-900 mt-0.5">
                   {(() => {
                     const cat = (selectedNews as any).category || selectedNews.source || 'News';
                     return `${cat}${selectedNews.date ? ` \u2022 ${selectedNews.date}` : ''}`;
@@ -682,7 +682,7 @@ export const Dashboard: React.FC = () => {
                 className="p-2 hover:bg-slate-100 rounded-full transition-colors"
                 aria-label="Close"
               >
-                <X size={20} className="text-slate-400" />
+                <X size={20} className="text-slate-900" />
               </button>
             </div>
 
@@ -690,7 +690,7 @@ export const Dashboard: React.FC = () => {
             <div className="p-8 space-y-6">
               {/* Context card */}
               <div className="bg-slate-900 text-white p-5 rounded-2xl">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Article</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Article</p>
                 <h2 className="text-base font-bold leading-snug">{selectedNews.title}</h2>
                 {(() => {
                   const catStyle = catColors[(selectedNews as any).category] || 'bg-slate-700 text-slate-300';
@@ -703,10 +703,10 @@ export const Dashboard: React.FC = () => {
 
               {/* Article body */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Summary</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Summary</p>
                 <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-3">
                   {selectedNews.summary.split(/\n\n+/).map((para, i) => (
-                    <p key={i} className="text-sm text-slate-600 leading-relaxed">{para.trim()}</p>
+                    <p key={i} className="text-sm text-slate-900 leading-relaxed">{para.trim()}</p>
                   ))}
                 </div>
               </div>
@@ -715,7 +715,7 @@ export const Dashboard: React.FC = () => {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setSelectedNews(null)}
-                  className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                  className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
                 >
                   Close
                 </button>
@@ -760,9 +760,9 @@ const KPICard: React.FC<{
         )}
       </div>
       <div className="mt-3">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{title}</p>
+        <p className="text-[10px] font-bold text-slate-900 uppercase tracking-wider">{title}</p>
         <p className="text-2xl font-black text-slate-900 mt-1 leading-tight">{value}</p>
-        {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-slate-900 mt-0.5">{subtitle}</p>}
       </div>
     </div>
   );
@@ -777,7 +777,7 @@ const OccupancyRing: React.FC<{
   bgColor?: string;
 }> = ({ title, percentage, color, subtitle, bgColor = 'bg-slate-50' }) => (
   <div className={`${bgColor} rounded-2xl p-3 text-center`}>
-    <p className="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wide">{title}</p>
+    <p className="text-[10px] font-bold text-slate-900 mb-2 uppercase tracking-wide">{title}</p>
     <div className="relative w-14 h-14 mx-auto">
       <svg className="w-14 h-14 transform -rotate-90" viewBox="0 0 56 56">
         <circle cx="28" cy="28" r="24" stroke="#e2e8f0" strokeWidth="4" fill="transparent" />
@@ -788,6 +788,6 @@ const OccupancyRing: React.FC<{
         <span className="text-sm font-black" style={{ color }}>{percentage}%</span>
       </div>
     </div>
-    <p className="text-[10px] text-slate-400 mt-1.5 font-medium">{subtitle}</p>
+    <p className="text-[10px] text-slate-900 mt-1.5 font-medium">{subtitle}</p>
   </div>
 );

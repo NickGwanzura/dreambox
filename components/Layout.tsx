@@ -361,9 +361,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         {/* Header */}
         <header className="sticky top-0 z-40 h-auto min-h-[4rem] sm:min-h-[4.5rem] flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 shrink-0 transition-all duration-300 border-b border-slate-200/50 bg-white/80 backdrop-blur-md">
           <div className="flex items-center gap-3 sm:gap-4">
-             <button 
-               onClick={() => setSidebarOpen(true)} 
-               className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+             <button
+               onClick={() => setSidebarOpen(true)}
+               className="lg:hidden p-2 text-slate-900 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
                aria-label="Open menu"
              >
                <Menu size={24} />
@@ -374,7 +374,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4">
-             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-bold text-slate-600 shadow-sm">
+             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-bold text-slate-900 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                 <span>Harare, ZW</span>
              </div>
@@ -391,7 +391,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                ) : (
                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                )}
-               <span className="text-slate-500">
+               <span className="text-slate-900">
                  {syncStatus.lastSyncTime
                    ? (seconds =>
                        seconds < 5 ? 'now' :
@@ -408,9 +408,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                )}
              </div>
 
-             <button 
-               onClick={() => onNavigate('dashboard')} 
-               className="relative p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300" 
+             <button
+               onClick={() => onNavigate('dashboard')}
+               className="relative p-2 text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300"
                title={`${alertCount} System Alerts`}
                aria-label={`${alertCount} notifications`}
              >

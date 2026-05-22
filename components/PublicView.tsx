@@ -251,7 +251,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
     if (type === 'billboard' && !billboard) {
         return (
-            <div className="h-screen flex flex-col items-center justify-center text-slate-500 bg-slate-50">
+            <div className="h-screen flex flex-col items-center justify-center text-slate-900 bg-slate-50">
                 <MapPin size={48} className="mb-4 text-slate-300"/>
                 <h2 className="text-xl font-bold text-slate-800">Billboard Not Found</h2>
                 <p className="text-sm">The requested billboard ID is invalid or does not exist.</p>
@@ -268,12 +268,12 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                     {logo ? <img src={logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain bg-white border border-slate-100 p-1"/> : <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">D</div>}
                     <div>
                         <h1 className="text-lg font-bold text-slate-900 leading-tight">Dreambox Locations</h1>
-                        <p className="text-xs text-slate-500">Public Asset Viewer</p>
+                        <p className="text-xs text-slate-900">Public Asset Viewer</p>
                     </div>
                 </div>
                 <div className="flex gap-3">
                     {type === 'billboard' && (
-                        <a href="/locations" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-colors">
+                        <a href="/locations" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-900 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-colors">
                             <Layers size={14}/> View Full Map
                         </a>
                     )}
@@ -311,7 +311,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-md transition-shadow">
                                     <div className="text-indigo-500 mb-2 flex justify-center"><Maximize2 size={24}/></div>
                                     <div className="font-black text-slate-800 text-lg">{billboard.width}x{billboard.height}m</div>
-                                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Dimensions</div>
+                                    <div className="text-[10px] text-slate-900 uppercase font-bold tracking-wider">Dimensions</div>
                                 </div>
                                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-md transition-shadow">
                                     <div className="text-indigo-500 mb-2 flex justify-center"><Car size={24}/></div>
@@ -325,7 +325,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                                     : '-'
                                         }
                                     </div>
-                                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                                    <div className="text-[10px] text-slate-900 uppercase font-bold tracking-wider">
                                         {billboard.dailyTraffic 
                                             ? 'Daily Views'
                                             : viewEstimates[billboard.id]
@@ -334,7 +334,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                         }
                                     </div>
                                     {viewEstimates[billboard.id] && !billboard.dailyTraffic && (
-                                        <div className="text-[8px] text-slate-400 mt-1 italic px-2 leading-tight">
+                                        <div className="text-[8px] text-slate-900 mt-1 italic px-2 leading-tight">
                                             {viewEstimates[billboard.id].description}
                                         </div>
                                     )}
@@ -342,7 +342,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-md transition-shadow">
                                     <div className="text-indigo-500 mb-2 flex justify-center"><Layers size={24}/></div>
                                     <div className="font-black text-slate-800 text-lg">{billboard.type === 'Static' ? '2 Sides' : `${billboard.totalSlots} Slots`}</div>
-                                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Configuration</div>
+                                    <div className="text-[10px] text-slate-900 uppercase font-bold tracking-wider">Configuration</div>
                                 </div>
                             </div>
                         </div>
@@ -351,10 +351,10 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                         <div className="space-y-6 flex flex-col h-full">
                             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
                                 <h1 className="text-3xl font-black text-slate-900 mb-2 leading-tight">{billboard.name}</h1>
-                                <div className="flex items-center gap-2 text-slate-500 font-medium mb-6">
+                                <div className="flex items-center gap-2 text-slate-900 font-medium mb-6">
                                     <MapPin size={18} className="text-indigo-500 fill-indigo-50"/> {billboard.location}, {billboard.town}
                                 </div>
-                                <div className="prose prose-slate text-sm text-slate-600 leading-relaxed bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                <div className="prose prose-slate text-sm text-slate-900 leading-relaxed bg-slate-50 p-6 rounded-2xl border border-slate-100">
                                     <p>{billboard.visibility || "Premium advertising space located in a high-traffic area, offering excellent visibility for brands seeking maximum exposure."}</p>
                                 </div>
                             </div>
@@ -376,7 +376,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                                 </span>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-black text-slate-900">${(billboard.sideARate || 0).toLocaleString()}<span className="text-xs text-slate-400 font-normal">/mo</span></div>
+                                                <div className="font-black text-slate-900">${(billboard.sideARate || 0).toLocaleString()}<span className="text-xs text-slate-900 font-normal">/mo</span></div>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
@@ -388,7 +388,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                                 </span>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-black text-slate-900">${(billboard.sideBRate || 0).toLocaleString()}<span className="text-xs text-slate-400 font-normal">/mo</span></div>
+                                                <div className="font-black text-slate-900">${(billboard.sideBRate || 0).toLocaleString()}<span className="text-xs text-slate-900 font-normal">/mo</span></div>
                                             </div>
                                         </div>
                                     </div>
@@ -399,18 +399,18 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                                 <Zap size={16} className="text-amber-500" />
                                                 <span className="font-bold text-slate-700 text-sm">Rate per Slot</span>
                                             </div>
-                                            <div className="font-black text-slate-900">${(billboard.ratePerSlot || 0).toLocaleString()}<span className="text-xs text-slate-400 font-normal">/mo</span></div>
+                                            <div className="font-black text-slate-900">${(billboard.ratePerSlot || 0).toLocaleString()}<span className="text-xs text-slate-900 font-normal">/mo</span></div>
                                         </div>
                                         <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
                                             <div className="flex items-center gap-2">
                                                 <Layers size={16} className="text-indigo-500" />
                                                 <span className="font-bold text-slate-700 text-sm">Available Slots</span>
                                             </div>
-                                            <div className="font-black text-slate-900">{Math.max(0, (billboard.totalSlots || 0) - (billboard.rentedSlots || 0))}<span className="text-xs text-slate-400 font-normal"> / {billboard.totalSlots || 0}</span></div>
+                                            <div className="font-black text-slate-900">{Math.max(0, (billboard.totalSlots || 0) - (billboard.rentedSlots || 0))}<span className="text-xs text-slate-900 font-normal"> / {billboard.totalSlots || 0}</span></div>
                                         </div>
                                     </div>
                                 )}
-                                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
+                                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-900">
                                     {billboard.type === 'Static' && (billboard.sideAStatus === 'Available' || billboard.sideBStatus === 'Available') ? (
                                         <span className="flex items-center gap-1 text-emerald-600 font-bold"><CheckCircle size={12} /> Space available — inquire today</span>
                                     ) : billboard.type === 'LED' && (billboard.rentedSlots || 0) < (billboard.totalSlots || 0) ? (
@@ -428,30 +428,30 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                     <h2 className="text-lg font-black text-slate-900">What&rsquo;s Included</h2>
                                 </div>
                                 <ul className="space-y-2.5 text-sm">
-                                    <li className="flex items-start gap-3 text-slate-600">
+                                    <li className="flex items-start gap-3 text-slate-900">
                                         <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
                                         <span><strong className="text-slate-800">Prime Placement</strong> — High-visibility location in {billboard.town} with excellent daily traffic exposure</span>
                                     </li>
-                                    <li className="flex items-start gap-3 text-slate-600">
+                                    <li className="flex items-start gap-3 text-slate-900">
                                         <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
                                         <span><strong className="text-slate-800">Professional Printing</strong> — High-quality vinyl or digital print production included in setup</span>
                                     </li>
-                                    <li className="flex items-start gap-3 text-slate-600">
+                                    <li className="flex items-start gap-3 text-slate-900">
                                         <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
                                         <span><strong className="text-slate-800">Installation & Maintenance</strong> — Full rigging, installation, and ongoing structural maintenance</span>
                                     </li>
-                                    <li className="flex items-start gap-3 text-slate-600">
+                                    <li className="flex items-start gap-3 text-slate-900">
                                         <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
                                         <span><strong className="text-slate-800">Illumination</strong> — Nightly lighting for 24/7 visibility (where applicable)</span>
                                     </li>
-                                    <li className="flex items-start gap-3 text-slate-600">
+                                    <li className="flex items-start gap-3 text-slate-900">
                                         <CheckCircle size={16} className="text-emerald-500 mt-0.5 shrink-0" />
                                         <span><strong className="text-slate-800">Traffic Data</strong> — Verified daily view counts and monthly impression reports</span>
                                     </li>
                                 </ul>
                                 <div className="mt-4 pt-4 border-t border-slate-100">
-                                    <p className="text-xs text-slate-400 leading-relaxed">
-                                        <strong className="text-slate-500">Note:</strong> Actual campaign costs may vary based on creative production, additional placements, and contract duration. Contact our team for a detailed quote.
+                                    <p className="text-xs text-slate-900 leading-relaxed">
+                                        <strong className="text-slate-900">Note:</strong> Actual campaign costs may vary based on creative production, additional placements, and contract duration. Contact our team for a detailed quote.
                                     </p>
                                 </div>
                             </div>
@@ -459,14 +459,14 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative min-h-[280px]">
                                 <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-slate-100"></div>
                                 <div className="absolute top-4 left-4 z-[400] bg-white/95 backdrop-blur px-3 py-2 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-900 uppercase tracking-wider">
                                         <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 ring-2 ring-indigo-200"></span> This Site
                                     </span>
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-900 uppercase tracking-wider">
                                         <span className="w-2 h-2 rounded-full bg-slate-400"></span> {otherBillboards.length} Other{otherBillboards.length === 1 ? '' : 's'}
                                     </span>
                                 </div>
-                                <div className="absolute bottom-4 right-4 z-[400] bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-[10px] font-bold text-slate-500 shadow-sm border border-slate-200">
+                                <div className="absolute bottom-4 right-4 z-[400] bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-[10px] font-bold text-slate-900 shadow-sm border border-slate-200">
                                     {billboard.coordinates.lat.toFixed(4)}, {billboard.coordinates.lng.toFixed(4)}
                                 </div>
                             </div>
@@ -480,7 +480,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                         <div className="flex items-end justify-between mb-6 flex-wrap gap-3">
                             <div>
                                 <h2 className="text-xl font-black text-slate-900 leading-tight">More Locations</h2>
-                                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">Explore our full network of {allBillboards.length} sites</p>
+                                <p className="text-xs text-slate-900 font-medium uppercase tracking-wider mt-1">Explore our full network of {allBillboards.length} sites</p>
                             </div>
                             <a href="/locations" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-800 transition-colors">
                                 <Layers size={14}/> View Full Map
@@ -508,10 +508,10 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                     </div>
                                     <div className="p-4">
                                         <div className="font-bold text-slate-900 text-sm leading-snug truncate">{b.name}</div>
-                                        <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium mt-1 truncate">
+                                        <div className="flex items-center gap-1 text-[11px] text-slate-900 font-medium mt-1 truncate">
                                             <MapPin size={11} className="text-indigo-500 shrink-0"/> {b.location}, {b.town}
                                         </div>
-                                        <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-3 pt-3 border-t border-slate-100">
+                                        <div className="flex items-center justify-between text-[10px] text-slate-900 uppercase tracking-wider font-bold mt-3 pt-3 border-t border-slate-100">
                                             <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
                                             <span className="flex items-center gap-1"><Car size={10}/> {b.dailyTraffic ? formatCompactNumber(b.dailyTraffic) : viewEstimates[b.id] ? formatCompactNumber(viewEstimates[b.id].dailyTraffic) + '*' : '-'}</span>
                                         </div>
@@ -532,12 +532,12 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                                     <Layers size={16} className="text-indigo-500"/> 
                                     Inventory
-                                    <span className="text-[10px] font-medium text-slate-400 ml-auto">{filteredBillboards.length} of {allBillboards.length} sites</span>
+                                    <span className="text-[10px] font-medium text-slate-900 ml-auto">{filteredBillboards.length} of {allBillboards.length} sites</span>
                                 </h2>
                                 
                                 {/* Search */}
                                 <div className="relative mt-3">
-                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900" />
                                     <input
                                         type="text"
                                         placeholder="Search locations..."
@@ -546,7 +546,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                         className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200 transition-colors"
                                     />
                                     {searchQuery && (
-                                        <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-900 hover:text-slate-900">
                                             <X size={14} />
                                         </button>
                                     )}
@@ -557,7 +557,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                     <select
                                         value={townFilter}
                                         onChange={(e) => setTownFilter(e.target.value)}
-                                        className="flex-1 text-[10px] px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-300 text-slate-600 font-medium"
+                                        className="flex-1 text-[10px] px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-300 text-slate-900 font-medium"
                                     >
                                         <option value="all">All Towns</option>
                                         {towns.map(t => (
@@ -567,7 +567,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                     <select
                                         value={typeFilter}
                                         onChange={(e) => setTypeFilter(e.target.value)}
-                                        className="flex-1 text-[10px] px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-300 text-slate-600 font-medium"
+                                        className="flex-1 text-[10px] px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-indigo-300 text-slate-900 font-medium"
                                     >
                                         <option value="all">All Types</option>
                                         <option value="Static">Static</option>
@@ -579,7 +579,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             {/* Billboard List */}
                             <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
                                 {filteredBillboards.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-xs p-4">
+                                    <div className="flex flex-col items-center justify-center h-40 text-slate-900 text-xs p-4">
                                         <Search size={24} className="mb-2 opacity-50"/>
                                         <p>No billboards match your filters.</p>
                                         <button 
@@ -607,15 +607,15 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                                         {b.imageUrl ? (
                                                             <img src={b.imageUrl} alt="" className="w-full h-full object-cover"/>
                                                         ) : (
-                                                            <ImageIcon size={16} className="text-slate-400" />
+                                                            <ImageIcon size={16} className="text-slate-900" />
                                                         )}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="font-bold text-slate-800 text-xs truncate">{b.name}</div>
-                                                        <div className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                                                        <div className="text-[10px] text-slate-900 truncate flex items-center gap-1 mt-0.5">
                                                             <MapPin size={9} className="shrink-0"/> {b.town}
                                                         </div>
-                                                        <div className="flex items-center gap-2 mt-1.5 text-[9px] text-slate-400 uppercase tracking-wider font-medium">
+                                                        <div className="flex items-center gap-2 mt-1.5 text-[9px] text-slate-900 uppercase tracking-wider font-medium">
                                                             <span>{b.type}</span>
                                                             <span>·</span>
                                                             <span>{b.width}x{b.height}m</span>
@@ -638,7 +638,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
                             {/* Footer */}
                             <div className="p-3 border-t border-slate-100 bg-slate-50/50">
-                                <p className="text-[9px] text-slate-400 leading-relaxed">
+                                <p className="text-[9px] text-slate-900 leading-relaxed">
                                     <strong>Note:</strong> Billboard images are coming soon.{' '}
                                     {Object.keys(viewEstimates).length > 0 && (
                                         <span>* AI-estimated daily views via Groq.</span>
@@ -654,7 +654,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             {/* Map overlay info */}
                             <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-3 rounded-2xl shadow-lg border border-slate-200">
                                 <h2 className="font-bold text-slate-800 text-sm">Zimbabwe Billboard Map</h2>
-                                <p className="text-xs text-slate-500 font-medium">{filteredBillboards.length} Locations</p>
+                                <p className="text-xs text-slate-900 font-medium">{filteredBillboards.length} Locations</p>
                             </div>
 
                             {/* Images coming soon badge */}

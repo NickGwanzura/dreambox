@@ -193,25 +193,25 @@ export const DataSyncManager: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex items-center gap-3 mb-3">
             <Clock className="w-5 h-5 text-indigo-500" />
-            <span className="text-slate-500 text-sm font-medium">Last Sync</span>
+            <span className="text-slate-900 text-sm font-medium">Last Sync</span>
           </div>
           <div className="text-2xl font-bold text-slate-800">
             {formatTime(syncStatus.lastSyncTime)}
           </div>
-          <div className="text-sm text-slate-400 mt-1">
+          <div className="text-sm text-slate-900 mt-1">
             Next: {getNextSyncTime()}
           </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex items-center gap-3 mb-3">
-            <ShieldCheck className={`w-5 h-5 ${syncStatus.isAutoSyncRunning ? 'text-emerald-500' : 'text-slate-400'}`} />
-            <span className="text-slate-500 text-sm font-medium">Auto-Sync</span>
+            <ShieldCheck className={`w-5 h-5 ${syncStatus.isAutoSyncRunning ? 'text-emerald-500' : 'text-slate-900'}`} />
+            <span className="text-slate-900 text-sm font-medium">Auto-Sync</span>
           </div>
-          <div className={`text-2xl font-bold ${syncStatus.isAutoSyncRunning ? 'text-emerald-600' : 'text-slate-500'}`}>
+          <div className={`text-2xl font-bold ${syncStatus.isAutoSyncRunning ? 'text-emerald-600' : 'text-slate-900'}`}>
             {syncStatus.isAutoSyncRunning ? 'ON' : 'OFF'}
           </div>
-          <div className="text-sm text-slate-400 mt-1">
+          <div className="text-sm text-slate-900 mt-1">
             {syncStatus.isAutoSyncRunning ? '30 second interval' : 'Manual sync only'}
           </div>
         </div>
@@ -219,12 +219,12 @@ export const DataSyncManager: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex items-center gap-3 mb-3">
             <Cloud className="w-5 h-5 text-blue-500" />
-            <span className="text-slate-500 text-sm font-medium">Pending</span>
+            <span className="text-slate-900 text-sm font-medium">Pending</span>
           </div>
           <div className="text-2xl font-bold text-slate-800">
             {syncStatus.pendingCount}
           </div>
-          <div className="text-sm text-slate-400 mt-1">
+          <div className="text-sm text-slate-900 mt-1">
             items queued for sync
           </div>
         </div>
@@ -252,7 +252,7 @@ export const DataSyncManager: React.FC = () => {
           <Download className={`w-5 h-5 text-indigo-500 ${isPulling ? 'animate-bounce' : ''}`} />
           <div className="text-left">
             <div className="text-sm font-bold">Pull from Neon</div>
-            <div className="text-xs text-slate-500">Neon &rarr; Local</div>
+            <div className="text-xs text-slate-900">Neon &rarr; Local</div>
           </div>
         </button>
 
@@ -264,7 +264,7 @@ export const DataSyncManager: React.FC = () => {
           <Upload className={`w-5 h-5 text-indigo-500 ${isPushing ? 'animate-bounce' : ''}`} />
           <div className="text-left">
             <div className="text-sm font-bold">Push to Neon</div>
-            <div className="text-xs text-slate-500">Local &rarr; Neon</div>
+            <div className="text-xs text-slate-900">Local &rarr; Neon</div>
           </div>
         </button>
 
@@ -272,7 +272,7 @@ export const DataSyncManager: React.FC = () => {
           className={`flex items-center justify-center gap-3 px-4 py-4 rounded-xl font-medium ${
             connectionStatus?.connected
               ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-              : 'bg-slate-50 border border-slate-200 text-slate-400'
+              : 'bg-slate-50 border border-slate-200 text-slate-900'
           }`}
         >
           <CheckCircle2 className="w-5 h-5" />
@@ -291,7 +291,7 @@ export const DataSyncManager: React.FC = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Database className="w-5 h-5 text-slate-400" />
+            <Database className="w-5 h-5 text-slate-900" />
             <h3 className="text-lg font-bold text-slate-800">Neon Database Statistics</h3>
           </div>
           <button
@@ -310,7 +310,7 @@ export const DataSyncManager: React.FC = () => {
                 <div className="text-2xl font-bold text-slate-800">
                   {typeof count === 'number' && count >= 0 ? count : '?'}
                 </div>
-                <div className="text-xs text-slate-500 capitalize mt-1">
+                <div className="text-xs text-slate-900 capitalize mt-1">
                   {table.replace(/_/g, ' ')}
                 </div>
               </div>
@@ -323,7 +323,7 @@ export const DataSyncManager: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="text-center text-slate-400 py-8">
+          <div className="text-center text-slate-900 py-8">
             Click refresh to load database statistics
           </div>
         )}
@@ -334,11 +334,11 @@ export const DataSyncManager: React.FC = () => {
         {/* Export Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex items-center gap-3 mb-4">
-            <HardDrive className="w-5 h-5 text-slate-400" />
+            <HardDrive className="w-5 h-5 text-slate-900" />
             <h3 className="text-lg font-bold text-slate-800">Local Backup</h3>
           </div>
 
-          <p className="text-slate-500 text-sm mb-4">
+          <p className="text-slate-900 text-sm mb-4">
             Download a complete JSON backup of all your data. This is useful for offline storage or migration.
           </p>
           <button

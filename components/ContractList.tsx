@@ -353,17 +353,17 @@ export const ContractList: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Contracts</h2>
-            <p className="text-slate-500 font-medium">Active agreements, billing cycles, and rental history</p>
+            <p className="text-slate-900 font-medium">Active agreements, billing cycles, and rental history</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-64">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search contracts..."
-                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-400"
+                className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900"
               />
             </div>
             <button className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2 shrink-0">
@@ -380,12 +380,12 @@ export const ContractList: React.FC = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{getClientName(contract.clientId)}</h3>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 mt-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-900 mt-1">
                     <span className="font-medium text-slate-700 truncate">{getBillboardName(contract.billboardId)}</span>
                     <span className="hidden sm:inline text-slate-300">•</span>
                     <span className={`font-bold px-2 py-0.5 rounded text-[10px] sm:text-xs w-fit ${contract.side === 'A' || contract.side === 'B' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>{contract.details}</span>
                   </div>
-                  <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wide font-medium flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-900 uppercase tracking-wide font-medium flex-wrap">
                     <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
                     <span className="text-slate-300 hidden sm:inline">• {calculateContractMonthsSafe(contract.startDate, contract.endDate)} mo</span>
                     <span className="hidden sm:inline">ID: {contract.id}</span>
@@ -396,19 +396,19 @@ export const ContractList: React.FC = () => {
               <div className="flex flex-col md:items-end gap-2 w-full md:w-auto md:pl-4">
                 <div className="flex flex-col md:items-end">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs sm:text-sm text-slate-400 font-medium hidden sm:inline">Total Value:</span>
+                    <span className="text-xs sm:text-sm text-slate-900 font-medium hidden sm:inline">Total Value:</span>
                     <span className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">${contract.totalContractValue.toLocaleString()}</span>
                   </div>
-                  <div className="flex gap-2 text-[10px] text-slate-500 uppercase tracking-wide">
-                    {contract.monthlyRate > 0 && <span>${contract.monthlyRate}/mo</span>}{contract.installationCost > 0 && <span className="flex items-center gap-1 text-slate-400">+ Install</span>}{contract.printingCost > 0 && <span className="flex items-center gap-1 text-slate-400">+ Print</span>}{contract.hasVat && <span className="text-slate-400">incl. VAT</span>}
+                  <div className="flex gap-2 text-[10px] text-slate-900 uppercase tracking-wide">
+                    {contract.monthlyRate > 0 && <span>${contract.monthlyRate}/mo</span>}{contract.installationCost > 0 && <span className="flex items-center gap-1 text-slate-900">+ Install</span>}{contract.printingCost > 0 && <span className="flex items-center gap-1 text-slate-900">+ Print</span>}{contract.hasVat && <span className="text-slate-900">incl. VAT</span>}
                   </div>
                 </div>
               </div>
               <div className="flex gap-2 w-full md:w-auto border-t md:border-t-0 border-slate-100 pt-4 md:pt-0 flex-wrap">
-                <button onClick={() => setSelectedContract(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                <button onClick={() => setSelectedContract(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
                   <Eye size={14} /> <span className="sm:hidden">View</span><span className="hidden sm:inline">View</span>
                 </button>
-                <button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                <button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
                   <Edit size={14} /> <span className="sm:hidden">Edit</span><span className="hidden sm:inline">Edit</span>
                 </button>
                 <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
@@ -437,7 +437,7 @@ export const ContractList: React.FC = () => {
                 <Search className="text-slate-300" size={32} />
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-1">No contracts found</h3>
-              <p className="text-slate-500 text-sm">Try adjusting your search terms.</p>
+              <p className="text-slate-900 text-sm">Try adjusting your search terms.</p>
             </div>
           )}
         </div>
@@ -450,20 +450,20 @@ export const ContractList: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Contract Details</h3>
-                <p className="text-xs text-slate-400 mt-0.5">ID: {selectedContract.id} &bull; Status: <span className={`font-bold ${selectedContract.status === 'Active' ? 'text-emerald-600' : selectedContract.status === 'Expired' ? 'text-red-500' : 'text-amber-600'}`}>{selectedContract.status}</span></p>
+                <p className="text-xs text-slate-900 mt-0.5">ID: {selectedContract.id} &bull; Status: <span className={`font-bold ${selectedContract.status === 'Active' ? 'text-emerald-600' : selectedContract.status === 'Expired' ? 'text-red-500' : 'text-amber-600'}`}>{selectedContract.status}</span></p>
               </div>
-              <button onClick={() => setSelectedContract(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => setSelectedContract(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
             </div>
             <div className="p-8 space-y-6">
               {/* Context summary */}
               <div className="bg-slate-900 text-white p-5 rounded-2xl space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Client</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Client</p>
                     <p className="text-lg font-bold">{getClientName(selectedContract.clientId)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Billing Day</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Billing Day</p>
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-slate-800 border border-slate-700 rounded-lg text-sm font-bold text-white">
                       <Clock size={13} className="text-emerald-400"/> {getBillingDayDisplay(selectedContract)}
                     </span>
@@ -471,35 +471,35 @@ export const ContractList: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4 border-t border-slate-700 pt-3">
                   <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Billboard</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Billboard</p>
                     <p className="font-semibold text-sm">{getBillboardName(selectedContract.billboardId)}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{selectedContract.details}</p>
+                    <p className="text-xs text-slate-900 mt-0.5">{selectedContract.details}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Duration</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Duration</p>
                     <p className="font-semibold text-sm">{selectedContract.startDate}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">to {selectedContract.endDate}</p>
+                    <p className="text-xs text-slate-900 mt-0.5">to {selectedContract.endDate}</p>
                   </div>
                 </div>
               </div>
 
               {/* Financial breakdown */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Financial Breakdown</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Financial Breakdown</p>
                 <div className="bg-slate-50 rounded-2xl border border-slate-100 divide-y divide-slate-100">
                   <div className="flex justify-between items-center px-4 py-3 text-sm">
-                    <span className="text-slate-500">Monthly Rate</span>
+                    <span className="text-slate-900">Monthly Rate</span>
                     <span className="font-semibold text-slate-800">${selectedContract.monthlyRate.toLocaleString()}</span>
                   </div>
                   {selectedContract.installationCost > 0 && (
                     <div className="flex justify-between items-center px-4 py-3 text-sm">
-                      <span className="text-slate-500">Installation Fee</span>
+                      <span className="text-slate-900">Installation Fee</span>
                       <span className="font-semibold text-slate-800">${selectedContract.installationCost.toLocaleString()}</span>
                     </div>
                   )}
                   {selectedContract.printingCost > 0 && (
                     <div className="flex justify-between items-center px-4 py-3 text-sm">
-                      <span className="text-slate-500">Printing Cost</span>
+                      <span className="text-slate-900">Printing Cost</span>
                       <span className="font-semibold text-slate-800">${selectedContract.printingCost.toLocaleString()}</span>
                     </div>
                   )}
@@ -508,11 +508,11 @@ export const ContractList: React.FC = () => {
                     return (
                       <>
                         <div className="flex justify-between items-center px-4 py-3 text-sm">
-                          <span className="text-slate-500">Net / month (excl. VAT)</span>
+                          <span className="text-slate-900">Net / month (excl. VAT)</span>
                           <span className="font-semibold text-slate-800">${net.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center px-4 py-3 text-sm">
-                          <span className="text-slate-500">VAT / month ({vatPct})</span>
+                          <span className="text-slate-900">VAT / month ({vatPct})</span>
                           <span className="font-semibold text-slate-800">${vat.toFixed(2)}</span>
                         </div>
                       </>
@@ -523,7 +523,7 @@ export const ContractList: React.FC = () => {
                     <span className="text-lg font-extrabold text-slate-900">${selectedContract.totalContractValue.toLocaleString()}</span>
                   </div>
                 </div>
-                {selectedContract.hasVat && <p className="text-xs text-slate-500 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
+                {selectedContract.hasVat && <p className="text-xs text-slate-900 mt-1.5">Monthly rate is VAT-inclusive — {vatPct} extracted for invoicing.</p>}
               </div>
 
               {selectedContract.lastModifiedDate && (
@@ -533,7 +533,7 @@ export const ContractList: React.FC = () => {
               )}
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setSelectedContract(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
+                <button onClick={() => setSelectedContract(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
                 <button onClick={() => openTermAdjustment(selectedContract)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Calendar size={14} /> Adjust Term</button>
                 {isContractExpired(selectedContract) && (
                   <button onClick={() => { setSelectedContract(null); setRenewContract({...selectedContract}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>
@@ -551,20 +551,20 @@ export const ContractList: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                <div>
                  <h3 className="text-xl font-bold text-slate-900">Edit Contract</h3>
-                 <p className="text-xs text-slate-500 mt-0.5">{getClientName(editContract.clientId)} &bull; {getBillboardName(editContract.billboardId)}</p>
+                 <p className="text-xs text-slate-900 mt-0.5">{getClientName(editContract.clientId)} &bull; {getBillboardName(editContract.billboardId)}</p>
                </div>
-              <button onClick={() => { if (!saving) setEditContract(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => { if (!saving) setEditContract(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
             </div>
             <div className="p-8 space-y-6">
               {/* Context card */}
                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 grid grid-cols-2 gap-4">
                  <div>
-                   <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Billboard</p>
+                   <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Billboard</p>
                    <p className="font-semibold text-slate-800 text-sm">{getBillboardName(editContract.billboardId)}</p>
-                   <p className="text-xs text-slate-500">{editContract.details}</p>
+                   <p className="text-xs text-slate-900">{editContract.details}</p>
                  </div>
                  <div>
-                   <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Contract ID</p>
+                   <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Contract ID</p>
                    <p className="font-semibold text-slate-800 text-sm font-mono">{editContract.id}</p>
                  </div>
                </div>
@@ -581,7 +581,7 @@ export const ContractList: React.FC = () => {
               )}
 
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Billboard Assignment</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Billboard Assignment</p>
                 <select
                   value={editContract.billboardId}
                   onChange={(e) => setEditContract(withBillboardDefaults(editContract, e.target.value))}
@@ -603,7 +603,7 @@ export const ContractList: React.FC = () => {
                               const next = { ...editContract, side, slotNumber: undefined, monthlyRate: getDefaultRate(editContract.billboardId, side) };
                               setEditContract({ ...next, details: getLineDetails(next) });
                             }}
-                            className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${editContract.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}
+                            className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${editContract.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
                           >
                             {side === 'Both' ? 'Both A&B' : `Side ${side}`}
                           </button>
@@ -613,7 +613,7 @@ export const ContractList: React.FC = () => {
                   }
                   return (
                     <div>
-                       <label className="block text-xs font-bold uppercase text-slate-600 mb-2">LED Slot</label>
+                       <label className="block text-xs font-bold uppercase text-slate-900 mb-2">LED Slot</label>
                       <select
                         value={editContract.slotNumber || 1}
                         onChange={(e) => {
@@ -630,7 +630,7 @@ export const ContractList: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Contract Status</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Contract Status</p>
                 <select value={editContract.status} onChange={(e) => setEditContract({...editContract, status: e.target.value as 'Active' | 'Pending' | 'Expired'})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800">
                   <option value="Active">Active</option>
                   <option value="Pending">Pending</option>
@@ -639,62 +639,62 @@ export const ContractList: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Rental Period</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Rental Period</p>
                 <div className="grid grid-cols-2 gap-4">
                    <div>
-                     <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Start Date</label>
+                     <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Start Date</label>
                      <input type="date" value={editContract.startDate} onChange={(e) => setEditContract({...editContract, startDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-800" />
                    </div>
                    <div>
-                     <label className="block text-xs font-bold uppercase text-slate-600 mb-2">End Date</label>
+                     <label className="block text-xs font-bold uppercase text-slate-900 mb-2">End Date</label>
                      <input type="date" value={editContract.endDate} onChange={(e) => setEditContract({...editContract, endDate: e.target.value})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-800" />
                    </div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <button type="button" onClick={() => setEditContract({...editContract, endDate: new Date().toISOString().split('T')[0]})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">End Today</button>
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: new Date().toISOString().split('T')[0]})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">End Today</button>
                   <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 1)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+1 Month</button>
                   <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 3)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+3 Months</button>
                   <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 12)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+12 Months</button>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
-                  <span className="text-slate-500 font-medium">Updated term length</span>
+                  <span className="text-slate-900 font-medium">Updated term length</span>
                   <span className="text-slate-900 font-bold">{calculateContractMonthsSafe(editContract.startDate, editContract.endDate)} month(s)</span>
                 </div>
               </div>
 
                <div className="space-y-4">
-                 <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</p>
+                 <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Financials</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Monthly Rate ($)</label>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Monthly Rate ($)</label>
                     <input type="number" value={editContract.monthlyRate} onChange={(e) => setEditContract({...editContract, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800" />
                     {editContract.hasVat && editContract.monthlyRate > 0 && (
-                      <p className="text-[10px] text-slate-500 mt-1">Net: ${splitInclusiveVat(editContract.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editContract.monthlyRate, vatRate).vat.toFixed(2)}</p>
+                      <p className="text-[10px] text-slate-900 mt-1">Net: ${splitInclusiveVat(editContract.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(editContract.monthlyRate, vatRate).vat.toFixed(2)}</p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Installation Cost ($)</label>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Installation Cost ($)</label>
                     <input type="number" value={editContract.installationCost} onChange={(e) => setEditContract({...editContract, installationCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Printing Cost ($)</label>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Printing Cost ($)</label>
                     <input type="number" value={editContract.printingCost} onChange={(e) => setEditContract({...editContract, printingCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Production Fee ($)</label>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Production Fee ($)</label>
                     <input type="number" value={editContract.productionCost || 0} onChange={(e) => setEditContract({...editContract, productionCost: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800" />
                   </div>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={editContract.hasVat} onChange={(e) => setEditContract({...editContract, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                  <span className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</span>
+                  <span className="text-sm font-medium text-slate-900">Rate includes VAT ({vatPct})</span>
                 </label>
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => { if (!saving) setEditContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                <button onClick={() => { if (!saving) setEditContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
                 <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Saving…' : 'Save Changes'}
                 </button>
@@ -711,9 +711,9 @@ export const ContractList: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Renew Contract</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Creates a new 12-month agreement from the expired one</p>
+                <p className="text-xs text-slate-900 mt-0.5">Creates a new 12-month agreement from the expired one</p>
               </div>
-              <button onClick={() => { if (!saving) setRenewContract(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-400" /></button>
+              <button onClick={() => { if (!saving) setRenewContract(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
             </div>
             <div className="p-8 space-y-6">
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
@@ -728,37 +728,37 @@ export const ContractList: React.FC = () => {
               )}
 
               <div className="bg-slate-900 text-white p-4 rounded-2xl">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Original Contract</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Original Contract</p>
                 <p className="font-bold text-base">{getClientName(renewContract.clientId)}</p>
                 <p className="text-slate-300 text-sm mt-0.5">{getBillboardName(renewContract.billboardId)} &bull; {renewContract.details}</p>
-                <p className="text-xs text-slate-400 mt-1">{renewContract.startDate} — {renewContract.endDate}</p>
+                <p className="text-xs text-slate-900 mt-1">{renewContract.startDate} — {renewContract.endDate}</p>
               </div>
 
               <div className="space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">New Rental Period</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">New Rental Period</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Start Date</label>
-                    <input type="date" value={(() => { const d = new Date(renewContract.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Start Date</label>
+                    <input type="date" value={(() => { const d = new Date(renewContract.endDate); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-600 mb-2">End Date</label>
-                    <input type="date" value={(() => { const d = new Date(renewContract.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm" />
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">End Date</label>
+                    <input type="date" value={(() => { const d = new Date(renewContract.endDate); d.setDate(d.getDate() + 1); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })()} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-sm" />
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">Period is auto-calculated (12 months). Dates are locked.</p>
+                <p className="text-xs text-slate-900">Period is auto-calculated (12 months). Dates are locked.</p>
               </div>
 
               <div className="space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Financials</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Financials</p>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Monthly Rate ($)</label>
+                  <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Monthly Rate ($)</label>
                   <input type="number" value={renewContract.monthlyRate} onChange={(e) => setRenewContract({...renewContract, monthlyRate: Number(e.target.value)})} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium" />
-                  <p className="text-[10px] text-slate-500 mt-1">Adjust the rate if pricing has changed since last term.</p>
+                  <p className="text-[10px] text-slate-900 mt-1">Adjust the rate if pricing has changed since last term.</p>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={renewContract.hasVat} onChange={(e) => setRenewContract({...renewContract, hasVat: e.target.checked})} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                  <span className="text-sm font-medium text-slate-600">Rate includes VAT ({vatPct})</span>
+                  <span className="text-sm font-medium text-slate-900">Rate includes VAT ({vatPct})</span>
                 </label>
               </div>
 
@@ -786,13 +786,13 @@ export const ContractList: React.FC = () => {
                       <span className="text-sm font-bold uppercase tracking-wider">New Total Value</span>
                       <span className="text-xl font-black">${gross.toLocaleString()}</span>
                     </div>
-                    <p className="text-xs text-slate-400">12 months × ${renewContract.monthlyRate.toLocaleString()}{renewContract.installationCost > 0 ? ` + $${renewContract.installationCost} install` : ''}</p>
+                    <p className="text-xs text-slate-900">12 months × ${renewContract.monthlyRate.toLocaleString()}{renewContract.installationCost > 0 ? ` + $${renewContract.installationCost} install` : ''}</p>
                   </div>
                 );
               })()}
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => { if (!saving) setRenewContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                <button onClick={() => { if (!saving) setRenewContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
                 <button onClick={handleRenew} disabled={saving} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} {saving ? 'Renewing…' : 'Renew Contract'}
                 </button>

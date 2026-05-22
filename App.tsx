@@ -70,7 +70,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
              </div>
              <h1 className="text-xl font-bold mb-2 text-slate-900">Application Error</h1>
-             <p className="text-slate-500 mb-6 text-sm leading-relaxed">
+             <p className="text-slate-900 mb-6 text-sm leading-relaxed">
                {errorMessage}
              </p>
              <div className="space-y-3">
@@ -166,7 +166,7 @@ const App: React.FC = () => {
       return (
         <div className="p-8 text-center">
           <h2 className="text-xl font-bold text-red-600 mb-4">Error Loading Page</h2>
-          <p className="text-slate-600 mb-4">{pageError}</p>
+          <p className="text-slate-900 mb-4">{pageError}</p>
           <button 
             onClick={() => setPageError(null)}
             className="px-4 py-2 bg-slate-900 text-white rounded-lg"
@@ -263,7 +263,7 @@ const App: React.FC = () => {
             return (
               <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
-                <p className="text-slate-500 text-sm">Settings access is limited to the finance/admin team. Contact Rufaro, Brian, or Nick if you need a change made.</p>
+                <p className="text-slate-900 text-sm">Settings access is limited to the finance/admin team. Contact Rufaro, Brian, or Nick if you need a change made.</p>
               </div>
             );
           }
@@ -278,7 +278,7 @@ const App: React.FC = () => {
             return (
               <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
-                <p className="text-slate-500 text-sm">Contract template editing is limited to the finance/admin team. Contact Rufaro, Brian, or Nick if you need a change made.</p>
+                <p className="text-slate-900 text-sm">Contract template editing is limited to the finance/admin team. Contact Rufaro, Brian, or Nick if you need a change made.</p>
               </div>
             );
           }
@@ -307,7 +307,7 @@ const App: React.FC = () => {
       return (
           <ErrorBoundary>
               <ToastProvider>
-                <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-400 text-sm">Loading...</div></div>}>
+                <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-900 text-sm">Loading...</div></div>}>
                   <PublicView type={publicMode.type} billboardId={publicMode.id} />
                 </Suspense>
               </ToastProvider>
@@ -320,7 +320,7 @@ const App: React.FC = () => {
       return (
           <ErrorBoundary>
               <ToastProvider>
-                <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-400 text-sm">Loading...</div></div>}>
+                <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-900 text-sm">Loading...</div></div>}>
                   <ClientPortal clientId={portalMode.clientId} />
                 </Suspense>
               </ToastProvider>
@@ -348,7 +348,7 @@ const App: React.FC = () => {
           <div className="h-screen flex items-center justify-center bg-slate-50 p-6">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 border border-slate-100">
               <h1 className="text-xl font-bold text-slate-900 mb-2">Password Reset Required</h1>
-              <p className="text-slate-500 text-sm mb-6">Your administrator requires you to set a new password before continuing.</p>
+              <p className="text-slate-900 text-sm mb-6">Your administrator requires you to set a new password before continuing.</p>
               {resetPasswordError && <p className="text-red-600 text-sm mb-4">{resetPasswordError}</p>}
               <form onSubmit={async (e) => {
                 e.preventDefault();
@@ -368,7 +368,7 @@ const App: React.FC = () => {
               }}>
                 <input name="newPassword" type="password" placeholder="New password" required minLength={8} className="w-full px-4 py-3 rounded-xl border border-slate-200 mb-3 text-sm" />
                 <input name="confirmPassword" type="password" placeholder="Confirm new password" required minLength={8} className="w-full px-4 py-3 rounded-xl border border-slate-200 mb-3 text-sm" />
-                <ul className="text-xs text-slate-400 mb-4 space-y-0.5 pl-1">
+                <ul className="text-xs text-slate-900 mb-4 space-y-0.5 pl-1">
                   <li>At least 8 characters, with uppercase, lowercase, number, and special character</li>
                 </ul>
                 <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs uppercase hover:bg-slate-800 transition-all">Update Password</button>
@@ -399,7 +399,7 @@ const App: React.FC = () => {
               onNavigate={handlePageChange}
               onLogout={() => setIsAuthenticated(false)}
           >
-            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-slate-400 text-sm">Loading...</div></div>}>
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-slate-900 text-sm">Loading...</div></div>}>
               {renderPage()}
             </Suspense>
           </Layout>

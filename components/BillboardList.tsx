@@ -12,7 +12,7 @@ import L from 'leaflet';
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
   <div className="group relative pt-5">
     <input type={type} required={required} value={value as any} onChange={onChange} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent" />
-    <label className="absolute left-0 top-0 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-5 peer-focus:top-0 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 top-0 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-5 peer-focus:top-0 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 
@@ -21,7 +21,7 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
     <select value={value} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer" >
       {options.map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
     </select>
-    <label className="absolute left-0 top-0 text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 top-0 text-xs text-slate-900 font-medium uppercase tracking-wide">{label}</label>
   </div>
 );
 
@@ -159,12 +159,12 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
                         <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${billboard.type === 'LED' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-orange-50 text-orange-700 border border-orange-100'}`}>
                             {billboard.type}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono">ID: {billboard.id.slice(-4)}</span>
+                        <span className="text-[10px] text-slate-900 font-mono">ID: {billboard.id.slice(-4)}</span>
                     </div>
                     {displayRate > 0 && (
                         <span className="text-sm font-bold text-slate-900">
                             ${displayRate.toLocaleString()}
-                            <span className="text-[10px] font-medium text-slate-400">/mo</span>
+                            <span className="text-[10px] font-medium text-slate-900">/mo</span>
                         </span>
                     )}
                 </div>
@@ -172,19 +172,19 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
                 {/* Stats Grid - Compact */}
                 <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 mb-4">
                     <div className="flex flex-col items-center text-center">
-                        <span className="text-slate-400 mb-1"><Car size={16}/></span>
+                        <span className="text-slate-900 mb-1"><Car size={16}/></span>
                         <span className="text-xs font-bold text-slate-700">{billboard.dailyTraffic ? (billboard.dailyTraffic / 1000).toFixed(0) + 'k' : '-'}</span>
-                        <span className="text-[9px] text-slate-400">Views</span>
+                        <span className="text-[9px] text-slate-900">Views</span>
                     </div>
                     <div className="flex flex-col items-center text-center border-x border-slate-100">
-                        <span className="text-slate-400 mb-1"><Maximize2 size={16}/></span>
+                        <span className="text-slate-900 mb-1"><Maximize2 size={16}/></span>
                         <span className="text-xs font-bold text-slate-700">{billboard.width}×{billboard.height}</span>
-                        <span className="text-[9px] text-slate-400">Meters</span>
+                        <span className="text-[9px] text-slate-900">Meters</span>
                     </div>
                     <div className="flex flex-col items-center text-center">
-                        <span className="text-slate-400 mb-1"><Layers size={16}/></span>
+                        <span className="text-slate-900 mb-1"><Layers size={16}/></span>
                         <span className="text-xs font-bold text-slate-700">{billboard.type === 'Static' ? '2 Sides' : `${billboard.totalSlots || 0} Slots`}</span>
-                        <span className="text-[9px] text-slate-400">Format</span>
+                        <span className="text-[9px] text-slate-900">Format</span>
                     </div>
                 </div>
 
@@ -194,7 +194,7 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
                         <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider mb-1 flex items-center gap-1">
                             <Sparkles size={9} fill="currentColor"/> AI Insight
                         </p>
-                        <p className="text-xs text-slate-600 leading-relaxed overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        <p className="text-xs text-slate-900 leading-relaxed overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                             {billboard.visibility}
                         </p>
                     </div>
@@ -202,13 +202,13 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
 
                 {/* Action Bar - Always visible */}
                 <div className="mt-auto flex items-center justify-end gap-1 pt-2">
-                    <button onClick={(e) => { e.stopPropagation(); onEdit(billboard); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit">
+                    <button onClick={(e) => { e.stopPropagation(); onEdit(billboard); }} className="p-2 text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit">
                         <Edit2 size={16} strokeWidth={2}/>
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); onShare(billboard); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Share">
+                    <button onClick={(e) => { e.stopPropagation(); onShare(billboard); }} className="p-2 text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Share">
                         <Share2 size={16} strokeWidth={2}/>
                     </button>
-                    {canUserDelete && (<button onClick={(e) => { e.stopPropagation(); onDelete(billboard); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                    {canUserDelete && (<button onClick={(e) => { e.stopPropagation(); onDelete(billboard); }} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
                         <Trash2 size={16} strokeWidth={2}/>
                     </button>)}
                 </div>
@@ -566,26 +566,26 @@ export const BillboardList: React.FC = () => {
       <div className="space-y-8 relative font-sans h-[calc(100vh-140px)] flex flex-col animate-fade-in">
         {/* ... (View Controls) ... */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 shrink-0">
-          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Inventory</h2><p className="text-slate-500 font-medium">Manage and monitor your digital and static assets</p></div>
+          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Inventory</h2><p className="text-slate-900 font-medium">Manage and monitor your digital and static assets</p></div>
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
              <div className="relative group w-full sm:w-72">
-                <Search className="absolute left-4 top-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                <Search className="absolute left-4 top-3 text-slate-900 group-focus-within:text-indigo-500 transition-colors" size={18} />
                 <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search location or name..." className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-full bg-white/80 backdrop-blur-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm shadow-sm"/>
              </div>
              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                 <div className="flex bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 p-1 shadow-sm">
-                    <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-full transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-900'}`} title="Grid View"><GridIcon size={18} /></button>
-                    <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-full transition-all ${viewMode === 'list' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-900'}`} title="List View"><ListIcon size={18} /></button>
-                    <button onClick={() => setViewMode('map')} className={`p-2.5 rounded-full transition-all ${viewMode === 'map' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-900'}`} title="Map View"><MapIcon size={18} /></button>
+                    <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-full transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`} title="Grid View"><GridIcon size={18} /></button>
+                    <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-full transition-all ${viewMode === 'list' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`} title="List View"><ListIcon size={18} /></button>
+                    <button onClick={() => setViewMode('map')} className={`p-2.5 rounded-full transition-all ${viewMode === 'map' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`} title="Map View"><MapIcon size={18} /></button>
                 </div>
                 
                 <div className="flex bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 p-1 shadow-sm items-center">
-                    <button onClick={downloadTemplate} className="p-2.5 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Download CSV Template"><Download size={18}/></button>
-                    <label className="p-2.5 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer" title="Import Billboards CSV">
+                    <button onClick={downloadTemplate} className="p-2.5 rounded-full text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Download CSV Template"><Download size={18}/></button>
+                    <label className="p-2.5 rounded-full text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer" title="Import Billboards CSV">
                         <Upload size={18}/>
                         <input type="file" ref={importInputRef} accept=".csv" className="hidden" onChange={handleImportBillboards} />
                     </label>
-                    <button onClick={handleExportBillboards} className="p-2.5 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Export Inventory to CSV"><FileText size={18}/></button>
+                    <button onClick={handleExportBillboards} className="p-2.5 rounded-full text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Export Inventory to CSV"><FileText size={18}/></button>
                     <div className="w-[1px] h-6 bg-slate-200 mx-1"></div>
                     <button onClick={shareMap} className="p-2.5 rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-all" title="Share Public Map Link"><Globe size={18}/></button>
                 </div>
@@ -603,7 +603,7 @@ export const BillboardList: React.FC = () => {
                  <div className="absolute top-4 right-4 z-[400] bg-white p-2 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-2">
                      <button 
                         onClick={() => setShowHeatmap(!showHeatmap)} 
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${showHeatmap ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${showHeatmap ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-white text-slate-900 hover:bg-slate-50'}`}
                      >
                          <Layers size={14} /> {showHeatmap ? 'Hide Traffic Heat' : 'Show Traffic Heat'}
                      </button>
@@ -649,10 +649,10 @@ export const BillboardList: React.FC = () => {
                                          {isAvailable ? 'Open' : isPartial ? '1 Side Open' : 'Booked'}
                                      </span>
                                  </div>
-                                 <p className="text-xs text-slate-500 font-medium flex items-center gap-1 truncate mb-2">
+                                 <p className="text-xs text-slate-900 font-medium flex items-center gap-1 truncate mb-2">
                                      <MapPin size={12} className="shrink-0 text-indigo-500"/> <span className="truncate">{b.location}, {b.town}</span>
                                  </p>
-                                 <div className="flex flex-wrap gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                                 <div className="flex flex-wrap gap-4 text-[10px] text-slate-900 font-bold uppercase tracking-wide">
                                      <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
                                      <span className="flex items-center gap-1"><Car size={10}/> {b.dailyTraffic ? (b.dailyTraffic/1000).toFixed(0)+'k' : '-'} Views</span>
                                      {b.type === BillboardType.LED && <span className="flex items-center gap-1"><Layers size={10}/> {b.totalSlots || 0} Slots</span>}
@@ -661,13 +661,13 @@ export const BillboardList: React.FC = () => {
                              <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-50 sm:border-t-0 mt-2 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
                                  <div className="flex flex-col items-end mr-2">
                                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-1 ${b.type === BillboardType.LED ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>{b.type}</span>
-                                     {displayRate > 0 && <span className="text-sm font-bold text-slate-900">${displayRate.toLocaleString()}<span className="text-[10px] font-medium text-slate-400">/mo</span></span>}
-                                     <span className="text-[10px] text-slate-400 font-mono">ID: {b.id.slice(-4)}</span>
+                                     {displayRate > 0 && <span className="text-sm font-bold text-slate-900">${displayRate.toLocaleString()}<span className="text-[10px] font-medium text-slate-900">/mo</span></span>}
+                                     <span className="text-[10px] text-slate-900 font-mono">ID: {b.id.slice(-4)}</span>
                                  </div>
                                  <div className="flex gap-2">
-                                     <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Edit"><Edit2 size={16}/></button>
-                                     <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Share"><Share2 size={16}/></button>
-                                     {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors" title="Delete"><Trash2 size={16}/></button>)}
+                                     <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-900 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Edit"><Edit2 size={16}/></button>
+                                     <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-900 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Share"><Share2 size={16}/></button>
+                                     {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors" title="Delete"><Trash2 size={16}/></button>)}
                                  </div>
                              </div>
                          </div>
@@ -703,9 +703,9 @@ export const BillboardList: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Add New Billboard</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Register a new asset in your inventory</p>
+                        <p className="text-xs text-slate-900 mt-0.5">Register a new asset in your inventory</p>
                     </div>
-                    <button onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>
+                    <button onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900"/></button>
                 </div>
                     <form onSubmit={handleAddBillboard} className="p-8 space-y-6">
                         <div className="grid grid-cols-2 gap-6">
@@ -722,7 +722,7 @@ export const BillboardList: React.FC = () => {
                                         <MinimalInput label="Lng" type="number" value={newBillboard.coordinates?.lng} onChange={(e: any) => setNewBillboard({...newBillboard, coordinates: {...newBillboard.coordinates!, lng: Number(e.target.value)}})} />
                                     </div>
                                 </div>
-                                <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`} title="Pick on Map">
+                                <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
                                     <MousePointer2 size={18}/>
                                 </button>
                             </div>
@@ -730,7 +730,7 @@ export const BillboardList: React.FC = () => {
                         {pickingLocation && (
                             <div className="h-64 w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative animate-fade-in">
                                 <div ref={pickerContainerRef} className="w-full h-full z-0"></div>
-                                <div className="absolute bottom-2 left-2 z-[400] bg-white/90 px-3 py-1 text-[10px] rounded-lg shadow font-bold text-slate-600">Drag marker to set position</div>
+                                <div className="absolute bottom-2 left-2 z-[400] bg-white/90 px-3 py-1 text-[10px] rounded-lg shadow font-bold text-slate-900">Drag marker to set position</div>
                             </div>
                         )}
                         <div className="grid grid-cols-2 gap-6">
@@ -741,34 +741,34 @@ export const BillboardList: React.FC = () => {
                         {/* Dynamic Rates based on Type */}
                         {newBillboard.type === BillboardType.Static ? (
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Rate Configuration</h4>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Rate Configuration</h4>
                                 <div className="grid grid-cols-2 gap-6 mb-4">
                                     <MinimalInput label="Side A Rate ($)" type="number" value={newBillboard.sideARate} onChange={(e: any) => setNewBillboard({...newBillboard, sideARate: Number(e.target.value)})} />
                                     <MinimalInput label="Side B Rate ($)" type="number" value={newBillboard.sideBRate} onChange={(e: any) => setNewBillboard({...newBillboard, sideBRate: Number(e.target.value)})} />
                                 </div>
-                                <p className="text-[10px] text-slate-400 mt-2 italic">Availability is controlled automatically by Rental Agreements.</p>
+                                <p className="text-[10px] text-slate-900 mt-2 italic">Availability is controlled automatically by Rental Agreements.</p>
                             </div>
                         ) : (
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Digital Configuration</h4>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Digital Configuration</h4>
                                 <div className="grid grid-cols-2 gap-6 mb-4">
                                     <MinimalInput label="Total Slots" type="number" value={newBillboard.totalSlots} onChange={(e: any) => setNewBillboard({...newBillboard, totalSlots: Number(e.target.value)})} />
                                     <MinimalInput label="Rate Per Slot ($)" type="number" value={newBillboard.ratePerSlot} onChange={(e: any) => setNewBillboard({...newBillboard, ratePerSlot: Number(e.target.value)})} />
                                 </div>
-                                <p className="text-[10px] text-slate-400 mt-1">Occupancy is calculated based on active contracts vs Total Slots.</p>
+                                <p className="text-[10px] text-slate-900 mt-1">Occupancy is calculated based on active contracts vs Total Slots.</p>
                             </div>
                         )}
 
                         <div className="group relative">
                             <textarea value={newBillboard.notes} onChange={(e) => setNewBillboard({...newBillboard, notes: e.target.value})} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent h-20 resize-none"/>
-                            <label className="absolute left-0 top-0 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-2.5 peer-focus:top-0 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">Internal Notes (Optional)</label>
+                            <label className="absolute left-0 top-0 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-2.5 peer-focus:top-0 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">Internal Notes (Optional)</label>
                         </div>
 
                         <div className="space-y-4">
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Billboard Image</label>
+                            <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide">Billboard Image</label>
                             <div className="flex items-center gap-4">
                                 {newBillboard.imageUrl && <img src={newBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />}
-                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"/>
+                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="block w-full text-sm text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"/>
                             </div>
                         </div>
 
@@ -791,7 +791,7 @@ export const BillboardList: React.FC = () => {
                         </div>
 
                         <div className="flex gap-3 pt-2">
-                            <button type="button" onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                            <button type="button" onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
                             <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Save size={14} /> Save Asset</button>
                         </div>
                     </form>
@@ -806,9 +806,9 @@ export const BillboardList: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Billboard</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">{editingBillboard.name} &bull; {editingBillboard.location}, {editingBillboard.town}</p>
+                        <p className="text-xs text-slate-900 mt-0.5">{editingBillboard.name} &bull; {editingBillboard.location}, {editingBillboard.town}</p>
                     </div>
-                    <button onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>
+                    <button onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900"/></button>
                 </div>
                     <form onSubmit={handleSaveEdit} className="p-8 space-y-6">
                         <div className="grid grid-cols-2 gap-6">
@@ -839,7 +839,7 @@ export const BillboardList: React.FC = () => {
                                     <MinimalInput label="Lng" type="number" value={editingBillboard.coordinates?.lng} onChange={(e: any) => setEditingBillboard({...editingBillboard, coordinates: {...editingBillboard.coordinates!, lng: Number(e.target.value)}})} />
                                 </div>
                             </div>
-                            <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`} title="Pick on Map">
+                            <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
                                 <MousePointer2 size={18}/>
                             </button>
                         </div>
@@ -847,7 +847,7 @@ export const BillboardList: React.FC = () => {
                         {pickingLocation && (
                             <div className="h-64 w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative animate-fade-in">
                                 <div ref={pickerContainerRef} className="w-full h-full z-0"></div>
-                                <div className="absolute bottom-2 left-2 z-[400] bg-white/90 px-3 py-1 text-[10px] rounded-lg shadow font-bold text-slate-600">Drag marker to set position</div>
+                                <div className="absolute bottom-2 left-2 z-[400] bg-white/90 px-3 py-1 text-[10px] rounded-lg shadow font-bold text-slate-900">Drag marker to set position</div>
                             </div>
                         )}
 
@@ -859,34 +859,34 @@ export const BillboardList: React.FC = () => {
                         
                          {editingBillboard.type === BillboardType.Static ? (
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Rate Configuration</h4>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Rate Configuration</h4>
                                 <div className="grid grid-cols-2 gap-6 mb-4">
                                     <MinimalInput label="Side A Rate ($)" type="number" value={editingBillboard.sideARate || 0} onChange={(e: any) => setEditingBillboard({...editingBillboard, sideARate: Number(e.target.value)})} />
                                     <MinimalInput label="Side B Rate ($)" type="number" value={editingBillboard.sideBRate || 0} onChange={(e: any) => setEditingBillboard({...editingBillboard, sideBRate: Number(e.target.value)})} />
                                 </div>
-                                <p className="text-[10px] text-slate-400 mt-2 italic">Availability is controlled automatically by Rental Agreements.</p>
+                                <p className="text-[10px] text-slate-900 mt-2 italic">Availability is controlled automatically by Rental Agreements.</p>
                             </div>
                         ) : (
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Digital Configuration</h4>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Digital Configuration</h4>
                                 <div className="grid grid-cols-2 gap-6 mb-4">
                                     <MinimalInput label="Total Slots" type="number" value={editingBillboard.totalSlots || 10} onChange={(e: any) => setEditingBillboard({...editingBillboard, totalSlots: Number(e.target.value)})} />
                                     <MinimalInput label="Rate Per Slot ($)" type="number" value={editingBillboard.ratePerSlot || 0} onChange={(e: any) => setEditingBillboard({...editingBillboard, ratePerSlot: Number(e.target.value)})} />
                                 </div>
-                                <p className="text-[10px] text-slate-400 mt-1">Occupancy is calculated based on active contracts vs Total Slots.</p>
+                                <p className="text-[10px] text-slate-900 mt-1">Occupancy is calculated based on active contracts vs Total Slots.</p>
                             </div>
                         )}
 
                         <div className="group relative">
                             <textarea value={editingBillboard.notes} onChange={(e) => setEditingBillboard({...editingBillboard, notes: e.target.value})} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent h-20 resize-none"/>
-                            <label className="absolute left-0 top-0 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-2.5 peer-focus:top-0 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">Internal Notes</label>
+                            <label className="absolute left-0 top-0 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-2.5 peer-focus:top-0 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">Internal Notes</label>
                         </div>
                          
                         <div className="space-y-4">
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Billboard Image</label>
+                            <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide">Billboard Image</label>
                             <div className="flex items-center gap-4">
                                 {editingBillboard.imageUrl && <img src={editingBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />}
-                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"/>
+                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="block w-full text-sm text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"/>
                             </div>
                         </div>
 
@@ -909,7 +909,7 @@ export const BillboardList: React.FC = () => {
                         </div>
                         
                         <div className="flex gap-3 pt-2">
-                            <button type="button" onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                            <button type="button" onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
                             <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Save size={14} /> Update Asset</button>
                         </div>
                     </form>
@@ -934,11 +934,11 @@ export const BillboardList: React.FC = () => {
                 <div className="p-6 space-y-4">
                     {/* Entity being deleted */}
                     <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-1.5">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Billboard Being Deleted</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Billboard Being Deleted</p>
                         <p className="font-bold text-slate-900">{billboardToDelete.name}</p>
-                        <p className="text-sm text-slate-600 flex items-center gap-2"><MapPin size={13} className="text-slate-400 shrink-0" /> {billboardToDelete.location}, {billboardToDelete.town}</p>
-                        <p className="text-xs text-slate-500">{billboardToDelete.type} &bull; {billboardToDelete.width}×{billboardToDelete.height}m</p>
-                        <p className="text-xs text-slate-400 font-mono mt-1">ID: {billboardToDelete.id}</p>
+                        <p className="text-sm text-slate-900 flex items-center gap-2"><MapPin size={13} className="text-slate-900 shrink-0" /> {billboardToDelete.location}, {billboardToDelete.town}</p>
+                        <p className="text-xs text-slate-900">{billboardToDelete.type} &bull; {billboardToDelete.width}×{billboardToDelete.height}m</p>
+                        <p className="text-xs text-slate-900 font-mono mt-1">ID: {billboardToDelete.id}</p>
                     </div>
                     {/* Cascading impact warning */}
                     <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">

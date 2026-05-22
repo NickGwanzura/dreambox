@@ -71,17 +71,17 @@ export const AuthCallback: React.FC = () => {
         {status === 'loading' && (
           <><Loader2 className="w-16 h-16 text-indigo-500 animate-spin mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-white mb-2">Processing</h2>
-          <p className="text-slate-400">{message}</p></>
+          <p className="text-slate-900">{message}</p></>
         )}
 
         {status === 'reset-form' && (
           <>
             <Lock className="w-16 h-16 text-indigo-500 mx-auto mb-6" />
             <h2 className="text-2xl font-bold text-white mb-2">Reset Password</h2>
-            <p className="text-slate-400 mb-6">{message}</p>
+            <p className="text-slate-900 mb-6">{message}</p>
             <form onSubmit={handleUpdatePassword} className="space-y-4 text-left">
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">New Password</label>
+                <label className="block text-xs font-medium text-slate-900 uppercase tracking-wider mb-2">New Password</label>
                 <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
                   className="w-full bg-[#0a0a0f] border border-white/10 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white outline-none text-sm"
                   placeholder="••••••••" minLength={8} required />
@@ -94,7 +94,7 @@ export const AuthCallback: React.FC = () => {
                       ['number', 'One number'],
                       ['special', 'One special character (!@#$%^&*)'],
                     ] as const).map(([key, label]) => (
-                      <li key={key} className={`flex items-center gap-1.5 ${pwChecks[key] ? 'text-emerald-400' : 'text-slate-500'}`}>
+                      <li key={key} className={`flex items-center gap-1.5 ${pwChecks[key] ? 'text-emerald-400' : 'text-slate-900'}`}>
                         {pwChecks[key] ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                         {label}
                       </li>
@@ -103,7 +103,7 @@ export const AuthCallback: React.FC = () => {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Confirm Password</label>
+                <label className="block text-xs font-medium text-slate-900 uppercase tracking-wider mb-2">Confirm Password</label>
                 <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
                   className="w-full bg-[#0a0a0f] border border-white/10 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white outline-none text-sm"
                   placeholder="••••••••" minLength={8} required />
@@ -119,13 +119,13 @@ export const AuthCallback: React.FC = () => {
         {status === 'success' && (
           <><CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-white mb-2">Password Updated!</h2>
-          <p className="text-slate-400">{message}</p></>
+          <p className="text-slate-900">{message}</p></>
         )}
 
         {status === 'error' && (
           <><XCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-white mb-2">Something Went Wrong</h2>
-          <p className="text-slate-400 mb-6">{message}</p>
+          <p className="text-slate-900 mb-6">{message}</p>
           <button onClick={() => window.location.href = '/'}
             className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-medium transition-all">
             Back to Login

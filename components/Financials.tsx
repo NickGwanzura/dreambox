@@ -13,22 +13,22 @@ type InvoiceLineItem = Invoice['items'][number];
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => (
   <div className="group relative">
-    <input type={type} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-400 disabled:cursor-not-allowed" />
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
+    <input type={type} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-900 disabled:cursor-not-allowed" />
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 const MinimalTextarea = ({ label, value, onChange, rows = 3, required = false, disabled = false }: any) => (
   <div className="group relative">
-    <textarea rows={rows} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer w-full resize-none px-0 py-3 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-400 disabled:cursor-not-allowed" />
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-3 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
+    <textarea rows={rows} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer w-full resize-none px-0 py-3 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-900 disabled:cursor-not-allowed" />
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-3 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 const MinimalSelect = ({ label, value, onChange, options, disabled = false }: any) => (
   <div className="group relative">
-    <select value={value} disabled={disabled} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer disabled:text-slate-400 disabled:cursor-not-allowed" >
+    <select value={value} disabled={disabled} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer disabled:text-slate-900 disabled:cursor-not-allowed" >
       {options.map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
     </select>
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium uppercase tracking-wide">{label}</label>
   </div>
 );
 
@@ -312,12 +312,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     <>
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : activeTab === 'Proformas' ? 'Proforma Invoices' : 'Financial Documents'}</h2><p className="text-slate-500 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : activeTab === 'Proformas' ? 'Preliminary invoices, convert to final invoices when ready' : 'Create invoices, manage VAT, and track payment history'}</p></div>
-          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
+          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : activeTab === 'Proformas' ? 'Proforma Invoices' : 'Financial Documents'}</h2><p className="text-slate-900 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : activeTab === 'Proformas' ? 'Preliminary invoices, convert to final invoices when ready' : 'Create invoices, manage VAT, and track payment history'}</p></div>
+          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
         </div>
 
         {/* Mobile-friendly tabs */}
-        <div className="border-b border-slate-200 overflow-x-auto no-scrollbar"><div className="flex gap-8 min-w-max">{(['Invoices', 'Quotations', 'Proformas', 'Receipts', 'Statements'] as const).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === tab ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>{tab}{activeTab === tab && (<div className="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900" />)}</button>))}</div></div>
+        <div className="border-b border-slate-200 overflow-x-auto no-scrollbar"><div className="flex gap-8 min-w-max">{(['Invoices', 'Quotations', 'Proformas', 'Receipts', 'Statements'] as const).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === tab ? 'text-slate-900' : 'text-slate-900 hover:text-slate-900'}`}>{tab}{activeTab === tab && (<div className="absolute bottom-0 left-0 w-full h-0.5 bg-slate-900" />)}</button>))}</div></div>
 
         {activeTab === 'Statements' && (() => {
           const company = getCompanyProfile();
@@ -354,27 +354,27 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                   )}
                   <div>
                     <p className="text-white font-black text-xl tracking-tight">{company.name}</p>
-                    <p className="text-slate-400 text-xs mt-0.5">{company.address}, {company.city} &bull; {company.country}</p>
+                    <p className="text-slate-900 text-xs mt-0.5">{company.address}, {company.city} &bull; {company.country}</p>
                     <div className="flex flex-wrap gap-3 mt-1.5">
-                      {company.phone && <span className="flex items-center gap-1 text-slate-400 text-[10px]"><Phone size={10}/> {company.phone}</span>}
-                      {company.email && <span className="flex items-center gap-1 text-slate-400 text-[10px]"><Mail size={10}/> {company.email}</span>}
-                      {company.vatNumber && <span className="flex items-center gap-1 text-slate-400 text-[10px]"><Building2 size={10}/> VAT: {company.vatNumber}</span>}
-                      {company.website && <span className="flex items-center gap-1 text-slate-400 text-[10px]"><Globe size={10}/> {company.website}</span>}
+                      {company.phone && <span className="flex items-center gap-1 text-slate-900 text-[10px]"><Phone size={10}/> {company.phone}</span>}
+                      {company.email && <span className="flex items-center gap-1 text-slate-900 text-[10px]"><Mail size={10}/> {company.email}</span>}
+                      {company.vatNumber && <span className="flex items-center gap-1 text-slate-900 text-[10px]"><Building2 size={10}/> VAT: {company.vatNumber}</span>}
+                      {company.website && <span className="flex items-center gap-1 text-slate-900 text-[10px]"><Globe size={10}/> {company.website}</span>}
                     </div>
                   </div>
                 </div>
                 {/* Portfolio totals */}
                 <div className="hidden sm:flex gap-4 shrink-0">
                   <div className="text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Total Billed</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-1">Total Billed</p>
                     <p className="text-lg font-black text-white">${grandBilled.toLocaleString()}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Collected</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-1">Collected</p>
                     <p className="text-lg font-black text-emerald-400">${grandPaid.toLocaleString()}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Outstanding</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-1">Outstanding</p>
                     <p className={`text-lg font-black ${grandOutstanding > 0 ? 'text-red-400' : 'text-emerald-400'}`}>${grandOutstanding.toLocaleString()}</p>
                   </div>
                 </div>
@@ -394,14 +394,14 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-bold text-slate-900 text-lg leading-tight">{client.companyName}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{client.contactPerson} &bull; {client.email}</p>
+                          <p className="text-xs text-slate-900 mt-0.5">{client.contactPerson} &bull; {client.email}</p>
                         </div>
                         {overdueCount > 0 && (
                           <span className="shrink-0 px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-wider rounded-lg animate-pulse">{overdueCount} Overdue</span>
                         )}
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-slate-50 rounded-xl p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Billed</p><p className="text-base font-bold text-slate-800">${totalBilled.toLocaleString()}</p></div>
+                        <div className="bg-slate-50 rounded-xl p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-1">Billed</p><p className="text-base font-bold text-slate-800">${totalBilled.toLocaleString()}</p></div>
                         <div className="bg-green-50 rounded-xl p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-green-500 mb-1">Paid</p><p className="text-base font-bold text-green-700">${totalPaid.toLocaleString()}</p></div>
                         <div className={`rounded-xl p-3 ${outstanding > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}><p className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${outstanding > 0 ? 'text-red-400' : 'text-emerald-500'}`}>Balance</p><p className={`text-base font-bold ${outstanding > 0 ? 'text-red-600' : 'text-emerald-700'}`}>${outstanding.toLocaleString()}</p></div>
                       </div>
@@ -411,7 +411,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                   );
                 })}
                 {allClients.length === 0 && (
-                  <div className="col-span-3 py-16 text-center text-slate-400 italic">No clients found. Data may still be loading from cloud.</div>
+                  <div className="col-span-3 py-16 text-center text-slate-900 italic">No clients found. Data may still be loading from cloud.</div>
                 )}
               </div>
             </div>
@@ -420,12 +420,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
 
         {activeTab !== 'Statements' && <div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600 min-w-[600px] lg:min-w-[800px]">
-              <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Actions</th></tr></thead>
+            <table className="w-full text-left text-sm text-slate-900 min-w-[600px] lg:min-w-[800px]">
+              <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">Actions</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={() => { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; addInvoice({ id: receiptId, clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` }); markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{activeTab === 'Quotations' && (<><button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{activeTab === 'Proformas' && (<button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
-                )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-400 italic">No documents found.</td></tr>)}
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-900'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={() => { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; addInvoice({ id: receiptId, clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` }); markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{activeTab === 'Quotations' && (<><button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{activeTab === 'Proformas' && (<button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className="p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button></td></tr>
+                )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-900 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
           </div>
@@ -438,7 +438,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                 <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-white/20 max-h-[90vh] overflow-y-auto">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                         <h3 className="text-xl font-bold text-slate-900">{editingInvoice ? `Edit ${editingInvoice.type}` : `Create New ${activeTab.slice(0, -1)}`}</h3>
-                        <button onClick={() => { setIsModalOpen(false); setEditingInvoice(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                        <button onClick={() => { setIsModalOpen(false); setEditingInvoice(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
                     </div>
                     <form onSubmit={handleCreate} className="p-8 space-y-6">
                         {activeTab === 'Receipts' && (<div className="p-4 bg-green-50 rounded-xl border border-green-100 mb-2"><MinimalSelect label="Link to Pending Invoice" value={selectedInvoiceToPay} onChange={(e: any) => handleInvoiceSelect(e.target.value)} options={[{value: '', label: 'Select Invoice to Pay...'}, ...getInvoices().filter(i => String(i.status || '').toLowerCase() === 'pending' && String(i.type || '').toLowerCase() === 'invoice').map(i => ({ value: i.id, label: `Inv #${i.id} - $${i.total} (${allClients.find(c => c.id === i.clientId)?.companyName})`}))]}/></div>)}
@@ -446,7 +446,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         <div className="grid grid-cols-2 gap-6"><MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]}/><MinimalInput label="Date" type="date" value={formData.date} onChange={(e: any) => setFormData({...formData, date: e.target.value})} /></div>
                         {activeTab === 'Receipts' && (<div className="grid grid-cols-2 gap-6"><MinimalSelect label="Payment Method" value={formData.paymentMethod} onChange={(e: any) => setFormData({...formData, paymentMethod: e.target.value})} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash'},{value: 'Other', label: 'Other'}]}/><MinimalInput label="Reference Number" value={formData.paymentReference} onChange={(e: any) => setFormData({...formData, paymentReference: e.target.value})} /></div>)}
                         <div className="bg-slate-50 rounded-2xl p-6 space-y-4 border border-slate-100">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Line Items</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Line Items</h4>
                             {(() => {
                               const allBillboards = getBillboards();
                               const search = billboardSearch.toLowerCase();
@@ -458,15 +458,15 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                 <div className="bg-white rounded-xl p-4 border border-indigo-100 space-y-3">
                                     <div className="flex items-center justify-between gap-2">
                                         <h5 className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-2"><Building2 size={14} /> Select Billboards</h5>
-                                        <span className="text-[10px] text-slate-400">Pick one or many</span>
+                                        <span className="text-[10px] text-slate-900">Pick one or many</span>
                                     </div>
                                     <div className="relative">
-                                        <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
+                                        <Search className="absolute left-3 top-2.5 text-slate-900" size={14} />
                                         <input type="text" placeholder="Search by name, location, or town..." value={billboardSearch} onChange={(e) => setBillboardSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-slate-800 focus:ring-1 focus:ring-slate-800 outline-none" />
                                     </div>
                                     <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
                                         {filteredBillboards.length === 0 ? (
-                                            <p className="text-center text-xs text-slate-400 italic py-6">No billboards found</p>
+                                            <p className="text-center text-xs text-slate-900 italic py-6">No billboards found</p>
                                         ) : filteredBillboards.map(b => {
                                             const sel = billboardSelections[b.id] || {};
                                             const isLED = b.type === BillboardType.LED;
@@ -476,15 +476,15 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                                     <div className="flex items-start justify-between gap-2 mb-2">
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-bold text-slate-800 truncate">{b.name}</p>
-                                                            <p className="text-[11px] text-slate-500 truncate">{b.location}, {b.town}</p>
+                                                            <p className="text-[11px] text-slate-900 truncate">{b.location}, {b.town}</p>
                                                         </div>
                                                         <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold uppercase tracking-wider">{b.type}</span>
                                                     </div>
                                                     {isLED ? (
                                                         <div className="flex items-center justify-between gap-3 bg-white rounded-lg p-2 border border-slate-200">
                                                             <div className="min-w-0">
-                                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Slots</p>
-                                                                <p className="text-[11px] text-slate-600">Rate: <span className="font-bold text-slate-800">${(b.ratePerSlot || 0).toLocaleString()}</span>/slot · {availSlots} of {b.totalSlots || 0} available</p>
+                                                                <p className="text-[10px] text-slate-900 font-bold uppercase tracking-wider">Slots</p>
+                                                                <p className="text-[11px] text-slate-900">Rate: <span className="font-bold text-slate-800">${(b.ratePerSlot || 0).toLocaleString()}</span>/slot · {availSlots} of {b.totalSlots || 0} available</p>
                                                             </div>
                                                             <input type="number" min={0} value={sel.slots || 0} onChange={(e) => setBillboardSlots(b.id, Number(e.target.value))} className="w-20 px-2 py-1.5 text-center text-sm font-bold border border-slate-200 rounded-lg focus:border-slate-800 outline-none" />
                                                         </div>
@@ -493,18 +493,18 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                                             <label className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border ${sel.sideA ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                                                                 <input type="checkbox" checked={!!sel.sideA} onChange={() => toggleBillboardSide(b.id, 'A')} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Side A</p>
+                                                                    <p className="text-[10px] font-bold uppercase text-slate-900 tracking-wider">Side A</p>
                                                                     <p className="text-xs font-bold text-slate-800">${(b.sideARate || 0).toLocaleString()}</p>
                                                                 </div>
-                                                                {b.sideAStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${b.sideAStatus === 'Available' ? 'bg-green-100 text-green-700' : b.sideAStatus === 'Rented' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'}`}>{b.sideAStatus}</span>}
+                                                                {b.sideAStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${b.sideAStatus === 'Available' ? 'bg-green-100 text-green-700' : b.sideAStatus === 'Rented' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-900'}`}>{b.sideAStatus}</span>}
                                                             </label>
                                                             <label className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border ${sel.sideB ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                                                                 <input type="checkbox" checked={!!sel.sideB} onChange={() => toggleBillboardSide(b.id, 'B')} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Side B</p>
+                                                                    <p className="text-[10px] font-bold uppercase text-slate-900 tracking-wider">Side B</p>
                                                                     <p className="text-xs font-bold text-slate-800">${(b.sideBRate || 0).toLocaleString()}</p>
                                                                 </div>
-                                                                {b.sideBStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${b.sideBStatus === 'Available' ? 'bg-green-100 text-green-700' : b.sideBStatus === 'Rented' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'}`}>{b.sideBStatus}</span>}
+                                                                {b.sideBStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${b.sideBStatus === 'Available' ? 'bg-green-100 text-green-700' : b.sideBStatus === 'Rented' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-900'}`}>{b.sideBStatus}</span>}
                                                             </label>
                                                         </div>
                                                     )}
@@ -520,7 +520,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                             })()}
                             <div className="flex items-center gap-3">
                                 <div className="flex-1 h-px bg-slate-200" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Or Add Custom Line</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">Or Add Custom Line</span>
                                 <div className="flex-1 h-px bg-slate-200" />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-3 items-end">
@@ -533,8 +533,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                 {formData.items.map((item, idx) => (
                                   <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Line Item {idx + 1}</span>
-                                      <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove line item">
+                                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-900">Line Item {idx + 1}</span>
+                                      <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove line item">
                                         <Trash2 size={16} />
                                       </button>
                                     </div>
@@ -549,19 +549,19 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         </div>
                         <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
                             <div className="flex items-center justify-between gap-3">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Discount</h4>
-                                {receiptIsLinkedToInvoice && <span className="text-[11px] font-medium text-slate-400">Locked for linked invoice receipts</span>}
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Discount</h4>
+                                {receiptIsLinkedToInvoice && <span className="text-[11px] font-medium text-slate-900">Locked for linked invoice receipts</span>}
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-[180px_140px] gap-4">
                                 <MinimalSelect label="Discount Type" value={discountType} disabled={receiptIsLinkedToInvoice} onChange={(e: any) => setDiscountType(e.target.value)} options={[{ value: 'amount', label: 'Fixed Amount' }, { value: 'percentage', label: 'Percentage %' }]} />
                                 <MinimalInput label={discountType === 'percentage' ? 'Discount %' : 'Discount Amount ($)'} type="number" disabled={receiptIsLinkedToInvoice} value={discountValue} onChange={(e: any) => setDiscountValue(Number(e.target.value))} />
                             </div>
                             <MinimalInput label="Discount Note (Optional)" disabled={receiptIsLinkedToInvoice} value={discountDescription} onChange={(e: any) => setDiscountDescription(e.target.value)} />
-                            {receiptIsLinkedToInvoice && <p className="text-xs text-slate-400">To keep balances correct, linked receipts use the invoice amount exactly.</p>}
+                            {receiptIsLinkedToInvoice && <p className="text-xs text-slate-900">To keep balances correct, linked receipts use the invoice amount exactly.</p>}
                         </div>
                         <div className="flex items-center gap-2">
                             <input type="checkbox" checked={hasVat} disabled={activeTab === 'Receipts' && !!selectedInvoiceToPay} onChange={e => setHasVat(e.target.checked)} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                            <label className="text-sm font-medium text-slate-600">Amounts include VAT ({vatPct})</label>
+                            <label className="text-sm font-medium text-slate-900">Amounts include VAT ({vatPct})</label>
                         </div>
                         <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
                             <div className="flex items-center justify-between text-sm">
@@ -594,14 +594,14 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           <div className="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-0">
             <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl sm:my-8 sm:w-full sm:max-w-lg border border-white/20">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
-                <div><h3 className="text-xl font-bold text-slate-900">Convert Quotation to Contract</h3><p className="text-xs text-slate-400 mt-0.5">QT #{convertingQuotation.id} — {allClients.find(c => c.id === convertingQuotation.clientId)?.companyName}</p></div>
-                <button onClick={() => setConvertingQuotation(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-400" /></button>
+                <div><h3 className="text-xl font-bold text-slate-900">Convert Quotation to Contract</h3><p className="text-xs text-slate-900 mt-0.5">QT #{convertingQuotation.id} — {allClients.find(c => c.id === convertingQuotation.clientId)?.companyName}</p></div>
+                <button onClick={() => setConvertingQuotation(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-900" /></button>
               </div>
               <form onSubmit={handleConvertToContract} className="p-8 space-y-6">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">From Quotation</p>
+                  <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">From Quotation</p>
                   {convertingQuotation.items.map((item, i) => (
-                    <div key={i} className="flex justify-between text-sm"><span className="text-slate-600">{item.description}</span><span className="font-bold">${item.amount.toLocaleString()}</span></div>
+                    <div key={i} className="flex justify-between text-sm"><span className="text-slate-900">{item.description}</span><span className="font-bold">${item.amount.toLocaleString()}</span></div>
                   ))}
                   <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200 mt-2"><span>Total</span><span>${convertingQuotation.total.toLocaleString()}</span></div>
                 </div>

@@ -11,7 +11,7 @@ import { ClientDetail } from './ClientDetail';
 const MinimalInput = ({ label, value, onChange, type = "text", placeholder, required = false, max, min, step }: any) => (
   <div className="group relative">
     <input type={type} required={required} value={value} onChange={onChange} max={max} min={min} step={step} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent" />
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 
@@ -233,20 +233,20 @@ export const ClientList: React.FC = () => {
               <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">Edit Client</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{editingClient.companyName} &bull; {editingClient.status}</p>
+                  <p className="text-xs text-slate-900 mt-0.5">{editingClient.companyName} &bull; {editingClient.status}</p>
                 </div>
-                <button onClick={() => setEditingClient(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                <button onClick={() => setEditingClient(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
               </div>
               <form onSubmit={handleUpdateClient} className="p-8 space-y-6">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Company Information</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Company Information</p>
                   <div className="space-y-6">
                     <MinimalInput label="Company Name" value={editingClient.companyName} onChange={(e: any) => setEditingClient({...editingClient, companyName: e.target.value})} required />
                     <MinimalInput label="Contact Person" value={editingClient.contactPerson} onChange={(e: any) => setEditingClient({...editingClient, contactPerson: e.target.value})} required />
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Contact Details</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Contact Details</p>
                   <div className="grid grid-cols-2 gap-6">
                     <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} />
                     <MinimalInput label="Phone Number" type="tel" value={editingClient.phone} onChange={(e: any) => setEditingClient({...editingClient, phone: e.target.value})} />
@@ -254,13 +254,13 @@ export const ClientList: React.FC = () => {
                 </div>
                 <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5">
                   <div className="flex items-center gap-2 mb-4">
-                    <CreditCard size={15} className="text-slate-400" />
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Billing Preferences</p>
+                    <CreditCard size={15} className="text-slate-900" />
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Billing Preferences</p>
                   </div>
                   <MinimalInput label="Preferred Billing Day (1–31)" type="number" min={1} max={31} value={editingClient.billingDay || ''} onChange={(e: any) => setEditingClient({...editingClient, billingDay: e.target.value ? Number(e.target.value) : undefined})} placeholder="Default: Contract Start Date" />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                  <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
                   <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Update Client</button>
                 </div>
               </form>
@@ -275,20 +275,20 @@ export const ClientList: React.FC = () => {
     <>
       <div className="space-y-8 relative animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Client Directory</h2><p className="text-slate-500 font-medium">Manage advertising partners and contact details</p></div>
+          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Client Directory</h2><p className="text-slate-900 font-medium">Manage advertising partners and contact details</p></div>
           <div className="flex items-center gap-4 w-full sm:w-auto">
-              <button onClick={() => generateClientDirectoryPDF(clients)} className="bg-white border border-slate-200 text-slate-600 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2">
+              <button onClick={() => generateClientDirectoryPDF(clients)} className="bg-white border border-slate-200 text-slate-900 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2">
                   <Download size={18}/> Directory
               </button>
-              <button onClick={downloadClientsTemplate} title="Export current clients as CSV (fill in missing contact info, then re-upload)" className="bg-white border border-slate-200 text-slate-600 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2">
+              <button onClick={downloadClientsTemplate} title="Export current clients as CSV (fill in missing contact info, then re-upload)" className="bg-white border border-slate-200 text-slate-900 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2">
                   <FileText size={18}/> Template
               </button>
-              <label title="Upload CSV to update client info (matched by company name) or add new clients" className="bg-white border border-slate-200 text-slate-600 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer">
+              <label title="Upload CSV to update client info (matched by company name) or add new clients" className="bg-white border border-slate-200 text-slate-900 px-4 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer">
                   <Upload size={18}/> Import
                   <input type="file" accept=".csv,text/csv" onChange={handleImportClients} className="hidden" />
               </label>
               <div className="relative group w-full sm:w-64">
-                  <Search className="absolute left-0 top-2.5 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} />
+                  <Search className="absolute left-0 top-2.5 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} />
                   <input
                       type="text"
                       placeholder="Search clients..."
@@ -312,14 +312,14 @@ export const ClientList: React.FC = () => {
           </div>
         </div>
         {searchQuery && (
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-900">
                 {filteredClients.length} of {clients.length} clients match "{searchQuery}"
             </p>
         )}
         {filteredClients.length === 0 && searchQuery ? (
             <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
                 <Search size={32} className="text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 font-medium">No clients found matching "{searchQuery}"</p>
+                <p className="text-slate-900 font-medium">No clients found matching "{searchQuery}"</p>
                 <button onClick={() => setSearchQuery('')} className="text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-800 mt-3">Clear Search</button>
             </div>
         ) : (
@@ -331,15 +331,15 @@ export const ClientList: React.FC = () => {
                 <div key={client.id} onClick={() => setViewingClientId(client.id)} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 group hover:-translate-y-1 flex flex-col justify-between cursor-pointer">
                     <div>
                         <div className="flex justify-between items-start mb-4">
-                            <div className="w-14 h-14 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center font-bold text-xl group-hover:bg-slate-900 group-hover:text-white transition-colors shadow-sm">{client.companyName.charAt(0)}</div>
+                            <div className="w-14 h-14 rounded-full bg-slate-50 text-slate-900 flex items-center justify-center font-bold text-xl group-hover:bg-slate-900 group-hover:text-white transition-colors shadow-sm">{client.companyName.charAt(0)}</div>
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                 <button onClick={() => generatePortalLink(client)} className="text-slate-300 hover:text-green-600 transition-colors p-2 hover:bg-green-50 rounded-full" title="Copy Client Portal Link"><Share2 size={18} /></button>
                                 <button onClick={() => setEditingClient(client)} className="text-slate-300 hover:text-indigo-600 transition-colors p-2 hover:bg-indigo-50 rounded-full" title="Edit Client"><Edit2 size={18} /></button>
                                 {canUserDelete && (<button onClick={() => setClientToDelete(client)} className="text-slate-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full" title="Delete Client"><Trash2 size={18} /></button>)}
                             </div>
                         </div>
-                        <h3 className="text-xl font-bold text-slate-900 mb-1">{client.companyName}</h3><div className="flex items-center gap-2 text-sm text-slate-500 mb-6 font-medium"><User size={14} className="text-indigo-500"/> {client.contactPerson}</div>
-                        <div className="space-y-3 border-t border-slate-50 pt-4 mb-4"><div className="flex items-center gap-3 text-sm text-slate-600 group-hover:text-slate-900 transition-colors"><Mail size={16} className="text-slate-400" /> {client.email}</div><div className="flex items-center gap-3 text-sm text-slate-600 group-hover:text-slate-900 transition-colors"><Phone size={16} className="text-slate-400" /> {client.phone}</div></div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-1">{client.companyName}</h3><div className="flex items-center gap-2 text-sm text-slate-900 mb-6 font-medium"><User size={14} className="text-indigo-500"/> {client.contactPerson}</div>
+                        <div className="space-y-3 border-t border-slate-50 pt-4 mb-4"><div className="flex items-center gap-3 text-sm text-slate-900 group-hover:text-slate-900 transition-colors"><Mail size={16} className="text-slate-900" /> {client.email}</div><div className="flex items-center gap-3 text-sm text-slate-900 group-hover:text-slate-900 transition-colors"><Phone size={16} className="text-slate-900" /> {client.phone}</div></div>
 
                         {billingInfo ? (
                              <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100 mb-4">
@@ -353,7 +353,7 @@ export const ClientList: React.FC = () => {
                              </div>
                         ) : client.billingDay ? (
                             <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-4">
-                                 <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
+                                 <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
                                      <Calendar size={14} /> Bill Day: <span className="font-bold text-slate-700">{client.billingDay}th</span> of month
                                  </div>
                              </div>
@@ -361,19 +361,19 @@ export const ClientList: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center pt-2">
                         <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${client.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{client.status}</span>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${client.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-900 border-slate-100'}`}>{client.status}</span>
                             {activeCount > 0 ? (
                                 <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border bg-indigo-50 text-indigo-600 border-indigo-100 flex items-center gap-1" title={`${activeCount} active contract${activeCount === 1 ? '' : 's'}`}>
                                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
                                     {activeCount === 1 ? 'Active Contract' : `${activeCount} Active`}
                                 </span>
                             ) : (
-                                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border bg-slate-50 text-slate-400 border-slate-100" title="No active contracts">
+                                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border bg-slate-50 text-slate-900 border-slate-100" title="No active contracts">
                                     No Active Contract
                                 </span>
                             )}
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 group-hover:text-indigo-600 transition-colors flex items-center gap-1">View Profile <MoreHorizontal size={14}/></span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-900 group-hover:text-indigo-600 transition-colors flex items-center gap-1">View Profile <MoreHorizontal size={14}/></span>
                     </div>
                 </div>
             )})}
@@ -388,28 +388,28 @@ export const ClientList: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Add New Client</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Create a new advertising partner record</p>
+                        <p className="text-xs text-slate-900 mt-0.5">Create a new advertising partner record</p>
                     </div>
-                    <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                    <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
                 </div>
                 <form onSubmit={handleAddClient} className="p-8 space-y-6">
                     {/* Company Information */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Company Information</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Company Information</p>
                         <div className="space-y-6">
                             <div>
                                 <MinimalInput label="Company Name" value={newClient.companyName} onChange={(e: any) => setNewClient({...newClient, companyName: e.target.value})} required />
                             </div>
                             <div>
                                 <MinimalInput label="Contact Person" value={newClient.contactPerson} onChange={(e: any) => setNewClient({...newClient, contactPerson: e.target.value})} required />
-                                <p className="text-[10px] text-slate-400 mt-2">Primary point of contact for this account</p>
+                                <p className="text-[10px] text-slate-900 mt-2">Primary point of contact for this account</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Contact Details */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Contact Details</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Contact Details</p>
                         <div className="space-y-6">
                             <MinimalInput label="Email Address" type="email" value={newClient.email} onChange={(e: any) => setNewClient({...newClient, email: e.target.value})} />
                             <MinimalInput label="Phone Number" type="tel" value={newClient.phone} onChange={(e: any) => setNewClient({...newClient, phone: e.target.value})} />
@@ -419,8 +419,8 @@ export const ClientList: React.FC = () => {
                     {/* Billing Preferences */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5">
                         <div className="flex items-center gap-2 mb-4">
-                            <CreditCard size={15} className="text-slate-400" />
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Billing Preferences</p>
+                            <CreditCard size={15} className="text-slate-900" />
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Billing Preferences</p>
                         </div>
                         <MinimalInput
                             label="Billing Day (1–31)"
@@ -430,13 +430,13 @@ export const ClientList: React.FC = () => {
                             value={newClient.billingDay || ''}
                             onChange={(e: any) => setNewClient({...newClient, billingDay: e.target.value ? Number(e.target.value) : undefined})}
                         />
-                        <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
+                        <p className="text-[10px] text-slate-900 mt-3 leading-relaxed">
                             Day of the month invoices are generated. Leave blank to use each contract's start date. E.g. "25" consolidates all invoices for this client to the 25th.
                         </p>
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
                         <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Save size={14} /> Save Client</button>
                     </div>
                 </form>
@@ -451,9 +451,9 @@ export const ClientList: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Client</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">{editingClient.companyName} &bull; {editingClient.status}</p>
+                        <p className="text-xs text-slate-900 mt-0.5">{editingClient.companyName} &bull; {editingClient.status}</p>
                     </div>
-                    <button onClick={() => setEditingClient(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+                    <button onClick={() => setEditingClient(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
                 </div>
                 <form onSubmit={handleUpdateClient} className="p-8 space-y-6">
                     {/* Context summary card */}
@@ -462,16 +462,16 @@ export const ClientList: React.FC = () => {
                             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-lg">{editingClient.companyName.charAt(0)}</div>
                             <div>
                                 <p className="font-bold text-base leading-tight">{editingClient.companyName}</p>
-                                <p className="text-xs text-slate-400 mt-0.5">{editingClient.contactPerson}</p>
+                                <p className="text-xs text-slate-900 mt-0.5">{editingClient.contactPerson}</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 border-t border-slate-700 pt-3">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Email</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Email</p>
                                 <p className="text-sm text-slate-300 truncate">{editingClient.email || '—'}</p>
                             </div>
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Phone</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Phone</p>
                                 <p className="text-sm text-slate-300">{editingClient.phone || '—'}</p>
                             </div>
                         </div>
@@ -479,7 +479,7 @@ export const ClientList: React.FC = () => {
 
                     {/* Company Information */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Company Information</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Company Information</p>
                         <div className="space-y-6">
                             <MinimalInput label="Company Name" value={editingClient.companyName} onChange={(e: any) => setEditingClient({...editingClient, companyName: e.target.value})} required />
                             <MinimalInput label="Contact Person" value={editingClient.contactPerson} onChange={(e: any) => setEditingClient({...editingClient, contactPerson: e.target.value})} required />
@@ -488,7 +488,7 @@ export const ClientList: React.FC = () => {
 
                     {/* Contact Details */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Contact Details</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Contact Details</p>
                         <div className="grid grid-cols-2 gap-6">
                             <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} />
                             <MinimalInput label="Phone Number" type="tel" value={editingClient.phone} onChange={(e: any) => setEditingClient({...editingClient, phone: e.target.value})} />
@@ -498,8 +498,8 @@ export const ClientList: React.FC = () => {
                     {/* Billing Preferences */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5">
                         <div className="flex items-center gap-2 mb-4">
-                            <CreditCard size={15} className="text-slate-400" />
-                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Billing Preferences</p>
+                            <CreditCard size={15} className="text-slate-900" />
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Billing Preferences</p>
                         </div>
                         <MinimalInput
                             label="Preferred Billing Day (1–31)"
@@ -510,13 +510,13 @@ export const ClientList: React.FC = () => {
                             onChange={(e: any) => setEditingClient({...editingClient, billingDay: e.target.value ? Number(e.target.value) : undefined})}
                             placeholder="Default: Contract Start Date"
                         />
-                        <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
+                        <p className="text-[10px] text-slate-900 mt-3 leading-relaxed">
                             Setting a fixed billing day (e.g. 25) consolidates all invoices for this client to that day of the month, overriding individual contract start dates.
                         </p>
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                        <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
                         <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Update Client</button>
                     </div>
                 </form>
@@ -541,11 +541,11 @@ export const ClientList: React.FC = () => {
                 <div className="p-6 space-y-4">
                     {/* Entity being deleted */}
                     <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-1.5">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Client Being Deleted</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Client Being Deleted</p>
                         <p className="font-bold text-slate-900">{clientToDelete.companyName}</p>
-                        <p className="text-sm text-slate-600 flex items-center gap-2"><User size={13} className="text-slate-400" /> {clientToDelete.contactPerson}</p>
-                        <p className="text-sm text-slate-500 flex items-center gap-2"><Mail size={13} className="text-slate-400" /> {clientToDelete.email || '—'}</p>
-                        <p className="text-xs text-slate-400 font-mono mt-1">ID: {clientToDelete.id}</p>
+                        <p className="text-sm text-slate-900 flex items-center gap-2"><User size={13} className="text-slate-900" /> {clientToDelete.contactPerson}</p>
+                        <p className="text-sm text-slate-900 flex items-center gap-2"><Mail size={13} className="text-slate-900" /> {clientToDelete.email || '—'}</p>
+                        <p className="text-xs text-slate-900 font-mono mt-1">ID: {clientToDelete.id}</p>
                     </div>
                     {/* Cascading impact warning */}
                     <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
@@ -585,8 +585,8 @@ export const ClientList: React.FC = () => {
                             <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mt-1">Created</p>
                         </div>
                         <div className="bg-slate-50 rounded-xl border border-slate-100 p-3 text-center">
-                            <p className="text-2xl font-extrabold text-slate-600">{importResult.skipped}</p>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">Skipped</p>
+                            <p className="text-2xl font-extrabold text-slate-900">{importResult.skipped}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mt-1">Skipped</p>
                         </div>
                     </div>
                     {importResult.details.length > 0 && (

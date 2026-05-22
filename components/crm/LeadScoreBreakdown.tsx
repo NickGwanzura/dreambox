@@ -82,7 +82,7 @@ export const LeadScoreBreakdown: React.FC<LeadScoreBreakdownProps> = ({ score, c
   if (!score) {
     return (
       <div className={`p-6 rounded-3xl bg-white border border-slate-200 shadow-sm ${className}`}>
-        <div className="text-center text-slate-500">
+        <div className="text-center text-slate-900">
           <Info size={48} className="mx-auto mb-3 text-slate-300" />
           <p className="font-bold text-slate-700">No score data available</p>
           <p className="text-sm mt-1">Add activity to generate lead score</p>
@@ -102,7 +102,7 @@ export const LeadScoreBreakdown: React.FC<LeadScoreBreakdownProps> = ({ score, c
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-bold text-slate-900">Lead Score Breakdown</h3>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-900">
               Confidence: {Math.round(score.confidence * 100)}% • Calculated {new Date(score.calculatedAt).toLocaleDateString()}
             </p>
           </div>
@@ -110,7 +110,7 @@ export const LeadScoreBreakdown: React.FC<LeadScoreBreakdownProps> = ({ score, c
             <div className={`text-4xl font-black ${getScoreColor(score.totalScore)}`}>
               {score.totalScore}
             </div>
-            <div className="text-sm text-slate-500">out of 100</div>
+            <div className="text-sm text-slate-900">out of 100</div>
           </div>
         </div>
 
@@ -165,15 +165,15 @@ export const LeadScoreBreakdown: React.FC<LeadScoreBreakdownProps> = ({ score, c
                 </div>
 
                 {isExpanded ? (
-                  <ChevronUp size={18} className="text-slate-400" />
+                  <ChevronUp size={18} className="text-slate-900" />
                 ) : (
-                  <ChevronDown size={18} className="text-slate-400" />
+                  <ChevronDown size={18} className="text-slate-900" />
                 )}
               </button>
 
               {isExpanded && (
                 <div className="px-4 pb-4 pt-0">
-                  <p className="text-sm text-slate-500 pl-14">{config.description}</p>
+                  <p className="text-sm text-slate-900 pl-14">{config.description}</p>
                 </div>
               )}
             </div>
@@ -202,7 +202,7 @@ export const LeadScoreBreakdown: React.FC<LeadScoreBreakdownProps> = ({ score, c
                   <Icon size={16} className={`mt-0.5 ${config.color}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-slate-500 uppercase">{insight.category}</span>
+                      <span className="text-xs font-bold text-slate-900 uppercase">{insight.category}</span>
                       {insight.impact !== 0 && (
                         <span className={`text-xs font-bold ${insight.impact > 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                           {insight.impact > 0 ? '+' : ''}{insight.impact} pts
@@ -249,13 +249,13 @@ export const LeadScoreBreakdown: React.FC<LeadScoreBreakdownProps> = ({ score, c
                       {config.label}
                     </div>
                     {rec.autoTrigger && (
-                      <div className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase bg-slate-200 text-slate-600 border border-slate-300">
+                      <div className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase bg-slate-200 text-slate-900 border border-slate-300">
                         Auto
                       </div>
                     )}
                   </div>
                   <h5 className="font-bold text-slate-900 mt-2">{rec.action}</h5>
-                  <p className="text-sm text-slate-600 mt-1">{rec.description}</p>
+                  <p className="text-sm text-slate-900 mt-1">{rec.description}</p>
                   <div className="flex items-center gap-1 mt-2 text-xs text-emerald-700 font-medium">
                     <TrendingUp size={12} />
                     <span>Expected: {rec.expectedImpact}</span>
@@ -293,7 +293,7 @@ export const LeadScoreMini: React.FC<{
         <span className={`text-2xl font-black ${getScoreColor(score.totalScore)}`}>
           {score.totalScore}
         </span>
-        <span className="text-xs text-slate-500">/100</span>
+        <span className="text-xs text-slate-900">/100</span>
       </div>
       
       <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
@@ -323,7 +323,7 @@ const getScoreColor = (score: number): string => {
   if (score >= 80) return 'text-orange-600';
   if (score >= 50) return 'text-yellow-600';
   if (score >= 25) return 'text-blue-600';
-  return 'text-slate-600';
+  return 'text-slate-900';
 };
 
 const getScoreBarColor = (score: number): string => {

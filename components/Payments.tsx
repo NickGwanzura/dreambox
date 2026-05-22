@@ -12,16 +12,16 @@ import { canDelete } from '../utils/settingsAccess';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, placeholder = "", icon: Icon }: any) => (
     <div className="group relative pt-6">
-      <div className="absolute top-9 left-0 text-slate-400">{Icon && <Icon size={18} />}</div>
+      <div className="absolute top-9 left-0 text-slate-900">{Icon && <Icon size={18} />}</div>
       <input type={type} required={required} value={value} onChange={onChange} placeholder={placeholder || " "} className={`peer w-full py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent focus:placeholder-slate-300 ${Icon ? 'pl-8' : 'px-0'}`} />
-      <label className={`absolute left-0 top-1 text-xs text-slate-400 font-medium transition-all uppercase tracking-wide peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-9 peer-focus:top-1 peer-focus:text-xs peer-focus:text-slate-800 pointer-events-none ${Icon ? 'peer-placeholder-shown:left-8 peer-focus:left-0' : ''}`}>{label}</label>
+      <label className={`absolute left-0 top-1 text-xs text-slate-900 font-medium transition-all uppercase tracking-wide peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-9 peer-focus:top-1 peer-focus:text-xs peer-focus:text-slate-800 pointer-events-none ${Icon ? 'peer-placeholder-shown:left-8 peer-focus:left-0' : ''}`}>{label}</label>
     </div>
 );
 const MinimalSelect = ({ label, value, onChange, options, icon: Icon }: any) => (
   <div className="group relative pt-6">
-    <div className="absolute top-9 left-0 text-slate-400 pointer-events-none z-10">{Icon && <Icon size={18} />}</div>
+    <div className="absolute top-9 left-0 text-slate-900 pointer-events-none z-10">{Icon && <Icon size={18} />}</div>
     <select value={value} onChange={onChange} className={`peer w-full py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer ${Icon ? 'pl-8' : 'px-0'}`} >{options.map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>
-    <label className={`absolute left-0 top-1 text-xs text-slate-400 font-medium uppercase tracking-wide transition-all ${Icon ? 'left-0' : ''}`}>{label}</label>
+    <label className={`absolute left-0 top-1 text-xs text-slate-900 font-medium uppercase tracking-wide transition-all ${Icon ? 'left-0' : ''}`}>{label}</label>
   </div>
 );
 
@@ -195,10 +195,10 @@ export const Payments: React.FC = () => {
         <>
             <div className="space-y-8 animate-fade-in">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Payments & Statements</h2><p className="text-slate-500 font-medium">Track outstanding balances and process transactions</p></div>
+                    <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Payments & Statements</h2><p className="text-slate-900 font-medium">Track outstanding balances and process transactions</p></div>
                     <div className="flex bg-slate-100 rounded-full p-1 border border-slate-200 overflow-x-auto max-w-full">
                         {(['Monthly', 'Invoices', 'History', 'Statements', 'Schedule'] as const).map(tab => (
-                            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>{tab}</button>
+                            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-900 hover:text-slate-900'}`}>{tab}</button>
                         ))}
                     </div>
                 </div>
@@ -208,18 +208,18 @@ export const Payments: React.FC = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in">
                         <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><ReceiptText size={20} className="text-indigo-600"/> Monthly Payments</h3>
-                            <p className="text-xs text-slate-500 mt-1">Log a monthly payment for any active contract</p>
+                            <p className="text-xs text-slate-900 mt-1">Log a monthly payment for any active contract</p>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm text-slate-600 min-w-[600px]">
+                            <table className="w-full text-left text-sm text-slate-900 min-w-[600px]">
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client</th>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Billboard</th>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Details</th>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Monthly Rate</th>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">This Month</th>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Action</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Billboard</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Details</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Monthly Rate</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">This Month</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -229,11 +229,11 @@ export const Payments: React.FC = () => {
                                         return (
                                             <tr key={contract.id} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-6 py-4 font-bold text-slate-900">{getClientName(contract.clientId)}</td>
-                                                <td className="px-6 py-4 text-slate-600">{getBillboardName(contract.billboardId)}</td>
-                                                <td className="px-6 py-4 text-slate-500 text-xs">{contract.details || '—'}</td>
+                                                <td className="px-6 py-4 text-slate-900">{getBillboardName(contract.billboardId)}</td>
+                                                <td className="px-6 py-4 text-slate-900 text-xs">{contract.details || '—'}</td>
                                                 <td className="px-6 py-4 text-right font-bold text-slate-900">
                                                     ${Math.round(rate).toLocaleString()}
-                                                    {contract.hasVat && <span className="text-xs text-slate-400 ml-1">incl. VAT</span>}
+                                                    {contract.hasVat && <span className="text-xs text-slate-900 ml-1">incl. VAT</span>}
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     {paidThisMonth
@@ -253,7 +253,7 @@ export const Payments: React.FC = () => {
                                         );
                                     })}
                                     {activeContracts.length === 0 && (
-                                        <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">No active contracts found.</td></tr>
+                                        <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-900 italic">No active contracts found.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -262,13 +262,13 @@ export const Payments: React.FC = () => {
                 )}
 
                 {/* ── Invoices Tab ── */}
-                {activeTab === 'Invoices' && (<div className="space-y-6"><div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100"><div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">{(['All', 'Pending', 'Overdue', 'Paid'] as const).map(status => (<button key={status} onClick={() => setStatusFilter(status)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border ${statusFilter === status ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{status}</button>))}</div><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search Client or ID..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:bg-white focus:border-slate-800 transition-all text-sm"/></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">{filteredInvoices.map(invoice => (<div key={invoice.id} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-lg transition-all group flex flex-col justify-between hover:-translate-y-1 duration-300"><div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-slate-50 rounded-xl group-hover:bg-slate-100 transition-colors">{String(invoice.status || '').toLowerCase() === 'paid' ? <CheckCircle className="text-green-500" size={24}/> : String(invoice.status || '').toLowerCase() === 'overdue' ? <AlertCircle className="text-red-500" size={24}/> : <AlertCircle className="text-amber-500" size={24}/>}</div><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${String(invoice.status || '').toLowerCase() === 'paid' ? 'bg-green-50 text-green-600' : String(invoice.status || '').toLowerCase() === 'overdue' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{invoice.status}</span></div><h3 className="text-lg font-bold text-slate-900 mb-1">{getClientName(invoice.clientId)}</h3><p className="text-sm text-slate-500 mb-6">Inv #{invoice.id} • {invoice.date}</p><div className="space-y-3 mb-6"><div className="flex justify-between items-center text-sm"><span className="text-slate-400 font-medium">Amount Due</span><span className="font-bold text-slate-900 text-lg">${invoice.total.toLocaleString()}</span></div></div></div><div className="flex gap-2">{['pending', 'overdue'].includes(String(invoice.status || '').toLowerCase()) && (<button onClick={() => handleOpenPaymentModal(invoice)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all flex items-center justify-center gap-2"><CreditCard size={14} /> Pay</button>)}{String(invoice.status || '').toLowerCase() === 'paid' && (<div className="flex-1 py-3 bg-slate-50 text-slate-400 rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 cursor-default border border-slate-100"><Check size={14} /> Paid</div>)}<button onClick={() => handleSendInvoice(invoice)} className="py-3 px-4 border border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2"><Send size={14} /> Email</button>{canUserDelete && (<button onClick={() => handleDeleteInvoice(invoice)} className="py-3 px-4 border border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center" title="Delete invoice"><Trash2 size={14}/></button>)}</div></div>))}{filteredInvoices.length === 0 && (<div className="col-span-full py-12 text-center text-slate-400 italic bg-white rounded-2xl border border-slate-100 border-dashed">No invoices found matching your criteria.</div>)}</div></div>)}
+                {activeTab === 'Invoices' && (<div className="space-y-6"><div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100"><div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">{(['All', 'Pending', 'Overdue', 'Paid'] as const).map(status => (<button key={status} onClick={() => setStatusFilter(status)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border ${statusFilter === status ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300'}`}>{status}</button>))}</div><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-2.5 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search Client or ID..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:bg-white focus:border-slate-800 transition-all text-sm"/></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">{filteredInvoices.map(invoice => (<div key={invoice.id} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-lg transition-all group flex flex-col justify-between hover:-translate-y-1 duration-300"><div><div className="flex justify-between items-start mb-4"><div className="p-3 bg-slate-50 rounded-xl group-hover:bg-slate-100 transition-colors">{String(invoice.status || '').toLowerCase() === 'paid' ? <CheckCircle className="text-green-500" size={24}/> : String(invoice.status || '').toLowerCase() === 'overdue' ? <AlertCircle className="text-red-500" size={24}/> : <AlertCircle className="text-amber-500" size={24}/>}</div><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${String(invoice.status || '').toLowerCase() === 'paid' ? 'bg-green-50 text-green-600' : String(invoice.status || '').toLowerCase() === 'overdue' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{invoice.status}</span></div><h3 className="text-lg font-bold text-slate-900 mb-1">{getClientName(invoice.clientId)}</h3><p className="text-sm text-slate-900 mb-6">Inv #{invoice.id} • {invoice.date}</p><div className="space-y-3 mb-6"><div className="flex justify-between items-center text-sm"><span className="text-slate-900 font-medium">Amount Due</span><span className="font-bold text-slate-900 text-lg">${invoice.total.toLocaleString()}</span></div></div></div><div className="flex gap-2">{['pending', 'overdue'].includes(String(invoice.status || '').toLowerCase()) && (<button onClick={() => handleOpenPaymentModal(invoice)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all flex items-center justify-center gap-2"><CreditCard size={14} /> Pay</button>)}{String(invoice.status || '').toLowerCase() === 'paid' && (<div className="flex-1 py-3 bg-slate-50 text-slate-900 rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 cursor-default border border-slate-100"><Check size={14} /> Paid</div>)}<button onClick={() => handleSendInvoice(invoice)} className="py-3 px-4 border border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2"><Send size={14} /> Email</button>{canUserDelete && (<button onClick={() => handleDeleteInvoice(invoice)} className="py-3 px-4 border border-slate-200 text-slate-900 hover:border-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center" title="Delete invoice"><Trash2 size={14}/></button>)}</div></div>))}{filteredInvoices.length === 0 && (<div className="col-span-full py-12 text-center text-slate-900 italic bg-white rounded-2xl border border-slate-100 border-dashed">No invoices found matching your criteria.</div>)}</div></div>)}
 
                 {/* ── History Tab ── */}
-                {activeTab === 'History' && (<div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in"><div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4"><div className="flex items-center gap-2 text-slate-500"><Clock size={18} /> <span className="text-sm font-bold uppercase tracking-wider">Payment History</span></div><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search Ref, ID, Client..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:border-slate-800 transition-all text-sm"/></div></div><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-600 min-w-[500px] lg:min-w-[700px]"><thead className="bg-slate-50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Payment Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Receipt ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Reference</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Amount</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredReceipts.map(receipt => (<tr key={receipt.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-mono text-xs font-bold text-slate-700">{receipt.date}</td><td className="px-6 py-4 font-bold text-slate-900">{receipt.id}</td><td className="px-6 py-4">{getClientName(receipt.clientId)}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold uppercase">{receipt.paymentMethod || 'N/A'}</span></td><td className="px-6 py-4 font-mono text-xs text-slate-500">{receipt.paymentReference || '-'}</td><td className="px-6 py-4 text-right font-bold text-green-600">${receipt.total.toLocaleString()}</td><td className="px-6 py-4 text-right">{canUserDelete && (<button onClick={() => handleDeleteReceipt(receipt.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16}/></button>)}</td></tr>))}{filteredReceipts.length === 0 && (<tr><td colSpan={7} className="px-6 py-12 text-center text-slate-400 italic">No payment history found.</td></tr>)}</tbody></table></div></div>)}
+                {activeTab === 'History' && (<div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in"><div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4"><div className="flex items-center gap-2 text-slate-900"><Clock size={18} /> <span className="text-sm font-bold uppercase tracking-wider">Payment History</span></div><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-2.5 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search Ref, ID, Client..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:border-slate-800 transition-all text-sm"/></div></div><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-900 min-w-[500px] lg:min-w-[700px]"><thead className="bg-slate-50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Payment Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Receipt ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Reference</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Amount</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredReceipts.map(receipt => (<tr key={receipt.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-mono text-xs font-bold text-slate-700">{receipt.date}</td><td className="px-6 py-4 font-bold text-slate-900">{receipt.id}</td><td className="px-6 py-4">{getClientName(receipt.clientId)}</td><td className="px-6 py-4"><span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold uppercase">{receipt.paymentMethod || 'N/A'}</span></td><td className="px-6 py-4 font-mono text-xs text-slate-900">{receipt.paymentReference || '-'}</td><td className="px-6 py-4 text-right font-bold text-green-600">${receipt.total.toLocaleString()}</td><td className="px-6 py-4 text-right">{canUserDelete && (<button onClick={() => handleDeleteReceipt(receipt.id)} className="p-2 text-slate-900 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16}/></button>)}</td></tr>))}{filteredReceipts.length === 0 && (<tr><td colSpan={7} className="px-6 py-12 text-center text-slate-900 italic">No payment history found.</td></tr>)}</tbody></table></div></div>)}
 
                 {/* ── Statements Tab ── */}
-                {activeTab === 'Statements' && (<div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-600 min-w-[600px]"><thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Total Billed</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Total Paid</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Balance</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{clients.map(client => { const financials = getClientFinancials(client.id); return (<tr key={client.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4"><div className="font-bold text-slate-900">{client.companyName}</div><div className="text-xs text-slate-400">{client.email}</div></td><td className="px-6 py-4 text-right">${financials.totalBilled.toLocaleString()}</td><td className="px-6 py-4 text-right text-green-600">${financials.totalPaid.toLocaleString()}</td><td className={`px-6 py-4 text-right font-bold ${financials.balance > 0 ? 'text-red-500' : 'text-slate-400'}`}>${financials.balance.toLocaleString()}</td><td className="px-6 py-4 text-center"><button onClick={() => { const transactions = getTransactions(client.id); const activeRentals = getContracts().filter(c => c.clientId === client.id && String(c.status || '').toLowerCase() === 'active'); generateStatementPDF(client, transactions, activeRentals, getBillboardName); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Download Statement"><Download size={18} /></button></td></tr>) })}</tbody></table></div></div>)}
+                {activeTab === 'Statements' && (<div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-900 min-w-[600px]"><thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Total Billed</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Total Paid</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Balance</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{clients.map(client => { const financials = getClientFinancials(client.id); return (<tr key={client.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4"><div className="font-bold text-slate-900">{client.companyName}</div><div className="text-xs text-slate-900">{client.email}</div></td><td className="px-6 py-4 text-right">${financials.totalBilled.toLocaleString()}</td><td className="px-6 py-4 text-right text-green-600">${financials.totalPaid.toLocaleString()}</td><td className={`px-6 py-4 text-right font-bold ${financials.balance > 0 ? 'text-red-500' : 'text-slate-900'}`}>${financials.balance.toLocaleString()}</td><td className="px-6 py-4 text-center"><button onClick={() => { const transactions = getTransactions(client.id); const activeRentals = getContracts().filter(c => c.clientId === client.id && String(c.status || '').toLowerCase() === 'active'); generateStatementPDF(client, transactions, activeRentals, getBillboardName); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Download Statement"><Download size={18} /></button></td></tr>) })}</tbody></table></div></div>)}
 
                 {/* ── Schedule Tab ── */}
                 {activeTab === 'Schedule' && (
@@ -276,20 +276,20 @@ export const Payments: React.FC = () => {
                         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Calendar size={20} className="text-indigo-600"/> Payment Schedule</h3>
-                                <p className="text-xs text-slate-500 mt-1">Upcoming billing dates based on active contracts</p>
+                                <p className="text-xs text-slate-900 mt-1">Upcoming billing dates based on active contracts</p>
                             </div>
-                            <button onClick={() => generatePaymentSchedulePDF(upcomingBillings)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all hover:bg-slate-50">
+                            <button onClick={() => generatePaymentSchedulePDF(upcomingBillings)} className="px-4 py-2 bg-white border border-slate-200 text-slate-900 hover:text-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all hover:bg-slate-50">
                                 <Download size={14}/> PDF Schedule
                             </button>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm text-slate-600 min-w-[500px] lg:min-w-[700px]">
+                            <table className="w-full text-left text-sm text-slate-900 min-w-[500px] lg:min-w-[700px]">
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client</th>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Billing Cycle Day</th>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Next Due Date</th>
-                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Est. Amount</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Billing Cycle Day</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Next Due Date</th>
+                                        <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Est. Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -304,7 +304,7 @@ export const Payments: React.FC = () => {
                                         </tr>
                                     ))}
                                     {upcomingBillings.length === 0 && (
-                                        <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">No upcoming scheduled payments found.</td></tr>
+                                        <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-900 italic">No upcoming scheduled payments found.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -322,7 +322,7 @@ export const Payments: React.FC = () => {
                 const enteredAmount = monthlyForm.amount || 0;
                 const variance = enteredAmount - expectedGross;
                 const varianceClass = Math.abs(variance) < 0.01
-                    ? 'text-slate-400'
+                    ? 'text-slate-900'
                     : variance > 0 ? 'text-emerald-600' : 'text-amber-600';
 
                 return (
@@ -331,17 +331,17 @@ export const Payments: React.FC = () => {
                             <div className="bg-slate-900 p-6 text-white flex justify-between items-start sticky top-0 z-10">
                                 <div>
                                     <h3 className="text-xl font-bold tracking-tight">Log Monthly Payment</h3>
-                                    <p className="text-slate-400 text-xs mt-1">{MONTH_NAMES[monthlyForm.month]} {monthlyForm.year} &middot; Contract {monthlyContract.id}</p>
+                                    <p className="text-slate-900 text-xs mt-1">{MONTH_NAMES[monthlyForm.month]} {monthlyForm.year} &middot; Contract {monthlyContract.id}</p>
                                 </div>
-                                <button onClick={() => setMonthlyContract(null)} className="text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
+                                <button onClick={() => setMonthlyContract(null)} className="text-slate-900 hover:text-white transition-colors"><X size={20}/></button>
                             </div>
                             <div className="p-8 space-y-6">
                                 {/* Context card */}
                                 <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-2">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Paying For</p>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Paying For</p>
                                     <p className="font-bold text-slate-900">{getClientName(monthlyContract.clientId)}</p>
-                                    <p className="text-sm text-slate-600">{getBillboardName(monthlyContract.billboardId)}{monthlyContract.details ? ` • ${monthlyContract.details}` : ''}</p>
-                                    <div className="flex flex-wrap gap-x-5 gap-y-1 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                                    <p className="text-sm text-slate-900">{getBillboardName(monthlyContract.billboardId)}{monthlyContract.details ? ` • ${monthlyContract.details}` : ''}</p>
+                                    <div className="flex flex-wrap gap-x-5 gap-y-1 pt-2 border-t border-slate-100 text-xs text-slate-900">
                                         <span><span className="font-semibold text-slate-700">Monthly rate:</span> ${expectedGross.toLocaleString()}</span>
                                         {monthlyContract.hasVat && (
                                             <>
@@ -354,7 +354,7 @@ export const Payments: React.FC = () => {
 
                                 {/* Period */}
                                 <div className="space-y-3">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Billing Period</p>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Billing Period</p>
                                     <div className="grid grid-cols-2 gap-4">
                                         <MinimalSelect
                                             label="Month"
@@ -373,7 +373,7 @@ export const Payments: React.FC = () => {
 
                                 {/* Amount + variance */}
                                 <div className="space-y-3">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Amount Received</p>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Amount Received</p>
                                     <MinimalInput
                                         label="Amount ($)"
                                         type="number"
@@ -394,7 +394,7 @@ export const Payments: React.FC = () => {
 
                                 {/* Payment details */}
                                 <div className="space-y-3">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Payment Details</p>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Payment Details</p>
                                     <MinimalInput
                                         label="Payment Date"
                                         type="date"
@@ -422,13 +422,13 @@ export const Payments: React.FC = () => {
                                         icon={Hash}
                                         placeholder="e.g. POP-12345"
                                     />
-                                    <p className="text-[10px] text-slate-400">A receipt will be created and the month marked as paid.</p>
+                                    <p className="text-[10px] text-slate-900">A receipt will be created and the month marked as paid.</p>
                                 </div>
 
                                 <div className="flex gap-3 pt-1">
                                     <button
                                         onClick={() => setMonthlyContract(null)}
-                                        className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                                        className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
                                     >
                                         Cancel
                                     </button>
@@ -452,30 +452,30 @@ export const Payments: React.FC = () => {
                         <div className="bg-slate-900 p-6 text-white flex justify-between items-start sticky top-0 z-10">
                             <div>
                                 <h3 className="text-xl font-bold tracking-tight">Record Payment</h3>
-                                <p className="text-slate-400 text-xs mt-1">Invoice #{selectedInvoice.id} &middot; {selectedInvoice.date}</p>
+                                <p className="text-slate-900 text-xs mt-1">Invoice #{selectedInvoice.id} &middot; {selectedInvoice.date}</p>
                             </div>
-                            <button onClick={() => setSelectedInvoice(null)} className="text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
+                            <button onClick={() => setSelectedInvoice(null)} className="text-slate-900 hover:text-white transition-colors"><X size={20}/></button>
                         </div>
                         <div className="p-8 space-y-6">
                             <div className="bg-slate-50 rounded-2xl p-6 text-center border border-slate-100">
-                                <p className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Total Amount Due</p>
+                                <p className="text-xs font-bold uppercase text-slate-900 tracking-wider mb-2">Total Amount Due</p>
                                 <h2 className="text-4xl font-extrabold text-slate-900 tracking-tighter">${selectedInvoice.total.toLocaleString()}</h2>
-                                <p className="text-sm font-medium text-slate-500 mt-2">{getClientName(selectedInvoice.clientId)}</p>
+                                <p className="text-sm font-medium text-slate-900 mt-2">{getClientName(selectedInvoice.clientId)}</p>
                                 {selectedInvoice.vatAmount > 0 && (
-                                    <p className="text-[10px] text-slate-400 mt-2">
+                                    <p className="text-[10px] text-slate-900 mt-2">
                                         Net ${Number(selectedInvoice.subtotal).toFixed(2)} + VAT ${Number(selectedInvoice.vatAmount).toFixed(2)}
                                     </p>
                                 )}
                             </div>
                             <div className="space-y-3">
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Payment Details</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Payment Details</p>
                                 <MinimalInput label="Payment Date" type="date" value={paymentDetails.date} onChange={(e: any) => setPaymentDetails({...paymentDetails, date: e.target.value})} icon={Calendar} required />
                                 <MinimalSelect label="Payment Method" value={paymentDetails.method} onChange={(e: any) => setPaymentDetails({...paymentDetails, method: e.target.value})} icon={Wallet} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash Mobile Money'},{value: 'Other', label: 'Other'}]} />
                                 <MinimalInput label="Reference Number / Proof" value={paymentDetails.reference} onChange={(e: any) => setPaymentDetails({...paymentDetails, reference: e.target.value})} icon={Hash} placeholder="e.g. POP-12345" required />
-                                <p className="text-[10px] text-slate-400">A receipt will be issued and the invoice marked paid.</p>
+                                <p className="text-[10px] text-slate-900">A receipt will be issued and the invoice marked paid.</p>
                             </div>
                             <div className="flex gap-3">
-                                <button onClick={() => setSelectedInvoice(null)} className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
+                                <button onClick={() => setSelectedInvoice(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
                                 <button onClick={confirmPayment} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"><Check size={15} /> Confirm Payment</button>
                             </div>
                         </div>

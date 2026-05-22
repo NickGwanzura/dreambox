@@ -10,7 +10,7 @@ import { canDelete } from '../utils/settingsAccess';
 const MinimalInput = ({ label, value, onChange, type = "text", placeholder }: any) => (
   <div className="group relative">
     <input type={type} value={value} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent" placeholder=" " />
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-400 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 const MinimalSelect = ({ label, value, onChange, options }: any) => (
@@ -18,7 +18,7 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
     <select value={value} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer" >
       {options.map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
     </select>
-    <label className="absolute left-0 -top-2.5 text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</label>
+    <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium uppercase tracking-wide">{label}</label>
   </div>
 );
 
@@ -74,22 +74,22 @@ export const Expenses: React.FC = () => {
     <>
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Expenses & Production</h2><p className="text-slate-500 font-medium">Internal cost tracking, printing jobs, and profitability analysis</p></div>
+          <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Expenses & Production</h2><p className="text-slate-900 font-medium">Internal cost tracking, printing jobs, and profitability analysis</p></div>
           <div className="flex gap-2">
               {activeTab === 'Printing' && (<button onClick={() => setIsAddJobModalOpen(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"><Plus size={16} /> New Print Job</button>)}
               {activeTab === 'General' && (
                   <div className="flex gap-2">
-                      <button onClick={() => generateExpensesPDF(generalExpenses)} className="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-200 transition-all flex items-center gap-2"><Download size={16} /> PDF Report</button>
+                      <button onClick={() => generateExpensesPDF(generalExpenses)} className="bg-slate-100 text-slate-900 px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-200 transition-all flex items-center gap-2"><Download size={16} /> PDF Report</button>
                       <button onClick={() => setIsAddExpenseModalOpen(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"><Plus size={16} /> New Expense</button>
                   </div>
               )}
-              {activeTab === 'Reports' && (<button onClick={exportExpenseReport} className="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-200 transition-all flex items-center gap-2"><Download size={16} /> Export CSV</button>)}
+              {activeTab === 'Reports' && (<button onClick={exportExpenseReport} className="bg-slate-100 text-slate-900 px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-200 transition-all flex items-center gap-2"><Download size={16} /> Export CSV</button>)}
           </div>
         </div>
-        <div className="flex border-b border-slate-200 gap-8"><button onClick={() => setActiveTab('General')} className={`pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'General' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>General Expenses</button><button onClick={() => setActiveTab('Printing')} className={`pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'Printing' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>Printing Module</button><button onClick={() => setActiveTab('Reports')} className={`pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'Reports' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>Cost Reports</button></div>
-        {activeTab === 'General' && (<div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden animate-fade-in"><div className="p-4 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"><h3 className="text-lg font-semibold text-slate-800">Operational Expenses</h3><div className="relative w-full sm:w-64"><Search size={16} className="absolute left-3 top-2.5 text-slate-400" /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search description, category..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-slate-800 text-sm transition-all" /></div></div><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-600 min-w-[700px]"><thead className="bg-slate-50/50"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Category</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Description</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Reference</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Amount</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-center">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{(searchTerm ? generalExpenses.filter(exp => exp.description.toLowerCase().includes(searchTerm.toLowerCase()) || exp.category.toLowerCase().includes(searchTerm.toLowerCase()) || (exp.reference && exp.reference.toLowerCase().includes(searchTerm.toLowerCase()))) : generalExpenses).map(exp => (<tr key={exp.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-mono text-xs">{exp.date}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${exp.category === 'Maintenance' ? 'bg-orange-50 text-orange-600' : exp.category === 'Electricity' ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-100 text-slate-600'}`}>{exp.category}</span></td><td className="px-6 py-4 font-medium text-slate-900">{exp.description}</td><td className="px-6 py-4 text-xs font-mono text-slate-400">{exp.reference || '-'}</td><td className="px-6 py-4 text-right font-bold text-slate-900">${exp.amount.toLocaleString()}</td><td className="px-6 py-4 text-center">{canUserDelete && (<button onClick={() => handleDeleteExpense(exp)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete Expense"><Trash2 size={15} /></button>)}</td></tr>))}{generalExpenses.length === 0 && (<tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400 italic">No expenses recorded yet.</td></tr>)}</tbody></table></div></div>)}
-        {activeTab === 'Printing' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"><div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"><div className="flex items-center gap-3 mb-2 text-slate-500 text-xs font-bold uppercase tracking-wider"><Scissors size={14} /> PVC Costs</div><h3 className="text-2xl font-bold text-slate-800">${pvcTotal.toLocaleString()}</h3></div><div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"><div className="flex items-center gap-3 mb-2 text-slate-500 text-xs font-bold uppercase tracking-wider"><Droplets size={14} /> Ink Costs</div><h3 className="text-2xl font-bold text-slate-800">${inkTotal.toLocaleString()}</h3></div><div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"><div className="flex items-center gap-3 mb-2 text-slate-500 text-xs font-bold uppercase tracking-wider"><Zap size={14} /> Electricity</div><h3 className="text-2xl font-bold text-slate-800">${electricityTotal.toLocaleString()}</h3></div><div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"><div className="flex items-center gap-3 mb-2 text-slate-500 text-xs font-bold uppercase tracking-wider"><User size={14} /> Operator Labor</div><h3 className="text-2xl font-bold text-slate-800">${laborTotal.toLocaleString()}</h3></div></div><div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden"><div className="p-4 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"><h3 className="text-lg font-semibold text-slate-800">Recent Printing Jobs</h3><div className="relative w-full sm:w-64"><Search size={16} className="absolute left-3 top-2.5 text-slate-400" /><input type="text" value={printingSearchTerm} onChange={(e) => setPrintingSearchTerm(e.target.value)} placeholder="Search client, description..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-slate-800 text-sm transition-all" /></div></div><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-600 min-w-[700px]"><thead className="bg-slate-50/50"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Client</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider">Job Details</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Cost</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Charged</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-400 tracking-wider text-right">Profit</th></tr></thead><tbody className="divide-y divide-slate-100">{(printingSearchTerm ? printingJobs.filter(job => getClientName(job.clientId).toLowerCase().includes(printingSearchTerm.toLowerCase()) || job.description.toLowerCase().includes(printingSearchTerm.toLowerCase())) : printingJobs).map(job => { const profit = job.chargedAmount - job.totalCost; return (<tr key={job.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4">{job.date}</td><td className="px-6 py-4 font-medium text-slate-900">{getClientName(job.clientId)}</td><td className="px-6 py-4"><p className="font-medium text-slate-800">{job.description}</p><p className="text-xs text-slate-500">{job.dimensions}</p></td><td className="px-6 py-4 text-right">${job.totalCost}</td><td className="px-6 py-4 text-right">${job.chargedAmount}</td><td className={`px-6 py-4 text-right font-bold ${profit > 0 ? 'text-green-600' : 'text-red-500'}`}>${profit}</td></tr>) })}</tbody></table></div></div></div>)}
-        {activeTab === 'Reports' && (<div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 animate-fade-in"><h3 className="text-xl font-bold text-slate-800 mb-6">Client Printing Spend Report</h3><div className="space-y-4">{getClients().map(client => { const jobs = printingJobs.filter(j => j.clientId === client.id); const totalSpent = jobs.reduce((acc, curr) => acc + curr.chargedAmount, 0); const totalCost = jobs.reduce((acc, curr) => acc + curr.totalCost, 0); if(totalSpent === 0) return null; return (<div key={client.id} className="border border-slate-100 rounded-xl p-6 hover:shadow-md transition-all"><div className="flex justify-between items-center mb-4"><h4 className="font-bold text-slate-900 text-lg">{client.companyName}</h4><span className="text-sm font-medium text-slate-500">{jobs.length} Jobs</span></div><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div><p className="text-xs text-slate-400 font-bold uppercase">Total Billed</p><p className="text-xl font-bold text-slate-900">${totalSpent}</p></div><div><p className="text-xs text-slate-400 font-bold uppercase">Our Cost</p><p className="text-xl font-bold text-slate-700">${totalCost}</p></div><div className="md:col-span-2"><p className="text-xs text-slate-400 font-bold uppercase mb-1">Margin Analysis</p><div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-green-500" style={{ width: `${((totalSpent - totalCost) / totalSpent) * 100}%` }}></div></div></div></div></div>) })}</div></div>)}
+        <div className="flex border-b border-slate-200 gap-8"><button onClick={() => setActiveTab('General')} className={`pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'General' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-900 hover:text-slate-900'}`}>General Expenses</button><button onClick={() => setActiveTab('Printing')} className={`pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'Printing' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-900 hover:text-slate-900'}`}>Printing Module</button><button onClick={() => setActiveTab('Reports')} className={`pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === 'Reports' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-900 hover:text-slate-900'}`}>Cost Reports</button></div>
+        {activeTab === 'General' && (<div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden animate-fade-in"><div className="p-4 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"><h3 className="text-lg font-semibold text-slate-800">Operational Expenses</h3><div className="relative w-full sm:w-64"><Search size={16} className="absolute left-3 top-2.5 text-slate-900" /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search description, category..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-slate-800 text-sm transition-all" /></div></div><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-900 min-w-[700px]"><thead className="bg-slate-50/50"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Category</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Description</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Reference</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Amount</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{(searchTerm ? generalExpenses.filter(exp => exp.description.toLowerCase().includes(searchTerm.toLowerCase()) || exp.category.toLowerCase().includes(searchTerm.toLowerCase()) || (exp.reference && exp.reference.toLowerCase().includes(searchTerm.toLowerCase()))) : generalExpenses).map(exp => (<tr key={exp.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-mono text-xs">{exp.date}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${exp.category === 'Maintenance' ? 'bg-orange-50 text-orange-600' : exp.category === 'Electricity' ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-100 text-slate-900'}`}>{exp.category}</span></td><td className="px-6 py-4 font-medium text-slate-900">{exp.description}</td><td className="px-6 py-4 text-xs font-mono text-slate-900">{exp.reference || '-'}</td><td className="px-6 py-4 text-right font-bold text-slate-900">${exp.amount.toLocaleString()}</td><td className="px-6 py-4 text-center">{canUserDelete && (<button onClick={() => handleDeleteExpense(exp)} className="p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors" title="Delete Expense"><Trash2 size={15} /></button>)}</td></tr>))}{generalExpenses.length === 0 && (<tr><td colSpan={6} className="px-6 py-8 text-center text-slate-900 italic">No expenses recorded yet.</td></tr>)}</tbody></table></div></div>)}
+        {activeTab === 'Printing' && (<div className="space-y-6 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"><div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"><div className="flex items-center gap-3 mb-2 text-slate-900 text-xs font-bold uppercase tracking-wider"><Scissors size={14} /> PVC Costs</div><h3 className="text-2xl font-bold text-slate-800">${pvcTotal.toLocaleString()}</h3></div><div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"><div className="flex items-center gap-3 mb-2 text-slate-900 text-xs font-bold uppercase tracking-wider"><Droplets size={14} /> Ink Costs</div><h3 className="text-2xl font-bold text-slate-800">${inkTotal.toLocaleString()}</h3></div><div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"><div className="flex items-center gap-3 mb-2 text-slate-900 text-xs font-bold uppercase tracking-wider"><Zap size={14} /> Electricity</div><h3 className="text-2xl font-bold text-slate-800">${electricityTotal.toLocaleString()}</h3></div><div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"><div className="flex items-center gap-3 mb-2 text-slate-900 text-xs font-bold uppercase tracking-wider"><User size={14} /> Operator Labor</div><h3 className="text-2xl font-bold text-slate-800">${laborTotal.toLocaleString()}</h3></div></div><div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden"><div className="p-4 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"><h3 className="text-lg font-semibold text-slate-800">Recent Printing Jobs</h3><div className="relative w-full sm:w-64"><Search size={16} className="absolute left-3 top-2.5 text-slate-900" /><input type="text" value={printingSearchTerm} onChange={(e) => setPrintingSearchTerm(e.target.value)} placeholder="Search client, description..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-slate-800 text-sm transition-all" /></div></div><div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-900 min-w-[700px]"><thead className="bg-slate-50/50"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Job Details</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Cost</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Charged</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Profit</th></tr></thead><tbody className="divide-y divide-slate-100">{(printingSearchTerm ? printingJobs.filter(job => getClientName(job.clientId).toLowerCase().includes(printingSearchTerm.toLowerCase()) || job.description.toLowerCase().includes(printingSearchTerm.toLowerCase())) : printingJobs).map(job => { const profit = job.chargedAmount - job.totalCost; return (<tr key={job.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4">{job.date}</td><td className="px-6 py-4 font-medium text-slate-900">{getClientName(job.clientId)}</td><td className="px-6 py-4"><p className="font-medium text-slate-800">{job.description}</p><p className="text-xs text-slate-900">{job.dimensions}</p></td><td className="px-6 py-4 text-right">${job.totalCost}</td><td className="px-6 py-4 text-right">${job.chargedAmount}</td><td className={`px-6 py-4 text-right font-bold ${profit > 0 ? 'text-green-600' : 'text-red-500'}`}>${profit}</td></tr>) })}</tbody></table></div></div></div>)}
+        {activeTab === 'Reports' && (<div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 animate-fade-in"><h3 className="text-xl font-bold text-slate-800 mb-6">Client Printing Spend Report</h3><div className="space-y-4">{getClients().map(client => { const jobs = printingJobs.filter(j => j.clientId === client.id); const totalSpent = jobs.reduce((acc, curr) => acc + curr.chargedAmount, 0); const totalCost = jobs.reduce((acc, curr) => acc + curr.totalCost, 0); if(totalSpent === 0) return null; return (<div key={client.id} className="border border-slate-100 rounded-xl p-6 hover:shadow-md transition-all"><div className="flex justify-between items-center mb-4"><h4 className="font-bold text-slate-900 text-lg">{client.companyName}</h4><span className="text-sm font-medium text-slate-900">{jobs.length} Jobs</span></div><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div><p className="text-xs text-slate-900 font-bold uppercase">Total Billed</p><p className="text-xl font-bold text-slate-900">${totalSpent}</p></div><div><p className="text-xs text-slate-900 font-bold uppercase">Our Cost</p><p className="text-xl font-bold text-slate-700">${totalCost}</p></div><div className="md:col-span-2"><p className="text-xs text-slate-900 font-bold uppercase mb-1">Margin Analysis</p><div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-green-500" style={{ width: `${((totalSpent - totalCost) / totalSpent) * 100}%` }}></div></div></div></div></div>) })}</div></div>)}
       </div>
       {/* ... Add Job Modal & Expense Modal code remains the same ... */}
       {/* New Print Job Modal */}
@@ -100,20 +100,20 @@ export const Expenses: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">New Printing Job</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Record internal production costs and client billing for a print run</p>
+                        <p className="text-xs text-slate-900 mt-0.5">Record internal production costs and client billing for a print run</p>
                     </div>
                     <button onClick={() => setIsAddJobModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                        <X size={20} className="text-slate-400" />
+                        <X size={20} className="text-slate-900" />
                     </button>
                 </div>
 
                 <form onSubmit={handleAddJob} className="p-8 space-y-6">
                     {/* Job identity */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Job Details</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Job Details</p>
                         <div className="space-y-5">
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Client</label>
+                                <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide mb-2">Client</label>
                                 <select
                                     className="w-full px-0 py-2 border-b border-slate-200 bg-transparent text-slate-800 font-medium focus:border-slate-800 outline-none"
                                     value={newJob.clientId}
@@ -135,7 +135,7 @@ export const Expenses: React.FC = () => {
                                         value={newJob.dimensions}
                                         onChange={(e: any) => setNewJob({...newJob, dimensions: e.target.value})}
                                     />
-                                    <p className="text-[10px] text-slate-400 mt-1.5">Width × Height of the printed vinyl panel.</p>
+                                    <p className="text-[10px] text-slate-900 mt-1.5">Width × Height of the printed vinyl panel.</p>
                                 </div>
                                 <div>
                                     <MinimalInput
@@ -144,7 +144,7 @@ export const Expenses: React.FC = () => {
                                         value={newJob.chargedAmount}
                                         onChange={(e: any) => setNewJob({...newJob, chargedAmount: Number(e.target.value)})}
                                     />
-                                    <p className="text-[10px] text-slate-400 mt-1.5">Amount invoiced to the client for this job.</p>
+                                    <p className="text-[10px] text-slate-900 mt-1.5">Amount invoiced to the client for this job.</p>
                                 </div>
                             </div>
                         </div>
@@ -152,7 +152,7 @@ export const Expenses: React.FC = () => {
 
                     {/* Internal cost breakdown */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Internal Cost Breakdown</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Internal Cost Breakdown</p>
                         <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 <MinimalInput label="PVC Cost ($)" type="number" value={newJob.pvcCost} onChange={(e: any) => setNewJob({...newJob, pvcCost: Number(e.target.value)})} />
@@ -165,12 +165,12 @@ export const Expenses: React.FC = () => {
                             <div className="border-t border-slate-200 pt-4">
                                 <div className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Internal Cost</p>
+                                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Total Internal Cost</p>
                                         <p className="text-2xl font-black mt-0.5">${calculateTotalJobCost().toLocaleString()}</p>
                                     </div>
                                     {(newJob.chargedAmount || 0) > 0 && (
                                         <div className="text-right">
-                                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Gross Margin</p>
+                                            <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Gross Margin</p>
                                             <p className={`text-xl font-bold mt-0.5 ${(newJob.chargedAmount || 0) - calculateTotalJobCost() > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                                 ${((newJob.chargedAmount || 0) - calculateTotalJobCost()).toLocaleString()}
                                             </p>
@@ -179,14 +179,14 @@ export const Expenses: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-2">These costs are internal only and not shown on client invoices.</p>
+                        <p className="text-[10px] text-slate-900 mt-2">These costs are internal only and not shown on client invoices.</p>
                     </div>
 
                     <div className="flex gap-3 pt-2">
                         <button
                             type="button"
                             onClick={() => setIsAddJobModalOpen(false)}
-                            className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                            className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
                         >
                             Cancel
                         </button>
@@ -210,17 +210,17 @@ export const Expenses: React.FC = () => {
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Record Operational Expense</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Log a cost against a category for reporting and audit purposes</p>
+                        <p className="text-xs text-slate-900 mt-0.5">Log a cost against a category for reporting and audit purposes</p>
                     </div>
                     <button onClick={() => setIsAddExpenseModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                        <X size={20} className="text-slate-400" />
+                        <X size={20} className="text-slate-900" />
                     </button>
                 </div>
 
                 <form onSubmit={handleAddExpense} className="p-8 space-y-6">
                     {/* Category */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Classification</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Classification</p>
                         <MinimalSelect
                             label="Category"
                             value={newExpense.category}
@@ -233,7 +233,7 @@ export const Expenses: React.FC = () => {
                                 {value: 'Other', label: 'Other'}
                             ]}
                         />
-                        <p className="text-[10px] text-slate-400 mt-1.5">
+                        <p className="text-[10px] text-slate-900 mt-1.5">
                             {newExpense.category === 'Maintenance' && 'Repairs, servicing, and upkeep costs for billboard structures.'}
                             {newExpense.category === 'Electricity' && 'Power bills and energy costs — LED boards and office usage.'}
                             {newExpense.category === 'Labor' && 'Wages, contractor fees, and installation labor not tied to a print job.'}
@@ -244,7 +244,7 @@ export const Expenses: React.FC = () => {
 
                     {/* Description */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Details</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Details</p>
                         <div className="space-y-5">
                             <MinimalInput
                                 label="Description"
@@ -275,7 +275,7 @@ export const Expenses: React.FC = () => {
                                     value={newExpense.reference}
                                     onChange={(e: any) => setNewExpense({...newExpense, reference: e.target.value})}
                                 />
-                                <p className="text-[10px] text-slate-400 mt-1.5">Optional: Supplier invoice number, purchase order, or linked maintenance ID.</p>
+                                <p className="text-[10px] text-slate-900 mt-1.5">Optional: Supplier invoice number, purchase order, or linked maintenance ID.</p>
                             </div>
                         </div>
                     </div>
@@ -284,9 +284,9 @@ export const Expenses: React.FC = () => {
                     {(newExpense.amount || 0) > 0 && (
                         <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Expense Preview</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Expense Preview</p>
                                 <p className="font-semibold text-slate-800 text-sm mt-0.5">{newExpense.description || 'No description'}</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">{newExpense.category} &bull; {newExpense.date}</p>
+                                <p className="text-[10px] text-slate-900 mt-0.5">{newExpense.category} &bull; {newExpense.date}</p>
                             </div>
                             <p className="text-xl font-black text-slate-900">${(newExpense.amount || 0).toLocaleString()}</p>
                         </div>
@@ -296,7 +296,7 @@ export const Expenses: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setIsAddExpenseModalOpen(false)}
-                            className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                            className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
                         >
                             Cancel
                         </button>
@@ -330,16 +330,16 @@ export const Expenses: React.FC = () => {
                 <div className="p-6 space-y-4">
                     {/* Entity being deleted */}
                     <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-1.5">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Expense Being Deleted</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Expense Being Deleted</p>
                         <p className="font-bold text-slate-900">{expenseToDelete.description}</p>
                         <div className="flex items-center gap-3 pt-1">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${expenseToDelete.category === 'Maintenance' ? 'bg-orange-50 text-orange-600' : expenseToDelete.category === 'Electricity' ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-100 text-slate-600'}`}>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${expenseToDelete.category === 'Maintenance' ? 'bg-orange-50 text-orange-600' : expenseToDelete.category === 'Electricity' ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-100 text-slate-900'}`}>
                                 {expenseToDelete.category}
                             </span>
-                            <span className="text-xs font-mono text-slate-400">{expenseToDelete.date}</span>
+                            <span className="text-xs font-mono text-slate-900">{expenseToDelete.date}</span>
                         </div>
                         {expenseToDelete.reference && (
-                            <p className="text-xs font-mono text-slate-400">Ref: {expenseToDelete.reference}</p>
+                            <p className="text-xs font-mono text-slate-900">Ref: {expenseToDelete.reference}</p>
                         )}
                         <p className="text-lg font-black text-slate-900 pt-1">${expenseToDelete.amount.toLocaleString()}</p>
                     </div>

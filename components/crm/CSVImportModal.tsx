@@ -158,7 +158,7 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
         <div className="flex justify-between w-full">
           <button
             onClick={downloadTemplate}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2 text-sm text-slate-900 hover:text-slate-900 transition-colors font-medium"
           >
             <Download className="w-4 h-4" />
             Download Template
@@ -166,7 +166,7 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-500 hover:text-slate-900 transition-colors"
+              className="px-4 py-2 text-sm text-slate-900 hover:text-slate-900 transition-colors"
             >
               Cancel
             </button>
@@ -201,7 +201,7 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
             <p className="text-slate-900 font-bold mb-2">
               Drop your CSV file here, or click to browse
             </p>
-            <p className="text-sm text-slate-500 mb-4">
+            <p className="text-sm text-slate-900 mb-4">
               Supports CSV files up to 10MB
             </p>
             <input
@@ -228,14 +228,14 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
                 </div>
                 <div>
                   <p className="text-slate-900 font-bold">{file.name}</p>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-900">
                     {(file.size / 1024).toFixed(1)} KB · {preview?.rows.length || 0} rows
                   </p>
                 </div>
               </div>
               <button
                 onClick={clearFile}
-                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -254,7 +254,7 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
                 onChange={(e) => setOptions({ ...options, skipDuplicates: e.target.checked })}
                 className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
               />
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-slate-900">
                 Skip duplicate records (based on email/company)
               </span>
             </label>
@@ -265,7 +265,7 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
                 onChange={(e) => setOptions({ ...options, updateExisting: e.target.checked })}
                 className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
               />
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-slate-900">
                 Update existing records instead of skipping
               </span>
             </label>
@@ -334,7 +334,7 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
                     {preview.headers.map((header, i) => (
-                      <th key={i} className="px-4 py-3 text-left text-slate-600 font-bold whitespace-nowrap text-xs uppercase tracking-wider">
+                      <th key={i} className="px-4 py-3 text-left text-slate-900 font-bold whitespace-nowrap text-xs uppercase tracking-wider">
                         {header}
                       </th>
                     ))}
@@ -344,7 +344,7 @@ export const CSVImportModal: React.FC<CSVImportModalProps> = ({
                   {preview.rows.map((row, i) => (
                     <tr key={i}>
                       {row.map((cell, j) => (
-                        <td key={j} className="px-4 py-3 text-slate-600 whitespace-nowrap max-w-[150px] truncate">
+                        <td key={j} className="px-4 py-3 text-slate-900 whitespace-nowrap max-w-[150px] truncate">
                           {cell}
                         </td>
                       ))}
