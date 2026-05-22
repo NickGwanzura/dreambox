@@ -24,6 +24,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showInvoiceDeleteConfirm, setShowInvoiceDeleteConfirm] = useState(false);
 
   const vatRate = getEffectiveVatRate();
   const vatPct = formatVatPercent(vatRate);
@@ -296,6 +297,12 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
 
       // For reductions: delete/cancel invoices that fall beyond the new end date
       if (activeTab === 'reduction' && isReduction && affectedInvoices.length > 0) {
+        if (!showInvoiceDeleteConfirm) {
+          // First attempt — show confirmation instead of immediately deleting
+          setSaving(false);
+          setShowInvoiceDeleteConfirm(true);
+          return;
+        }
         affectedInvoices.forEach(inv => {
           deleteInvoice(inv.id);
         });
@@ -684,6 +691,58 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             </div>
           )}
 
+          {/* Invoice Deletion Confirmation */}
+          {showInvoiceDeleteConfirm && (
+            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle size={22} className="text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-red-700 text-sm">Delete {affectedInvoices.length} Invoice(s)?</h4>
+                  <p className="text-xs text-red-600 mt-1">
+                    This reduction will permanently delete {affectedInvoices.length} invoice(s) that cover the removed period.
+                    {totalCreditDue > 0 && <span> Total value: <strong>${totalCreditDue.toLocaleString()}</strong>.</span>}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {affectedInvoices.map(inv => (
+                  <div key={inv.id} className="bg-white rounded-lg border border-red-100 p-2.5 flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                      <FileText size={13} className="text-red-400" />
+                      <span className="font-medium text-slate-700">{inv.id}</span>
+                      <span className="text-xs text-slate-900">{inv.date}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        inv.status === 'Paid' ? 'bg-green-100 text-green-700' :
+                        inv.status === 'Overdue' ? 'bg-red-100 text-red-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>{inv.status}</span>
+                    </div>
+                    <span className="font-bold text-slate-800">${inv.total.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => {
+                    setShowInvoiceDeleteConfirm(false);
+                  }}
+                  className="flex-1 py-2.5 text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                >
+                  Cancel Reduction
+                </button>
+                <button
+                  onClick={() => {
+                    setShowInvoiceDeleteConfirm(false);
+                    handleApply();
+                  }}
+                  className="flex-1 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={13} /> Delete & Apply
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button onClick={() => { if (!saving) onClose(); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">
@@ -691,7 +750,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             </button>
             <button
               onClick={handleApply}
-              disabled={saving || !isValidChange || (isExtension && !availability.ok)}
+              disabled={saving || showInvoiceDeleteConfirm || !isValidChange || (isExtension && !availability.ok)}
               className={`flex-1 py-3 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60 ${
                 activeTab === 'extension'
                   ? 'bg-emerald-600 hover:bg-emerald-700'

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract, endContract } from '../services/mockData';
+import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract, endContract, invoices } from '../services/mockData';
 import { generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, Invoice } from '../types';
@@ -73,6 +73,9 @@ export const Rentals: React.FC = () => {
   const [deletedEditLineIds, setDeletedEditLineIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deletedLinesWithInvoices, setDeletedLinesWithInvoices] = useState<{ contractId: string; invoiceCount: number; totalValue: number }[]>([]);
+  const [showDeleteLineConfirm, setShowDeleteLineConfirm] = useState(false);
+  const [showPaidInvoiceDeleteWarning, setShowPaidInvoiceDeleteWarning] = useState(false);
 
   const filteredRentals = rentals.filter(contract => {
       if (!searchQuery.trim()) return true;
@@ -93,9 +96,9 @@ export const Rentals: React.FC = () => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (rentalToDelete) { setRentalToDelete(null); return; }
+        if (rentalToDelete) { setRentalToDelete(null); setShowPaidInvoiceDeleteWarning(false); return; }
         if (renewRental) { setRenewRental(null); return; }
-        if (editRental) { setEditRental(null); return; }
+        if (editRental) { setEditRental(null); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); return; }
         if (selectedRental) { setSelectedRental(null); return; }
         if (isCreateModalOpen) { setIsCreateModalOpen(false); setCreateStep(1); return; }
       }
@@ -447,7 +450,27 @@ export const Rentals: React.FC = () => {
           
           setEditError(null);
           
-          const updatedContract: Contract = {
+          // Check if any deleted lines have associated invoices
+      const linesWithInvoices = deletedEditLineIds
+        .map(id => {
+          const linkedInvoices = invoices.filter(i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice');
+          if (linkedInvoices.length === 0) return null;
+          return {
+            contractId: id,
+            invoiceCount: linkedInvoices.length,
+            totalValue: linkedInvoices.reduce((sum, i) => sum + i.total, 0),
+          };
+        })
+        .filter((item): item is { contractId: string; invoiceCount: number; totalValue: number } => item !== null);
+
+      if (linesWithInvoices.length > 0 && !showDeleteLineConfirm) {
+        setDeletedLinesWithInvoices(linesWithInvoices);
+        setShowDeleteLineConfirm(true);
+        setSaving(false);
+        return;
+      }
+
+      const updatedContract: Contract = {
               ...editRental,
               details: getLineDetails(editRental),
               totalContractValue: recalcContractValue(editRental),
@@ -555,8 +578,18 @@ export const Rentals: React.FC = () => {
 
   const confirmDelete = () => {
       if (rentalToDelete) {
+          const paidInvoicesForContract = invoices.filter(i =>
+            i.contractId === rentalToDelete.id &&
+            String(i.type || '').toLowerCase() === 'invoice' &&
+            i.status === 'Paid'
+          );
+          if (paidInvoicesForContract.length > 0 && !showPaidInvoiceDeleteWarning) {
+            setShowPaidInvoiceDeleteWarning(true);
+            return;
+          }
           deleteContract(rentalToDelete.id);
           setRentalToDelete(null);
+          setShowPaidInvoiceDeleteWarning(false);
       }
   };
 
@@ -1217,14 +1250,14 @@ export const Rentals: React.FC = () => {
 
       {/* Edit Modal */}
       {editRental && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setEditRental(null); }}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) { setEditRental(null); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); } }}>
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Rental</h3>
                         <p className="text-xs text-slate-900 mt-0.5">{getClientName(editRental.clientId)} &bull; {getBillboardName(editRental.billboardId)}</p>
                     </div>
-                    <button onClick={() => { if (!saving) setEditRental(null); }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
+                    <button onClick={() => { if (!saving) { setEditRental(null); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); } }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     {/* Context card */}
@@ -1483,12 +1516,44 @@ export const Rentals: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Invoice deletion warning for removed billboard lines */}
+                     {showDeleteLineConfirm && deletedLinesWithInvoices.length > 0 && (
+                       <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-4">
+                         <div className="flex items-start gap-3">
+                           <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+                           <div>
+                             <h4 className="font-bold text-amber-700 text-sm">Removed Billboard Lines Have Invoices</h4>
+                             <p className="text-xs text-amber-600 mt-1">
+                               The following billboard lines you removed from this contract have associated invoices. Proceeding will permanently delete these invoices.
+                             </p>
+                           </div>
+                         </div>
+                         <div className="space-y-2 max-h-32 overflow-y-auto">
+                           {deletedLinesWithInvoices.map((item, idx) => (
+                             <div key={item.contractId} className="bg-white rounded-lg border border-amber-100 p-3 flex justify-between items-center text-sm">
+                               <span className="text-slate-900 font-medium">Line {idx + 1}: {item.contractId}</span>
+                               <span className="text-amber-600 font-bold">{item.invoiceCount} invoice(s) — ${item.totalValue.toLocaleString()}</span>
+                             </div>
+                           ))}
+                         </div>
+                         <div className="flex gap-3">
+                           <button onClick={() => { setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); }} className="flex-1 py-2.5 text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                             Cancel — Keep Lines
+                           </button>
+                           <button onClick={handleEditSave} className="flex-1 py-2.5 text-white bg-amber-600 hover:bg-amber-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2">
+                             <Trash2 size={13} /> Proceed & Delete Invoices
+                           </button>
+                         </div>
+                       </div>
+                     )}
+                     {!showDeleteLineConfirm && (
                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => { if (!saving) setEditRental(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                        <button onClick={() => { if (!saving) setEditRental(null); setShowDeleteLineConfirm(false); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
                         <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                           {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Saving…' : 'Save Changes'}
                         </button>
                     </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -1610,7 +1675,7 @@ export const Rentals: React.FC = () => {
 
       {rentalToDelete && (
         <div className="fixed inset-0 z-[200] overflow-y-auto">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setRentalToDelete(null)} />
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => { setRentalToDelete(null); setShowPaidInvoiceDeleteWarning(false); }} />
           <div className="flex min-h-full items-center justify-center p-4 text-center">
               <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-sm border border-white/20">
                  {/* Header */}
@@ -1637,10 +1702,32 @@ export const Rentals: React.FC = () => {
                          <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
                          <p className="text-xs text-amber-700 font-medium">Any invoices and receipts linked to this rental will be orphaned. The billboard asset will be freed for re-booking.</p>
                      </div>
+                     {/* Paid Invoice Warning */}
+                     {showPaidInvoiceDeleteWarning && (
+                       <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 space-y-3">
+                         <div className="flex items-start gap-3">
+                           <AlertTriangle size={20} className="text-red-500 shrink-0 mt-0.5" />
+                           <div>
+                             <h4 className="font-bold text-red-700 text-sm">This Contract Has Paid Invoices</h4>
+                             <p className="text-xs text-red-600 mt-1">Permanently deleting this contract will remove all financial records. Consider using <strong>"End Contract"</strong> instead, which preserves invoice history and only marks the contract as expired.</p>
+                           </div>
+                         </div>
+                         <div className="flex gap-3">
+                           <button onClick={() => { setRentalToDelete(null); setShowPaidInvoiceDeleteWarning(false); }} className="flex-1 py-2.5 text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                             Cancel — Keep Contract
+                           </button>
+                           <button onClick={confirmDelete} className="flex-1 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2">
+                             <Trash2 size={13} /> Delete Anyway
+                           </button>
+                         </div>
+                       </div>
+                     )}
+                     {!showPaidInvoiceDeleteWarning && (
                      <div className="flex gap-3 pt-1">
                          <button onClick={() => setRentalToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Keep Rental</button>
                          <button onClick={confirmDelete} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20">Delete Permanently</button>
                      </div>
+                     )}
                  </div>
               </div>
           </div>
