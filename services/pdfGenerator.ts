@@ -328,6 +328,34 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.text(`Total:`, totalsX, finalY + 31);
     doc.text(`$${(invoice.total || 0).toFixed(2)}`, 195, finalY + 31, { align: 'right' });
 
+    // Bank / Payment Details — shown on invoices, quotations, proformas, and receipts
+    const profile = getCompanyProfile();
+    if (profile.bankName && profile.bankAccountNumber) {
+        const bankY = finalY + 45;
+        doc.setDrawColor(226, 232, 240);
+        doc.line(14, bankY - 4, 195, bankY - 4);
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(100);
+        doc.text('PAYMENT DETAILS', 14, bankY + 2);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(50);
+
+        const bankLines: string[] = [];
+        if (profile.bankName) bankLines.push(`Bank: ${profile.bankName}`);
+        if (profile.bankBranch) bankLines.push(`Branch: ${profile.bankBranch}`);
+        if (profile.bankAccountName) bankLines.push(`Account Name: ${profile.bankAccountName}`);
+        if (profile.bankAccountNumber) bankLines.push(`Account Number: ${profile.bankAccountNumber}`);
+        if (profile.bankSwift) bankLines.push(`SWIFT: ${profile.bankSwift}`);
+
+        bankLines.forEach((line, idx) => {
+            doc.text(line, 14, bankY + 10 + idx * 5);
+        });
+    }
+
     addContactFooter(doc);
     doc.save(`${invoice.type}_${invoice.id}.pdf`);
   } catch (error) {
