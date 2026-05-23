@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType } from '../services/mockData';
+import { calculateContractMonths } from '../utils/contractDate';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
@@ -273,7 +274,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     if (!convertingQuotation || !convertForm.billboardId || !convertForm.startDate || !convertForm.endDate) return;
     const bb = getBillboards().find(b => b.id === convertForm.billboardId);
     const monthlyRate = convertingQuotation.items[0]?.amount || 0;
-    const months = Math.max(1, Math.ceil((new Date(convertForm.endDate).getTime() - new Date(convertForm.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    let months: number;
+    try {
+      months = calculateContractMonths(convertForm.startDate, convertForm.endDate);
+    } catch {
+      months = Math.max(1, Math.ceil((new Date(convertForm.endDate).getTime() - new Date(convertForm.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    }
     const gross = monthlyRate * months;
     const contract: Contract = {
       id: `C-${Date.now().toString().slice(-4)}`,
@@ -290,12 +296,17 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       details: bb?.type === BillboardType.LED ? 'Slot 1' : 'Side A',
       createdAt: new Date().toISOString(),
     };
-    addContract(contract);
-    deleteInvoice(convertingQuotation.id);
-    setInvoices(getInvoices());
-    setConvertingQuotation(null);
-    setConvertForm({ billboardId: '', startDate: '', endDate: '' });
-    alert(`Contract ${contract.id} created from Quotation #${convertingQuotation.id}`);
+    try {
+      addContract(contract);
+      deleteInvoice(convertingQuotation.id);
+      setInvoices(getInvoices());
+      setConvertingQuotation(null);
+      setConvertForm({ billboardId: '', startDate: '', endDate: '' });
+      alert(`Contract ${contract.id} created from Quotation #${convertingQuotation.id}`);
+    } catch (err) {
+      console.error('Failed to convert quotation to contract:', err);
+      alert('Failed to create contract. The quotation has been kept. Please try again.');
+    }
   };
 
   const filteredDocs = invoices.filter(i => {

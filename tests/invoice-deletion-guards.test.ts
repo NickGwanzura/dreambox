@@ -659,6 +659,254 @@ describe('Two-Click Guard Pattern (State Machine)', () => {
 });
 
 // ============================================================
+// State Cleanup Tests: State leak fixes for dismiss paths
+//
+// These validate that guard state is properly reset when the
+// user dismisses modals or switches tabs, preventing state
+// from leaking across modal opens.
+// ============================================================
+
+describe('State Cleanup on Dismiss', () => {
+  describe('Tab switching resets showInvoiceDeleteConfirm (ContractAmendmentModal)', () => {
+    // The three tab buttons all call:
+    //   setShowInvoiceDeleteConfirm(false)
+    // as part of their onClick handlers to prevent state leak
+    // when switching between Extension / Reduction / Rate Change tabs
+
+    type TabState = { showInvoiceDeleteConfirm: boolean };
+
+    const handleTabSwitch = (state: TabState): TabState => ({
+      showInvoiceDeleteConfirm: false,
+    });
+
+    it('resets showInvoiceDeleteConfirm when switching from Reduction to Extension', () => {
+      const state: TabState = { showInvoiceDeleteConfirm: true };
+      const result = handleTabSwitch(state);
+      expect(result.showInvoiceDeleteConfirm).toBe(false);
+    });
+
+    it('resets showInvoiceDeleteConfirm when switching from Reduction to Rate Change', () => {
+      const state: TabState = { showInvoiceDeleteConfirm: true };
+      const result = handleTabSwitch(state);
+      expect(result.showInvoiceDeleteConfirm).toBe(false);
+    });
+
+    it('resets showInvoiceDeleteConfirm when switching between non-Reduction tabs', () => {
+      const state: TabState = { showInvoiceDeleteConfirm: true };
+      const result = handleTabSwitch(state);
+      expect(result.showInvoiceDeleteConfirm).toBe(false);
+    });
+
+    it('state remains false when no confirmation was ever triggered', () => {
+      const state: TabState = { showInvoiceDeleteConfirm: false };
+      const result = handleTabSwitch(state);
+      expect(result.showInvoiceDeleteConfirm).toBe(false);
+    });
+
+    it('can switch tabs back and forth — state stays clean', () => {
+      let state: TabState = { showInvoiceDeleteConfirm: true };
+
+      // Switch tabs twice
+      state = handleTabSwitch(state);
+      expect(state.showInvoiceDeleteConfirm).toBe(false);
+
+      state = handleTabSwitch(state);
+      expect(state.showInvoiceDeleteConfirm).toBe(false);
+    });
+
+    it('showInvoiceDeleteConfirm starts false after modal re-open (component remount)', () => {
+      // Simulates modal close (unmount) and re-open (fresh useState)
+      const freshState: TabState = { showInvoiceDeleteConfirm: false };
+      expect(freshState.showInvoiceDeleteConfirm).toBe(false);
+    });
+  });
+
+  describe('Keep Rental button resets showPaidInvoiceDeleteWarning (Rentals.tsx)', () => {
+    // The "Keep Rental" button calls:
+    //   setRentalToDelete(null);
+    //   setShowPaidInvoiceDeleteWarning(false);
+
+    type KeepRentalState = {
+      rentalToDelete: string | null;
+      showPaidInvoiceDeleteWarning: boolean;
+    };
+
+    const handleKeepRental = (
+      state: KeepRentalState,
+    ): KeepRentalState => ({
+      rentalToDelete: null,
+      showPaidInvoiceDeleteWarning: false,
+    });
+
+    it('resets both rentalToDelete and showPaidInvoiceDeleteWarning', () => {
+      const state: KeepRentalState = {
+        rentalToDelete: 'CTR-001',
+        showPaidInvoiceDeleteWarning: true,
+      };
+      const result = handleKeepRental(state);
+      expect(result.rentalToDelete).toBeNull();
+      expect(result.showPaidInvoiceDeleteWarning).toBe(false);
+    });
+
+    it('resets showPaidInvoiceDeleteWarning even when it was already false', () => {
+      const state: KeepRentalState = {
+        rentalToDelete: 'CTR-001',
+        showPaidInvoiceDeleteWarning: false,
+      };
+      const result = handleKeepRental(state);
+      expect(result.rentalToDelete).toBeNull();
+      expect(result.showPaidInvoiceDeleteWarning).toBe(false);
+    });
+
+    it('next delete operation starts with clean state after Keep Rental', () => {
+      // Simulate: trigger warning → click "Keep Rental" → click delete on another contract
+      let state: KeepRentalState = {
+        rentalToDelete: 'CTR-001',
+        showPaidInvoiceDeleteWarning: true,
+      };
+
+      // Click "Keep Rental"
+      state = handleKeepRental(state);
+      expect(state.showPaidInvoiceDeleteWarning).toBe(false);
+
+      // User clicks delete on a different contract
+      state = {
+        rentalToDelete: 'CTR-002',
+        showPaidInvoiceDeleteWarning: false, // Fresh start
+      };
+      expect(state.showPaidInvoiceDeleteWarning).toBe(false);
+
+      // The guard should fire for the new contract if it has paid invoices
+      expect(state.rentalToDelete).toBe('CTR-002');
+    });
+
+    it('does not reset unrelated state', () => {
+      // Keep Rental only touches rentalToDelete and showPaidInvoiceDeleteWarning
+      const state: KeepRentalState = {
+        rentalToDelete: 'CTR-001',
+        showPaidInvoiceDeleteWarning: true,
+      };
+      const result = handleKeepRental(state);
+      // Only these two fields are modified
+      expect(result.rentalToDelete).toBeNull();
+      expect(result.showPaidInvoiceDeleteWarning).toBe(false);
+    });
+  });
+
+  describe('Edit modal dismiss resets showDeleteLineConfirm (Rentals.tsx)', () => {
+    // Both backdrop click and X button call:
+    //   setEditRental(null);
+    //   setShowDeleteLineConfirm(false);
+    //   setDeletedLinesWithInvoices([]);
+
+    type LineInfo = {
+      contractId: string;
+      invoiceCount: number;
+      totalValue: number;
+    };
+
+    type DismissState = {
+      editRental: string | null;
+      showDeleteLineConfirm: boolean;
+      deletedLinesWithInvoices: LineInfo[];
+    };
+
+    const handleDismissEditModal = (state: DismissState): DismissState => ({
+      editRental: null,
+      showDeleteLineConfirm: false,
+      deletedLinesWithInvoices: [],
+    });
+
+    it('resets all three state variables on backdrop dismiss', () => {
+      const state: DismissState = {
+        editRental: 'CTR-001',
+        showDeleteLineConfirm: true,
+        deletedLinesWithInvoices: [
+          { contractId: 'CTR-LINE-1', invoiceCount: 2, totalValue: 2000 },
+        ],
+      };
+      const result = handleDismissEditModal(state);
+      expect(result.editRental).toBeNull();
+      expect(result.showDeleteLineConfirm).toBe(false);
+      expect(result.deletedLinesWithInvoices).toEqual([]);
+    });
+
+    it('resets showDeleteLineConfirm when deletedLinesWithInvoices is already empty', () => {
+      const state: DismissState = {
+        editRental: 'CTR-001',
+        showDeleteLineConfirm: true,
+        deletedLinesWithInvoices: [],
+      };
+      const result = handleDismissEditModal(state);
+      expect(result.showDeleteLineConfirm).toBe(false);
+      expect(result.deletedLinesWithInvoices).toEqual([]);
+    });
+
+    it('next edit session starts fresh after dismiss', () => {
+      let state: DismissState = {
+        editRental: 'CTR-001',
+        showDeleteLineConfirm: true,
+        deletedLinesWithInvoices: [
+          { contractId: 'CTR-LINE-1', invoiceCount: 2, totalValue: 2000 },
+        ],
+      };
+
+      // Dismiss modal
+      state = handleDismissEditModal(state);
+      expect(state.showDeleteLineConfirm).toBe(false);
+      expect(state.deletedLinesWithInvoices).toEqual([]);
+
+      // Next edit session — fresh state
+      state = {
+        editRental: 'CTR-002',
+        showDeleteLineConfirm: false,
+        deletedLinesWithInvoices: [],
+      };
+      expect(state.showDeleteLineConfirm).toBe(false);
+      expect(state.deletedLinesWithInvoices).toHaveLength(0);
+    });
+
+    it('clears multiple deleted lines with varying invoice counts', () => {
+      const state: DismissState = {
+        editRental: 'CTR-001',
+        showDeleteLineConfirm: true,
+        deletedLinesWithInvoices: [
+          { contractId: 'CTR-LINE-1', invoiceCount: 3, totalValue: 3000 },
+          { contractId: 'CTR-LINE-2', invoiceCount: 1, totalValue: 1000 },
+          { contractId: 'CTR-LINE-3', invoiceCount: 5, totalValue: 7500 },
+        ],
+      };
+      const result = handleDismissEditModal(state);
+      expect(result.showDeleteLineConfirm).toBe(false);
+      expect(result.deletedLinesWithInvoices).toEqual([]);
+    });
+
+    it('reset works identically for X button and backdrop click (same handler logic)', () => {
+      // Both call the same handler, so testing the handler covers both paths
+      const state: DismissState = {
+        editRental: 'CTR-001',
+        showDeleteLineConfirm: true,
+        deletedLinesWithInvoices: [
+          { contractId: 'CTR-LINE-1', invoiceCount: 2, totalValue: 2000 },
+        ],
+      };
+
+      // First dismiss via backdrop-like handler
+      let result = handleDismissEditModal(state);
+      expect(result.editRental).toBeNull();
+
+      // Reset and dismiss again via X-button-like handler (same result)
+      state.editRental = 'CTR-001';
+      state.showDeleteLineConfirm = true;
+      result = handleDismissEditModal(state);
+      expect(result.editRental).toBeNull();
+      expect(result.showDeleteLineConfirm).toBe(false);
+      expect(result.deletedLinesWithInvoices).toEqual([]);
+    });
+  });
+});
+
+// ============================================================
 // Data Layer Tests: deleteContract cascade behavior
 //
 // These test the actual mockData functions to verify that

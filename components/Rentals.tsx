@@ -466,7 +466,7 @@ export const Rentals: React.FC = () => {
       if (linesWithInvoices.length > 0 && !showDeleteLineConfirm) {
         setDeletedLinesWithInvoices(linesWithInvoices);
         setShowDeleteLineConfirm(true);
-        setSaving(false);
+        // Keep saving=true so the user cannot trigger a second save while confirming
         return;
       }
 
@@ -1540,8 +1540,8 @@ export const Rentals: React.FC = () => {
                            <button onClick={() => { setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); }} className="flex-1 py-2.5 text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
                              Cancel — Keep Lines
                            </button>
-                           <button onClick={handleEditSave} className="flex-1 py-2.5 text-white bg-amber-600 hover:bg-amber-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2">
-                             <Trash2 size={13} /> Proceed & Delete Invoices
+                           <button onClick={handleEditSave} disabled={saving} className="flex-1 py-2.5 text-white bg-amber-600 hover:bg-amber-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                             {saving ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} {saving ? 'Saving…' : 'Proceed & Delete Invoices'}
                            </button>
                          </div>
                        </div>
@@ -1724,7 +1724,7 @@ export const Rentals: React.FC = () => {
                      )}
                      {!showPaidInvoiceDeleteWarning && (
                      <div className="flex gap-3 pt-1">
-                         <button onClick={() => setRentalToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Keep Rental</button>
+                         <button onClick={() => { setRentalToDelete(null); setShowPaidInvoiceDeleteWarning(false); }} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Keep Rental</button>
                          <button onClick={confirmDelete} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20">Delete Permanently</button>
                      </div>
                      )}

@@ -428,11 +428,25 @@ export const endContract = (id: string) => {
     saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
     syncToNeon('contracts', endedContract);
 
+    // Cancel any pending invoices tied to this contract so they don't remain billable
+    const pendingInvoices = invoices.filter(i =>
+        i.contractId === id &&
+        String(i.type || '').toLowerCase() === 'invoice' &&
+        (i.status === 'Pending' || i.status === 'Overdue')
+    );
+    pendingInvoices.forEach(inv => {
+        invoices = invoices.filter(i => i.id !== inv.id);
+        queueForDeletion('invoices', inv.id);
+    });
+    if (pendingInvoices.length > 0) {
+        saveToStorage(STORAGE_KEYS.INVOICES, invoices);
+    }
+
     // Recalculate billboard availability to free up side/slot
     recalcBillboardAvailability(contract.billboardId);
 
     syncToCloudMirror();
-    logAction('End Contract', `Ended contract ${id} — marked as Expired, availability freed`);
+    logAction('End Contract', `Ended contract ${id} — marked as Expired, availability freed, ${pendingInvoices.length} pending invoice(s) cancelled`);
     notifyListeners();
 };
 
@@ -470,7 +484,9 @@ const recalcBillboardAvailability = (billboardId: string) => {
             else { b.sideBStatus = 'Available'; b.sideBClientId = undefined; }
         }
     } else if (b.type === BillboardType.LED) {
-        const contractSlots = contracts.filter(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active').length;
+        const contractSlots = contracts
+            .filter(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active')
+            .reduce((sum, c) => sum + (c.slotNumber || 1), 0);
         const invoiceSlots = invoices
             .filter(i => String(i.type || '').toLowerCase() === 'invoice')
             .reduce((acc, i) => acc + (i.items || [])
@@ -506,6 +522,15 @@ export const updateInvoice = (updated: Invoice) => {
     }
     invoices = invoices.map(i => i.id === updated.id ? updated : i);
     saveToStorage(STORAGE_KEYS.INVOICES, invoices);
+
+    // Recalculate availability if billboard references changed
+    const oldBillboards = new Set((old.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
+    const newBillboards = new Set((updated.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
+    if (String(old.type || '').toLowerCase() === 'invoice' || String(updated.type || '').toLowerCase() === 'invoice') {
+        const allBillboards = new Set([...oldBillboards, ...newBillboards]);
+        allBillboards.forEach(recalcBillboardAvailability);
+    }
+
     syncToCloudMirror();
     syncToNeon('invoices', updated);
     logAction('Update Invoice', `Updated ${updated.type} #${updated.id}`);

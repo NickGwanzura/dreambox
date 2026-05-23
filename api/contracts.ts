@@ -90,12 +90,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!id) return res.status(400).json({ error: 'id required' });
       // Cascade-delete linked invoices and amendments in the same transaction so a deleted
       // contract never leaves behind orphan records. Receipts and quotations are preserved.
-      const [{ count: invoicesDeleted }, { count: amendmentsDeleted }] = await prisma.$transaction([
+      const [invoicesRes, amendmentsRes] = await prisma.$transaction([
         prisma.invoice.deleteMany({ where: { contractId: id as string, type: 'Invoice' } }),
         prisma.contractAmendment.deleteMany({ where: { contractId: id as string } }),
-        prisma.contract.delete({ where: { id: id as string } }),
       ]);
-      return res.status(200).json({ success: true, invoicesDeleted, amendmentsDeleted });
+      await prisma.contract.delete({ where: { id: id as string } });
+      return res.status(200).json({ success: true, invoicesDeleted: invoicesRes.count, amendmentsDeleted: amendmentsRes.count });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

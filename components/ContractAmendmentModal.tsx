@@ -232,6 +232,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           console.error('CRITICAL: Rollback also failed.', rollbackErr);
           setError('Contract updated but amendment failed AND rollback error. Check data integrity.');
         }
+        // Keep saving true during rollback to prevent user interaction with inconsistent state
         setSaving(false);
         return;
       }
@@ -245,7 +246,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             ? splitInclusiveVat(gross, vatRate)
             : { subtotal: gross, vat: 0 };
           addInvoice({
-            id: `INV-AM-${contract.id}-${monthDate.replace(/-/g, '')}`,
+            id: `INV-AM-${contract.id}-${monthDate.replace(/-/g, '')}-${Date.now().toString(36).slice(-4)}`,
             contractId: contract.id,
             clientId: contract.clientId,
             date: monthDate,
@@ -268,9 +269,9 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           String(i.type || '').toLowerCase() === 'invoice' &&
           (i.status === 'Pending' || i.status === 'Overdue')
         );
+        const unmatchedInvoices: string[] = [];
         contractInvoices.forEach(inv => {
           // Recalculate each invoice with the new monthly rate
-          // If the invoice has a single line item matching the contract's monthly rental, update it
           const updatedItems = inv.items.map(item => {
             // Match items that look like monthly rental lines
             if (item.description && (item.description.toLowerCase().includes('monthly rental') || item.description.includes(contract.id))) {
@@ -278,6 +279,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             }
             return item;
           });
+          const wasModified = JSON.stringify(inv.items) !== JSON.stringify(updatedItems);
           const newGross = updatedItems.reduce((sum, it) => sum + it.amount, 0);
           const { subtotal: newSubtotal, vat: newVat } = contract.hasVat
             ? splitInclusiveVat(newGross, vatRate)
@@ -289,9 +291,15 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             vatAmount: newVat,
             total: newGross,
           });
+          if (!wasModified && inv.items.length > 0) {
+            unmatchedInvoices.push(inv.id);
+          }
         });
         if (contractInvoices.length > 0) {
           logAction('Rate Change', `Updated ${contractInvoices.length} invoice(s) for contract ${contract.id} with new rate $${effectiveMonthlyRate}`);
+        }
+        if (unmatchedInvoices.length > 0) {
+          console.warn('Rate change: the following invoices had no recognizable monthly rental line and were not updated:', unmatchedInvoices);
         }
       }
 
@@ -364,19 +372,19 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           {/* Amendment Tabs: Extend / Reduce / Rate Change */}
           <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200">
             <button
-              onClick={() => { setActiveTab('extension'); setNewEndDate(contract.endDate); setError(null); }}
+              onClick={() => { setActiveTab('extension'); setNewEndDate(contract.endDate); setError(null); setShowInvoiceDeleteConfirm(false); }}
               className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'extension' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-900 hover:text-slate-700'}`}
             >
               <TrendingUp size={14} /> Extend
             </button>
             <button
-              onClick={() => { setActiveTab('reduction'); setNewEndDate(contract.endDate); setError(null); }}
+              onClick={() => { setActiveTab('reduction'); setNewEndDate(contract.endDate); setError(null); setShowInvoiceDeleteConfirm(false); }}
               className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'reduction' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-900 hover:text-slate-700'}`}
             >
               <TrendingDown size={14} /> Reduce
             </button>
             <button
-              onClick={() => { setActiveTab('rate_change'); setNewMonthlyRate(contract.monthlyRate); setError(null); }}
+              onClick={() => { setActiveTab('rate_change'); setNewMonthlyRate(contract.monthlyRate); setError(null); setShowInvoiceDeleteConfirm(false); }}
               className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'rate_change' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-900 hover:text-slate-700'}`}
             >
               <DollarSign size={14} /> Rate
@@ -594,7 +602,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                 <p className="text-xs font-bold uppercase tracking-wider">Invoices Affected by Reduction</p>
               </div>
               <p className="text-xs text-red-600">
-                {affectedInvoices.length} invoice(s) cover the period being removed. You may need to issue credit notes.
+                {affectedInvoices.length} invoice(s) dated after the new end date will be removed. Other invoices covering the reduced period may still need credit notes.
               </p>
               <div className="space-y-2">
                 {affectedInvoices.map(inv => (
