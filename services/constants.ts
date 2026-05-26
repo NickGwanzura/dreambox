@@ -19,6 +19,9 @@ export const ALERT_CHECK_INTERVAL_MS = 10000; // 10 seconds
 export const NEW_ITEM_WINDOW_MS = 10 * 60 * 1000; // 10 minutes for new items
 export const RESTORE_GRACE_PERIOD_MS = 5 * 60 * 1000; // 5 minutes after restore
 
+// Deleted queue stale after 7 days — entries older than this are purged automatically
+export const DELETED_QUEUE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
+
 // Timeouts
 export const API_TIMEOUT_MS = 30000;
 export const LOGIN_DELAY_MS = 800;

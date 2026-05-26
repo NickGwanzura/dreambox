@@ -1,7 +1,7 @@
 import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
 import { api, isConfigured } from './apiClient';
 import { logger } from '../utils/logger';
-import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS, splitInclusiveVat, VAT_RATE } from './constants';
+import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS, splitInclusiveVat, VAT_RATE, DELETED_QUEUE_STALE_MS } from './constants';
 
 export const ZIM_TOWNS = [
   "Harare", "Bulawayo", "Mutare", "Gweru", "Kwekwe", 
@@ -122,6 +122,8 @@ interface DeletedItem { table: string; id: string; timestamp: number; }
 export let deletedQueue: DeletedItem[] = loadFromStorage(STORAGE_KEYS.DELETED_QUEUE, []) || [];
 
 const queueForDeletion = (table: string, id: string) => {
+    // Opportunistically purge stale entries before adding a new one
+    purgeStaleDeletedQueue();
     if (!deletedQueue.find(i => i.table === table && i.id === id)) {
         deletedQueue.push({ table, id, timestamp: Date.now() });
         saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
@@ -137,6 +139,25 @@ const deleteFromApi = async (table: string, id: string) => {
         saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
     } catch (e) { console.error(`API Delete Error (${table}):`, e); }
 };
+
+/**
+ * Purge stale entries from the deleted queue that are older than 7 days.
+ * This prevents unbounded growth when remote DELETE calls never succeed.
+ * Called automatically at module init, on each new queue entry, and during sync.
+ */
+export const purgeStaleDeletedQueue = (): number => {
+    const cutoff = Date.now() - DELETED_QUEUE_STALE_MS;
+    const before = deletedQueue.length;
+    deletedQueue = deletedQueue.filter(e => e.timestamp > cutoff);
+    if (deletedQueue.length !== before) {
+        saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
+        console.log(`Purged ${before - deletedQueue.length} stale deleted-queue entries`);
+    }
+    return before - deletedQueue.length;
+};
+
+// Purge stale entries on module load so the queue never carries over entries older than 7 days.
+purgeStaleDeletedQueue();
 
 import { forceSyncNow } from './neonSyncManager';
 

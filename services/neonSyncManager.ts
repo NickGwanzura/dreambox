@@ -6,7 +6,7 @@
 
 import { api, isConfigured } from './apiClient';
 import { logger } from '../utils/logger';
-import { STORAGE_KEYS } from './constants';
+import { STORAGE_KEYS, DELETED_QUEUE_STALE_MS } from './constants';
 import { useState, useEffect } from 'react';
 
 const SYNC_INTERVAL_MS = 30_000;
@@ -174,10 +174,37 @@ export const pullAllFromNeon = async (): Promise<{
   const results: Record<string, { count: number; error?: string }> = {};
   let hasFailures = false;
 
+  // Load the persisted deleted-queue once so we can filter out records that were
+  // deleted locally but whose remote DELETE may have failed (avoid re-importing them).
+  // Before reading, purge stale entries older than 7 days to prevent unbounded growth.
+  let deletedIdsByTable: Record<string, Set<string>> = {};
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_QUEUE);
+    if (raw) {
+      const queue: { table: string; id: string; timestamp?: number }[] = JSON.parse(raw);
+      const cutoff = Date.now() - DELETED_QUEUE_STALE_MS;
+      const filtered = queue.filter(e => e.timestamp > cutoff); // entries without timestamp are purged (old format)
+      if (filtered.length !== queue.length) {
+        localStorage.setItem(STORAGE_KEYS.DELETED_QUEUE, JSON.stringify(filtered));
+      }
+      for (const entry of filtered) {
+        if (!deletedIdsByTable[entry.table]) deletedIdsByTable[entry.table] = new Set();
+        deletedIdsByTable[entry.table].add(entry.id);
+      }
+    }
+  } catch { /* best-effort */ }
+
   for (const { table, key } of TABLE_MAP) {
     try {
       const data = await api.get<any[]>(`/api/${table}`);
-      const remote = Array.isArray(data) ? data : [];
+      let remote: any[] = Array.isArray(data) ? data : [];
+
+      // Strip out any records that are in the local deleted queue (they were
+      // intentionally deleted but the remote DELETE call may have failed).
+      const deletedIds = deletedIdsByTable[table];
+      if (deletedIds && deletedIds.size > 0) {
+        remote = remote.filter((r: any) => !deletedIds.has(r.id));
+      }
 
       // Merge: keep local-only items (ids not in remote) to avoid data loss
       // This preserves newly created items that haven't been synced to Neon yet

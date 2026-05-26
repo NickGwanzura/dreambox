@@ -14,7 +14,7 @@ import { BillboardType } from '../types';
 import { generateGreeting, fetchIndustryNews } from '../services/aiService';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { logger } from '../utils/logger';
-import { getGrossProfit, getNetProfit, getTotalCOGS, getTotalMonthlyRecurringRevenue } from '../services/profitAnalytics';
+import { getGrossProfit, getNetProfit, getTotalMonthlyRecurringRevenue } from '../services/profitAnalytics';
 
 const typeIs = (val: any, target: string) => String(val || '').toLowerCase() === target.toLowerCase();
 
@@ -129,8 +129,11 @@ export const Dashboard: React.FC = () => {
     const gp = getGrossProfit();
     const grossProfit = gp.grossProfit;
     const grossMargin = gp.grossMargin;
-    const totalCOGS = getTotalCOGS();
     const netProfit = getNetProfit();
+
+    // Active-only COGS for current-period view (excludes expired/completed contracts)
+    const activeCOGS = activeContractsList.reduce((sum, c) =>
+      sum + (c.installationCost || 0) + (c.printingCost || 0) + (c.productionCost || 0), 0);
 
     // Occupancy
     const ledBillboards    = billboards.filter(b => b.type === BillboardType.LED);
@@ -230,7 +233,7 @@ export const Dashboard: React.FC = () => {
     return {
       mrr, outstanding, collectedThisMonth, billedThisMonth,
       activeContractsCount, totalRevenue,
-      grossProfit, grossMargin, totalCOGS, netProfit,
+      grossProfit, grossMargin, activeCOGS, netProfit,
       ledBillboards: ledBillboards.length, staticBillboards: staticBillboards.length,
       totalLedSlots, rentedLedSlots, digitalOccupancyRate,
       totalStaticSides, rentedStaticSides, staticOccupancyRate, occupancyRate,
@@ -338,7 +341,7 @@ export const Dashboard: React.FC = () => {
          <KPICard
            title="Expenses This Month"
            value={`$${Math.round(metrics.expensesThisMonth).toLocaleString()}`}
-           subtitle={`COGS: $${Math.round(metrics.totalCOGS).toLocaleString()}`}
+           subtitle={`COGS: $${Math.round(metrics.activeCOGS).toLocaleString()}`}
            icon={Wallet}
            color="red"
            change={metrics.expenseChange !== 0 ? `${metrics.expenseChange > 0 ? '+' : ''}${metrics.expenseChange}%` : undefined}
