@@ -597,7 +597,7 @@ export const Rentals: React.FC = () => {
   };
 
   const isContractExpired = (contract: Contract) => {
-      return new Date(contract.endDate) < new Date();
+      return contract.status === 'Expired';
   };
 
   const openTermAdjustment = (contract: Contract) => {
@@ -1792,9 +1792,9 @@ export const Rentals: React.FC = () => {
                       Cancel
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         setIsDeletingPermanent(true);
-                        const result = permanentDeleteContract(contractToPermanentDelete.id);
+                        const result = await permanentDeleteContract(contractToPermanentDelete.id);
                         setIsDeletingPermanent(false);
                         setContractToPermanentDelete(null);
                         if (result.success) {

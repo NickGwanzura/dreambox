@@ -365,7 +365,7 @@ const auditLogToApi = async (action: string, details: string, tableName?: string
     }
 };
 
-export const permanentDeleteContract = (id: string): { success: boolean; error?: string } => {
+export const permanentDeleteContract = async (id: string): Promise<{ success: boolean; error?: string }> => {
     const contract = contracts.find(c => c.id === id);
     if (!contract) {
         return { success: false, error: 'Contract not found' };
@@ -382,15 +382,23 @@ export const permanentDeleteContract = (id: string): { success: boolean; error?:
 
         // If API is configured, push audit log + deletes to Neon FIRST
         if (isConfigured()) {
-            auditLogToApi(
+            await auditLogToApi(
                 'Permanent Delete Contract',
                 `Permanently deleted contract ${id} (${contract.billboardId}, ${contract.startDate}–${contract.endDate}) and all linked records`,
                 'contracts',
                 id
             );
-            linkedInvoiceIds.forEach(iid => api.delete('/api/invoices', { id: iid }).catch(e => console.error('[permanentDeleteContract] API error:', e)));
-            linkedAmendmentIds.forEach(aid => api.delete('/api/contract-amendments', { id: aid }).catch(e => console.error('[permanentDeleteContract] API error:', e)));
-            api.delete('/api/contracts', { id }).catch(e => console.error('[permanentDeleteContract] API error:', e));
+            for (const iid of linkedInvoiceIds) {
+                try { await api.delete('/api/invoices', { id: iid }); } catch (e: any) { console.error('[permanentDeleteContract] API error:', e); }
+            }
+            for (const aid of linkedAmendmentIds) {
+                try { await api.delete('/api/contract-amendments', { id: aid }); } catch (e: any) { console.error('[permanentDeleteContract] API error:', e); }
+            }
+            try { await api.delete('/api/contracts', { id }); } catch (e: any) {
+                const msg = e?.message || 'API rejected the deletion';
+                console.error('[permanentDeleteContract] API error:', msg);
+                return { success: false, error: msg };
+            }
         }
 
         // Local audit log BEFORE deletion so the log itself is preserved
