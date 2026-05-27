@@ -67,34 +67,37 @@ export const getEffectiveVatRate = (): number => {
     return typeof r === 'number' && r >= 0 ? r : VAT_RATE;
 };
 
-// --- Initialize from API on module load ---
-if (isConfigured()) {
-    (async () => {
-        try {
-            const results = await Promise.allSettled([
-                api.get<any[]>('/api/billboards').then(d => { if (d) billboards = d; }),
-                api.get<any[]>('/api/clients').then(d => { if (d) clients = d; }),
-                api.get<any[]>('/api/contracts').then(d => { if (d) contracts = d; }),
-                api.get<any[]>('/api/contract-amendments').then(d => { if (d) contractAmendments = d; }),
-                api.get<any[]>('/api/invoices').then(d => { if (d) invoices = d; }),
-                api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d; }),
-                api.get<any[]>('/api/users').then(d => { if (d) users = d; }),
-                api.get<any[]>('/api/outsourced').then(d => { if (d) outsourcedBillboards = d; }),
-                api.get<any[]>('/api/printing-jobs').then(d => { if (d) printingJobs = d; }),
-                api.get<any[]>('/api/maintenance').then(d => { if (d) maintenanceLogs = d; }),
-                api.get<any[]>('/api/tasks').then(d => { if (d) tasks = d; }),
-                api.get<any>('/api/company-profile').then(d => { if (d) { companyProfile = d; companyLogo = d.logo || null; } }),
-                api.get<any[]>('/api/audit-logs?limit=500').then(d => { if (d) auditLogs = d; }),
-            ]);
-            const rejected = results.filter(r => r.status === 'rejected');
-            if (rejected.length > 0) {
-                console.warn(`[mockData] ${rejected.length}/${results.length} API initializations failed`);
-            }
-            notifyListeners();
-        } catch (e) {
-            console.error('[mockData] Failed to initialize from API:', e);
+// --- Initialize from API (callable after login too) ---
+export const reloadAllFromApi = async (): Promise<void> => {
+    if (!isConfigured()) return;
+    try {
+        const results = await Promise.allSettled([
+            api.get<any[]>('/api/billboards').then(d => { if (d) billboards = d; }),
+            api.get<any[]>('/api/clients').then(d => { if (d) clients = d; }),
+            api.get<any[]>('/api/contracts').then(d => { if (d) contracts = d; }),
+            api.get<any[]>('/api/contract-amendments').then(d => { if (d) contractAmendments = d; }),
+            api.get<any[]>('/api/invoices').then(d => { if (d) invoices = d; }),
+            api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d; }),
+            api.get<any[]>('/api/users').then(d => { if (d) users = d; }),
+            api.get<any[]>('/api/outsourced').then(d => { if (d) outsourcedBillboards = d; }),
+            api.get<any[]>('/api/printing-jobs').then(d => { if (d) printingJobs = d; }),
+            api.get<any[]>('/api/maintenance').then(d => { if (d) maintenanceLogs = d; }),
+            api.get<any[]>('/api/tasks').then(d => { if (d) tasks = d; }),
+            api.get<any>('/api/company-profile').then(d => { if (d) { companyProfile = d; companyLogo = d.logo || null; } }),
+            api.get<any[]>('/api/audit-logs?limit=500').then(d => { if (d) auditLogs = d; }),
+        ]);
+        const rejected = results.filter(r => r.status === 'rejected');
+        if (rejected.length > 0) {
+            console.warn(`[mockData] ${rejected.length}/${results.length} API initializations failed`);
         }
-    })();
+        notifyListeners();
+    } catch (e) {
+        console.error('[mockData] Failed to initialize from API:', e);
+    }
+};
+
+if (isConfigured()) {
+    reloadAllFromApi();
 }
 
 // --- Profile Mutations ---

@@ -177,12 +177,13 @@ async function registerRoutes() {
 // ─── Static SPA fallback ─────────────────────────────────────────────────────
 
 function serveStatic() {
-  // Maintenance mode — return maintenance page for all non-API routes
-  const maintPath = path.join(__dirname, 'maintenance.html');
+  const distPath = path.join(__dirname, 'dist');
+  app.use(express.static(distPath));
+  // SPA: all non-API routes return index.html
   app.get('/{*splat}', (_req, res) => {
-    res.sendFile(maintPath);
+    res.sendFile(path.join(distPath, 'index.html'));
   });
-  log.boot(`  Maintenance mode   ✓  serving maintenance.html`);
+  log.boot(`  Static files       ✓  serving from ${distPath}`);
 }
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import { api, setToken, clearToken, getToken } from './apiClient';
 import { User } from '../types';
 import { logger } from '../utils/logger';
 import { STORAGE_KEYS } from './constants';
+import { reloadAllFromApi } from './mockData';
 
 export type SessionUser = Omit<User, 'password'>;
 
@@ -46,6 +47,7 @@ export const signIn = async (
     });
     setToken(token);
     saveSession(user);
+    reloadAllFromApi();
     logger.info(`User logged in: ${email}`);
     return { user, error: null };
   } catch (error: any) {
