@@ -1,7 +1,6 @@
 import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
 import { api, isConfigured } from './apiClient';
-import { logger } from '../utils/logger';
-import { STORAGE_KEYS, RESTORE_GRACE_PERIOD_MS, NEW_ITEM_WINDOW_MS, splitInclusiveVat, VAT_RATE, DELETED_QUEUE_STALE_MS } from './constants';
+import { STORAGE_KEYS, splitInclusiveVat, VAT_RATE } from './constants';
 
 export const ZIM_TOWNS = [
   "Harare", "Bulawayo", "Mutare", "Gweru", "Kwekwe", 
@@ -20,219 +19,25 @@ const notifyListeners = () => {
     listeners.forEach(listener => listener());
 };
 
-const INITIAL_BILLBOARDS: Billboard[] = [];
-const INITIAL_CLIENTS: Client[] = [];
-const INITIAL_CONTRACTS: Contract[] = [];
-const INITIAL_CONTRACT_AMENDMENTS: ContractAmendment[] = [];
+// --- Entity Exports (in-memory, populated from API on init) ---
+export let billboards: Billboard[] = [];
+export let clients: Client[] = [];
+export let contracts: Contract[] = [];
+export let contractAmendments: ContractAmendment[] = [];
+export let invoices: Invoice[] = [];
+export let expenses: Expense[] = [];
+export let auditLogs: AuditLogEntry[] = [];
+export let outsourcedBillboards: OutsourcedBillboard[] = [];
+export let printingJobs: PrintingJob[] = [];
+export let maintenanceLogs: MaintenanceLog[] = [];
+export let tasks: Task[] = [];
+export let users: User[] = [];
 
-// Storage keys are now imported from constants.ts
-// Using STORAGE_KEYS from './constants'
+// --- Company Profile (in-memory, fetched from API) ---
+let companyProfile: CompanyProfile | null = null;
+let companyLogo: string | null = null;
 
-const loadFromStorage = (key: string, defaultValue: any): any => {
-    try {
-        const stored = localStorage.getItem(key);
-        if (stored === null) return defaultValue;
-        return JSON.parse(stored);
-    } catch (e) {
-        console.error(`Error loading ${key}`, e);
-        // Attempt to recover raw string values (e.g. data URLs stored without JSON.stringify)
-        const raw = localStorage.getItem(key);
-        if (raw !== null && typeof raw === 'string' && raw.length > 0) {
-            // If the raw value is a plain string (not valid JSON), return it directly.
-            // This handles cases where values were stored with raw localStorage.setItem()
-            // instead of through saveToStorage() which JSON.stringifies.
-            // Re-save properly so the error doesn't repeat on next load.
-            try {
-                localStorage.setItem(key, JSON.stringify(raw));
-            } catch (_) {}
-            return raw as any;
-        }
-        localStorage.removeItem(key); // Clean up irrecoverable corrupt data
-        return defaultValue;
-    }
-};
-
-const saveToStorage = (key: string, data: any) => {
-    try {
-        const serialized = JSON.stringify(data);
-        localStorage.setItem(key, serialized);
-    } catch (e: any) {
-        console.error(`Error saving ${key}`, e);
-        if (e.name === 'QuotaExceededError' || e.code === 22) {
-            console.warn("Storage Full! Attempting auto-cleanup...");
-            try {
-                localStorage.removeItem(STORAGE_KEYS.LOGS);
-                localStorage.removeItem(STORAGE_KEYS.AUTO_BACKUP);
-                localStorage.removeItem(STORAGE_KEYS.CLOUD_MIRROR);
-                const serialized = JSON.stringify(data);
-                localStorage.setItem(key, serialized);
-            } catch (retryError) { console.error("Critical Storage Error"); }
-        }
-    }
-};
-
-window.addEventListener('storage', (event) => {
-    if (event.key && event.key.startsWith('db_')) {
-        switch(event.key) {
-            case STORAGE_KEYS.BILLBOARDS: billboards = loadFromStorage(STORAGE_KEYS.BILLBOARDS, []) || []; break;
-            case STORAGE_KEYS.CONTRACTS: contracts = loadFromStorage(STORAGE_KEYS.CONTRACTS, []) || []; break;
-            case STORAGE_KEYS.CONTRACT_AMENDMENTS: contractAmendments = loadFromStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, []) || []; break;
-            case STORAGE_KEYS.CLIENTS: clients = loadFromStorage(STORAGE_KEYS.CLIENTS, []) || []; break;
-            case STORAGE_KEYS.INVOICES: invoices = loadFromStorage(STORAGE_KEYS.INVOICES, []) || []; break;
-            case STORAGE_KEYS.EXPENSES: expenses = loadFromStorage(STORAGE_KEYS.EXPENSES, []) || []; break;
-            case STORAGE_KEYS.USERS: users = loadFromStorage(STORAGE_KEYS.USERS, []) || []; break;
-            case STORAGE_KEYS.TASKS: tasks = loadFromStorage(STORAGE_KEYS.TASKS, []) || []; break;
-            case STORAGE_KEYS.MAINTENANCE: maintenanceLogs = loadFromStorage(STORAGE_KEYS.MAINTENANCE, []) || []; break;
-            case STORAGE_KEYS.PROFILE: companyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || companyProfile; break;
-            case 'db_last_sync':
-                billboards = loadFromStorage(STORAGE_KEYS.BILLBOARDS, []) || [];
-                contracts = loadFromStorage(STORAGE_KEYS.CONTRACTS, []) || [];
-                contractAmendments = loadFromStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, []) || [];
-                clients = loadFromStorage(STORAGE_KEYS.CLIENTS, []) || [];
-                invoices = loadFromStorage(STORAGE_KEYS.INVOICES, []) || [];
-                expenses = loadFromStorage(STORAGE_KEYS.EXPENSES, []) || [];
-                users = loadFromStorage(STORAGE_KEYS.USERS, []) || [];
-                tasks = loadFromStorage(STORAGE_KEYS.TASKS, []) || [];
-                maintenanceLogs = loadFromStorage(STORAGE_KEYS.MAINTENANCE, []) || [];
-                outsourcedBillboards = loadFromStorage(STORAGE_KEYS.OUTSOURCED, []) || [];
-                printingJobs = loadFromStorage(STORAGE_KEYS.PRINTING, []) || [];
-                companyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || companyProfile;
-                break;
-        }
-        notifyListeners();
-    }
-});
-
-const syncToCloudMirror = () => {
-    try {
-        const payload = {
-            timestamp: new Date().toISOString(),
-            data: {
-                billboards, contracts, contractAmendments, clients, invoices, expenses, 
-                users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs
-            }
-        };
-        localStorage.setItem(STORAGE_KEYS.CLOUD_MIRROR, JSON.stringify(payload));
-    } catch (e) {
-        console.error("Cloud Mirror Sync Failed", e);
-    }
-}
-
-interface DeletedItem { table: string; id: string; timestamp: number; }
-export let deletedQueue: DeletedItem[] = loadFromStorage(STORAGE_KEYS.DELETED_QUEUE, []) || [];
-
-const queueForDeletion = (table: string, id: string) => {
-    // Opportunistically purge stale entries before adding a new one
-    purgeStaleDeletedQueue();
-    if (!deletedQueue.find(i => i.table === table && i.id === id)) {
-        deletedQueue.push({ table, id, timestamp: Date.now() });
-        saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
-    }
-    deleteFromApi(table, id);
-};
-
-const deleteFromApi = async (table: string, id: string) => {
-    if (!isConfigured()) return;
-    try {
-        await api.delete(`/api/${table}`, { id });
-        deletedQueue = deletedQueue.filter(i => !(i.table === table && i.id === id));
-        saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
-    } catch (e) { console.error(`API Delete Error (${table}):`, e); }
-};
-
-/**
- * Purge stale entries from the deleted queue that are older than 7 days.
- * This prevents unbounded growth when remote DELETE calls never succeed.
- * Called automatically at module init, on each new queue entry, and during sync.
- */
-export const purgeStaleDeletedQueue = (): number => {
-    const cutoff = Date.now() - DELETED_QUEUE_STALE_MS;
-    const before = deletedQueue.length;
-    deletedQueue = deletedQueue.filter(e => e.timestamp > cutoff);
-    if (deletedQueue.length !== before) {
-        saveToStorage(STORAGE_KEYS.DELETED_QUEUE, deletedQueue);
-        console.log(`Purged ${before - deletedQueue.length} stale deleted-queue entries`);
-    }
-    return before - deletedQueue.length;
-};
-
-// Purge stale entries on module load so the queue never carries over entries older than 7 days.
-purgeStaleDeletedQueue();
-
-import { forceSyncNow } from './neonSyncManager';
-
-export const syncToNeon = async (table: string, data: any) => {
-    if (!isConfigured()) return;
-    try {
-        if (data.id) {
-            await api.put(`/api/${table}`, data, { id: data.id });
-        } else {
-            await api.post(`/api/${table}`, data);
-        }
-    } catch (e) { console.error(`API Sync Error (${table}):`, e); }
-};
-
-export const fetchLatestUsers = async () => {
-    if (!isConfigured()) return null;
-    try {
-        const remoteData = await api.get<any[]>('/api/users');
-        if (remoteData && remoteData.length > 0) {
-            users = remoteData;
-            saveToStorage(STORAGE_KEYS.USERS, users);
-            console.log(`Users synced from API: ${remoteData.length} total`);
-            return users;
-        }
-    } catch (e) {
-        console.error("Failed to fetch users:", e);
-    }
-    return null;
-};
-
-export const verifyDataIntegrity = async () => {
-    if (!isConfigured()) return null;
-    const report = { billboards: { local: billboards.length, remote: 0 }, clients: { local: clients.length, remote: 0 }, contracts: { local: contracts.length, remote: 0 }, invoices: { local: invoices.length, remote: 0 }, users: { local: users.length, remote: 0 } };
-    try {
-        const [b, c, co, i, u] = await Promise.all([
-            api.get<any[]>('/api/billboards'), api.get<any[]>('/api/clients'),
-            api.get<any[]>('/api/contracts'), api.get<any[]>('/api/invoices'), api.get<any[]>('/api/users'),
-        ]);
-        report.billboards.remote = b?.length || 0; report.clients.remote = c?.length || 0;
-        report.contracts.remote = co?.length || 0; report.invoices.remote = i?.length || 0; report.users.remote = u?.length || 0;
-        return report;
-    } catch (e) { return null; }
-};
-
-export const getStorageUsage = () => { let total = 0; for (const key in localStorage) { if (localStorage.hasOwnProperty(key) && key.startsWith('db_')) { total += (localStorage[key].length * 2); } } return (total / 1024).toFixed(2); };
-
-// --- Entity Exports & Initialization ---
-export let billboards: Billboard[] = loadFromStorage(STORAGE_KEYS.BILLBOARDS, null) || INITIAL_BILLBOARDS; if (!loadFromStorage(STORAGE_KEYS.BILLBOARDS, null)) saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards);
-export let clients: Client[] = loadFromStorage(STORAGE_KEYS.CLIENTS, null) || INITIAL_CLIENTS; if (!loadFromStorage(STORAGE_KEYS.CLIENTS, null)) saveToStorage(STORAGE_KEYS.CLIENTS, clients);
-export let contracts: Contract[] = loadFromStorage(STORAGE_KEYS.CONTRACTS, null) || INITIAL_CONTRACTS; if (!loadFromStorage(STORAGE_KEYS.CONTRACTS, null)) saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
-export let contractAmendments: ContractAmendment[] = loadFromStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, null) || INITIAL_CONTRACT_AMENDMENTS; if (!loadFromStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, null)) saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments);
-export let invoices: Invoice[] = loadFromStorage(STORAGE_KEYS.INVOICES, []) || [];
-export let expenses: Expense[] = loadFromStorage(STORAGE_KEYS.EXPENSES, []) || [];
-export let auditLogs: AuditLogEntry[] = loadFromStorage(STORAGE_KEYS.LOGS, [{ id: 'log-init', timestamp: new Date().toLocaleString(), action: 'System Init', details: 'System started', user: 'System' }]) || [];
-export let outsourcedBillboards: OutsourcedBillboard[] = loadFromStorage(STORAGE_KEYS.OUTSOURCED, []) || [];
-export let printingJobs: PrintingJob[] = loadFromStorage(STORAGE_KEYS.PRINTING, []) || [];
-export let maintenanceLogs: MaintenanceLog[] = loadFromStorage(STORAGE_KEYS.MAINTENANCE, []) || [];
-export let tasks: Task[] = loadFromStorage(STORAGE_KEYS.TASKS, null) || [{ id: 't1', title: 'Site Inspection: Airport Rd', description: 'Verify lighting functionality on Side A.', assignedTo: 'Admin User', priority: 'High', status: 'Todo', dueDate: new Date().toISOString().split('T')[0], createdAt: new Date().toISOString() }, { id: 't2', title: 'Call Delta Beverages', description: 'Follow up on contract renewal for Q3.', assignedTo: 'Manager', priority: 'Medium', status: 'In Progress', dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], createdAt: new Date().toISOString() }]; if (!localStorage.getItem(STORAGE_KEYS.TASKS)) saveToStorage(STORAGE_KEYS.TASKS, tasks);
-export let users: User[] = loadFromStorage(STORAGE_KEYS.USERS, null) || [];
-const updatedUsers = users.map(u => ({ ...u, username: u.username || u.email.split('@')[0], status: u.status || 'Active' })); if (JSON.stringify(updatedUsers) !== JSON.stringify(users)) { users = updatedUsers; saveToStorage(STORAGE_KEYS.USERS, users); }
-
-// Admin users are created through the registration flow or migration scripts.
-// No hardcoded credentials are shipped in the frontend bundle.
-
-// Default logo as inline SVG (no external dependency)
 const DEFAULT_LOGO_SVG = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIiBmaWxsPSJub25lIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzNzNkYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyNCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPkRyZWFtYm94PC90ZXh0Pjwvc3ZnPg==';
-
-// Fix corrupted logo URLs (remove escaped quotes)
-let companyLogo = loadFromStorage(STORAGE_KEYS.LOGO, null);
-if (companyLogo && (companyLogo.includes('\\"') || companyLogo.includes('%22') || companyLogo.includes('/%22/'))) {
-  console.warn('Fixing corrupted logo URL in localStorage');
-  companyLogo = DEFAULT_LOGO_SVG;
-  saveToStorage(STORAGE_KEYS.LOGO, companyLogo);
-}
-if (!companyLogo) companyLogo = DEFAULT_LOGO_SVG;
 const DEFAULT_PROFILE: CompanyProfile = {
     name: "Dreambox Advertising",
     vatNumber: "VAT-DBX-001",
@@ -255,24 +60,62 @@ const DEFAULT_PROFILE: CompanyProfile = {
     emailSignature: "",
     vatRate: VAT_RATE,
 };
-let companyProfile: CompanyProfile = loadFromStorage(STORAGE_KEYS.PROFILE, null) || DEFAULT_PROFILE;
-// Backfill VAT rate for profiles persisted before the field existed.
-if (companyProfile.vatRate === undefined || companyProfile.vatRate === null) {
-    companyProfile = { ...companyProfile, vatRate: VAT_RATE };
-}
+companyProfile = DEFAULT_PROFILE;
 
 export const getEffectiveVatRate = (): number => {
-    const r = companyProfile.vatRate;
+    const r = companyProfile?.vatRate;
     return typeof r === 'number' && r >= 0 ? r : VAT_RATE;
 };
-let lastBackupDate = loadFromStorage(STORAGE_KEYS.LAST_BACKUP, null) || 'Never'; let lastCloudBackup = loadFromStorage(STORAGE_KEYS.CLOUD_BACKUP, null) || 'Never';
 
-// ... (Other getters/setters/helpers remain same)
-export const setCompanyLogo = (url: string) => { companyLogo = url; saveToStorage(STORAGE_KEYS.LOGO, companyLogo); syncToNeon('company-profile', { ...companyProfile, id: 'profile_v1', logo: url }); notifyListeners(); };
-export const updateCompanyProfile = (profile: CompanyProfile) => { companyProfile = profile; saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); syncToNeon('company-profile', { ...profile, id: 'profile_v1', logo: companyLogo }); logAction('Settings Update', 'Updated company profile details'); notifyListeners(); };
-export const createSystemBackup = () => { const now = new Date().toLocaleString(); lastBackupDate = now; saveToStorage(STORAGE_KEYS.LAST_BACKUP, lastBackupDate); syncToCloudMirror(); return JSON.stringify({ version: '1.9.25', timestamp: new Date().toISOString(), data: { billboards, contracts, contractAmendments, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }, null, 2); };
-export const simulateCloudSync = async () => { await new Promise(resolve => setTimeout(resolve, 2000)); syncToCloudMirror(); await forceSyncNow(); lastCloudBackup = new Date().toLocaleString(); saveToStorage(STORAGE_KEYS.CLOUD_BACKUP, lastCloudBackup); logAction('System', 'Cloud backup completed successfully'); notifyListeners(); return lastCloudBackup; };
-export const getLastCloudBackupDate = () => lastCloudBackup; export const restoreDefaultBillboards = () => 0; export const triggerAutoBackup = () => { saveToStorage(STORAGE_KEYS.AUTO_BACKUP, { timestamp: new Date().toISOString(), data: { billboards, contracts, clients, invoices, expenses, users, outsourcedBillboards, auditLogs, printingJobs, companyLogo, companyProfile, tasks, maintenanceLogs } }); syncToCloudMirror(); return new Date().toLocaleString(); };
+// --- Initialize from API on module load ---
+if (isConfigured()) {
+    (async () => {
+        try {
+            const results = await Promise.allSettled([
+                api.get<any[]>('/api/billboards').then(d => { if (d) billboards = d; }),
+                api.get<any[]>('/api/clients').then(d => { if (d) clients = d; }),
+                api.get<any[]>('/api/contracts').then(d => { if (d) contracts = d; }),
+                api.get<any[]>('/api/contract-amendments').then(d => { if (d) contractAmendments = d; }),
+                api.get<any[]>('/api/invoices').then(d => { if (d) invoices = d; }),
+                api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d; }),
+                api.get<any[]>('/api/users').then(d => { if (d) users = d; }),
+                api.get<any[]>('/api/outsourced').then(d => { if (d) outsourcedBillboards = d; }),
+                api.get<any[]>('/api/printing-jobs').then(d => { if (d) printingJobs = d; }),
+                api.get<any[]>('/api/maintenance').then(d => { if (d) maintenanceLogs = d; }),
+                api.get<any[]>('/api/tasks').then(d => { if (d) tasks = d; }),
+                api.get<any>('/api/company-profile').then(d => { if (d) { companyProfile = d; companyLogo = d.logo || null; } }),
+                api.get<any[]>('/api/audit-logs?limit=500').then(d => { if (d) auditLogs = d; }),
+            ]);
+            const rejected = results.filter(r => r.status === 'rejected');
+            if (rejected.length > 0) {
+                console.warn(`[mockData] ${rejected.length}/${results.length} API initializations failed`);
+            }
+            notifyListeners();
+        } catch (e) {
+            console.error('[mockData] Failed to initialize from API:', e);
+        }
+    })();
+}
+
+// --- Profile Mutations ---
+export const setCompanyLogo = (url: string) => {
+    companyLogo = url;
+    if (isConfigured() && companyProfile) {
+        api.put('/api/company-profile', { ...companyProfile, id: 'profile_v1', logo: url }).catch(e => console.error('[setCompanyLogo] API error:', e));
+    }
+    notifyListeners();
+};
+
+export const updateCompanyProfile = (profile: CompanyProfile) => {
+    companyProfile = profile;
+    if (isConfigured()) {
+        api.put('/api/company-profile', { ...profile, id: 'profile_v1', logo: companyLogo }).catch(e => console.error('[updateCompanyProfile] API error:', e));
+    }
+    logAction('Settings Update', 'Updated company profile details');
+    notifyListeners();
+};
+
+// --- Auto Billing ---
 export const runAutoBilling = () => {
   const today = new Date();
   const yr = today.getFullYear();
@@ -304,134 +147,175 @@ export const runAutoBilling = () => {
   });
   return generated;
 };
-export const runMaintenanceCheck = () => 0; export const getAutoBackupStatus = () => { const autoBackup = loadFromStorage(STORAGE_KEYS.AUTO_BACKUP, null); return autoBackup ? new Date(autoBackup.timestamp).toLocaleString() : 'None'; }; export const getLastManualBackupDate = () => lastBackupDate;
-export const restoreSystemBackup = async (jsonString: string) => {
-  try {
-    const backup = JSON.parse(jsonString);
-    const d = backup.data;
-    if (!d) return { success: false, count: 0 };
-    let count = 0;
-    if (Array.isArray(d.billboards))        { billboards = d.billboards;               saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards);         count += billboards.length; }
-    if (Array.isArray(d.contracts))         { contracts = d.contracts;                 saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);           count += contracts.length; }
-    if (Array.isArray(d.contractAmendments)) { contractAmendments = d.contractAmendments; saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments); count += contractAmendments.length; }
-    if (Array.isArray(d.clients))           { clients = d.clients;                     saveToStorage(STORAGE_KEYS.CLIENTS, clients);               count += clients.length; }
-    if (Array.isArray(d.invoices))          { invoices = d.invoices;                   saveToStorage(STORAGE_KEYS.INVOICES, invoices);             count += invoices.length; }
-    if (Array.isArray(d.expenses))          { expenses = d.expenses;                   saveToStorage(STORAGE_KEYS.EXPENSES, expenses);             count += expenses.length; }
-    if (Array.isArray(d.users))             { users = d.users;                         saveToStorage(STORAGE_KEYS.USERS, users);                   count += users.length; }
-    if (Array.isArray(d.tasks))             { tasks = d.tasks;                         saveToStorage(STORAGE_KEYS.TASKS, tasks);                   count += tasks.length; }
-    if (Array.isArray(d.maintenanceLogs))   { maintenanceLogs = d.maintenanceLogs;     saveToStorage(STORAGE_KEYS.MAINTENANCE, maintenanceLogs);   count += maintenanceLogs.length; }
-    if (Array.isArray(d.outsourcedBillboards)) { outsourcedBillboards = d.outsourcedBillboards; saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); count += outsourcedBillboards.length; }
-    if (Array.isArray(d.auditLogs))         { auditLogs = d.auditLogs;                 saveToStorage(STORAGE_KEYS.LOGS, auditLogs); }
-    if (Array.isArray(d.printingJobs))      { printingJobs = d.printingJobs;           saveToStorage(STORAGE_KEYS.PRINTING, printingJobs); }
-    if (d.companyLogo)                      { companyLogo = d.companyLogo;             saveToStorage(STORAGE_KEYS.LOGO, companyLogo); }
-    if (d.companyProfile)                   { companyProfile = d.companyProfile;       saveToStorage(STORAGE_KEYS.PROFILE, companyProfile); }
-    await forceSyncNow();
-    logAction('System Restore', `Backup restored from ${backup.timestamp || 'unknown date'} — ${count} records`);
-    syncToCloudMirror();
-    notifyListeners();
-    return { success: true, count };
-  } catch (e) {
-    console.error('Restore failed:', e);
-    return { success: false, count: 0 };
-  }
-};
 
-export const logAction = (action: string, details: string, userOverride?: string) => { let userName = userOverride || 'System'; try { const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER); if (stored) { const u = JSON.parse(stored); userName = u?.name || u?.email || 'Unknown'; } } catch (_) {} const log: AuditLogEntry = { id: `log-${Date.now()}`, timestamp: new Date().toLocaleString(), action, details, user: userName }; auditLogs = [log, ...auditLogs]; saveToStorage(STORAGE_KEYS.LOGS, auditLogs); notifyListeners(); };
+// --- Audit Logging ---
+export const logAction = (action: string, details: string, userOverride?: string) => {
+    let userName = userOverride || 'System';
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+        if (stored) {
+            const u = JSON.parse(stored);
+            userName = u?.name || u?.email || 'Unknown';
+        }
+    } catch (_) {}
+    const log: AuditLogEntry = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleString(),
+        action,
+        details,
+        user: userName
+    };
+    auditLogs = [log, ...auditLogs];
+    if (isConfigured()) {
+        api.post('/api/audit-logs', log).catch(() => {});
+    }
+    notifyListeners();
+};
 
 export const resetSystemData = () => {
-    localStorage.clear();
-    window.location.reload();
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    window.location.href = '/login';
 };
 
-export const addBillboard = (billboard: Billboard) => { billboards = [...billboards, billboard]; saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards); syncToCloudMirror(); syncToNeon('billboards', billboard); logAction('Create Billboard', `Added ${billboard.name} (${billboard.type})`); notifyListeners(); };
-export const updateBillboard = (updated: Billboard) => { billboards = billboards.map(b => b.id === updated.id ? updated : b); saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards); syncToCloudMirror(); syncToNeon('billboards', updated); logAction('Update Billboard', `Updated details for ${updated.name}`); notifyListeners(); };
-export const deleteBillboard = (id: string) => { const target = billboards.find(b => b.id === id); if (target) { billboards = billboards.filter(b => b.id !== id); saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards); syncToCloudMirror(); queueForDeletion('billboards', id); logAction('Delete Billboard', `Removed ${target.name} from inventory`); notifyListeners(); } };
-
-export const addContract = (contract: Contract) => { 
-    contracts = [...contracts, contract]; 
-    saveToStorage(STORAGE_KEYS.CONTRACTS, contracts); 
-    syncToNeon('contracts', contract);
-    const billboard = billboards.find(b => b.id === contract.billboardId);
-    if(billboard) {
-        if(billboard.type === BillboardType.Static) {
-            if(contract.side === 'A' || contract.details.includes('Side A')) { billboard.sideAStatus = 'Rented'; billboard.sideAClientId = contract.clientId; }
-            if(contract.side === 'B' || contract.details.includes('Side B')) { billboard.sideBStatus = 'Rented'; billboard.sideBClientId = contract.clientId; }
-            if(contract.side === 'Both') { billboard.sideAStatus = 'Rented'; billboard.sideBStatus = 'Rented'; billboard.sideAClientId = contract.clientId; billboard.sideBClientId = contract.clientId; }
-        } else if (billboard.type === BillboardType.LED) {
-            billboard.rentedSlots = (billboard.rentedSlots || 0) + 1;
+// --- Billboard CRUD ---
+export const addBillboard = async (billboard: Billboard) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<Billboard>('/api/billboards', billboard);
+            billboards = [...billboards, created];
+        } catch (e) {
+            console.error('[addBillboard] API error, using local:', e);
+            billboards = [...billboards, billboard];
         }
-        updateBillboard(billboard); 
+    } else {
+        billboards = [...billboards, billboard];
     }
-    syncToCloudMirror();
-    logAction('Create Contract', `New contract for ${contract.billboardId}`); 
+    logAction('Create Billboard', `Added ${billboard.name} (${billboard.type})`);
     notifyListeners();
 };
 
-export const deleteContract = (id: string) => {
-    const contract = contracts.find(c => c.id === id);
-    if(contract) {
-        contracts = contracts.filter(c => c.id !== id);
-        saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
-        queueForDeletion('contracts', id);
-
-        // Cascade-delete invoices tied to this contract. Receipts and quotations are preserved —
-        // receipts represent real payments, and quotations typically don't carry a contractId.
-        const linkedInvoices = invoices.filter(i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice');
-        if (linkedInvoices.length > 0) {
-            linkedInvoices.forEach(i => queueForDeletion('invoices', i.id));
-            invoices = invoices.filter(i => !(i.contractId === id && String(i.type || '').toLowerCase() === 'invoice'));
-            saveToStorage(STORAGE_KEYS.INVOICES, invoices);
-            logAction('Delete Contract', `Cascade-deleted ${linkedInvoices.length} invoice(s) from contract ${id}`);
+export const updateBillboard = async (updated: Billboard) => {
+    billboards = billboards.map(b => b.id === updated.id ? updated : b);
+    if (isConfigured()) {
+        try {
+            await api.put('/api/billboards', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[updateBillboard] API error:', e);
         }
+    }
+    logAction('Update Billboard', `Updated details for ${updated.name}`);
+    notifyListeners();
+};
 
-        // Cascade-delete amendments tied to this contract.
-        const linkedAmendments = contractAmendments.filter(a => a.contractId === id);
-        if (linkedAmendments.length > 0) {
-            linkedAmendments.forEach(a => queueForDeletion('contract-amendments', a.id));
-            contractAmendments = contractAmendments.filter(a => a.contractId !== id);
-            saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments);
-            logAction('Delete Contract', `Cascade-deleted ${linkedAmendments.length} amendment(s) from contract ${id}`);
+export const deleteBillboard = (id: string) => {
+    const target = billboards.find(b => b.id === id);
+    if (target) {
+        billboards = billboards.filter(b => b.id !== id);
+        if (isConfigured()) {
+            api.delete('/api/billboards', { id }).catch(e => console.error('[deleteBillboard] API error:', e));
         }
-
-        const billboard = billboards.find(b => b.id === contract.billboardId);
-        if(billboard) {
-            if(billboard.type === BillboardType.Static) {
-                if(contract.side === 'A' || contract.details.includes('Side A')) { billboard.sideAStatus = 'Available'; billboard.sideAClientId = undefined; }
-                if(contract.side === 'B' || contract.details.includes('Side B')) { billboard.sideBStatus = 'Available'; billboard.sideBClientId = undefined; }
-                if(contract.side === 'Both') { billboard.sideAStatus = 'Available'; billboard.sideBStatus = 'Available'; billboard.sideAClientId = undefined; billboard.sideBClientId = undefined; }
-            } else if(billboard.type === BillboardType.LED) {
-                billboard.rentedSlots = Math.max(0, (billboard.rentedSlots || 0) - 1);
-            }
-            updateBillboard(billboard); 
-        }
-        
-        syncToCloudMirror();
-        logAction('Delete Contract', `Removed contract ${id} and freed up assets`);
+        logAction('Delete Billboard', `Removed ${target.name} from inventory`);
         notifyListeners();
     }
 };
 
-export const updateContract = (updated: Contract) => {
+// --- Contract CRUD ---
+export const addContract = async (contract: Contract) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<Contract>('/api/contracts', contract);
+            contracts = [...contracts, created];
+            contract = created;
+        } catch (e) {
+            console.error('[addContract] API error, using local:', e);
+            contracts = [...contracts, contract];
+        }
+    } else {
+        contracts = [...contracts, contract];
+    }
+    const billboard = billboards.find(b => b.id === contract.billboardId);
+    if (billboard) {
+        if (billboard.type === BillboardType.Static) {
+            if (contract.side === 'A' || contract.details.includes('Side A')) { billboard.sideAStatus = 'Rented'; billboard.sideAClientId = contract.clientId; }
+            if (contract.side === 'B' || contract.details.includes('Side B')) { billboard.sideBStatus = 'Rented'; billboard.sideBClientId = contract.clientId; }
+            if (contract.side === 'Both') { billboard.sideAStatus = 'Rented'; billboard.sideBStatus = 'Rented'; billboard.sideAClientId = contract.clientId; billboard.sideBClientId = contract.clientId; }
+        } else if (billboard.type === BillboardType.LED) {
+            billboard.rentedSlots = (billboard.rentedSlots || 0) + 1;
+        }
+        await updateBillboard(billboard);
+    }
+    logAction('Create Contract', `New contract for ${contract.billboardId}`);
+    notifyListeners();
+};
+
+export const updateContract = async (updated: Contract) => {
     const oldContract = contracts.find(c => c.id === updated.id);
     if (!oldContract) {
         console.error('Contract not found for update:', updated.id);
         return;
     }
-
-    console.log('Updating contract:', oldContract.id, '->', updated);
-
     contracts = contracts.map(c => c.id === updated.id ? updated : c);
-    saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
-    syncToNeon('contracts', updated);
-
+    if (isConfigured()) {
+        try {
+            await api.put('/api/contracts', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[updateContract] API error:', e);
+        }
+    }
     Array.from(new Set([oldContract.billboardId, updated.billboardId])).forEach(recalcBillboardAvailability);
-
-    syncToCloudMirror();
     logAction('Update Contract', `Modified contract ${updated.id}`);
     notifyListeners();
 };
 
-export const endContract = (id: string) => {
+export const deleteContract = (id: string) => {
+    const contract = contracts.find(c => c.id === id);
+    if (contract) {
+        contracts = contracts.filter(c => c.id !== id);
+        if (isConfigured()) {
+            api.delete('/api/contracts', { id }).catch(e => console.error('[deleteContract] API error:', e));
+        }
+
+        const linkedInvoices = invoices.filter(i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice');
+        if (linkedInvoices.length > 0) {
+            linkedInvoices.forEach(i => {
+                if (isConfigured()) {
+                    api.delete('/api/invoices', { id: i.id }).catch(e => console.error('[deleteContract] API error:', e));
+                }
+            });
+            invoices = invoices.filter(i => !(i.contractId === id && String(i.type || '').toLowerCase() === 'invoice'));
+            logAction('Delete Contract', `Cascade-deleted ${linkedInvoices.length} invoice(s) from contract ${id}`);
+        }
+
+        const linkedAmendments = contractAmendments.filter(a => a.contractId === id);
+        if (linkedAmendments.length > 0) {
+            linkedAmendments.forEach(a => {
+                if (isConfigured()) {
+                    api.delete('/api/contract-amendments', { id: a.id }).catch(e => console.error('[deleteContract] API error:', e));
+                }
+            });
+            contractAmendments = contractAmendments.filter(a => a.contractId !== id);
+            logAction('Delete Contract', `Cascade-deleted ${linkedAmendments.length} amendment(s) from contract ${id}`);
+        }
+
+        const billboard = billboards.find(b => b.id === contract.billboardId);
+        if (billboard) {
+            if (billboard.type === BillboardType.Static) {
+                if (contract.side === 'A' || contract.details.includes('Side A')) { billboard.sideAStatus = 'Available'; billboard.sideAClientId = undefined; }
+                if (contract.side === 'B' || contract.details.includes('Side B')) { billboard.sideBStatus = 'Available'; billboard.sideBClientId = undefined; }
+                if (contract.side === 'Both') { billboard.sideAStatus = 'Available'; billboard.sideBStatus = 'Available'; billboard.sideAClientId = undefined; billboard.sideBClientId = undefined; }
+            } else if (billboard.type === BillboardType.LED) {
+                billboard.rentedSlots = Math.max(0, (billboard.rentedSlots || 0) - 1);
+            }
+            updateBillboard(billboard);
+        }
+
+        logAction('Delete Contract', `Removed contract ${id} and freed up assets`);
+        notifyListeners();
+    }
+};
+
+export const endContract = async (id: string) => {
     const contract = contracts.find(c => c.id === id);
     if (!contract) {
         console.error('Contract not found for ending:', id);
@@ -446,10 +330,12 @@ export const endContract = (id: string) => {
     };
 
     contracts = contracts.map(c => c.id === endedContract.id ? endedContract : c);
-    saveToStorage(STORAGE_KEYS.CONTRACTS, contracts);
-    syncToNeon('contracts', endedContract);
+    if (isConfigured()) {
+        try { await api.put('/api/contracts', endedContract, { id: endedContract.id }); }
+        catch (e) { console.error('[endContract] API error:', e); }
+    }
 
-    // Cancel any pending invoices tied to this contract so they don't remain billable
+    // Cancel any pending invoices tied to this contract
     const pendingInvoices = invoices.filter(i =>
         i.contractId === id &&
         String(i.type || '').toLowerCase() === 'invoice' &&
@@ -457,21 +343,94 @@ export const endContract = (id: string) => {
     );
     pendingInvoices.forEach(inv => {
         invoices = invoices.filter(i => i.id !== inv.id);
-        queueForDeletion('invoices', inv.id);
+        if (isConfigured()) {
+            api.delete('/api/invoices', { id: inv.id }).catch(e => console.error('[endContract] API error:', e));
+        }
     });
-    if (pendingInvoices.length > 0) {
-        saveToStorage(STORAGE_KEYS.INVOICES, invoices);
-    }
 
-    // Recalculate billboard availability to free up side/slot
     recalcBillboardAvailability(contract.billboardId);
-
-    syncToCloudMirror();
     logAction('End Contract', `Ended contract ${id} — marked as Expired, availability freed, ${pendingInvoices.length} pending invoice(s) cancelled`);
     notifyListeners();
 };
 
-export const convertInvoiceType = (id: string, newType: Invoice['type']) => {
+const auditLogToApi = async (action: string, details: string, tableName?: string, recordId?: string) => {
+    if (!isConfigured()) return;
+    try {
+        await api.post('/api/audit-logs', { action, details, tableName, recordId });
+    } catch (e) {
+        console.warn('[auditLogToApi] Failed to push audit log to server:', e);
+    }
+};
+
+export const permanentDeleteContract = (id: string): { success: boolean; error?: string } => {
+    const contract = contracts.find(c => c.id === id);
+    if (!contract) {
+        return { success: false, error: 'Contract not found' };
+    }
+
+    // Safety guard: only allow deletion of expired/ended contracts
+    if (contract.status !== 'Expired') {
+        return { success: false, error: 'Only contracts with status "Expired" can be permanently deleted. End the contract first.' };
+    }
+
+    try {
+        const linkedInvoiceIds = invoices.filter(i => i.contractId === id).map(i => i.id);
+        const linkedAmendmentIds = contractAmendments.filter(a => a.contractId === id).map(a => a.id);
+
+        // If API is configured, push audit log + deletes to Neon FIRST
+        if (isConfigured()) {
+            auditLogToApi(
+                'Permanent Delete Contract',
+                `Permanently deleted contract ${id} (${contract.billboardId}, ${contract.startDate}–${contract.endDate}) and all linked records`,
+                'contracts',
+                id
+            );
+            linkedInvoiceIds.forEach(iid => api.delete('/api/invoices', { id: iid }).catch(e => console.error('[permanentDeleteContract] API error:', e)));
+            linkedAmendmentIds.forEach(aid => api.delete('/api/contract-amendments', { id: aid }).catch(e => console.error('[permanentDeleteContract] API error:', e)));
+            api.delete('/api/contracts', { id }).catch(e => console.error('[permanentDeleteContract] API error:', e));
+        }
+
+        // Local audit log BEFORE deletion so the log itself is preserved
+        logAction('Permanent Delete Contract', `Permanently deleted contract ${id} (${contract.billboardId}, ${contract.startDate}–${contract.endDate}) and all linked records`);
+
+        // Delete ALL linked invoices locally
+        if (linkedInvoiceIds.length > 0) {
+            invoices = invoices.filter(i => i.contractId !== id);
+        }
+
+        // Delete all linked amendments locally
+        if (linkedAmendmentIds.length > 0) {
+            contractAmendments = contractAmendments.filter(a => a.contractId !== id);
+        }
+
+        // Free billboard availability directly
+        const billboard = billboards.find(b => b.id === contract.billboardId);
+        if (billboard) {
+            if (billboard.type === BillboardType.Static) {
+                if (contract.side === 'A' || contract.details.includes('Side A')) { billboard.sideAStatus = 'Available'; billboard.sideAClientId = undefined; }
+                if (contract.side === 'B' || contract.details.includes('Side B')) { billboard.sideBStatus = 'Available'; billboard.sideBClientId = undefined; }
+                if (contract.side === 'Both') { billboard.sideAStatus = 'Available'; billboard.sideBStatus = 'Available'; billboard.sideAClientId = undefined; billboard.sideBClientId = undefined; }
+            } else if (billboard.type === BillboardType.LED) {
+                billboard.rentedSlots = Math.max(0, (billboard.rentedSlots || 0) - 1);
+            }
+            billboards = billboards.map(b => b.id === billboard.id ? billboard : b);
+            if (isConfigured()) {
+                api.put('/api/billboards', billboard, { id: billboard.id }).catch(e => console.error('[permanentDeleteContract] API error:', e));
+            }
+        }
+
+        // Delete the contract itself last
+        contracts = contracts.filter(c => c.id !== id);
+
+        notifyListeners();
+        return { success: true };
+    } catch (e: any) {
+        console.error('[permanentDeleteContract]', e);
+        return { success: false, error: e.message || 'Unknown error during deletion' };
+    }
+};
+
+export const convertInvoiceType = async (id: string, newType: Invoice['type']) => {
     const invoice = invoices.find(i => i.id === id);
     if (!invoice) {
         console.error('Invoice not found for type conversion:', id);
@@ -479,9 +438,13 @@ export const convertInvoiceType = (id: string, newType: Invoice['type']) => {
     }
     const updated: Invoice = { ...invoice, type: newType };
     invoices = invoices.map(i => i.id === updated.id ? updated : i);
-    saveToStorage(STORAGE_KEYS.INVOICES, invoices);
-    syncToCloudMirror();
-    syncToNeon('invoices', updated);
+    if (isConfigured()) {
+        try {
+            await api.put('/api/invoices', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[convertInvoiceType] API error:', e);
+        }
+    }
     logAction('Convert Invoice Type', `Converted Invoice #${id} to ${newType}`);
     notifyListeners();
 };
@@ -516,15 +479,25 @@ const recalcBillboardAvailability = (billboardId: string) => {
         b.rentedSlots = Math.min(b.totalSlots || 0, contractSlots + invoiceSlots);
     }
     billboards = billboards.map(x => x.id === b.id ? b : x);
-    saveToStorage(STORAGE_KEYS.BILLBOARDS, billboards);
-    syncToNeon('billboards', b);
+    if (isConfigured()) {
+        api.put('/api/billboards', b, { id: b.id }).catch(e => console.error('[recalcBillboardAvailability] API error:', e));
+    }
 };
 
-export const addInvoice = (invoice: Invoice) => {
-    invoices = [invoice, ...invoices];
-    saveToStorage(STORAGE_KEYS.INVOICES, invoices);
-    syncToCloudMirror();
-    syncToNeon('invoices', invoice);
+// --- Invoice CRUD ---
+export const addInvoice = async (invoice: Invoice) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<Invoice>('/api/invoices', invoice);
+            invoices = [created, ...invoices];
+            invoice = created;
+        } catch (e) {
+            console.error('[addInvoice] API error, using local:', e);
+            invoices = [invoice, ...invoices];
+        }
+    } else {
+        invoices = [invoice, ...invoices];
+    }
     if (String(invoice.type || '').toLowerCase() === 'invoice') {
         const touched = Array.from(new Set((invoice.items || []).map(it => it.billboardId).filter((id): id is string => !!id)));
         touched.forEach(recalcBillboardAvailability);
@@ -533,18 +506,29 @@ export const addInvoice = (invoice: Invoice) => {
     logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`);
     notifyListeners();
 };
-export const markInvoiceAsPaid = (id: string) => { invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i); saveToStorage(STORAGE_KEYS.INVOICES, invoices); syncToCloudMirror(); const updated = invoices.find(i => i.id === id); if(updated) syncToNeon('invoices', updated); logAction('Payment', `Marked Invoice #${id} as Paid`); notifyListeners(); };
 
-export const updateInvoice = (updated: Invoice) => {
+export const markInvoiceAsPaid = async (id: string) => {
+    invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i);
+    const updated = invoices.find(i => i.id === id);
+    if (updated && isConfigured()) {
+        try {
+            await api.put('/api/invoices', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[markInvoiceAsPaid] API error:', e);
+        }
+    }
+    logAction('Payment', `Marked Invoice #${id} as Paid`);
+    notifyListeners();
+};
+
+export const updateInvoice = async (updated: Invoice) => {
     const old = invoices.find(i => i.id === updated.id);
     if (!old) {
         console.error('Invoice not found for update:', updated.id);
         return;
     }
     invoices = invoices.map(i => i.id === updated.id ? updated : i);
-    saveToStorage(STORAGE_KEYS.INVOICES, invoices);
 
-    // Recalculate availability if billboard references changed
     const oldBillboards = new Set((old.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
     const newBillboards = new Set((updated.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
     if (String(old.type || '').toLowerCase() === 'invoice' || String(updated.type || '').toLowerCase() === 'invoice') {
@@ -552,8 +536,13 @@ export const updateInvoice = (updated: Invoice) => {
         allBillboards.forEach(recalcBillboardAvailability);
     }
 
-    syncToCloudMirror();
-    syncToNeon('invoices', updated);
+    if (isConfigured()) {
+        try {
+            await api.put('/api/invoices', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[updateInvoice] API error:', e);
+        }
+    }
     logAction('Update Invoice', `Updated ${updated.type} #${updated.id}`);
     notifyListeners();
 };
@@ -568,21 +557,23 @@ export const deleteInvoice = (id: string) => {
 
         // Try to revert invoice status if this was a receipt
         if (target.type === 'Receipt') {
-             const desc = target.items?.[0]?.description || '';
-             const match = desc.match(/Invoice #([A-Za-z0-9-]+)/);
-             if (match && match[1]) {
-                 const linkedInvoiceId = match[1];
-                 const invoice = invoices.find(i => i.id === linkedInvoiceId);
-                 if (invoice) {
-                     invoice.status = 'Pending';
-                     syncToNeon('invoices', invoice);
-                 }
-             }
+            const desc = target.items?.[0]?.description || '';
+            const match = desc.match(/Invoice #([A-Za-z0-9-]+)/);
+            if (match && match[1]) {
+                const linkedInvoiceId = match[1];
+                const invoice = invoices.find(i => i.id === linkedInvoiceId);
+                if (invoice) {
+                    invoice.status = 'Pending';
+                    if (isConfigured()) {
+                        api.put('/api/invoices', invoice, { id: invoice.id }).catch(e => console.error('[deleteInvoice] API error:', e));
+                    }
+                }
+            }
         }
 
-        saveToStorage(STORAGE_KEYS.INVOICES, invoices);
-        syncToCloudMirror();
-        queueForDeletion('invoices', id);
+        if (isConfigured()) {
+            api.delete('/api/invoices', { id }).catch(e => console.error('[deleteInvoice] API error:', e));
+        }
         if (touchedBillboards.length > 0) {
             touchedBillboards.forEach(recalcBillboardAvailability);
             logAction('Billboard Availability', `Recalculated ${touchedBillboards.length} billboard${touchedBillboards.length > 1 ? 's' : ''} after deleting Invoice #${id}`);
@@ -592,23 +583,281 @@ export const deleteInvoice = (id: string) => {
     }
 };
 
-export const addExpense = (expense: Expense) => { expenses = [expense, ...expenses]; saveToStorage(STORAGE_KEYS.EXPENSES, expenses); syncToCloudMirror(); syncToNeon('expenses', expense); logAction('Expense', `Recorded expense: ${expense.description} ($${expense.amount})`); notifyListeners(); };
-export const deleteExpense = (id: string) => { const target = expenses.find(e => e.id === id); if (target) { expenses = expenses.filter(e => e.id !== id); saveToStorage(STORAGE_KEYS.EXPENSES, expenses); syncToCloudMirror(); queueForDeletion('expenses', id); logAction('Expense Deleted', `Removed expense: ${target.description} ($${target.amount})`); notifyListeners(); } };
-export const addClient = (client: Client) => { clients = [...clients, client]; saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); syncToNeon('clients', client); logAction('Create Client', `Added ${client.companyName}`); notifyListeners(); };
-export const updateClient = (updated: Client) => { clients = clients.map(c => c.id === updated.id ? updated : c); saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); syncToNeon('clients', updated); logAction('Update Client', `Updated info for ${updated.companyName}`); notifyListeners(); };
-export const deleteClient = (id: string) => { const target = clients.find(c => c.id === id); if (target) { clients = clients.filter(c => c.id !== id); saveToStorage(STORAGE_KEYS.CLIENTS, clients); syncToCloudMirror(); queueForDeletion('clients', id); logAction('Delete Client', `Removed ${target.companyName}`); notifyListeners(); } };
-export const addUser = (user: User) => { users = [...users, user]; saveToStorage(STORAGE_KEYS.USERS, users); syncToCloudMirror(); syncToNeon('users', user); logAction('User Mgmt', `Added user ${user.email} (Status: ${user.status})`); notifyListeners(); };
-export const updateUser = (updated: User) => { users = users.map(u => u.id === updated.id ? updated : u); saveToStorage(STORAGE_KEYS.USERS, users); syncToCloudMirror(); syncToNeon('users', updated); logAction('User Mgmt', `Updated user ${updated.email}`); notifyListeners(); };
-export const deleteUser = (id: string) => { users = users.filter(u => u.id !== id); saveToStorage(STORAGE_KEYS.USERS, users); syncToCloudMirror(); queueForDeletion('users', id); logAction('User Mgmt', `Deleted user ID ${id}`); notifyListeners(); };
+// --- Expense CRUD ---
+export const addExpense = async (expense: Expense) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<Expense>('/api/expenses', expense);
+            expenses = [created, ...expenses];
+        } catch (e) {
+            console.error('[addExpense] API error, using local:', e);
+            expenses = [expense, ...expenses];
+        }
+    } else {
+        expenses = [expense, ...expenses];
+    }
+    logAction('Expense', `Recorded expense: ${expense.description} ($${expense.amount})`);
+    notifyListeners();
+};
+
+export const deleteExpense = (id: string) => {
+    const target = expenses.find(e => e.id === id);
+    if (target) {
+        expenses = expenses.filter(e => e.id !== id);
+        if (isConfigured()) {
+            api.delete('/api/expenses', { id }).catch(e => console.error('[deleteExpense] API error:', e));
+        }
+        logAction('Expense Deleted', `Removed expense: ${target.description} ($${target.amount})`);
+        notifyListeners();
+    }
+};
+
+// --- Client CRUD ---
+export const addClient = async (client: Client) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<Client>('/api/clients', client);
+            clients = [...clients, created];
+        } catch (e) {
+            console.error('[addClient] API error, using local:', e);
+            clients = [...clients, client];
+        }
+    } else {
+        clients = [...clients, client];
+    }
+    logAction('Create Client', `Added ${client.companyName}`);
+    notifyListeners();
+};
+
+export const updateClient = async (updated: Client) => {
+    clients = clients.map(c => c.id === updated.id ? updated : c);
+    if (isConfigured()) {
+        try {
+            await api.put('/api/clients', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[updateClient] API error:', e);
+        }
+    }
+    logAction('Update Client', `Updated info for ${updated.companyName}`);
+    notifyListeners();
+};
+
+export const deleteClient = (id: string) => {
+    const target = clients.find(c => c.id === id);
+    if (target) {
+        clients = clients.filter(c => c.id !== id);
+        if (isConfigured()) {
+            api.delete('/api/clients', { id }).catch(e => console.error('[deleteClient] API error:', e));
+        }
+        logAction('Delete Client', `Removed ${target.companyName}`);
+        notifyListeners();
+    }
+};
+
+// --- User CRUD ---
+export const addUser = async (user: User) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<User>('/api/users', user);
+            users = [...users, created];
+        } catch (e) {
+            console.error('[addUser] API error, using local:', e);
+            users = [...users, user];
+        }
+    } else {
+        users = [...users, user];
+    }
+    logAction('User Mgmt', `Added user ${user.email} (Status: ${user.status})`);
+    notifyListeners();
+};
+
+export const updateUser = async (updated: User) => {
+    users = users.map(u => u.id === updated.id ? updated : u);
+    if (isConfigured()) {
+        try {
+            await api.put('/api/users', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[updateUser] API error:', e);
+        }
+    }
+    logAction('User Mgmt', `Updated user ${updated.email}`);
+    notifyListeners();
+};
+
+export const deleteUser = (id: string) => {
+    users = users.filter(u => u.id !== id);
+    if (isConfigured()) {
+        api.delete('/api/users', { id }).catch(e => console.error('[deleteUser] API error:', e));
+    }
+    logAction('User Mgmt', `Deleted user ID ${id}`);
+    notifyListeners();
+};
+
+export const fetchLatestUsers = async (): Promise<User[]> => {
+    if (isConfigured()) {
+        try {
+            const usersData = await api.get<User[]>('/api/users');
+            if (usersData) {
+                users = usersData;
+                return usersData;
+            }
+        } catch (e) {
+            console.error('[fetchLatestUsers] API error:', e);
+        }
+    }
+    return users;
+};
+
+// --- Printing Job CRUD ---
 export const getPrintingJobs = () => printingJobs || [];
-export const addPrintingJob = (job: PrintingJob) => { printingJobs = [job, ...printingJobs]; saveToStorage(STORAGE_KEYS.PRINTING, printingJobs); syncToCloudMirror(); syncToNeon('printing-jobs', job); logAction('Printing', `New print job: ${job.description} ($${job.chargedAmount})`); notifyListeners(); };
-export const addOutsourcedBillboard = (b: OutsourcedBillboard) => { outsourcedBillboards = [...outsourcedBillboards, b]; saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); syncToNeon('outsourced', b); logAction('Outsourcing', `Added outsourced unit ${b.billboardId}`); notifyListeners(); };
-export const updateOutsourcedBillboard = (updated: OutsourcedBillboard) => { outsourcedBillboards = outsourcedBillboards.map(b => b.id === updated.id ? updated : b); saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); syncToNeon('outsourced', updated); notifyListeners(); };
-export const deleteOutsourcedBillboard = (id: string) => { outsourcedBillboards = outsourcedBillboards.filter(b => b.id !== id); saveToStorage(STORAGE_KEYS.OUTSOURCED, outsourcedBillboards); syncToCloudMirror(); queueForDeletion('outsourced', id); notifyListeners(); };
-export const addTask = (task: Task) => { tasks = [task, ...tasks]; saveToStorage(STORAGE_KEYS.TASKS, tasks); syncToCloudMirror(); syncToNeon('tasks', task); logAction('Task Created', `New task: ${task.title}`); notifyListeners(); };
-export const updateTask = (updated: Task) => { tasks = tasks.map(t => t.id === updated.id ? updated : t); saveToStorage(STORAGE_KEYS.TASKS, tasks); syncToCloudMirror(); syncToNeon('tasks', updated); notifyListeners(); };
-export const deleteTask = (id: string) => { const target = tasks.find(t => t.id === id); if(target) { tasks = tasks.filter(t => t.id !== id); saveToStorage(STORAGE_KEYS.TASKS, tasks); syncToCloudMirror(); queueForDeletion('tasks', id); logAction('Task Deleted', `Removed task: ${target.title}`); notifyListeners(); } };
-export const addMaintenanceLog = (log: MaintenanceLog) => { maintenanceLogs = [log, ...maintenanceLogs]; saveToStorage(STORAGE_KEYS.MAINTENANCE, maintenanceLogs); syncToNeon('maintenance', log); const billboard = billboards.find(b => b.id === log.billboardId); if (billboard) { billboard.lastMaintenanceDate = log.date; updateBillboard(billboard); } syncToCloudMirror(); logAction('Maintenance', `Logged maintenance for ${billboard?.name || log.billboardId}`); notifyListeners(); };
+
+export const addPrintingJob = async (job: PrintingJob) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<PrintingJob>('/api/printing-jobs', job);
+            printingJobs = [created, ...printingJobs];
+        } catch (e) {
+            console.error('[addPrintingJob] API error, using local:', e);
+            printingJobs = [job, ...printingJobs];
+        }
+    } else {
+        printingJobs = [job, ...printingJobs];
+    }
+    logAction('Printing', `New print job: ${job.description} ($${job.chargedAmount})`);
+    notifyListeners();
+};
+
+// --- Outsourced Billboard CRUD ---
+export const addOutsourcedBillboard = async (b: OutsourcedBillboard) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<OutsourcedBillboard>('/api/outsourced', b);
+            outsourcedBillboards = [...outsourcedBillboards, created];
+        } catch (e) {
+            console.error('[addOutsourcedBillboard] API error, using local:', e);
+            outsourcedBillboards = [...outsourcedBillboards, b];
+        }
+    } else {
+        outsourcedBillboards = [...outsourcedBillboards, b];
+    }
+    logAction('Outsourcing', `Added outsourced unit ${b.billboardId}`);
+    notifyListeners();
+};
+
+export const updateOutsourcedBillboard = async (updated: OutsourcedBillboard) => {
+    outsourcedBillboards = outsourcedBillboards.map(b => b.id === updated.id ? updated : b);
+    if (isConfigured()) {
+        try {
+            await api.put('/api/outsourced', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[updateOutsourcedBillboard] API error:', e);
+        }
+    }
+    notifyListeners();
+};
+
+export const deleteOutsourcedBillboard = (id: string) => {
+    outsourcedBillboards = outsourcedBillboards.filter(b => b.id !== id);
+    if (isConfigured()) {
+        api.delete('/api/outsourced', { id }).catch(e => console.error('[deleteOutsourcedBillboard] API error:', e));
+    }
+    notifyListeners();
+};
+
+// --- Task CRUD ---
+export const addTask = async (task: Task) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<Task>('/api/tasks', task);
+            tasks = [created, ...tasks];
+        } catch (e) {
+            console.error('[addTask] API error, using local:', e);
+            tasks = [task, ...tasks];
+        }
+    } else {
+        tasks = [task, ...tasks];
+    }
+    logAction('Task Created', `New task: ${task.title}`);
+    notifyListeners();
+};
+
+export const updateTask = async (updated: Task) => {
+    tasks = tasks.map(t => t.id === updated.id ? updated : t);
+    if (isConfigured()) {
+        try {
+            await api.put('/api/tasks', updated, { id: updated.id });
+        } catch (e) {
+            console.error('[updateTask] API error:', e);
+        }
+    }
+    notifyListeners();
+};
+
+export const deleteTask = (id: string) => {
+    const target = tasks.find(t => t.id === id);
+    if (target) {
+        tasks = tasks.filter(t => t.id !== id);
+        if (isConfigured()) {
+            api.delete('/api/tasks', { id }).catch(e => console.error('[deleteTask] API error:', e));
+        }
+        logAction('Task Deleted', `Removed task: ${target.title}`);
+        notifyListeners();
+    }
+};
+
+// --- Maintenance Log CRUD ---
+export const addMaintenanceLog = async (log: MaintenanceLog) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<MaintenanceLog>('/api/maintenance', log);
+            maintenanceLogs = [created, ...maintenanceLogs];
+            log = created;
+        } catch (e) {
+            console.error('[addMaintenanceLog] API error, using local:', e);
+            maintenanceLogs = [log, ...maintenanceLogs];
+        }
+    } else {
+        maintenanceLogs = [log, ...maintenanceLogs];
+    }
+    const billboard = billboards.find(b => b.id === log.billboardId);
+    if (billboard) {
+        billboard.lastMaintenanceDate = log.date;
+        await updateBillboard(billboard);
+    }
+    logAction('Maintenance', `Logged maintenance for ${billboard?.name || log.billboardId}`);
+    notifyListeners();
+};
+
+// --- Contract Amendment CRUD ---
+export const getContractAmendmentsForContract = (contractId: string) => contractAmendments.filter(a => a.contractId === contractId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+export const addContractAmendment = async (amendment: ContractAmendment) => {
+    if (isConfigured()) {
+        try {
+            const created = await api.post<ContractAmendment>('/api/contract-amendments', amendment);
+            contractAmendments = [created, ...contractAmendments];
+        } catch (e) {
+            console.error('[addContractAmendment] API error, using local:', e);
+            contractAmendments = [amendment, ...contractAmendments];
+        }
+    } else {
+        contractAmendments = [amendment, ...contractAmendments];
+    }
+    logAction('Contract Amendment', `${amendment.type} on contract ${amendment.contractId}: ${amendment.monthsChanged > 0 ? '+' : ''}${amendment.monthsChanged.toFixed(1)} months, impact $${amendment.financialImpact.toLocaleString()}`);
+    notifyListeners();
+};
+
+export const deleteContractAmendment = (id: string) => {
+    const target = contractAmendments.find(a => a.id === id);
+    if (target) {
+        contractAmendments = contractAmendments.filter(a => a.id !== id);
+        if (isConfigured()) {
+            api.delete('/api/contract-amendments', { id }).catch(e => console.error('[deleteContractAmendment] API error:', e));
+        }
+        logAction('Delete Amendment', `Removed amendment ${id} from contract ${target.contractId}`);
+        notifyListeners();
+    }
+};
 
 export const RELEASE_NOTES = [
     {
@@ -690,31 +939,23 @@ export const RELEASE_NOTES = [
     }
 ];
 
+// --- Stub functions (previously localStorage-dependent, now no-ops) ---
+export const triggerAutoBackup = () => {};
+export const runMaintenanceCheck = () => 0;
+export const syncToNeon = async () => {};
+export const simulateCloudSync = async () => new Date().toISOString();
+export const createSystemBackup = () => '{}';
+export const restoreSystemBackup = async (_data: string) => ({ success: false, count: 0 });
+export const getLastManualBackupDate = () => 'N/A';
+export const getAutoBackupStatus = () => 'N/A';
+export const getStorageUsage = () => '0 B';
+export const getLastCloudBackupDate = () => 'N/A';
+export const verifyDataIntegrity = () => null;
+
+// --- Getters ---
 export const getBillboards = () => billboards || [];
 export const getContracts = () => contracts || [];
 export const getContractAmendments = () => contractAmendments || [];
-export const getContractAmendmentsForContract = (contractId: string) => contractAmendments.filter(a => a.contractId === contractId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-export const addContractAmendment = (amendment: ContractAmendment) => {
-    contractAmendments = [amendment, ...contractAmendments];
-    saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments);
-    syncToNeon('contract-amendments', amendment);
-    syncToCloudMirror();
-    logAction('Contract Amendment', `${amendment.type} on contract ${amendment.contractId}: ${amendment.monthsChanged > 0 ? '+' : ''}${amendment.monthsChanged.toFixed(1)} months, impact $${amendment.financialImpact.toLocaleString()}`);
-    notifyListeners();
-};
-
-export const deleteContractAmendment = (id: string) => {
-    const target = contractAmendments.find(a => a.id === id);
-    if (target) {
-        contractAmendments = contractAmendments.filter(a => a.id !== id);
-        saveToStorage(STORAGE_KEYS.CONTRACT_AMENDMENTS, contractAmendments);
-        syncToCloudMirror();
-        queueForDeletion('contract-amendments', id);
-        logAction('Delete Amendment', `Removed amendment ${id} from contract ${target.contractId}`);
-        notifyListeners();
-    }
-};
 export const getInvoices = () => invoices || [];
 export const getExpenses = () => expenses || [];
 export const getAuditLogs = () => auditLogs || [];
@@ -727,7 +968,10 @@ export const getCompanyLogo = () => companyLogo;
 export const getCompanyProfile = () => companyProfile;
 export const findUser = (identifier: string) => { const term = identifier.toLowerCase().trim(); return users.find(u => u.email.toLowerCase() === term || (u.username && u.username.toLowerCase() === term)); };
 export const findUserByEmail = findUser;
+
+// --- Computed Functions ---
 export const getPendingInvoices = () => invoices.filter(inv => inv.status === 'Pending' && String(inv.type || '').toLowerCase() === 'invoice');
+
 export const getClientFinancials = (clientId: string) => {
   const clientInvoices = invoices.filter(i => (i.clientId || (i as any).client_id) === clientId);
   const totalBilled = clientInvoices
@@ -738,21 +982,22 @@ export const getClientFinancials = (clientId: string) => {
     .reduce((sum, i) => sum + (Number(i.total) || Number(i.subtotal) || 0), 0);
   return { totalBilled, totalPaid, balance: totalBilled - totalPaid };
 };
+
 export const getTransactions = (clientId: string) => invoices.filter(i => {
   const id = i.clientId || (i as any).client_id;
   const t = String(i.type || '').toLowerCase();
   return id === clientId && (t === 'invoice' || t === 'receipt');
 }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
 export const getNextBillingDetails = (clientId: string) => { /* ... existing ... */ return null; };
+
 export const getUpcomingBillings = () => {
   const today = new Date();
   const in30 = new Date(today);
   in30.setDate(today.getDate() + 30);
   const results: { clientName: string; amount: number; date: string; contractId: string; day: number }[] = [];
   contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today).forEach(contract => {
-    // Billing day = same day-of-month as contract start
     const startDay = new Date(contract.startDate).getDate();
-    // Find next billing date from today
     const candidate = new Date(today.getFullYear(), today.getMonth(), startDay);
     if (candidate < today) candidate.setMonth(candidate.getMonth() + 1);
     if (candidate <= in30) {
@@ -769,12 +1014,14 @@ export const getUpcomingBillings = () => {
   });
   return results.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
+
 export const getExpiringContracts = () => {
   const today = new Date();
   const in30 = new Date(today);
   in30.setDate(today.getDate() + 30);
   return contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today && new Date(c.endDate) <= in30);
 };
+
 export const markOverdueInvoices = () => {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
@@ -786,23 +1033,23 @@ export const markOverdueInvoices = () => {
     }
     return inv;
   });
-  if (changed) { saveToStorage(STORAGE_KEYS.INVOICES, invoices); notifyListeners(); }
+  if (changed) { notifyListeners(); }
 };
+
 export const getOverdueInvoices = () => { markOverdueInvoices(); return invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice'); };
+
 export const getSystemAlertCount = () => getExpiringContracts().length + invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice').length;
+
 export const getFinancialTrends = () => {
-  // Calculate actual monthly revenue and gross profit from invoices + contract COGS
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const currentMonth = new Date().getMonth();
   
-  // Get last 6 months of data
   const result = [];
   for (let i = 5; i >= 0; i--) {
     const monthIndex = (currentMonth - i + 12) % 12;
     const year = new Date().getFullYear() - (currentMonth - i < 0 ? 1 : 0);
     const monthName = months[monthIndex];
     
-    // Get invoices for this month
     const monthInvoices = invoices.filter(inv => {
       const invDate = new Date(inv.date);
       return String(inv.type || '').toLowerCase() === 'invoice' &&
@@ -812,7 +1059,6 @@ export const getFinancialTrends = () => {
     
     const revenue = monthInvoices.reduce((sum, inv) => sum + inv.total, 0);
     
-    // COGS for this month: contracts that started this month (one-time costs incurred)
     const monthContracts = contracts.filter(c => {
       const start = new Date(c.startDate);
       return start.getMonth() === monthIndex && start.getFullYear() === year;
@@ -821,10 +1067,8 @@ export const getFinancialTrends = () => {
     const monthCOGS = monthContracts.reduce((sum, c) => 
       sum + (c.installationCost || 0) + (c.printingCost || 0) + (c.productionCost || 0), 0);
     
-    // Add outsourced payouts for this month (actual monthly)
     const outsourcedMonthly = outsourcedBillboards.reduce((sum, b) => sum + (b.monthlyPayout || 0), 0);
     
-    // Add operational expenses for this month
     const operationalMonthly = expenses.filter(e => {
       const d = new Date(e.date);
       return d.getMonth() === monthIndex && d.getFullYear() === year;
@@ -836,7 +1080,7 @@ export const getFinancialTrends = () => {
     result.push({
       name: monthName,
       revenue: revenue,
-      margin: grossProfit, // renamed to margin for backward compatibility with chart
+      margin: grossProfit,
       expenses: cogs,
     });
   }

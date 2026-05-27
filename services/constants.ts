@@ -15,13 +15,6 @@ export const BILLING_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 export const MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 export const ALERT_CHECK_INTERVAL_MS = 10000; // 10 seconds
 
-// Data Sync Windows
-export const NEW_ITEM_WINDOW_MS = 10 * 60 * 1000; // 10 minutes for new items
-export const RESTORE_GRACE_PERIOD_MS = 5 * 60 * 1000; // 5 minutes after restore
-
-// Deleted queue stale after 7 days — entries older than this are purged automatically
-export const DELETED_QUEUE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
-
 // Timeouts
 export const API_TIMEOUT_MS = 30000;
 export const LOGIN_DELAY_MS = 800;
@@ -60,33 +53,20 @@ export const MIN_PASSWORD_LENGTH = 6;
 export const PHONE_REGEX = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/;
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Storage Keys (centralized to prevent typos)
+// Storage Keys — data is now API-first (keys kept for utility/legacy code)
 export const STORAGE_KEYS = {
-  BILLBOARDS: 'db_billboards',
-  CONTRACTS: 'db_contracts',
-  CONTRACT_AMENDMENTS: 'db_contract_amendments',
-  INVOICES: 'db_invoices',
-  EXPENSES: 'db_expenses',
-  USERS: 'db_users',
-  CLIENTS: 'db_clients',
-  LOGS: 'db_logs',
-  OUTSOURCED: 'db_outsourced',
-  PRINTING: 'db_printing',
-  TASKS: 'db_tasks',
-  MAINTENANCE: 'db_maintenance_logs',
-  LOGO: 'db_logo',
-  PROFILE: 'db_company_profile',
-  LAST_BACKUP: 'db_last_backup_meta',
-  AUTO_BACKUP: 'db_auto_backup_data',
-  CLOUD_BACKUP: 'db_cloud_backup_meta',
-  CLOUD_MIRROR: 'db_cloud_mirror_data',
-  DATA_VERSION: 'db_data_version',
-  RESTORE_TIMESTAMP: 'db_restore_timestamp',
-  DELETED_QUEUE: 'db_deleted_queue',
   CURRENT_USER: 'billboard_user',
   AUTH_TOKEN: 'db_auth_token',
-  
-  // CRM System
+  LOGS: 'db_logs',
+  AUTO_BACKUP: 'db_auto_backup_data',
+  CLOUD_MIRROR: 'db_cloud_mirror_data',
+  DELETED_QUEUE: 'db_deleted_queue',
+  INVOICES: 'db_invoices',
+  BILLBOARDS: 'db_billboards',
+  CONTRACTS: 'db_contracts',
+  CLIENTS: 'db_clients',
+
+  // CRM — still uses localStorage-based persistence
   CRM_COMPANIES: 'db_crm_companies',
   CRM_CONTACTS: 'db_crm_contacts',
   CRM_OPPORTUNITIES: 'db_crm_opportunities',

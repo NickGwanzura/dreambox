@@ -58,7 +58,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const { id, dbCreatedAt, updatedAt, ...data } = req.body ?? {};
+      // Only pick fields that exist in the Prisma schema
+      const {
+        id, clientId, billboardId, startDate, endDate, monthlyRate,
+        installationCost, printingCost, productionCost, hasVat,
+        totalContractValue, status, details, slotNumber, side,
+        createdAt, lastModifiedDate, lastModifiedBy, assignedTo, masterContractId,
+      } = req.body ?? {};
+      const data = {
+        id, clientId, billboardId, startDate, endDate, monthlyRate,
+        installationCost: installationCost ?? 0,
+        printingCost: printingCost ?? 0,
+        productionCost: productionCost ?? 0,
+        hasVat: hasVat ?? false,
+        totalContractValue: totalContractValue ?? monthlyRate,
+        status: status ?? 'Pending',
+        details: details ?? '',
+        slotNumber: slotNumber ?? null,
+        side: side ?? null,
+        createdAt: createdAt ?? null,
+        lastModifiedDate: lastModifiedDate ?? null,
+        lastModifiedBy: lastModifiedBy ?? null,
+        assignedTo: assignedTo ?? null,
+        masterContractId: masterContractId ?? null,
+      };
       const row = await prisma.contract.create({ data });
       return res.status(201).json(row);
     }
@@ -88,14 +111,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
-      // Cascade-delete linked invoices and amendments in the same transaction so a deleted
-      // contract never leaves behind orphan records. Receipts and quotations are preserved.
+
+      // Verify the contract exists
+      const existing = await prisma.contract.findUnique({ where: { id: id as string } });
+      if (!existing) {
+        return res.status(404).json({ error: 'Contract not found' });
+      }
+
+      // Safety guard: only allow deletion of contracts that are already ended/expired
+      if (existing.status !== 'Expired') {
+        return res.status(400).json({
+          error: 'Only contracts with status "Expired" can be permanently deleted. End the contract first.',
+        });
+      }
+
+      // Cascade-delete ALL linked data in a single transaction so partial deletion is impossible.
       const [invoicesRes, amendmentsRes] = await prisma.$transaction([
-        prisma.invoice.deleteMany({ where: { contractId: id as string, type: 'Invoice' } }),
+        prisma.invoice.deleteMany({ where: { contractId: id as string } }),
         prisma.contractAmendment.deleteMany({ where: { contractId: id as string } }),
       ]);
       await prisma.contract.delete({ where: { id: id as string } });
-      return res.status(200).json({ success: true, invoicesDeleted: invoicesRes.count, amendmentsDeleted: amendmentsRes.count });
+
+      // Write audit log server-side
+      await prisma.auditLog.create({
+        data: {
+          action: 'Permanent Delete',
+          details: `Deleted contract ${id} (${existing.clientId}, ${existing.monthlyRate}/mo, invoices: ${invoicesRes.count}, amendments: ${amendmentsRes.count})`,
+          userId: payload.userId,
+          userEmail: payload.email,
+          tableName: 'contracts',
+          recordId: id as string,
+        },
+      }).catch((e: any) => console.warn('[contracts] audit log write failed:', e?.message));
+
+      return res.status(200).json({
+        success: true,
+        invoicesDeleted: invoicesRes.count,
+        amendmentsDeleted: amendmentsRes.count,
+      });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

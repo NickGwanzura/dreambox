@@ -469,6 +469,26 @@ model CRMCallLog {
 }
 
 // ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  details   String
+  userId    String?
+  userEmail String?
+  tableName String?
+  recordId  String?
+  createdAt DateTime @default(now())
+
+  @@index([tableName])
+  @@index([recordId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================
 // ENUMS
 // ============================================================
 

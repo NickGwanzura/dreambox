@@ -106,6 +106,7 @@ async function registerRoutes() {
   log.boot('  Auth routes        ✓  (signin, signup, me, reset-password, update-password, resend-verification)');
 
   // Core resources
+  const auditLogs    = await import('./api/audit-logs.js');
   const billboards   = await import('./api/billboards.js');
   const clients      = await import('./api/clients.js');
   const contracts    = await import('./api/contracts.js');
@@ -122,6 +123,7 @@ async function registerRoutes() {
 
   app.all('/api/billboards',            adapt(billboards,          'billboards'));
   app.all('/api/clients',               adapt(clients,             'clients'));
+  app.all('/api/audit-logs',            adapt(auditLogs,           'audit-logs'));
   app.all('/api/contracts',             adapt(contracts,           'contracts'));
   app.all('/api/contract-amendments',   adapt(contractAmendments,  'contract-amendments'));
   app.all('/api/invoices',              adapt(invoices,            'invoices'));

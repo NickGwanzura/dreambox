@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract, endContract, invoices } from '../services/mockData';
+import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract, endContract, permanentDeleteContract, invoices } from '../services/mockData';
 import { generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, Invoice } from '../types';
@@ -76,6 +76,8 @@ export const Rentals: React.FC = () => {
   const [deletedLinesWithInvoices, setDeletedLinesWithInvoices] = useState<{ contractId: string; invoiceCount: number; totalValue: number }[]>([]);
   const [showDeleteLineConfirm, setShowDeleteLineConfirm] = useState(false);
   const [showPaidInvoiceDeleteWarning, setShowPaidInvoiceDeleteWarning] = useState(false);
+  const [contractToPermanentDelete, setContractToPermanentDelete] = useState<Contract | null>(null);
+  const [isDeletingPermanent, setIsDeletingPermanent] = useState(false);
 
   const filteredRentals = rentals.filter(contract => {
       if (!searchQuery.trim()) return true;
@@ -96,6 +98,7 @@ export const Rentals: React.FC = () => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (contractToPermanentDelete) { setContractToPermanentDelete(null); return; }
         if (rentalToDelete) { setRentalToDelete(null); setShowPaidInvoiceDeleteWarning(false); return; }
         if (renewRental) { setRenewRental(null); return; }
         if (editRental) { setEditRental(null); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); return; }
@@ -105,7 +108,7 @@ export const Rentals: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rentalToDelete, renewRental, editRental, selectedRental, isCreateModalOpen]);
+  }, [contractToPermanentDelete, rentalToDelete, renewRental, editRental, selectedRental, isCreateModalOpen]);
 
   // Gantt State
   const [ganttDate, setGanttDate] = useState(new Date());
@@ -807,10 +810,15 @@ export const Rentals: React.FC = () => {
                                 <RotateCcw size={14} /> <span className="hidden sm:inline">Renew</span>
                             </button>
                         )}
+                        {isContractExpired(contract) && canUserDelete && (
+                            <button onClick={() => setContractToPermanentDelete(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                                <Trash2 size={14} /> <span className="hidden sm:inline">Delete Contract</span><span className="sm:hidden">Delete</span>
+                            </button>
+                        )}
                         <button onClick={() => { const client = getClient(contract.clientId); if(client) generateLegalContractPDF(contract, client, getBillboard(contract.billboardId)); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
                             <Download size={14} /> <span className="hidden sm:inline">PDF</span>
                         </button>
-                        {canUserDelete && (<button onClick={() => setRentalToDelete(contract)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Rental">
+                        {canUserDelete && !isContractExpired(contract) && (<button onClick={() => setRentalToDelete(contract)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Rental">
                             <Trash2 size={16} />
                         </button>)}
                     </div>
@@ -1242,6 +1250,11 @@ export const Rentals: React.FC = () => {
                         <button onClick={() => setSelectedRental(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
                         <button onClick={() => openTermAdjustment(selectedRental)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Calendar size={14} /> Amend Contract</button>
                         {isContractExpired(selectedRental) && <button onClick={() => { setSelectedRental(null); setRenewRental({...selectedRental}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>}
+                        {isContractExpired(selectedRental) && canUserDelete && (
+                          <button onClick={() => { setSelectedRental(null); setContractToPermanentDelete(selectedRental); }} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2">
+                            <Trash2 size={14} /> Delete
+                          </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1730,6 +1743,74 @@ export const Rentals: React.FC = () => {
                      )}
                  </div>
               </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Delete Confirmation Modal — only shown for Expired contracts */}
+      {contractToPermanentDelete && (
+        <div className="fixed inset-0 z-[200] overflow-y-auto">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => { if (!isDeletingPermanent) setContractToPermanentDelete(null); }} />
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-md border border-white/20">
+              <div className="p-6 border-b border-red-100 bg-red-50 flex items-start gap-4">
+                <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center shrink-0 border-2 border-red-200">
+                  <AlertTriangle className="text-red-600" size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-red-900">Permanently Delete Contract?</h3>
+                  <p className="text-xs text-red-500 mt-0.5 font-medium">This action cannot be undone.</p>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-1.5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Contract to Delete</p>
+                  <p className="font-bold text-slate-900">{getClientName(contractToPermanentDelete.clientId)}</p>
+                  <p className="text-sm text-slate-900">{getBillboardName(contractToPermanentDelete.billboardId)} &bull; {contractToPermanentDelete.details}</p>
+                  <p className="text-xs text-slate-900">{contractToPermanentDelete.startDate} — {contractToPermanentDelete.endDate}</p>
+                  <p className="text-xs text-slate-900 font-mono">ID: {contractToPermanentDelete.id}</p>
+                </div>
+
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-sm text-red-700 leading-relaxed">
+                    This will permanently delete this contract and all linked records including payments, invoices, revenue entries, availability blocks, notes, attachments, and history. This action cannot be undone.
+                  </p>
+                </div>
+
+                {isDeletingPermanent && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-slate-900 py-2">
+                    <Loader2 size={16} className="animate-spin" /> Deleting…
+                  </div>
+                )}
+
+                {!isDeletingPermanent && (
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      onClick={() => setContractToPermanentDelete(null)}
+                      className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsDeletingPermanent(true);
+                        const result = permanentDeleteContract(contractToPermanentDelete.id);
+                        setIsDeletingPermanent(false);
+                        setContractToPermanentDelete(null);
+                        if (result.success) {
+                          setRentals([...getContracts()]);
+                        } else {
+                          alert(result.error || 'Failed to delete contract.');
+                        }
+                      }}
+                      className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={14} /> Delete Permanently
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const { id, ...data } = req.body ?? {};
+      const data = req.body ?? {};
       const row = await prisma.contractAmendment.create({ data });
       return res.status(201).json(row);
     }

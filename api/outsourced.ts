@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      const { id, createdAt, updatedAt, ...data } = req.body ?? {};
+      const { createdAt, updatedAt, ...data } = req.body ?? {};
       const row = await prisma.outsourcedBillboard.create({ data });
       return res.status(201).json(row);
     }

@@ -75,7 +75,7 @@ function toClient(row: any) {
 
 // Map nested coordinates → flat columns for Prisma
 function fromClient(body: any) {
-  const { coordinates, id, createdAt, updatedAt, ...rest } = body ?? {};
+  const { coordinates, createdAt, updatedAt, ...rest } = body ?? {};
   return {
     ...rest,
     coordinatesLat: coordinates?.lat ?? null,
