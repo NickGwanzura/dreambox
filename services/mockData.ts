@@ -19,6 +19,45 @@ const notifyListeners = () => {
     listeners.forEach(listener => listener());
 };
 
+// --- Deleted Queue ---
+// Tracks IDs that were deleted locally but may not have been deleted from the server yet.
+// Prevents deleted records from reappearing after reloadAllFromApi().
+const deletedQueueKey = STORAGE_KEYS.DELETED_QUEUE;
+let deletedQueue: Set<string> = new Set();
+
+const loadDeletedQueue = (): void => {
+    try {
+        const raw = localStorage.getItem(deletedQueueKey);
+        if (raw) {
+            const arr: string[] = JSON.parse(raw);
+            deletedQueue = new Set(arr);
+        }
+    } catch { deletedQueue = new Set(); }
+};
+
+const persistDeletedQueue = (): void => {
+    try {
+        localStorage.setItem(deletedQueueKey, JSON.stringify([...deletedQueue]));
+    } catch {}
+};
+
+const addToDeletedQueue = (id: string): void => {
+    deletedQueue.add(id);
+    persistDeletedQueue();
+};
+
+const removeFromDeletedQueue = (id: string): void => {
+    if (deletedQueue.has(id)) {
+        deletedQueue.delete(id);
+        persistDeletedQueue();
+    }
+};
+
+const isInDeletedQueue = (id: string): boolean => deletedQueue.has(id);
+
+// Initialize on module load
+loadDeletedQueue();
+
 // --- Entity Exports (in-memory, populated from API on init) ---
 export let billboards: Billboard[] = [];
 export let clients: Client[] = [];
@@ -76,7 +115,12 @@ export const reloadAllFromApi = async (): Promise<void> => {
             api.get<any[]>('/api/clients').then(d => { if (d) clients = d; }),
             api.get<any[]>('/api/contracts').then(d => { if (d) contracts = d; }),
             api.get<any[]>('/api/contract-amendments').then(d => { if (d) contractAmendments = d; }),
-            api.get<any[]>('/api/invoices').then(d => { if (d) invoices = d; }),
+            api.get<any[]>('/api/invoices').then(d => {
+                if (d) {
+                    // Filter out invoices that were locally deleted but may still exist on server
+                    invoices = d.filter((inv: any) => !isInDeletedQueue(inv.id));
+                }
+            }),
             api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d; }),
             api.get<any[]>('/api/users').then(d => { if (d) users = d; }),
             api.get<any[]>('/api/outsourced').then(d => { if (d) outsourcedBillboards = d; }),
@@ -271,7 +315,7 @@ export const updateContract = async (updated: Contract) => {
     notifyListeners();
 };
 
-export const deleteContract = (id: string) => {
+export const deleteContract = async (id: string) => {
     const contract = contracts.find(c => c.id === id);
     if (contract) {
         contracts = contracts.filter(c => c.id !== id);
@@ -281,11 +325,17 @@ export const deleteContract = (id: string) => {
 
         const linkedInvoices = invoices.filter(i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice');
         if (linkedInvoices.length > 0) {
-            linkedInvoices.forEach(i => {
+            for (const i of linkedInvoices) {
+                addToDeletedQueue(i.id);
                 if (isConfigured()) {
-                    api.delete('/api/invoices', { id: i.id }).catch(e => console.error('[deleteContract] API error:', e));
+                    try {
+                        await api.delete('/api/invoices', { id: i.id });
+                        removeFromDeletedQueue(i.id);
+                    } catch (e) {
+                        console.error('[deleteContract] API DELETE failed for invoice:', i.id, e);
+                    }
                 }
-            });
+            }
             invoices = invoices.filter(i => !(i.contractId === id && String(i.type || '').toLowerCase() === 'invoice'));
             logAction('Delete Contract', `Cascade-deleted ${linkedInvoices.length} invoice(s) from contract ${id}`);
         }
@@ -344,12 +394,18 @@ export const endContract = async (id: string) => {
         String(i.type || '').toLowerCase() === 'invoice' &&
         (i.status === 'Pending' || i.status === 'Overdue')
     );
-    pendingInvoices.forEach(inv => {
+    for (const inv of pendingInvoices) {
         invoices = invoices.filter(i => i.id !== inv.id);
+        addToDeletedQueue(inv.id);
         if (isConfigured()) {
-            api.delete('/api/invoices', { id: inv.id }).catch(e => console.error('[endContract] API error:', e));
+            try {
+                await api.delete('/api/invoices', { id: inv.id });
+                removeFromDeletedQueue(inv.id);
+            } catch (e) {
+                console.error('[endContract] API DELETE failed for invoice:', inv.id, e);
+            }
         }
-    });
+    }
 
     recalcBillboardAvailability(contract.billboardId);
     logAction('End Contract', `Ended contract ${id} — marked as Expired, availability freed, ${pendingInvoices.length} pending invoice(s) cancelled`);
@@ -389,7 +445,13 @@ export const permanentDeleteContract = async (id: string): Promise<{ success: bo
                 id
             );
             for (const iid of linkedInvoiceIds) {
-                try { await api.delete('/api/invoices', { id: iid }); } catch (e: any) { console.error('[permanentDeleteContract] API error:', e); }
+                addToDeletedQueue(iid);
+                try {
+                    await api.delete('/api/invoices', { id: iid });
+                    removeFromDeletedQueue(iid);
+                } catch (e: any) {
+                    console.error('[permanentDeleteContract] API error deleting invoice:', iid, e);
+                }
             }
             for (const aid of linkedAmendmentIds) {
                 try { await api.delete('/api/contract-amendments', { id: aid }); } catch (e: any) { console.error('[permanentDeleteContract] API error:', e); }
@@ -558,13 +620,14 @@ export const updateInvoice = async (updated: Invoice) => {
     notifyListeners();
 };
 
-export const deleteInvoice = (id: string) => {
+export const deleteInvoice = async (id: string) => {
     const target = invoices.find(i => i.id === id);
     if (target) {
         const touchedBillboards = String(target.type || '').toLowerCase() === 'invoice'
             ? Array.from(new Set((target.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid)))
             : [];
         invoices = invoices.filter(i => i.id !== id);
+        addToDeletedQueue(id);
 
         // Try to revert invoice status if this was a receipt
         if (target.type === 'Receipt') {
@@ -576,14 +639,20 @@ export const deleteInvoice = (id: string) => {
                 if (invoice) {
                     invoice.status = 'Pending';
                     if (isConfigured()) {
-                        api.put('/api/invoices', invoice, { id: invoice.id }).catch(e => console.error('[deleteInvoice] API error:', e));
+                        try { await api.put('/api/invoices', invoice, { id: invoice.id }); }
+                        catch (e) { console.error('[deleteInvoice] API error reverting linked invoice:', e); }
                     }
                 }
             }
         }
 
         if (isConfigured()) {
-            api.delete('/api/invoices', { id }).catch(e => console.error('[deleteInvoice] API error:', e));
+            try {
+                await api.delete('/api/invoices', { id });
+                removeFromDeletedQueue(id);
+            } catch (e) {
+                console.error('[deleteInvoice] API DELETE failed, invoice kept in deleted queue:', e);
+            }
         }
         if (touchedBillboards.length > 0) {
             touchedBillboards.forEach(recalcBillboardAvailability);
@@ -1033,18 +1102,27 @@ export const getExpiringContracts = () => {
   return contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today && new Date(c.endDate) <= in30);
 };
 
-export const markOverdueInvoices = () => {
+export const markOverdueInvoices = async () => {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
-  let changed = false;
+  const changed: Invoice[] = [];
   invoices = invoices.map(inv => {
     if (inv.status === 'Pending' && String(inv.type || '').toLowerCase() === 'invoice' && new Date(inv.date) < cutoff) {
-      changed = true;
-      return { ...inv, status: 'Overdue' as const };
+      const updated = { ...inv, status: 'Overdue' as const };
+      changed.push(updated);
+      return updated;
     }
     return inv;
   });
-  if (changed) { notifyListeners(); }
+  if (changed.length > 0) {
+    if (isConfigured()) {
+      for (const inv of changed) {
+        try { await api.put('/api/invoices', inv, { id: inv.id }); }
+        catch (e) { console.error('[markOverdueInvoices] API error:', e); }
+      }
+    }
+    notifyListeners();
+  }
 };
 
 export const getOverdueInvoices = () => { markOverdueInvoices(); return invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice'); };

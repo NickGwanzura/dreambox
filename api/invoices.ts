@@ -34,8 +34,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const { createdAt, updatedAt, ...data } = req.body ?? {};
-      const row = await prisma.invoice.create({ data });
+      const { createdAt, updatedAt, id: requestedId, ...data } = req.body ?? {};
+
+      // Duplicate ID protection: if client sends an ID that already exists, reject
+      if (requestedId) {
+        const conflict = await prisma.invoice.findUnique({ where: { id: requestedId } });
+        if (conflict) {
+          return res.status(409).json({ error: 'Invoice with this ID already exists', existingId: requestedId });
+        }
+      }
+
+      const row = await prisma.invoice.create({ data: requestedId ? { ...data, id: requestedId } : data });
+      console.log(`[invoices] POST created invoice ${row.id} for client ${row.clientId}`);
       return res.status(201).json(row);
     }
 
@@ -43,11 +53,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
       const { id: _id, createdAt, updatedAt, ...data } = req.body ?? {};
-      // Upsert: update if exists, create if not (handles client-side generated IDs)
+
+      // Only update if the invoice exists — NEVER silently create (prevents deleted invoices from reappearing)
       const existing = await prisma.invoice.findUnique({ where: { id: id as string } });
-      const row = existing
-        ? await prisma.invoice.update({ where: { id: id as string }, data })
-        : await prisma.invoice.create({ data: { ...data, id: id as string } });
+      if (!existing) {
+        return res.status(404).json({ error: 'Invoice not found on server. It may have been deleted.' });
+      }
+
+      const row = await prisma.invoice.update({ where: { id: id as string }, data });
       return res.status(200).json(row);
     }
 
@@ -55,7 +68,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+
+      // Verify invoice exists before deleting
+      const target = await prisma.invoice.findUnique({ where: { id: id as string } });
+      if (!target) {
+        console.warn(`[invoices] DELETE requested for non-existent invoice ${id}`);
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+
       await prisma.invoice.delete({ where: { id: id as string } });
+      console.log(`[invoices] DELETE removed invoice ${id} (type=${target.type}, status=${target.status}, total=${target.total})`);
       return res.status(200).json({ success: true });
     }
 
