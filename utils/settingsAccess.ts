@@ -18,7 +18,10 @@ export function canAccessSettings(user: { email?: string | null } | null | undef
   return isPrivileged(user);
 }
 
-export function canDelete(user: { email?: string | null } | null | undefined): boolean {
+export function canDelete(user: { email?: string | null; role?: string | null } | null | undefined): boolean {
+  // Role-based: Admin and Manager can delete
+  if (user?.role === 'Admin' || user?.role === 'Manager') return true;
+  // Email allowlist fallback
   return isPrivileged(user);
 }
 

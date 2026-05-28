@@ -122,11 +122,19 @@ export function requireDeletePermission(
 ): JWTPayload | null {
   const payload = requireAuth(req, res);
   if (!payload) return null;
-  const email = payload.email?.trim().toLowerCase();
-  if (!email || !DELETE_ALLOWED_EMAILS.includes(email)) {
-    log.warn(`Delete rejected — not on allowlist  user=${payload.email}  ${req.method} ${(req as any).originalUrl ?? req.url}`);
-    res.status(403).json({ error: 'Delete permission is limited to Rufaro, Brian, or Nick.' });
-    return null;
+
+  // Role-based: Admin and Manager can delete
+  if (payload.role === 'Admin' || payload.role === 'Manager') {
+    return payload;
   }
-  return payload;
+
+  // Email allowlist fallback for Staff with special access
+  const email = payload.email?.trim().toLowerCase();
+  if (email && DELETE_ALLOWED_EMAILS.includes(email)) {
+    return payload;
+  }
+
+  log.warn(`Delete rejected — insufficient permissions  user=${payload.email} role=${payload.role}  ${req.method} ${(req as any).originalUrl ?? req.url}`);
+  res.status(403).json({ error: 'Delete permission requires Admin or Manager role.' });
+  return null;
 }
