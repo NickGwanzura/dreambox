@@ -20,6 +20,7 @@ const Tasks = lazyWithRetry(() => import('./components/Tasks').then(m => ({ defa
 const Maintenance = lazyWithRetry(() => import('./components/Maintenance').then(m => ({ default: m.Maintenance })));
 const ClientPortal = lazyWithRetry(() => import('./components/ClientPortal').then(m => ({ default: m.ClientPortal })));
 const PublicView = lazyWithRetry(() => import('./components/PublicView').then(m => ({ default: m.PublicView })));
+const PublicWebsite = lazyWithRetry(() => import('./components/PublicWebsite').then(m => ({ default: m.PublicWebsite })));
 const CRM = lazyWithRetry(() => import('./components/crm/CRM').then(m => ({ default: m.CRM })));
 import { getCurrentUser, updatePassword } from './services/authService';
 import { getCurrentUser as getCachedUser } from './services/authServiceSecure';
@@ -335,6 +336,20 @@ const App: React.FC = () => {
           <ErrorBoundary>
               <ToastProvider>
                 <AuthCallback />
+              </ToastProvider>
+          </ErrorBoundary>
+      );
+  }
+
+  // Public Website Routing (No Auth Required)
+  const publicWebsitePaths = new Set(['/', '/services', '/pricing', '/contact', '/site-availability', '/available-sites']);
+  if (!isAuthenticated && publicWebsitePaths.has(path)) {
+      return (
+          <ErrorBoundary>
+              <ToastProvider>
+                <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-slate-900 text-sm">Loading...</div></div>}>
+                  <PublicWebsite />
+                </Suspense>
               </ToastProvider>
           </ErrorBoundary>
       );

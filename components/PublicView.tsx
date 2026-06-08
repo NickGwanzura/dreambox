@@ -12,6 +12,17 @@ const toSlug = (name: string): string =>
 
 const billboardLink = (b: Billboard): string => `/billboard/${toSlug(b.name)}-${b.id.slice(-8)}`;
 
+const fetchPublicBillboards = async (): Promise<Billboard[] | null> => {
+    try {
+        const res = await fetch('/api/public-billboards');
+        if (!res.ok) return null;
+        const data = await res.json();
+        return Array.isArray(data) ? data : null;
+    } catch {
+        return null;
+    }
+};
+
 interface PublicViewProps {
     type: 'billboard' | 'map';
     billboardId?: string;
@@ -64,7 +75,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
     // Filtered billboards for map sidebar
     const filteredBillboards = useMemo(() => {
-        let result = allBillboards.filter(b => hasValidCoordinates(b));
+        let result = [...allBillboards];
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             result = result.filter(b =>
@@ -81,6 +92,11 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
         }
         return result;
     }, [allBillboards, searchQuery, townFilter, typeFilter]);
+
+    const mappedBillboardsCount = useMemo(
+        () => filteredBillboards.filter(b => hasValidCoordinates(b)).length,
+        [filteredBillboards, hasValidCoordinates]
+    );
 
     // Fetch Groq estimate for a billboard
     const fetchViewEstimate = useCallback(async (board: Billboard) => {
@@ -105,8 +121,37 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
     }, [allBillboards.length]);
 
     useEffect(() => {
-        const boards = getBillboards();
-        setAllBillboards(boards);
+        let cancelled = false;
+
+        const loadBoards = async () => {
+            const localBoards = getBillboards();
+            if (!cancelled) {
+                setAllBillboards(localBoards);
+                setContracts(getContracts());
+                if (type === 'billboard' && billboardId) {
+                    const bySlug = localBoards.find(b => billboardLink(b).endsWith('/' + billboardId) || b.id === billboardId);
+                    const byId = localBoards.find(b => b.id === billboardId);
+                    setBillboard(bySlug || byId || null);
+                }
+            }
+
+            const publicBoards = await fetchPublicBillboards();
+            if (cancelled || !publicBoards?.length) return;
+
+            setAllBillboards(publicBoards);
+            if (type === 'billboard' && billboardId) {
+                const bySlug = publicBoards.find(b => billboardLink(b).endsWith('/' + billboardId) || b.id === billboardId);
+                const byId = publicBoards.find(b => b.id === billboardId);
+                setBillboard(bySlug || byId || null);
+            }
+        };
+
+        loadBoards();
+        return () => { cancelled = true; };
+    }, [type, billboardId]);
+
+    useEffect(() => {
+        const boards = allBillboards;
         setContracts(getContracts());
         if (type === 'billboard' && billboardId) {
             // Try to find by slug first (matches at end of slugged ID), then by exact ID
@@ -114,7 +159,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             const byId = boards.find(b => b.id === billboardId);
             setBillboard(bySlug || byId || null);
         }
-    }, [type, billboardId]);
+    }, [allBillboards, type, billboardId]);
 
     const otherBillboards = useMemo(
         () => allBillboards.filter(b => b.id !== billboard?.id && hasValidCoordinates(b)),
@@ -214,7 +259,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             }
         });
 
-        const boards = type === 'map' ? filteredBillboards : allBillboards;
+        const boards = type === 'map' ? filteredBillboards.filter(b => hasValidCoordinates(b)) : allBillboards;
 
         if (type === 'billboard' && billboard && hasValidCoordinates(billboard)) {
             // Plot every other location as a muted secondary marker
@@ -289,8 +334,8 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             <Layers size={14}/> View Full Map
                         </a>
                     )}
-                    <a href="/" className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-800 transition-colors flex items-center gap-2">
-                        Login <ExternalLink size={12} />
+                    <a href="/login" className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-800 transition-colors flex items-center gap-2">
+                        CRM Login <ExternalLink size={12} />
                     </a>
                 </div>
             </div>
@@ -609,9 +654,10 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                             <button
                                                 key={b.id}
                                                 onClick={() => focusMapOnBillboard(b.id)}
+                                                disabled={!hasValidCoordinates(b)}
                                                 className={`w-full text-left p-3 hover:bg-slate-50 transition-colors border-l-2 ${
                                                     isSelected ? 'border-l-indigo-500 bg-indigo-50/50' : 'border-l-transparent'
-                                                }`}
+                                                } ${!hasValidCoordinates(b) ? 'opacity-70 cursor-not-allowed' : ''}`}
                                             >
                                                 <div className="flex items-start gap-3">
                                                     {/* Thumbnail placeholder */}
@@ -640,6 +686,11 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                                                 </>
                                                             )}
                                                         </div>
+                                                        {!hasValidCoordinates(b) && (
+                                                            <div className="mt-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-600">
+                                                                Coordinates needed
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </button>
@@ -666,7 +717,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             {/* Map overlay info */}
                             <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-3 rounded-2xl shadow-lg border border-slate-200">
                                 <h2 className="font-bold text-slate-800 text-sm">Zimbabwe Billboard Map</h2>
-                                <p className="text-xs text-slate-900 font-medium">{filteredBillboards.length} Locations</p>
+                                <p className="text-xs text-slate-900 font-medium">{mappedBillboardsCount} mapped / {filteredBillboards.length} total</p>
                             </div>
 
                             {/* Images coming soon badge */}
