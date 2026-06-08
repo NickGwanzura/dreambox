@@ -331,7 +331,8 @@ const App: React.FC = () => {
 
   // Auth Callback Routing (Email verification, password reset)
   const path = window.location.pathname;
-  if (path.startsWith('/auth/')) {
+  const normalizedPath = path.replace(/\/+$/, '') || '/';
+  if (normalizedPath.startsWith('/auth/')) {
       return (
           <ErrorBoundary>
               <ToastProvider>
@@ -343,7 +344,7 @@ const App: React.FC = () => {
 
   // Public Website Routing (No Auth Required)
   const publicWebsitePaths = new Set(['/', '/services', '/pricing', '/contact', '/site-availability', '/available-sites']);
-  if (!isAuthenticated && publicWebsitePaths.has(path)) {
+  if (publicWebsitePaths.has(normalizedPath)) {
       return (
           <ErrorBoundary>
               <ToastProvider>
