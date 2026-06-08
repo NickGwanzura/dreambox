@@ -347,7 +347,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
                         {/* Left: Image & Stats */}
                         <div className="space-y-6">
-                            <div className="rounded-3xl overflow-hidden shadow-2xl bg-slate-900 relative group h-72 sm:h-96 border border-slate-200">
+                            <div className="premium-dark-card relative group h-72 bg-slate-900 sm:h-96">
                                 {billboard.imageUrl ? (
                                     <img src={billboard.imageUrl} className="w-full h-full object-cover" alt={billboard.name} />
                                 ) : (
@@ -365,12 +365,12 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             </div>
 
                             <div className="grid grid-cols-3 gap-4">
-                                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-md transition-shadow">
+                                <div className="premium-card premium-card-hover p-4 text-center">
                                     <div className="text-indigo-500 mb-2 flex justify-center"><Maximize2 size={24}/></div>
                                     <div className="font-black text-slate-800 text-lg">{billboard.width}x{billboard.height}m</div>
                                     <div className="text-[10px] text-slate-900 uppercase font-bold tracking-wider">Dimensions</div>
                                 </div>
-                                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-md transition-shadow">
+                                <div className="premium-card premium-card-hover p-4 text-center">
                                     <div className="text-indigo-500 mb-2 flex justify-center"><Car size={24}/></div>
                                     <div className="font-black text-slate-800 text-lg">
                                         {billboard.dailyTraffic 
@@ -396,7 +396,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                         </div>
                                     )}
                                 </div>
-                                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-md transition-shadow">
+                                <div className="premium-card premium-card-hover p-4 text-center">
                                     <div className="text-indigo-500 mb-2 flex justify-center"><Layers size={24}/></div>
                                     <div className="font-black text-slate-800 text-lg">{billboard.type === 'Static' ? '2 Sides' : `${billboard.totalSlots} Slots`}</div>
                                     <div className="text-[10px] text-slate-900 uppercase font-bold tracking-wider">Configuration</div>
@@ -406,7 +406,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
                         {/* Right: Info, Pricing & Map */}
                         <div className="space-y-6 flex flex-col h-full">
-                            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                            <div className="premium-card p-8">
                                 <h1 className="text-3xl font-black text-slate-900 mb-2 leading-tight">{billboard.name}</h1>
                                 <div className="flex items-center gap-2 text-slate-900 font-medium mb-6">
                                     <MapPin size={18} className="text-indigo-500 fill-indigo-50"/> {billboard.location}, {billboard.town}
@@ -417,7 +417,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             </div>
 
                             {/* Pricing Card */}
-                            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <div className="premium-card p-6">
                                 <div className="flex items-center gap-2 mb-4">
                                     <DollarSign size={18} className="text-emerald-600" />
                                     <h2 className="text-lg font-black text-slate-900">Pricing & Availability</h2>
@@ -479,7 +479,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                             </div>
 
                             {/* Monthly Cost Estimate Card */}
-                            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <div className="premium-card p-6">
                                 <div className="flex items-center gap-2 mb-4">
                                     <Clock size={18} className="text-indigo-500" />
                                     <h2 className="text-lg font-black text-slate-900">What&rsquo;s Included</h2>
@@ -513,7 +513,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative min-h-[280px]">
+                            <div className="premium-card relative min-h-[280px]">
                                 <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-slate-100"></div>
                                 <div className="absolute top-4 left-4 z-[400] bg-white/95 backdrop-blur px-3 py-2 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3">
                                     <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-900 uppercase tracking-wider">
@@ -533,7 +533,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
                 {/* Other locations grid shown under the featured billboard */}
                 {type === 'billboard' && billboard && otherBillboards.length > 0 && (
-                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 sm:p-8">
+                    <div className="premium-card p-6 sm:p-8">
                         <div className="flex items-end justify-between mb-6 flex-wrap gap-3">
                             <div>
                                 <h2 className="text-xl font-black text-slate-900 leading-tight">More Locations</h2>
@@ -548,7 +548,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                                 <a
                                     key={b.id}
                                     href={billboardLink(b)}
-                                    className="group block rounded-2xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-indigo-200 hover:shadow-md transition-all overflow-hidden"
+                                    className="premium-card premium-card-hover group block"
                                 >
                                     <div className="h-32 bg-slate-900 relative overflow-hidden">
                                         {b.imageUrl ? (
@@ -583,7 +583,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                 {type === 'map' && (
                     <div className="flex gap-0 h-[calc(100vh-140px)]">
                         {/* Sidebar Inventory Panel */}
-                        <div className="w-[340px] shrink-0 bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col mr-4">
+                        <div className="premium-card w-[340px] shrink-0 flex flex-col mr-4">
                             {/* Header */}
                             <div className="p-4 border-b border-slate-100">
                                 <h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">
@@ -711,7 +711,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
                         </div>
 
                         {/* Map */}
-                        <div className="flex-1 bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden relative">
+                        <div className="premium-card flex-1 relative">
                             <div ref={mapContainerRef} className="w-full h-full bg-slate-100 z-0"></div>
                             
                             {/* Map overlay info */}
@@ -731,7 +731,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
                 {/* Contact CTA */}
                 {type === 'billboard' && billboard && (
-                    <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-8 sm:p-10 text-white shadow-xl">
+                    <div className="premium-accent-card p-8 text-white sm:p-10">
                         <div className="max-w-2xl">
                             <h2 className="text-2xl sm:text-3xl font-black leading-tight mb-3">Interested in this location?</h2>
                             <p className="text-indigo-200 text-sm sm:text-base leading-relaxed mb-6">

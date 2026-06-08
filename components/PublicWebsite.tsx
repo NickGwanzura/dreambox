@@ -382,7 +382,7 @@ export const PublicWebsite: React.FC = () => {
   const EnquiryForm = ({ compact = false }: { compact?: boolean }) => (
     <form
       onSubmit={submitEnquiry}
-      className={`grid gap-4 rounded-md border border-slate-200 bg-slate-50 p-5 ${compact ? '' : 'sm:grid-cols-2'}`}
+      className={`premium-card grid gap-4 p-5 ${compact ? '' : 'sm:grid-cols-2'}`}
     >
       {enquiryStatus === 'sent' && (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 sm:col-span-2">
@@ -485,7 +485,7 @@ export const PublicWebsite: React.FC = () => {
               </div>
               <div className="mt-8 grid max-w-xl animate-reveal-up animation-delay-500 grid-cols-2 gap-3 sm:grid-cols-4">
                 {stats.map(item => (
-                  <div key={item.label} className="rounded-md border border-white/10 bg-white/[0.07] p-3 backdrop-blur transition hover:-translate-y-1 hover:bg-white/[0.1]">
+                  <div key={item.label} className="premium-dark-card premium-dark-card-hover p-3 backdrop-blur">
                     <div className="text-xl font-black text-white">{item.value}</div>
                     <div className="mt-1 text-[9px] font-black uppercase tracking-[0.14em] text-white/45">{item.label}</div>
                   </div>
@@ -494,7 +494,7 @@ export const PublicWebsite: React.FC = () => {
             </div>
 
             <div className="hidden lg:block">
-              <div className="ml-auto max-w-md animate-soft-scale animation-delay-300 rounded-md border border-white/10 bg-white/[0.08] p-5 shadow-2xl shadow-slate-950/30 backdrop-blur-xl">
+              <div className="premium-dark-card ml-auto max-w-md animate-soft-scale animation-delay-300 p-5 backdrop-blur-xl">
                 <div className="relative mb-4 h-px overflow-hidden bg-white/10">
                   <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-indigo-300 to-transparent animate-line-sweep" />
                 </div>
@@ -525,7 +525,7 @@ export const PublicWebsite: React.FC = () => {
         </section>
 
         <section className="-mt-10 relative z-10 px-4 sm:hidden" aria-label="Dreambox network statistics">
-          <div className="mx-auto grid max-w-7xl grid-cols-2 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl sm:grid-cols-4">
+          <div className="premium-card mx-auto grid max-w-7xl grid-cols-2 sm:grid-cols-4">
             {stats.map(item => (
               <div key={item.label} className="border-b border-r border-slate-100 p-5 last:border-r-0 sm:border-b-0">
                 <div className="text-2xl font-black text-slate-950 sm:text-3xl">{item.value}</div>
@@ -536,7 +536,7 @@ export const PublicWebsite: React.FC = () => {
         </section>
 
         {(page === 'home') && <section id="partners" className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
-          <div className="animate-reveal-up rounded-md border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+          <div className="premium-card animate-reveal-up p-5 sm:p-8">
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Our valued partners</p>
@@ -546,7 +546,7 @@ export const PublicWebsite: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {partnerLogos.map(partner => (
-                <div key={partner.name} className="flex h-24 items-center justify-center rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+                <div key={partner.name} className="premium-card premium-card-hover flex h-24 items-center justify-center p-4">
                   <img src={partner.src} alt={`${partner.name} logo`} className="max-h-full max-w-full object-contain" />
                 </div>
               ))}
@@ -574,7 +574,7 @@ export const PublicWebsite: React.FC = () => {
               { icon: Building2, title: 'Airport Advertising', body: 'Showcase your brand to business and leisure travelers in high-intent airport environments.', meta: 'Travel audience reach' },
               { icon: Megaphone, title: 'Digital Billboard', body: 'High-impact digital out-of-home placements built for dominant, iconic campaign visibility.', meta: 'LED and rotating slots' },
             ].map((service, index) => (
-              <article key={service.title} className="group animate-reveal-up rounded-md border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-950/10">
+              <article key={service.title} className="premium-card premium-card-hover group animate-reveal-up p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
                     <service.icon className="h-6 w-6" />
@@ -616,7 +616,7 @@ export const PublicWebsite: React.FC = () => {
                   key={`${item.board.id}-${item.label}`}
                   href={item.board.id.startsWith('live-') ? '/contact' : billboardLink(item.board)}
                   onClick={item.board.id.startsWith('live-') ? navigate('contact') : undefined}
-                  className="group animate-reveal-up overflow-hidden rounded-md border border-white/10 bg-white/[0.06] shadow-2xl shadow-slate-950/20 transition hover:-translate-y-1 hover:bg-white/[0.1]"
+                  className="premium-dark-card premium-dark-card-hover group animate-reveal-up"
                 >
                   <div className="relative h-60 overflow-hidden bg-slate-800">
                     {item.board.imageUrl ? (
@@ -698,7 +698,7 @@ export const PublicWebsite: React.FC = () => {
                   <a
                     key={location.name}
                     href="/locations"
-                    className="group animate-reveal-up overflow-hidden rounded-md border border-white/10 bg-white/[0.06] shadow-2xl shadow-slate-950/20 transition hover:-translate-y-1 hover:bg-white/[0.1]"
+                    className="premium-dark-card premium-dark-card-hover group animate-reveal-up"
                   >
                     <div className="relative h-64 overflow-hidden bg-slate-800">
                       <img src={location.image} alt={`${location.name} billboard location`} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
@@ -734,7 +734,7 @@ export const PublicWebsite: React.FC = () => {
                 Build ROI into your media campaign.
               </h2>
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-6">
+            <div className="premium-card p-6">
               <p className="text-sm leading-7 text-slate-600">
                 Creating ROI for your media campaign should be a primary aim. Dreambox positions its rates around strong media value for brands across Africa.
               </p>
@@ -757,7 +757,7 @@ export const PublicWebsite: React.FC = () => {
             { icon: Clock, title: 'Fast Turnaround', body: 'Move from location shortlist to quote, artwork, and installation with fewer handoffs.' },
             { icon: Users, title: 'Buyer Friendly', body: 'Public location pages make it easier to inspect placements before committing budget.' },
           ].map(item => (
-            <div key={item.title} className="flex gap-4 rounded-md border border-slate-200 bg-white p-6">
+            <div key={item.title} className="premium-card premium-card-hover flex gap-4 p-6">
               <item.icon className="mt-1 h-6 w-6 shrink-0 text-indigo-600" />
               <div>
                 <h3 className="font-black text-slate-950">{item.title}</h3>
@@ -773,7 +773,7 @@ export const PublicWebsite: React.FC = () => {
             <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Clients trust Dreambox Media.</h2>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
               {testimonials.map((quote, index) => (
-                <blockquote key={quote} className="rounded-md border border-white/10 bg-white/[0.06] p-6">
+                <blockquote key={quote} className="premium-dark-card premium-dark-card-hover p-6">
                   <p className="text-sm leading-7 text-white/78">{quote}</p>
                   <footer className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-indigo-200">
                     Client {index + 1}
@@ -849,7 +849,7 @@ export const PublicWebsite: React.FC = () => {
               </a>
             </div>
           </div>
-          <div className="rounded-md border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-slate-950/20">
+          <div className="premium-dark-card p-5">
             <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Start a campaign</h3>
             <p className="mt-3 text-sm leading-6 text-white/65">
               Send your target towns and dates. Every website enquiry is captured as a CRM lead for follow-up.
