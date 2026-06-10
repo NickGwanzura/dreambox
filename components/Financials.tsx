@@ -577,17 +577,17 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
         <div className="fixed inset-0 z-[200] overflow-y-auto">
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsModalOpen(false)} />
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-white/20 max-h-[90vh] overflow-y-auto">
+                <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all w-full sm:my-8 sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl border border-white/20 max-h-[92vh] overflow-y-auto">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                         <h3 className="text-xl font-bold text-slate-900">{editingInvoice ? `Edit ${editingInvoice.type}` : `Create New ${activeTab.slice(0, -1)}`}</h3>
                         <button onClick={() => { setIsModalOpen(false); setEditingInvoice(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
                     </div>
-                    <form onSubmit={handleCreate} className="p-8 space-y-6">
+                    <form onSubmit={handleCreate} className="p-4 sm:p-6 space-y-4">
                         {activeTab === 'Receipts' && (<div className="p-4 bg-green-50 rounded-xl border border-green-100 mb-2"><MinimalSelect label="Link to Pending Invoice" value={selectedInvoiceToPay} onChange={(e: any) => handleInvoiceSelect(e.target.value)} options={[{value: '', label: 'Select Invoice to Pay...'}, ...getInvoices().filter(i => String(i.status || '').toLowerCase() === 'pending' && String(i.type || '').toLowerCase() === 'invoice').map(i => ({ value: i.id, label: `Inv #${i.id} - $${i.total} (${allClients.find(c => c.id === i.clientId)?.companyName})`}))]}/></div>)}
                         {activeTab !== 'Receipts' && (<div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 mb-2"><MinimalSelect label="Link to Active Rental (Optional)" value={formData.contractId} onChange={(e: any) => handleRentalSelect(e.target.value)} options={[{value: '', label: 'Select Rental to Auto-fill...'}, ...getContracts().map(c => { const cl = allClients.find(x => x.id === c.clientId); const billboard = getBillboards().find(b => b.id === c.billboardId); return {value: c.id, label: `${cl?.companyName} - ${billboard?.name} (${c.details})`};})]}/></div>)}
-                        <div className="grid grid-cols-2 gap-6"><MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]}/><MinimalInput label="Date" type="date" value={formData.date} onChange={(e: any) => setFormData({...formData, date: e.target.value})} /></div>
-                        {activeTab === 'Receipts' && (<div className="grid grid-cols-2 gap-6"><MinimalSelect label="Payment Method" value={formData.paymentMethod} onChange={(e: any) => setFormData({...formData, paymentMethod: e.target.value})} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash'},{value: 'Other', label: 'Other'}]}/><MinimalInput label="Reference Number" value={formData.paymentReference} onChange={(e: any) => setFormData({...formData, paymentReference: e.target.value})} /></div>)}
-                        <div className="bg-slate-50 rounded-2xl p-6 space-y-4 border border-slate-100">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"><MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]}/><MinimalInput label="Date" type="date" value={formData.date} onChange={(e: any) => setFormData({...formData, date: e.target.value})} /></div>
+                        {activeTab === 'Receipts' && (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"><MinimalSelect label="Payment Method" value={formData.paymentMethod} onChange={(e: any) => setFormData({...formData, paymentMethod: e.target.value})} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash'},{value: 'Other', label: 'Other'}]}/><MinimalInput label="Reference Number" value={formData.paymentReference} onChange={(e: any) => setFormData({...formData, paymentReference: e.target.value})} /></div>)}
+                        <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 space-y-3 border border-slate-100">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Line Items</h4>
                             {(() => {
                               const allBillboards = getBillboards();
@@ -597,7 +597,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                 : allBillboards;
                               const hasSelections = Object.values(billboardSelections).some(s => s.sideA || s.sideB || (s.slots && s.slots > 0));
                               return (
-                                <div className="bg-white rounded-xl p-4 border border-indigo-100 space-y-3">
+                                <div className="bg-white rounded-xl p-3 border border-indigo-100 space-y-2">
                                     <div className="flex items-center justify-between gap-2">
                                         <h5 className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-2"><Building2 size={14} /> Select Billboards</h5>
                                         <span className="text-[10px] text-slate-900">Pick one or many</span>
@@ -606,7 +606,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                         <Search className="absolute left-3 top-2.5 text-slate-900" size={14} />
                                         <input type="text" placeholder="Search by name, location, or town..." value={billboardSearch} onChange={(e) => setBillboardSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-slate-800 focus:ring-1 focus:ring-slate-800 outline-none" />
                                     </div>
-                                    <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                                    <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
                                         {filteredBillboards.length === 0 ? (
                                             <p className="text-center text-xs text-slate-900 italic py-6">No billboards found</p>
                                         ) : filteredBillboards.map(b => {
@@ -614,7 +614,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                             const isLED = b.type === BillboardType.LED;
                                             const availSlots = Math.max(0, (b.totalSlots || 0) - (b.rentedSlots || 0));
                                             return (
-                                                <div key={b.id} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                                <div key={b.id} className="bg-slate-50 rounded-lg p-2 border border-slate-200">
                                                     <div className="flex items-start justify-between gap-2 mb-2">
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-bold text-slate-800 truncate">{b.name}</p>
@@ -623,7 +623,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                                         <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold uppercase tracking-wider">{b.type}</span>
                                                     </div>
                                                     {isLED ? (
-                                                        <div className="flex items-center justify-between gap-3 bg-white rounded-lg p-2 border border-slate-200">
+                                                        <div className="flex items-center justify-between gap-3 bg-white rounded-lg p-1.5 border border-slate-200">
                                                             <div className="min-w-0">
                                                                 <p className="text-[10px] text-slate-900 font-bold uppercase tracking-wider">Slots</p>
                                                                 <p className="text-[11px] text-slate-900">Rate: <span className="font-bold text-slate-800">${(b.ratePerSlot || 0).toLocaleString()}</span>/slot · {availSlots} of {b.totalSlots || 0} available</p>
@@ -632,7 +632,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                                         </div>
                                                     ) : (
                                                         <div className="grid grid-cols-2 gap-2">
-                                                            <label className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border ${sel.sideA ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                                            <label className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${sel.sideA ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                                                                 <input type="checkbox" checked={!!sel.sideA} onChange={() => toggleBillboardSide(b.id, 'A')} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-[10px] font-bold uppercase text-slate-900 tracking-wider">Side A</p>
@@ -640,7 +640,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                                                 </div>
                                                                 {b.sideAStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${b.sideAStatus === 'Available' ? 'bg-green-100 text-green-700' : b.sideAStatus === 'Rented' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-900'}`}>{b.sideAStatus}</span>}
                                                             </label>
-                                                            <label className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border ${sel.sideB ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                                            <label className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${sel.sideB ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                                                                 <input type="checkbox" checked={!!sel.sideB} onChange={() => toggleBillboardSide(b.id, 'B')} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-[10px] font-bold uppercase text-slate-900 tracking-wider">Side B</p>
@@ -665,22 +665,22 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">Or Add Custom Line</span>
                                 <div className="flex-1 h-px bg-slate-200" />
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-3 items-end">
-                                <div className="flex-1"><MinimalTextarea label="Description / Details" value={newItem.description} onChange={(e: any) => setNewItem({...newItem, description: e.target.value})} rows={3} /></div>
+                            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-3 items-end">
+                                <div className="flex-1"><MinimalTextarea label="Description / Details" value={newItem.description} onChange={(e: any) => setNewItem({...newItem, description: e.target.value})} rows={2} /></div>
                                 <div><MinimalInput label="Amount ($)" type="number" value={newItem.amount} onChange={(e: any) => setNewItem({...newItem, amount: Number(e.target.value)})} /></div>
                                 <button type="button" onClick={addItem} className="bg-slate-900 text-white rounded-xl px-4 py-3 hover:bg-slate-800 flex items-center justify-center gap-2"><Plus size={18}/> Add</button>
                             </div>
                             {formData.items && formData.items.length > 0 && (
                               <div className="mt-4 space-y-3">
                                 {formData.items.map((item, idx) => (
-                                  <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                                  <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
                                     <div className="flex items-center justify-between">
                                       <span className="text-[11px] font-bold uppercase tracking-wider text-slate-900">Line Item {idx + 1}</span>
                                       <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove line item">
                                         <Trash2 size={16} />
                                       </button>
                                     </div>
-                                    <MinimalTextarea label="Description / Details" value={item.description} onChange={(e: any) => updateItem(idx, 'description', e.target.value)} rows={3} />
+                                    <MinimalTextarea label="Description / Details" value={item.description} onChange={(e: any) => updateItem(idx, 'description', e.target.value)} rows={2} />
                                     <div className="w-full md:w-40">
                                       <MinimalInput label="Amount ($)" type="number" value={item.amount} onChange={(e: any) => updateItem(idx, 'amount', e.target.value)} />
                                     </div>
@@ -689,12 +689,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                               </div>
                             )}
                         </div>
-                        <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
+                        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 space-y-3">
                             <div className="flex items-center justify-between gap-3">
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Discount</h4>
                                 {receiptIsLinkedToInvoice && <span className="text-[11px] font-medium text-slate-900">Locked for linked invoice receipts</span>}
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-[180px_140px] gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                 <MinimalSelect label="Discount Type" value={discountType} disabled={receiptIsLinkedToInvoice} onChange={(e: any) => setDiscountType(e.target.value)} options={[{ value: 'amount', label: 'Fixed Amount' }, { value: 'percentage', label: 'Percentage %' }]} />
                                 <MinimalInput label={discountType === 'percentage' ? 'Discount %' : 'Discount Amount ($)'} type="number" disabled={receiptIsLinkedToInvoice} value={discountValue} onChange={(e: any) => setDiscountValue(Number(e.target.value))} />
                             </div>
@@ -708,14 +708,14 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         {activeTab === 'Quotations' && (
                           <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Quotation Details</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                               <MinimalInput label="Expiry Date" type="date" value={expiryDate} onChange={(e: any) => setExpiryDate(e.target.value)} />
                             </div>
                             <MinimalTextarea label="Terms & Conditions" value={terms} onChange={(e: any) => setTerms(e.target.value)} rows={2} />
                             <MinimalTextarea label="Internal Notes" value={notes} onChange={(e: any) => setNotes(e.target.value)} rows={2} />
                           </div>
                         )}
-                        <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
+                        <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-slate-300">Subtotal</span>
                                 <span className="font-semibold">${subtotal.toLocaleString()}</span>
@@ -749,8 +749,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                 <div><h3 className="text-xl font-bold text-slate-900">Convert Quotation to Contract</h3><p className="text-xs text-slate-900 mt-0.5">QT #{convertingQuotation.id} — {allClients.find(c => c.id === convertingQuotation.clientId)?.companyName}</p></div>
                 <button onClick={() => setConvertingQuotation(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-900" /></button>
               </div>
-              <form onSubmit={handleConvertToContract} className="p-8 space-y-6">
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
+              <form onSubmit={handleConvertToContract} className="p-6 space-y-4">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
                   <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">From Quotation</p>
                   {convertingQuotation.items.map((item, i) => (
                     <div key={i} className="flex justify-between text-sm"><span className="text-slate-900">{item.description}</span><span className="font-bold">${item.amount.toLocaleString()}</span></div>
@@ -758,7 +758,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                   <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200 mt-2"><span>Total</span><span>${convertingQuotation.total.toLocaleString()}</span></div>
                 </div>
                 <MinimalSelect label="Billboard" value={convertForm.billboardId} onChange={(e: any) => setConvertForm({...convertForm, billboardId: e.target.value})} options={[{value: '', label: 'Select Billboard...'}, ...getBillboards().map(b => ({value: b.id, label: `${b.name} (${b.town})`}))]} />
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-4">
                   <MinimalInput label="Start Date" type="date" value={convertForm.startDate} onChange={(e: any) => setConvertForm({...convertForm, startDate: e.target.value})} required />
                   <MinimalInput label="End Date" type="date" value={convertForm.endDate} onChange={(e: any) => setConvertForm({...convertForm, endDate: e.target.value})} required />
                 </div>

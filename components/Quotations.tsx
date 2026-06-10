@@ -689,17 +689,15 @@ export const Quotations: React.FC = () => {
         <div className="fixed inset-0 z-[200] overflow-y-auto">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsModalOpen(false)} />
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all w-full sm:my-8 sm:max-w-4xl border border-white/20 max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                 <h3 className="text-xl font-bold text-slate-900">{editingQuotation ? 'Edit Quotation' : 'Create New Quotation'}</h3>
                 <button onClick={() => { setIsModalOpen(false); resetForm(); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
               </div>
-              <form onSubmit={handleCreate} className="p-8 space-y-6">
-                <div className="grid grid-cols-2 gap-6">
+              <form onSubmit={handleCreate} className="p-5 sm:p-8 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                   <MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]} />
                   <MinimalInput label="Date" type="date" value={formData.date} onChange={(e: any) => setFormData({...formData, date: e.target.value})} />
-                </div>
-                <div className="grid grid-cols-2 gap-6">
                   <MinimalInput label="Expiry Date" type="date" value={expiryDate} onChange={(e: any) => setExpiryDate(e.target.value)} />
                 </div>
 
@@ -716,7 +714,7 @@ export const Quotations: React.FC = () => {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">Or Add Custom Line</span>
                     <div className="flex-1 h-px bg-slate-200" />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-3 items-end">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-4 items-end">
                     <div className="flex-1"><MinimalTextarea label="Description / Details" value={newItem.description} onChange={(e: any) => setNewItem({...newItem, description: e.target.value})} rows={3} /></div>
                     <div><MinimalInput label="Amount ($)" type="number" value={newItem.amount} onChange={(e: any) => setNewItem({...newItem, amount: Number(e.target.value)})} /></div>
                     <button type="button" onClick={addItem} className="bg-slate-900 text-white rounded-xl px-4 py-3 hover:bg-slate-800 flex items-center justify-center gap-2"><Plus size={18}/> Add</button>
@@ -743,7 +741,7 @@ export const Quotations: React.FC = () => {
 
                 <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Discount</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-[180px_140px] gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <MinimalSelect label="Discount Type" value={discountType} onChange={(e: any) => setDiscountType(e.target.value)} options={[{ value: 'amount', label: 'Fixed Amount' }, { value: 'percentage', label: 'Percentage %' }]} />
                     <MinimalInput label={discountType === 'percentage' ? 'Discount %' : 'Discount Amount ($)'} type="number" value={discountValue} onChange={(e: any) => setDiscountValue(Number(e.target.value))} />
                   </div>
