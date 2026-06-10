@@ -689,20 +689,20 @@ export const Quotations: React.FC = () => {
         <div className="fixed inset-0 z-[200] overflow-y-auto">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsModalOpen(false)} />
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all w-full sm:my-8 sm:max-w-4xl border border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all w-full sm:my-8 sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl border border-white/20 max-h-[92vh] overflow-y-auto">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                 <h3 className="text-xl font-bold text-slate-900">{editingQuotation ? 'Edit Quotation' : 'Create New Quotation'}</h3>
                 <button onClick={() => { setIsModalOpen(false); resetForm(); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
               </div>
-              <form onSubmit={handleCreate} className="p-5 sm:p-8 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              <form onSubmit={handleCreate} className="p-4 sm:p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]} />
                   <MinimalInput label="Date" type="date" value={formData.date} onChange={(e: any) => setFormData({...formData, date: e.target.value})} />
                   <MinimalInput label="Expiry Date" type="date" value={expiryDate} onChange={(e: any) => setExpiryDate(e.target.value)} />
                 </div>
 
                 {/* Line Items */}
-                <div className="bg-slate-50 rounded-2xl p-6 space-y-4 border border-slate-100">
+                <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 space-y-3 border border-slate-100">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Line Items</h4>
                   
                   <BillboardCatalogue onAddItems={(items) => {
@@ -714,22 +714,22 @@ export const Quotations: React.FC = () => {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">Or Add Custom Line</span>
                     <div className="flex-1 h-px bg-slate-200" />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-4 items-end">
-                    <div className="flex-1"><MinimalTextarea label="Description / Details" value={newItem.description} onChange={(e: any) => setNewItem({...newItem, description: e.target.value})} rows={3} /></div>
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-3 items-end">
+                    <div className="flex-1"><MinimalTextarea label="Description / Details" value={newItem.description} onChange={(e: any) => setNewItem({...newItem, description: e.target.value})} rows={2} /></div>
                     <div><MinimalInput label="Amount ($)" type="number" value={newItem.amount} onChange={(e: any) => setNewItem({...newItem, amount: Number(e.target.value)})} /></div>
                     <button type="button" onClick={addItem} className="bg-slate-900 text-white rounded-xl px-4 py-3 hover:bg-slate-800 flex items-center justify-center gap-2"><Plus size={18}/> Add</button>
                   </div>
                   {formData.items && formData.items.length > 0 && (
                     <div className="mt-4 space-y-3">
                       {formData.items.map((item, idx) => (
-                        <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                        <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-900">Line Item {idx + 1}</span>
                             <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove line item">
                               <Trash2 size={16} />
                             </button>
                           </div>
-                          <MinimalTextarea label="Description / Details" value={item.description} onChange={(e: any) => updateItem(idx, 'description', e.target.value)} rows={3} />
+                          <MinimalTextarea label="Description / Details" value={item.description} onChange={(e: any) => updateItem(idx, 'description', e.target.value)} rows={2} />
                           <div className="w-full md:w-40">
                             <MinimalInput label="Amount ($)" type="number" value={item.amount} onChange={(e: any) => updateItem(idx, 'amount', e.target.value)} />
                           </div>
@@ -739,9 +739,9 @@ export const Quotations: React.FC = () => {
                   )}
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
+                <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Discount</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <MinimalSelect label="Discount Type" value={discountType} onChange={(e: any) => setDiscountType(e.target.value)} options={[{ value: 'amount', label: 'Fixed Amount' }, { value: 'percentage', label: 'Percentage %' }]} />
                     <MinimalInput label={discountType === 'percentage' ? 'Discount %' : 'Discount Amount ($)'} type="number" value={discountValue} onChange={(e: any) => setDiscountValue(Number(e.target.value))} />
                   </div>
@@ -753,10 +753,10 @@ export const Quotations: React.FC = () => {
                 </div>
                 <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Quotation Details</h4>
-                  <MinimalTextarea label="Terms & Conditions" value={terms} onChange={(e: any) => setTerms(e.target.value)} rows={3} />
+                  <MinimalTextarea label="Terms & Conditions" value={terms} onChange={(e: any) => setTerms(e.target.value)} rows={2} />
                   <MinimalTextarea label="Internal Notes (not shown on PDF)" value={notes} onChange={(e: any) => setNotes(e.target.value)} rows={2} />
                 </div>
-                <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
+                <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-300">Subtotal</span>
                     <span className="font-semibold">${subtotal.toLocaleString()}</span>
@@ -788,7 +788,7 @@ export const Quotations: React.FC = () => {
         <div className="fixed inset-0 z-[200] overflow-y-auto">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setViewingQuotation(null)} />
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-3xl border border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-3xl lg:max-w-4xl border border-white/20 max-h-[92vh] overflow-y-auto">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">Quotation Details</h3>
@@ -796,13 +796,13 @@ export const Quotations: React.FC = () => {
                 </div>
                 <button onClick={() => setViewingQuotation(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-900" /></button>
               </div>
-              <div className="p-8 space-y-6">
+              <div className="p-6 space-y-4">
                 {(() => {
                   const client = allClients.find(c => c.id === viewingQuotation.clientId);
                   const statusCfg = STATUS_CONFIG[viewingQuotation.quoteStatus || 'Draft'] || STATUS_CONFIG.Draft;
                   const StatusIcon = statusCfg.icon;
                   return (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div className="flex flex-wrap items-center gap-3">
                         <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${statusCfg.bg} ${statusCfg.text}`}>
                           <StatusIcon size={14} /> {viewingQuotation.quoteStatus}
@@ -813,7 +813,7 @@ export const Quotations: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
                           <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-3">Client</h4>
                           <p className="text-sm font-bold text-slate-800">{client?.companyName || 'Unknown'}</p>
@@ -876,8 +876,8 @@ export const Quotations: React.FC = () => {
                 <div><h3 className="text-xl font-bold text-slate-900">Convert Quotation to Contract</h3><p className="text-xs text-slate-900 mt-0.5">{convertingQuotation.quoteNumber || convertingQuotation.id} — {allClients.find(c => c.id === convertingQuotation.clientId)?.companyName}</p></div>
                 <button onClick={() => setConvertingQuotation(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} className="text-slate-900" /></button>
               </div>
-              <form onSubmit={handleConvertToContractSubmit} className="p-8 space-y-6">
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
+              <form onSubmit={handleConvertToContractSubmit} className="p-6 space-y-4">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
                   <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">From Quotation</p>
                   {convertingQuotation.items.map((item, i) => (
                     <div key={i} className="flex justify-between text-sm"><span className="text-slate-900">{item.description}</span><span className="font-bold">${item.amount.toLocaleString()}</span></div>
@@ -885,7 +885,7 @@ export const Quotations: React.FC = () => {
                   <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200 mt-2"><span>Total</span><span>${convertingQuotation.total.toLocaleString()}</span></div>
                 </div>
                 <MinimalSelect label="Billboard" value={convertForm.billboardId} onChange={(e: any) => setConvertForm({...convertForm, billboardId: e.target.value})} options={[{value: '', label: 'Select Billboard...'}, ...getBillboards().map(b => ({value: b.id, label: `${b.name} (${b.town})`}))]} />
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-4">
                   <MinimalInput label="Start Date" type="date" value={convertForm.startDate} onChange={(e: any) => setConvertForm({...convertForm, startDate: e.target.value})} required />
                   <MinimalInput label="End Date" type="date" value={convertForm.endDate} onChange={(e: any) => setConvertForm({...convertForm, endDate: e.target.value})} required />
                 </div>
