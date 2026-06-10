@@ -4,6 +4,15 @@ export enum BillboardType {
   LED = 'LED'
 }
 
+export enum QuoteStatus {
+  Draft = 'Draft',
+  Sent = 'Sent',
+  Accepted = 'Accepted',
+  Rejected = 'Rejected',
+  Expired = 'Expired',
+  Converted = 'Converted',
+}
+
 export interface Billboard {
   id: string;
   name: string;
@@ -132,7 +141,7 @@ export interface Invoice {
   contractId?: string;
   clientId: string;
   date: string;
-  items: { description: string; amount: number; billboardId?: string; side?: 'A' | 'B'; slots?: number }[];
+  items: { description: string; amount: number; billboardId?: string; side?: 'A' | 'B'; slots?: number; quantity?: number; unitPrice?: number }[];
   subtotal: number;
   discountAmount?: number;
   discountDescription?: string;
@@ -144,6 +153,20 @@ export interface Invoice {
   // Audit Trail
   paymentMethod?: 'Cash' | 'Bank Transfer' | 'EcoCash' | 'Other';
   paymentReference?: string;
+  
+  // Quotation-specific fields
+  quoteNumber?: string;
+  expiryDate?: string;
+  terms?: string;
+  notes?: string;
+  sentAt?: string;
+  sentTo?: string;
+  quoteStatus?: QuoteStatus;
+  convertedToInvoiceId?: string;
+  convertedToContractId?: string;
+  convertedAt?: string;
+  createdBy?: string;
+  assignedTo?: string;
 }
 
 export interface PrintingJob {
@@ -183,6 +206,7 @@ export interface UserPermissions {
   billboards?: 'none' | 'read' | 'write';
   contracts?: 'none' | 'read' | 'write';
   invoices?: 'none' | 'read' | 'write';
+  quotations?: 'none' | 'read' | 'write';
   clients?: 'none' | 'read' | 'write';
   expenses?: 'none' | 'read' | 'write';
   crm?: 'none' | 'read' | 'write';
@@ -190,6 +214,25 @@ export interface UserPermissions {
   maintenance?: 'none' | 'read' | 'write';
   printing?: 'none' | 'read' | 'write';
   tasks?: 'none' | 'read' | 'write';
+}
+
+export interface ProductService {
+  id: string;
+  name: string;
+  description?: string;
+  unitPrice: number;
+  category: string;
+  isActive: boolean;
+}
+
+export interface QuotationEvent {
+  id: string;
+  invoiceId: string;
+  type: string;
+  actorId?: string;
+  actorEmail?: string;
+  details?: string;
+  createdAt: string;
 }
 
 export interface LoginHistoryEntry {

@@ -1,4 +1,4 @@
-import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog } from '../types';
+import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog, QuotationEvent } from '../types';
 import { api, isConfigured } from './apiClient';
 import { STORAGE_KEYS, splitInclusiveVat, VAT_RATE } from './constants';
 
@@ -71,6 +71,7 @@ export let printingJobs: PrintingJob[] = [];
 export let maintenanceLogs: MaintenanceLog[] = [];
 export let tasks: Task[] = [];
 export let users: User[] = [];
+export let quotationEvents: QuotationEvent[] = [];
 
 // --- Company Profile (in-memory, fetched from API) ---
 let companyProfile: CompanyProfile | null = null;
@@ -522,6 +523,139 @@ export const convertInvoiceType = async (id: string, newType: Invoice['type']) =
     notifyListeners();
 };
 
+// --- Quotation Helpers ---
+
+let _quoteCounter = 0;
+let _quoteCounterDate = '';
+
+export const getNextQuoteNumber = (): string => {
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    if (_quoteCounterDate !== today) {
+        _quoteCounterDate = today;
+        _quoteCounter = 0;
+    }
+    _quoteCounter++;
+    const seq = String(_quoteCounter).padStart(3, '0');
+    return `QT-${today}-${seq}`;
+};
+
+export const logQuotationEvent = async (invoiceId: string, type: string, details?: string) => {
+    let actorEmail = 'System';
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+        if (stored) {
+            const u = JSON.parse(stored);
+            actorEmail = u?.email || 'Unknown';
+        }
+    } catch (_) {}
+    const event: QuotationEvent = {
+        id: `qev-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        invoiceId,
+        type,
+        actorEmail,
+        details: details || '',
+        createdAt: new Date().toISOString(),
+    };
+    quotationEvents = [event, ...quotationEvents];
+    if (isConfigured()) {
+        api.post('/api/quotation-events', event).catch(() => {});
+    }
+};
+
+export const duplicateQuotation = async (id: string): Promise<Invoice | null> => {
+    const original = invoices.find(i => i.id === id && String(i.type).toLowerCase() === 'quotation');
+    if (!original) return null;
+    const duplicated: Invoice = {
+        ...original,
+        id: `QT-${Date.now().toString().slice(-6)}`,
+        quoteNumber: getNextQuoteNumber(),
+        date: new Date().toISOString().split('T')[0],
+        quoteStatus: 'Draft',
+        expiryDate: undefined,
+        sentAt: undefined,
+        sentTo: undefined,
+        convertedToInvoiceId: undefined,
+        convertedToContractId: undefined,
+        convertedAt: undefined,
+        notes: `Duplicated from ${original.quoteNumber || original.id}`,
+    };
+    await addInvoice(duplicated);
+    logQuotationEvent(duplicated.id, 'created', `Duplicated from ${original.quoteNumber || original.id}`);
+    logAction('Duplicate Quotation', `Duplicated quotation #${original.id} to #${duplicated.id}`);
+    return duplicated;
+};
+
+export const convertQuotationToInvoice = async (id: string): Promise<Invoice | null> => {
+    const quotation = invoices.find(i => i.id === id && String(i.type).toLowerCase() === 'quotation');
+    if (!quotation) return null;
+    const invoice: Invoice = {
+        ...quotation,
+        id: `INV-${Date.now().toString().slice(-6)}`,
+        type: 'Invoice',
+        status: 'Pending',
+        quoteStatus: 'Converted',
+        convertedToInvoiceId: undefined,
+        convertedAt: new Date().toISOString(),
+    };
+    await addInvoice(invoice);
+    // Update original quotation to mark as converted
+    const updatedQuotation: Invoice = {
+        ...quotation,
+        quoteStatus: 'Converted',
+        convertedToInvoiceId: invoice.id,
+        convertedAt: new Date().toISOString(),
+    };
+    await updateInvoice(updatedQuotation);
+    logQuotationEvent(quotation.id, 'converted', `Converted to Invoice #${invoice.id}`);
+    logAction('Convert Quotation', `Converted quotation #${quotation.id} to invoice #${invoice.id}`);
+    return invoice;
+};
+
+export const markQuotationSent = async (id: string, sentTo?: string) => {
+    const quotation = invoices.find(i => i.id === id && String(i.type).toLowerCase() === 'quotation');
+    if (!quotation) return;
+    const updated: Invoice = {
+        ...quotation,
+        quoteStatus: 'Sent',
+        sentAt: new Date().toISOString(),
+        sentTo: sentTo || quotation.sentTo,
+    };
+    await updateInvoice(updated);
+    logQuotationEvent(id, 'sent', sentTo ? `Sent to ${sentTo}` : 'Sent to client');
+    logAction('Send Quotation', `Marked quotation #${id} as Sent to ${sentTo || 'client'}`);
+};
+
+export const markQuotationStatus = async (id: string, status: Invoice['quoteStatus']) => {
+    const quotation = invoices.find(i => i.id === id && String(i.type).toLowerCase() === 'quotation');
+    if (!quotation) return;
+    const updated: Invoice = { ...quotation, quoteStatus: status };
+    await updateInvoice(updated);
+    logQuotationEvent(id, status?.toLowerCase() || 'status_changed', `Status changed to ${status}`);
+    logAction('Quotation Status', `Marked quotation #${id} as ${status}`);
+};
+
+export const getQuotationEvents = (invoiceId: string): QuotationEvent[] => {
+    return quotationEvents.filter(e => e.invoiceId === invoiceId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+export const fetchQuotationEvents = async (invoiceId: string): Promise<QuotationEvent[]> => {
+    if (isConfigured()) {
+        try {
+            const data = await api.get<QuotationEvent[]>(`/api/quotation-events?invoiceId=${invoiceId}`);
+            if (data) {
+                // Merge with local events
+                const localForInvoice = quotationEvents.filter(e => e.invoiceId === invoiceId);
+                const merged = [...localForInvoice, ...data.filter(d => !localForInvoice.some(l => l.id === d.id))];
+                quotationEvents = [...quotationEvents.filter(e => e.invoiceId !== invoiceId), ...merged];
+                return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            }
+        } catch (e) {
+            console.error('[fetchQuotationEvents] API error:', e);
+        }
+    }
+    return getQuotationEvents(invoiceId);
+};
+
 const recalcBillboardAvailability = (billboardId: string) => {
     const b = billboards.find(x => x.id === billboardId);
     if (!b) return;
@@ -575,6 +709,9 @@ export const addInvoice = async (invoice: Invoice) => {
         const touched = Array.from(new Set((invoice.items || []).map(it => it.billboardId).filter((id): id is string => !!id)));
         touched.forEach(recalcBillboardAvailability);
         if (touched.length > 0) logAction('Billboard Availability', `Marked ${touched.length} billboard${touched.length > 1 ? 's' : ''} as rented from Invoice #${invoice.id}`);
+    }
+    if (String(invoice.type || '').toLowerCase() === 'quotation') {
+        logQuotationEvent(invoice.id, 'created', `Quotation ${invoice.quoteNumber || invoice.id} created`);
     }
     logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`);
     notifyListeners();

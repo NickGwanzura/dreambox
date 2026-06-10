@@ -203,6 +203,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     { id: 'payments', label: 'Payments', icon: Wallet, roles: ['Admin', 'Manager', 'Staff'] },
     { id: 'clients', label: 'Clients', icon: Users, roles: ['Admin', 'Manager', 'Staff'] },
     { id: 'financials', label: 'Invoices & Quotes', icon: CreditCard, roles: null },
+    { id: 'quotations', label: 'Quotations', icon: FileText, roles: null },
     { id: 'receipts', label: 'Receipts', icon: Receipt, roles: ['Admin', 'Manager', 'Staff'] },
     { id: 'expenses', label: 'Expenses', icon: Printer, roles: ['Admin', 'Manager', 'Staff'] },
     { id: 'contract-template', label: 'Contract Template', icon: FileSignature, roles: ['Admin'] },

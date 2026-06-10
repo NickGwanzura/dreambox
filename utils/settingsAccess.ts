@@ -28,3 +28,21 @@ export function canDelete(user: { email?: string | null; role?: string | null } 
 export function isSystemAdmin(user: { email?: string | null } | null | undefined): boolean {
   return user?.email?.trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
 }
+
+export function canCreateQuotations(user: { email?: string | null; role?: string | null } | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'Admin' || user.role === 'Manager' || user.role === 'SalesAgent') return true;
+  return isPrivileged(user);
+}
+
+export function canApproveQuotations(user: { email?: string | null; role?: string | null } | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'Admin' || user.role === 'Manager') return true;
+  return isPrivileged(user);
+}
+
+export function canSendQuotations(user: { email?: string | null; role?: string | null } | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'Admin' || user.role === 'Manager' || user.role === 'SalesAgent') return true;
+  return isPrivileged(user);
+}

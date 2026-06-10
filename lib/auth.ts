@@ -138,3 +138,44 @@ export function requireDeletePermission(
   res.status(403).json({ error: 'Delete permission requires Admin or Manager role.' });
   return null;
 }
+
+/**
+ * Check if user has write permission for quotations.
+ * Admin/Manager always allowed. SalesAgent can create/edit own.
+ * Staff can read only.
+ */
+export function requireQuotationWritePermission(
+  req: VercelRequest,
+  res: VercelResponse
+): JWTPayload | null {
+  const payload = requireAuth(req, res);
+  if (!payload) return null;
+
+  if (payload.role === 'Admin' || payload.role === 'Manager' || payload.role === 'SalesAgent') {
+    return payload;
+  }
+
+  log.warn(`Quotation write rejected — insufficient permissions  user=${payload.email} role=${payload.role}`);
+  res.status(403).json({ error: 'Quotation creation requires Admin, Manager, or Sales Agent role.' });
+  return null;
+}
+
+/**
+ * Check if user can approve/convert quotations.
+ * Only Admin and Manager can approve/convert.
+ */
+export function requireQuotationApprovePermission(
+  req: VercelRequest,
+  res: VercelResponse
+): JWTPayload | null {
+  const payload = requireAuth(req, res);
+  if (!payload) return null;
+
+  if (payload.role === 'Admin' || payload.role === 'Manager') {
+    return payload;
+  }
+
+  log.warn(`Quotation approve rejected — insufficient permissions  user=${payload.email} role=${payload.role}`);
+  res.status(403).json({ error: 'Quotation approval requires Admin or Manager role.' });
+  return null;
+}

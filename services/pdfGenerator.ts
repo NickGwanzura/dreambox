@@ -235,16 +235,21 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     const doc = new jsPDF();
     const branding = await getPdfBranding();
     let currentY = addCompanyHeader(doc, branding);
+    const isQuotation = invoice.type === 'Quotation';
     
     doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
-    doc.text(invoice.type === 'Quotation' ? 'QUOTATION' : invoice.type === 'Receipt' ? 'RECEIPT' : 'INVOICE', 14, currentY);
+    doc.text(isQuotation ? 'QUOTATION' : invoice.type === 'Receipt' ? 'RECEIPT' : 'INVOICE', 14, currentY);
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100);
-    doc.text(`#${invoice.id}`, 14, currentY + 6);
+    if (isQuotation && invoice.quoteNumber) {
+      doc.text(`Quote #${invoice.quoteNumber}`, 14, currentY + 6);
+    } else {
+      doc.text(`#${invoice.id}`, 14, currentY + 6);
+    }
     
     const metaY = currentY + 15;
     
@@ -274,23 +279,47 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.setTextColor(50);
     doc.setFont("helvetica", "normal");
     
-    doc.text('Date Issued:', 120, metaY + 6);
-    doc.text(invoice.date, 160, metaY + 6, { align: 'right' });
+    let detailRow = 0;
+    doc.text('Date Issued:', 120, metaY + 6 + detailRow * 5);
+    doc.text(invoice.date, 160, metaY + 6 + detailRow * 5, { align: 'right' });
+    detailRow++;
     
-    doc.text('Status:', 120, metaY + 11);
-    doc.setTextColor(invoice.status === 'Paid' ? 'green' : invoice.status === 'Overdue' ? 'red' : 'black');
-    doc.text(invoice.status, 160, metaY + 11, { align: 'right' });
+    if (isQuotation && invoice.expiryDate) {
+      doc.text('Valid Until:', 120, metaY + 6 + detailRow * 5);
+      doc.text(invoice.expiryDate, 160, metaY + 6 + detailRow * 5, { align: 'right' });
+      detailRow++;
+    }
+    
+    doc.text('Status:', 120, metaY + 6 + detailRow * 5);
+    if (isQuotation && invoice.quoteStatus) {
+      const statusColors: Record<string, [number, number, number]> = {
+        Draft: [100, 116, 139],
+        Sent: [99, 102, 241],
+        Accepted: [16, 185, 129],
+        Rejected: [239, 68, 68],
+        Expired: [245, 158, 11],
+        Converted: [139, 92, 246],
+      };
+      const [r, g, b] = statusColors[invoice.quoteStatus] || [0, 0, 0];
+      doc.setTextColor(r, g, b);
+      doc.text(invoice.quoteStatus, 160, metaY + 6 + detailRow * 5, { align: 'right' });
+    } else {
+      doc.setTextColor(invoice.status === 'Paid' ? 'green' : invoice.status === 'Overdue' ? 'red' : 'black');
+      doc.text(invoice.status, 160, metaY + 6 + detailRow * 5, { align: 'right' });
+    }
     doc.setTextColor(50);
+    detailRow++;
 
     if (invoice.contractId) {
-        doc.text('Contract Ref:', 120, metaY + 16);
-        doc.text(invoice.contractId, 160, metaY + 16, { align: 'right' });
+      doc.text('Contract Ref:', 120, metaY + 6 + detailRow * 5);
+      doc.text(invoice.contractId, 160, metaY + 6 + detailRow * 5, { align: 'right' });
+      detailRow++;
     }
 
     const tableColumn = ["Description", "Amount ($)"];
     const tableRows = (invoice.items || []).map(item => [item.description, item.amount.toFixed(2)]);
     
-    const tableStartY = metaY + 30;
+    const tableStartY = metaY + 30 + (detailRow > 3 ? (detailRow - 3) * 5 : 0);
 
     if (tableRows.length > 0) {
         runAutoTable(doc, {
@@ -328,17 +357,51 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.text(`Total:`, totalsX, finalY + 31);
     doc.text(`$${(invoice.total || 0).toFixed(2)}`, 195, finalY + 31, { align: 'right' });
 
+    // Terms & Conditions for quotations
+    if (isQuotation && invoice.terms) {
+      let termsY = finalY + 40;
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, termsY - 4, 195, termsY - 4);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(100);
+      doc.text('TERMS & CONDITIONS', 14, termsY + 2);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(50);
+      const termsLines = doc.splitTextToSize(invoice.terms, 180);
+      doc.text(termsLines, 14, termsY + 10);
+    }
+
+    // Notes for quotations
+    if (isQuotation && invoice.notes) {
+      let notesY = finalY + 40 + (invoice.terms ? 25 : 0);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(100);
+      doc.text('INTERNAL NOTES', 14, notesY + 2);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(50);
+      const noteLines = doc.splitTextToSize(invoice.notes, 180);
+      doc.text(noteLines, 14, notesY + 10);
+    }
+
     // Bank / Payment Details — shown on invoices, quotations, proformas, and receipts
     const profile = getCompanyProfile();
     if (profile.bankName && profile.bankAccountNumber) {
-        const bankY = finalY + 45;
+        const bankY = finalY + 45 + (invoice.terms ? 25 : 0) + (invoice.notes ? 20 : 0);
         doc.setDrawColor(226, 232, 240);
         doc.line(14, bankY - 4, 195, bankY - 4);
 
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(100);
-        doc.text('PAYMENT DETAILS', 14, bankY + 2);
+        if (isQuotation) {
+          doc.text('NOSTRO / USD BANK DETAILS', 14, bankY + 2);
+        } else {
+          doc.text('PAYMENT DETAILS', 14, bankY + 2);
+        }
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);

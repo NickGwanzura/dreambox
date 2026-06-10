@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType } from '../services/mockData';
+import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType, getNextQuoteNumber } from '../services/mockData';
 import { calculateContractMonths } from '../utils/contractDate';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
@@ -55,6 +55,9 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const [convertForm, setConvertForm] = useState({ billboardId: '', startDate: '', endDate: '' });
   const [billboardSelections, setBillboardSelections] = useState<Record<string, { sideA?: boolean; sideB?: boolean; slots?: number }>>({});
   const [billboardSearch, setBillboardSearch] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [terms, setTerms] = useState('');
+  const [notes, setNotes] = useState('');
 
   const getEmptyFormData = (): Partial<Invoice> => ({
     clientId: '',
@@ -65,6 +68,11 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     paymentMethod: 'Bank Transfer',
     paymentReference: ''
   });
+  const resetQuoteFields = () => {
+    setExpiryDate('');
+    setTerms('');
+    setNotes('');
+  };
 
   // Refresh data whenever tab changes, modal closes, or a data sync happens
   useEffect(() => {
@@ -196,6 +204,9 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               contractId: formData.contractId,
               paymentMethod: editingInvoice.type === 'Receipt' ? formData.paymentMethod : undefined,
               paymentReference: editingInvoice.type === 'Receipt' ? formData.paymentReference : undefined,
+              expiryDate: editingInvoice.type === 'Quotation' ? (expiryDate || undefined) : undefined,
+              terms: editingInvoice.type === 'Quotation' ? (terms || undefined) : undefined,
+              notes: editingInvoice.type === 'Quotation' ? (notes || undefined) : undefined,
           };
           updateInvoice(updatedDoc);
           setInvoices(getInvoices());
@@ -204,12 +215,34 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           setFormData(getEmptyFormData());
           setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription('');
           setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch('');
+          resetQuoteFields();
           alert(`${editingInvoice.type} Updated Successfully!`);
       } else {
-          const newDoc: Invoice = { id: `${activeTab === 'Quotations' ? 'QT' : activeTab === 'Receipts' ? 'RCT' : activeTab === 'Proformas' ? 'PRO' : 'INV'}-${Date.now().toString().slice(-4)}`, clientId: formData.clientId!, date: formData.date!, items: formData.items || [], subtotal, discountAmount, discountDescription: discountAmount > 0 ? discountDescription.trim() || undefined : undefined, vatAmount, total, status: activeTab === 'Receipts' ? 'Paid' : 'Pending', type: activeTab === 'Invoices' ? 'Invoice' : activeTab === 'Quotations' ? 'Quotation' : activeTab === 'Proformas' ? 'Proforma' : 'Receipt', contractId: formData.contractId, paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined, paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined };
+          const isQuote = activeTab === 'Quotations';
+          const newDoc: Invoice = {
+            id: `${activeTab === 'Quotations' ? 'QT' : activeTab === 'Receipts' ? 'RCT' : activeTab === 'Proformas' ? 'PRO' : 'INV'}-${Date.now().toString().slice(-4)}`,
+            clientId: formData.clientId!,
+            date: formData.date!,
+            items: formData.items || [],
+            subtotal,
+            discountAmount,
+            discountDescription: discountAmount > 0 ? discountDescription.trim() || undefined : undefined,
+            vatAmount,
+            total,
+            status: activeTab === 'Receipts' ? 'Paid' : 'Pending',
+            type: activeTab === 'Invoices' ? 'Invoice' : activeTab === 'Quotations' ? 'Quotation' : activeTab === 'Proformas' ? 'Proforma' : 'Receipt',
+            contractId: formData.contractId,
+            paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined,
+            paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined,
+            quoteNumber: isQuote ? getNextQuoteNumber() : undefined,
+            expiryDate: isQuote ? (expiryDate || undefined) : undefined,
+            terms: isQuote ? (terms || undefined) : undefined,
+            notes: isQuote ? (notes || undefined) : undefined,
+            quoteStatus: isQuote ? 'Draft' : undefined,
+          };
           addInvoice(newDoc);
           if (activeTab === 'Receipts' && selectedInvoiceToPay) { markInvoiceAsPaid(selectedInvoiceToPay); }
-          setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+          setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
       }
   };
   const downloadPDF = (doc: Invoice) => { const client = allClients.find(c => c.id === doc.clientId); if (client) { generateInvoicePDF(doc, client); } else { alert(`Could not generate PDF: Client data missing for ID ${doc.clientId}`); } };
@@ -258,6 +291,9 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           setDiscountValue(0);
           setDiscountDescription('');
       }
+      setExpiryDate(doc.expiryDate || '');
+      setTerms(doc.terms || '');
+      setNotes(doc.notes || '');
       setNewItem({ description: '', amount: 0 });
       setBillboardSelections({});
       setBillboardSearch('');
@@ -300,11 +336,18 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     };
     try {
       addContract(contract);
-      deleteInvoice(convertingQuotation.id);
+      // Preserve quotation — mark as Converted instead of deleting
+      const updatedQuotation: Invoice = {
+        ...convertingQuotation,
+        quoteStatus: 'Converted',
+        convertedToContractId: contract.id,
+        convertedAt: new Date().toISOString(),
+      };
+      updateInvoice(updatedQuotation);
       setInvoices(getInvoices());
       setConvertingQuotation(null);
       setConvertForm({ billboardId: '', startDate: '', endDate: '' });
-      alert(`Contract ${contract.id} created from Quotation #${convertingQuotation.id}`);
+      alert(`Contract ${contract.id} created from Quotation #${convertingQuotation.id}. The quotation has been preserved.`);
     } catch (err) {
       console.error('Failed to convert quotation to contract:', err);
       alert('Failed to create contract. The quotation has been kept. Please try again.');
@@ -326,7 +369,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : activeTab === 'Proformas' ? 'Proforma Invoices' : 'Financial Documents'}</h2><p className="text-slate-900 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : activeTab === 'Proformas' ? 'Preliminary invoices, convert to final invoices when ready' : 'Create invoices, manage VAT, and track payment history'}</p></div>
-          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
+          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
         </div>
 
         {/* Mobile-friendly tabs */}
@@ -431,18 +474,104 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           );
         })()}
 
-        {activeTab !== 'Statements' && <div className="bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden">
+        {activeTab !== 'Statements' && <>
+          {/* Mobile Cards */}
+          <div className="lg:hidden grid grid-cols-1 gap-4">
+            {filteredDocs.length > 0 ? filteredDocs.map(doc => {
+              const client = allClients.find(c => c.id === doc.clientId);
+              const isQuote = activeTab === 'Quotations';
+              const statusLabel = isQuote && doc.quoteStatus ? doc.quoteStatus : doc.status;
+              const statusColor = isQuote && doc.quoteStatus ? (
+                doc.quoteStatus === 'Draft' ? 'bg-slate-100 text-slate-700' :
+                doc.quoteStatus === 'Sent' ? 'bg-indigo-100 text-indigo-700' :
+                doc.quoteStatus === 'Accepted' ? 'bg-green-100 text-green-700' :
+                doc.quoteStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
+                doc.quoteStatus === 'Expired' ? 'bg-amber-100 text-amber-700' :
+                doc.quoteStatus === 'Converted' ? 'bg-purple-100 text-purple-700' :
+                'bg-slate-100 text-slate-900'
+              ) : (
+                String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' :
+                String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700' :
+                'bg-amber-100 text-amber-700'
+              );
+              return (
+                <div key={doc.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-bold text-slate-900">{doc.quoteNumber || doc.id}</p>
+                      <p className="text-xs text-slate-900">{client?.companyName || 'Unknown'}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${statusColor}`}>{statusLabel}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-900">Date</span>
+                    <span className="font-medium">{doc.date}</span>
+                  </div>
+                  {isQuote && doc.expiryDate && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-900">Valid Until</span>
+                      <span className="font-medium text-amber-600">{doc.expiryDate}</span>
+                    </div>
+                  )}
+                  {activeTab === 'Receipts' && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-900">Method</span>
+                      <span className="font-medium">{doc.paymentMethod || '-'}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-900">Total</span>
+                    <span className="font-bold">${doc.total.toLocaleString()}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg" title="Download PDF"><Download size={16} /></button>
+                    <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-lg" title="Send Email"><Send size={16} /></button>
+                    <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-lg" title="Edit"><Edit size={16} /></button>
+                    {activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (
+                      <button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg" title="Record Payment"><CreditCard size={16} /></button>
+                    )}
+                    {activeTab === 'Quotations' && (
+                      <>
+                        <button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg" title="Convert to Invoice"><ArrowRight size={16} /></button>
+                        <button onClick={() => setConvertingQuotation(doc)} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg" title="Convert to Contract"><FileText size={16} /></button>
+                      </>
+                    )}
+                    {canDelete(getCurrentUser()) && (
+                      <button onClick={() => handleDelete(doc)} className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg" title="Delete"><Trash2 size={16} /></button>
+                    )}
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="py-12 text-center text-slate-900 italic">No documents found.</div>
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden lg:block bg-white shadow-sm rounded-2xl border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-900 min-w-[600px] lg:min-w-[800px]">
+            <table className="w-full text-left text-sm text-slate-900 min-w-[800px]">
               <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">Actions</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-900'}`}>{doc.status}</span></td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={() => { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; addInvoice({ id: receiptId, clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` }); markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{activeTab === 'Quotations' && (<><button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{activeTab === 'Proformas' && (<button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className={`p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors ${!canDelete(getCurrentUser()) ? 'hidden' : ''}`} title="Delete"><Trash2 size={16} /></button></td></tr>
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.quoteNumber || doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}{activeTab === 'Quotations' && doc.expiryDate && <span className="text-[10px] text-amber-600 font-medium">Valid until {doc.expiryDate}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center">{activeTab === 'Quotations' && doc.quoteStatus ? (
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        doc.quoteStatus === 'Draft' ? 'bg-slate-100 text-slate-700' :
+                        doc.quoteStatus === 'Sent' ? 'bg-indigo-100 text-indigo-700' :
+                        doc.quoteStatus === 'Accepted' ? 'bg-green-100 text-green-700' :
+                        doc.quoteStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
+                        doc.quoteStatus === 'Expired' ? 'bg-amber-100 text-amber-700' :
+                        doc.quoteStatus === 'Converted' ? 'bg-purple-100 text-purple-700' :
+                        'bg-slate-100 text-slate-900'
+                      }`}>{doc.quoteStatus}</span>
+                    ) : (
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-900'}`}>{doc.status}</span>
+                    )}</td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={() => { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; addInvoice({ id: receiptId, clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` }); markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{activeTab === 'Quotations' && (<><button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{activeTab === 'Proformas' && (<button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className={`p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors ${!canDelete(getCurrentUser()) ? 'hidden' : ''}`} title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-900 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
           </div>
-        </div>}
+        </div></>}
       </div>
       {isModalOpen && (
         <div className="fixed inset-0 z-[200] overflow-y-auto">
@@ -576,6 +705,16 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                             <input type="checkbox" checked={hasVat} disabled={activeTab === 'Receipts' && !!selectedInvoiceToPay} onChange={e => setHasVat(e.target.checked)} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                             <label className="text-sm font-medium text-slate-900">Amounts include VAT ({vatPct})</label>
                         </div>
+                        {activeTab === 'Quotations' && (
+                          <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Quotation Details</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <MinimalInput label="Expiry Date" type="date" value={expiryDate} onChange={(e: any) => setExpiryDate(e.target.value)} />
+                            </div>
+                            <MinimalTextarea label="Terms & Conditions" value={terms} onChange={(e: any) => setTerms(e.target.value)} rows={2} />
+                            <MinimalTextarea label="Internal Notes" value={notes} onChange={(e: any) => setNotes(e.target.value)} rows={2} />
+                          </div>
+                        )}
                         <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-2">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-slate-300">Subtotal</span>

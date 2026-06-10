@@ -10,6 +10,7 @@ const BillboardList = lazyWithRetry(() => import('./components/BillboardList').t
 const ClientList = lazyWithRetry(() => import('./components/ClientList').then(m => ({ default: m.ClientList })));
 const Rentals = lazyWithRetry(() => import('./components/Rentals').then(m => ({ default: m.Rentals })));
 const Financials = lazyWithRetry(() => import('./components/Financials').then(m => ({ default: m.Financials })));
+const Quotations = lazyWithRetry(() => import('./components/Quotations').then(m => ({ default: m.Quotations })));
 const Expenses = lazyWithRetry(() => import('./components/Expenses').then(m => ({ default: m.Expenses })));
 const Settings = lazyWithRetry(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const ContractTemplatePage = lazyWithRetry(() => import('./components/ContractTemplatePage').then(m => ({ default: m.ContractTemplatePage })));
@@ -245,6 +246,12 @@ const App: React.FC = () => {
           return (
             <FeatureErrorBoundary featureName="Financials" onReset={() => setPageError(null)}>
               <Financials initialTab="Invoices" />
+            </FeatureErrorBoundary>
+          );
+        case 'quotations': 
+          return (
+            <FeatureErrorBoundary featureName="Quotations" onReset={() => setPageError(null)}>
+              <Quotations />
             </FeatureErrorBoundary>
           );
         case 'receipts': 

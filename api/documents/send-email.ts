@@ -8,7 +8,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
-import { requireAuth, cors } from '../../lib/auth';
+import { requireAuth, cors, requireQuotationWritePermission } from '../../lib/auth';
 import { escapeHtml } from '../../lib/htmlEscape';
 import { buildInvoicePdf, buildContractPdf } from '../../lib/documentPdf';
 
@@ -162,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       summaryRows.push(['Total', `$${invoice.total.toLocaleString()}`]);
 
       const defaultIntro = documentType === 'quotation'
-        ? `Please find your quotation from ${escapeHtml(brand)} below. This quote is valid for 30 days. A PDF copy is attached.`
+        ? `Please find your quotation from ${escapeHtml(brand)} below.${invoice.expiryDate ? ` This quote is valid until ${escapeHtml(invoice.expiryDate)}.` : ' This quote is valid for 30 days.'} A PDF copy is attached.`
         : documentType === 'receipt'
         ? `Thank you for your payment. Here is your receipt from ${escapeHtml(brand)}. A PDF copy is attached.`
         : `Please find your invoice from ${escapeHtml(brand)} below. Payment is due at your earliest convenience. A PDF copy is attached.`;
@@ -204,6 +204,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       html,
       attachments: [{ filename: pdfFilename, content: pdfBuffer }],
     });
+
+    // Update quotation status to Sent
+    if (documentType === 'quotation') {
+      try {
+        await prisma.invoice.update({
+          where: { id: documentId },
+          data: { quoteStatus: 'Sent', sentAt: new Date(), sentTo: finalTo.join(', ') }
+        });
+      } catch (e) {
+        console.warn('[documents/send-email] Failed to update quotation sent status:', e);
+      }
+    }
 
     const displayTo = finalTo.join(', ') + (ccList.length ? ` (cc: ${ccList.join(', ')})` : '');
     console.log(`[documents/send-email] Sent ${documentType} ${documentId} to ${displayTo} with PDF attachment`);

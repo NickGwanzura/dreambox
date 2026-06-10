@@ -204,11 +204,26 @@ model Invoice {
   type                InvoiceType   @default(Invoice)
   paymentMethod       String?
   paymentReference    String?
+  // Quotation-specific fields
+  quoteNumber         String?       @unique
+  expiryDate          String?
+  terms               String?
+  notes               String?
+  sentAt              DateTime?
+  sentTo              String?
+  quoteStatus         QuoteStatus?  @default(Draft)
+  convertedToInvoiceId String?
+  convertedToContractId String?
+  convertedAt         DateTime?
+  createdBy           String?
+  assignedTo          String?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
   @@index([clientId])
   @@index([contractId])
+  @@index([quoteStatus])
+  @@index([createdBy])
   @@map("invoices")
 }
 
@@ -488,6 +503,33 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model ProductService {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  unitPrice   Float
+  category    String   // 'billboard', 'design', 'printing', 'installation', 'other'
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("product_services")
+}
+
+model QuotationEvent {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  type        String   // 'created', 'sent', 'viewed', 'accepted', 'rejected', 'converted', 'edited'
+  actorId     String?
+  actorEmail  String?
+  details     String?
+  createdAt   DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([createdAt])
+  @@map("quotation_events")
+}
+
 // ============================================================
 // ENUMS
 // ============================================================
@@ -525,6 +567,15 @@ enum InvoiceType {
   Quotation
   Proforma
   Receipt
+}
+
+enum QuoteStatus {
+  Draft
+  Sent
+  Accepted
+  Rejected
+  Expired
+  Converted
 }
 
 enum ExpenseCategory {
