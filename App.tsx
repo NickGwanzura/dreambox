@@ -350,7 +350,7 @@ const App: React.FC = () => {
   }
 
   // Public Website Routing (No Auth Required)
-  const publicWebsitePaths = new Set(['/', '/services', '/pricing', '/contact', '/site-availability', '/available-sites']);
+  const publicWebsitePaths = new Set(['/', '/services', '/pricing', '/contact', '/site-availability', '/available-sites', '/faq']);
   if (publicWebsitePaths.has(normalizedPath)) {
       return (
           <ErrorBoundary>

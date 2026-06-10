@@ -5,12 +5,15 @@ import {
   Building2,
   CheckCircle,
   Clock,
+  Facebook,
   Globe2,
+  Instagram,
   Mail,
   MapPin,
   Megaphone,
   Menu,
   Phone,
+  Plus,
   Send,
   ShieldCheck,
   Sparkles,
@@ -92,7 +95,7 @@ const testimonials = [
   "Dreambox Media's attention to detail and commitment to delivering results have made them our go-to agency.",
 ];
 
-type PublicPage = 'home' | 'services' | 'locations' | 'pricing' | 'contact';
+type PublicPage = 'home' | 'services' | 'locations' | 'faq' | 'contact';
 
 const PAGE_META: Record<Exclude<PublicPage, 'home'>, { label: string; title: string; subtitle: string }> = {
   services: {
@@ -102,13 +105,13 @@ const PAGE_META: Record<Exclude<PublicPage, 'home'>, { label: string; title: str
   },
   locations: {
     label: 'Network',
-    title: 'Available Sites & Prices',
-    subtitle: 'Live availability across the Dreambox network, calculated from active contracts.',
+    title: 'Available Sites & Pricing',
+    subtitle: 'Live availability and transparent monthly rates across the Dreambox network, calculated from active contracts.',
   },
-  pricing: {
-    label: 'Rates',
-    title: 'Pricing',
-    subtitle: 'Transparent monthly rates on every site, with ROI built into your campaign.',
+  faq: {
+    label: 'Answers',
+    title: 'Frequently Asked Questions',
+    subtitle: 'Straight answers about pricing, availability, production, and how campaigns go live.',
   },
   contact: {
     label: 'Get started',
@@ -116,6 +119,49 @@ const PAGE_META: Record<Exclude<PublicPage, 'home'>, { label: string; title: str
     subtitle: 'Tell us your target towns, dates, and goals — we will prepare a client-ready quote.',
   },
 };
+
+const NAV_LINKS: { key: PublicPage; href: string; label: string }[] = [
+  { key: 'home', href: '/', label: 'Home' },
+  { key: 'services', href: '/services', label: 'Services' },
+  { key: 'locations', href: '/site-availability', label: 'Sites & Pricing' },
+  { key: 'faq', href: '/faq', label: 'FAQ' },
+  { key: 'contact', href: '/contact', label: 'Contact' },
+];
+
+const FAQS = [
+  {
+    q: 'How much does billboard advertising cost in Zimbabwe?',
+    a: 'Rates depend on the site, format, and side. Static billboard sides typically start around $450 per month, while LED digital boards are priced per rotating slot. Every card on our Sites & Pricing page shows its exact monthly rate — no hidden fees.',
+  },
+  {
+    q: 'How do I know a billboard is actually available?',
+    a: 'Availability on this website is calculated live from our active contracts. If a side or slot shows as available, it is genuinely open — and you can enquire or join a waitlist directly from the site card.',
+  },
+  {
+    q: 'What is the minimum campaign duration?',
+    a: 'Most campaigns run between 3 and 12 months. We can accommodate shorter bursts for product launches and events — tell us your dates and we will recommend the best option.',
+  },
+  {
+    q: 'Who handles printing and installation?',
+    a: 'Dreambox manages the full production chain: printing, installation, lighting checks, and ongoing maintenance for the life of your campaign. You supply print-ready artwork, or our team can assist with design.',
+  },
+  {
+    q: 'How quickly can my campaign go live?',
+    a: 'Once artwork is approved and the site is booked, campaigns typically go live within 7 to 14 days, depending on printing and installation scheduling.',
+  },
+  {
+    q: 'Can I see a site before booking?',
+    a: 'Yes. Every billboard has a public location page with photos, size, traffic data, and a map pin — and we are happy to arrange an in-person site visit.',
+  },
+  {
+    q: 'Do you offer digital (LED) billboard advertising?',
+    a: 'Yes. Our LED sites sell rotating slots, so your brand shares the screen with a limited number of advertisers. Slot counts and per-slot rates are shown on each LED site card.',
+  },
+  {
+    q: 'How does payment work?',
+    a: 'Campaigns are invoiced monthly in USD. We accept bank transfer, cash, and EcoCash, and every invoice and receipt is tracked in our CRM so your statements are always accurate.',
+  },
+];
 
 type AvailabilityItem = {
   board: Billboard;
@@ -193,9 +239,9 @@ const money = (value: number): string => `$${Math.round(value || 0).toLocaleStri
 const getPageFromPath = (): PublicPage => {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   if (path === '/services') return 'services';
-  if (path === '/pricing') return 'pricing';
+  if (path === '/faq') return 'faq';
   if (path === '/contact') return 'contact';
-  if (path === '/site-availability' || path === '/available-sites') return 'locations';
+  if (path === '/site-availability' || path === '/available-sites' || path === '/pricing') return 'locations';
   return 'home';
 };
 
@@ -449,30 +495,50 @@ export const PublicWebsite: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 font-sans">
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-700/50 bg-[#1e293b]/92 shadow-2xl shadow-slate-950/20 backdrop-blur-xl">
+      <header className="fixed inset-x-0 top-0 z-50 bg-[#1e293b]/92 shadow-2xl shadow-slate-950/20 backdrop-blur-xl">
+        <div className="hidden border-b border-white/[0.06] bg-slate-950/60 md:block">
+          <div className="mx-auto flex h-9 max-w-7xl items-center justify-between px-4 text-[11px] font-semibold text-white/55 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-6">
+              <a href={`tel:${phone}`} className="inline-flex items-center gap-1.5 transition hover:text-white">
+                <Phone size={11} className="text-indigo-300" /> {phone}
+              </a>
+              <a href={`mailto:${email}`} className="inline-flex items-center gap-1.5 transition hover:text-white">
+                <Mail size={11} className="text-indigo-300" /> {email}
+              </a>
+              <span className="hidden items-center gap-1.5 lg:inline-flex">
+                <Clock size={11} className="text-indigo-300" /> Mon&ndash;Fri, 8am&ndash;5pm CAT
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <a href="https://www.instagram.com/dreamboxadvertisingzw" className="transition hover:text-white">Instagram</a>
+              <a href="https://www.facebook.com/dreamboxadvertisingzim" className="transition hover:text-white">Facebook</a>
+              <a href="https://wa.me/263778018909" className="inline-flex items-center gap-1.5 text-emerald-300/90 transition hover:text-emerald-200">
+                <Send size={11} /> WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <a href="/" className="flex items-center gap-3" aria-label="Dreambox Advertising home">
             <LogoLockup logo={logo} inverted />
           </a>
 
-          <nav className="hidden items-center gap-7 text-sm font-semibold text-white/78 md:flex">
-            {([
-              { key: 'home' as PublicPage, href: '/', label: 'Home' },
-              { key: 'services' as PublicPage, href: '/services', label: 'Services' },
-              { key: 'locations' as PublicPage, href: '/site-availability', label: 'Available Sites' },
-              { key: 'pricing' as PublicPage, href: '/pricing', label: 'Pricing' },
-              { key: 'contact' as PublicPage, href: '/contact', label: 'Contact' },
-            ]).map(link => (
+          <nav className="hidden items-center gap-8 text-sm font-semibold text-white/78 md:flex">
+            {NAV_LINKS.map(link => (
               <a
                 key={link.key}
                 href={link.href}
                 onClick={navigate(link.key)}
                 aria-current={page === link.key ? 'page' : undefined}
-                className={page === link.key
-                  ? 'border-b-2 border-indigo-400 pb-1 text-white'
-                  : 'pb-1 hover:text-white'}
+                className={`group relative py-1 transition ${page === link.key ? 'text-white' : 'hover:text-white'}`}
               >
                 {link.label}
+                <span
+                  className={`absolute inset-x-0 -bottom-1 h-0.5 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-transform duration-300 ${
+                    page === link.key ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                  }`}
+                />
               </a>
             ))}
           </nav>
@@ -480,13 +546,13 @@ export const PublicWebsite: React.FC = () => {
           <div className="flex items-center gap-2">
             <a
               href="/login"
-              className="hidden rounded-md border border-white/20 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-white/10 sm:inline-flex"
+              className="hidden rounded-md border border-white/20 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition hover:border-white/40 hover:bg-white/10 sm:inline-flex"
             >
               Staff Login
             </a>
             <a
               href="https://wa.me/263778018909"
-              className="hidden items-center gap-2 rounded-md bg-indigo-500 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 sm:inline-flex"
+              className="hidden items-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-indigo-500/40 sm:inline-flex"
             >
               Book Appointment <ArrowRight size={14} />
             </a>
@@ -501,17 +567,12 @@ export const PublicWebsite: React.FC = () => {
             </button>
           </div>
         </div>
+        <div className="h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent" />
 
         {mobileNavOpen && (
           <nav className="border-t border-slate-700/50 bg-[#1e293b] px-4 py-4 md:hidden" aria-label="Mobile navigation">
             <div className="grid gap-1">
-              {([
-                { key: 'home' as PublicPage, href: '/', label: 'Home' },
-                { key: 'services' as PublicPage, href: '/services', label: 'Services' },
-                { key: 'locations' as PublicPage, href: '/site-availability', label: 'Available Sites' },
-                { key: 'pricing' as PublicPage, href: '/pricing', label: 'Pricing' },
-                { key: 'contact' as PublicPage, href: '/contact', label: 'Contact' },
-              ]).map(link => (
+              {NAV_LINKS.map(link => (
                 <a
                   key={link.key}
                   href={link.href}
@@ -527,9 +588,17 @@ export const PublicWebsite: React.FC = () => {
               <a href="/login" className="rounded-md px-3 py-3 text-sm font-semibold text-white/78 transition hover:bg-white/5 hover:text-white">
                 Staff Login
               </a>
+              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+                <a href={`tel:${phone}`} className="inline-flex items-center justify-center gap-2 rounded-md border border-white/15 px-3 py-3 text-xs font-bold text-white/78 transition hover:bg-white/5">
+                  <Phone size={13} className="text-indigo-300" /> Call Us
+                </a>
+                <a href={`mailto:${email}`} className="inline-flex items-center justify-center gap-2 rounded-md border border-white/15 px-3 py-3 text-xs font-bold text-white/78 transition hover:bg-white/5">
+                  <Mail size={13} className="text-indigo-300" /> Email Us
+                </a>
+              </div>
               <a
                 href="https://wa.me/263778018909"
-                className="mt-2 inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-4 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:bg-indigo-400"
+                className="mt-1 inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:opacity-95"
               >
                 Book Appointment <ArrowRight size={14} />
               </a>
@@ -540,22 +609,22 @@ export const PublicWebsite: React.FC = () => {
 
       <main>
         {page !== 'home' && (
-          <section className="relative overflow-hidden bg-slate-950 pt-[72px] text-white">
+          <section className="relative overflow-hidden bg-slate-950 pt-[72px] text-white md:pt-[108px]">
             <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-400/70 to-transparent" />
             <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-              <nav className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45" aria-label="Breadcrumb">
+              <nav className="animate-reveal-up text-[11px] font-black uppercase tracking-[0.18em] text-white/45" aria-label="Breadcrumb">
                 <a href="/" onClick={navigate('home')} className="hover:text-white">Home</a>
                 <span className="mx-2 text-white/25">/</span>
                 <span className="text-indigo-300">{PAGE_META[page].label}</span>
               </nav>
-              <h1 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">{PAGE_META[page].title}</h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/65 sm:text-base">{PAGE_META[page].subtitle}</p>
+              <h1 className="mt-4 animate-reveal-up animation-delay-100 text-4xl font-black leading-tight sm:text-5xl">{PAGE_META[page].title}</h1>
+              <p className="mt-4 max-w-2xl animate-reveal-up animation-delay-200 text-sm leading-7 text-white/65 sm:text-base">{PAGE_META[page].subtitle}</p>
             </div>
           </section>
         )}
 
-        {page === 'home' && <section className="relative min-h-[94vh] overflow-hidden bg-slate-950 pt-[72px] text-white">
+        {page === 'home' && <section className="relative min-h-[94vh] overflow-hidden bg-slate-950 pt-[72px] text-white md:pt-[108px]">
           <img
             src={heroImage}
             alt="Premium outdoor billboard beside an urban roadway"
@@ -563,15 +632,28 @@ export const PublicWebsite: React.FC = () => {
           />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950 to-transparent" />
-          <div className="relative mx-auto grid min-h-[calc(94vh-72px)] max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
+          <div className="relative mx-auto grid min-h-[calc(94vh-72px)] max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 md:min-h-[calc(94vh-108px)] lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
             <div className="max-w-3xl">
               <div className="mb-6 inline-flex animate-reveal-up items-center gap-2 rounded-full border border-indigo-300/30 bg-indigo-500/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-indigo-100 backdrop-blur">
                 <Sparkles size={13} />
                 Zimbabwe&apos;s Outdoor Media Partner
               </div>
-              <h1 className="max-w-3xl animate-reveal-up animation-delay-100 text-4xl font-black leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-7xl">
-                Outdoor media that puts your brand{' '}
-                <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent">in motion.</span>
+              <h1 className="max-w-3xl text-4xl font-black leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-7xl">
+                {'Outdoor media that puts your brand'.split(' ').map((word, index) => (
+                  <span
+                    key={index}
+                    className="inline-block animate-reveal-up"
+                    style={{ animationDelay: `${120 + index * 90}ms` }}
+                  >
+                    {word}&nbsp;
+                  </span>
+                ))}
+                <span
+                  className="inline-block animate-reveal-up bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent"
+                  style={{ animationDelay: '660ms' }}
+                >
+                  in motion.
+                </span>
               </h1>
               <p className="mt-6 max-w-xl animate-reveal-up animation-delay-200 text-base leading-7 text-white/82 sm:text-lg">
                 Dreambox Advertising helps Zimbabwean brands choose visible billboard, airport, and digital outdoor placements with clear pricing and CRM-backed follow-up.
@@ -661,8 +743,8 @@ export const PublicWebsite: React.FC = () => {
               </h2>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {partnerLogos.map(partner => (
-                <div key={partner.name} className="premium-card premium-card-hover group flex h-24 items-center justify-center p-4">
+              {partnerLogos.map((partner, index) => (
+                <div key={partner.name} className="premium-card premium-card-hover group flex h-24 animate-reveal-up items-center justify-center p-4" style={{ animationDelay: `${index * 70}ms` }}>
                   <img src={partner.src} alt={`${partner.name} logo`} className="max-h-full max-w-full object-contain opacity-75 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0" />
                 </div>
               ))}
@@ -707,7 +789,83 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
-        {(page === 'home' || page === 'locations' || page === 'pricing') && <section id="network" className="bg-slate-950 py-20 text-white">
+        {page === 'home' && <section id="how-it-works" className="bg-white py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">How it works</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                Book a campaign in three steps.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                From shortlist to street in as little as two weeks — with a real team and live availability behind every step.
+              </p>
+            </div>
+            <div className="relative mt-12 grid gap-5 md:grid-cols-3">
+              <div className="absolute inset-x-[16%] top-10 hidden h-px bg-gradient-to-r from-indigo-200 via-violet-300 to-indigo-200 md:block" aria-hidden="true" />
+              {[
+                { icon: MapPin, step: '01', title: 'Pick your site', body: 'Browse live availability and transparent rates across the network, then shortlist the placements that fit your audience.', delay: 'animation-delay-100' },
+                { icon: Send, step: '02', title: 'Get your quote', body: 'Send an enquiry — our team responds within 24 hours with a no-obligation, client-ready quotation.', delay: 'animation-delay-200' },
+                { icon: Megaphone, step: '03', title: 'Go live', body: 'We handle printing, installation, and maintenance while you track your campaign from day one.', delay: 'animation-delay-300' },
+              ].map(item => (
+                <div key={item.step} className={`premium-card premium-card-hover relative animate-reveal-up ${item.delay} p-7 text-center`}>
+                  <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-xl shadow-indigo-500/25 ring-4 ring-white">
+                    <item.icon className="h-8 w-8" />
+                    <span className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black text-white ring-2 ring-white">
+                      {item.step}
+                    </span>
+                  </div>
+                  <h3 className="mt-6 text-lg font-black text-slate-950">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{item.body}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-10 text-center">
+              <a
+                href="/site-availability"
+                onClick={navigate('locations')}
+                className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-7 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-xl shadow-indigo-500/25 transition hover:-translate-y-0.5"
+              >
+                Start with Step One <ArrowRight size={16} />
+              </a>
+            </div>
+          </div>
+        </section>}
+
+        {page === 'faq' && <section id="faq" className="bg-white py-20">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <div className="space-y-3">
+              {FAQS.map((faq, index) => (
+                <details
+                  key={faq.q}
+                  className="premium-card group animate-reveal-up overflow-hidden"
+                  style={{ animationDelay: `${index * 70}ms` }}
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-sm font-black text-slate-950 transition hover:text-indigo-700 sm:text-base [&::-webkit-details-marker]:hidden">
+                    {faq.q}
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 transition-transform duration-300 group-open:rotate-45">
+                      <Plus size={15} />
+                    </span>
+                  </summary>
+                  <p className="border-t border-slate-100 p-5 text-sm leading-7 text-slate-600">{faq.a}</p>
+                </details>
+              ))}
+            </div>
+            <div className="premium-card mt-10 flex flex-col items-center gap-4 p-7 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div>
+                <h3 className="text-base font-black text-slate-950">Still have a question?</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Our team answers every enquiry within 24 hours.</p>
+              </div>
+              <a
+                href="https://wa.me/263778018909"
+                className="inline-flex shrink-0 items-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5"
+              >
+                WhatsApp Us <Send size={14} />
+              </a>
+            </div>
+          </div>
+        </section>}
+
+        {(page === 'home' || page === 'locations') && <section id="network" className="bg-slate-950 py-20 text-white">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
               <div>
@@ -742,19 +900,21 @@ export const PublicWebsite: React.FC = () => {
 
             {shownAvailability.length > 0 ? (
               <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {(page === 'home' ? shownAvailability.slice(0, 6) : shownAvailability).map(item => (
+                {(page === 'home' ? shownAvailability.slice(0, 6) : shownAvailability).map((item, index) => (
                 <a
                   key={`${item.board.id}-${item.label}`}
                   href={item.board.id.startsWith('live-') ? '/contact' : billboardLink(item.board)}
                   onClick={item.board.id.startsWith('live-') ? navigate('contact') : undefined}
                   className="premium-dark-card premium-dark-card-hover group animate-reveal-up"
+                  style={{ animationDelay: `${(index % 6) * 80}ms` }}
                 >
                   <div className="relative h-60 overflow-hidden bg-slate-800">
                     {item.board.imageUrl ? (
                       <img src={item.board.imageUrl} alt={item.board.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                     ) : (
-                      <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,#334155,#0f172a)]">
-                        <MapPin className="h-10 w-10 text-indigo-300" />
+                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-white">
+                        <Building2 className="h-10 w-10 text-slate-200" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">Photo coming soon</span>
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
@@ -857,7 +1017,7 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
-        {(page === 'home' || page === 'pricing') && <section id="pricing" className="bg-white py-20">
+        {(page === 'home' || page === 'locations') && <section id="pricing" className="bg-white py-20">
           <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Our full service pricing</p>
@@ -887,8 +1047,8 @@ export const PublicWebsite: React.FC = () => {
             { icon: ShieldCheck, title: 'Reliable Sites', body: 'Every placement is backed by maintained inventory and a team that follows through.' },
             { icon: Clock, title: 'Fast Turnaround', body: 'Move from location shortlist to quote, artwork, and installation with fewer handoffs.' },
             { icon: Users, title: 'Buyer Friendly', body: 'Public location pages make it easier to inspect placements before committing budget.' },
-          ].map(item => (
-            <div key={item.title} className="premium-card premium-card-hover flex gap-4 p-6">
+          ].map((item, index) => (
+            <div key={item.title} className="premium-card premium-card-hover flex animate-reveal-up gap-4 p-6" style={{ animationDelay: `${index * 100}ms` }}>
               <item.icon className="mt-1 h-6 w-6 shrink-0 text-indigo-600" />
               <div>
                 <h3 className="font-black text-slate-950">{item.title}</h3>
@@ -903,8 +1063,8 @@ export const PublicWebsite: React.FC = () => {
             <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">What people are saying</p>
             <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Clients trust Dreambox Media.</h2>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
-              {testimonials.map(quote => (
-                <blockquote key={quote} className="premium-dark-card premium-dark-card-hover flex flex-col p-6">
+              {testimonials.map((quote, index) => (
+                <blockquote key={quote} className="premium-dark-card premium-dark-card-hover flex animate-reveal-up flex-col p-6" style={{ animationDelay: `${index * 100}ms` }}>
                   <div className="flex gap-1 text-amber-300" aria-label="5 out of 5 stars">
                     {Array.from({ length: 5 }).map((_, star) => (
                       <Star key={star} size={14} fill="currentColor" strokeWidth={0} />
@@ -920,7 +1080,7 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
-        {(page === 'home' || page === 'services' || page === 'contact' || page === 'locations' || page === 'pricing') && <section id="contact" className="bg-white py-20">
+        <section id="contact" className="bg-white py-20">
           <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Get started</p>
@@ -944,7 +1104,7 @@ export const PublicWebsite: React.FC = () => {
             </div>
             <EnquiryForm />
           </div>
-        </section>}
+        </section>
       </main>
 
       <section aria-label="Start a campaign" className="relative overflow-hidden bg-slate-950 px-4 pt-20 text-white sm:px-6 lg:px-8">
@@ -988,7 +1148,7 @@ export const PublicWebsite: React.FC = () => {
         </div>
       </section>
 
-      <footer className="relative overflow-hidden bg-slate-950 px-4 py-16 text-white sm:px-6 lg:px-8">
+      <footer className="relative overflow-hidden bg-slate-950 px-4 pb-10 pt-16 text-white sm:px-6 lg:px-8">
         <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
         <div className="absolute -bottom-32 left-8 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
 
@@ -1005,34 +1165,69 @@ export const PublicWebsite: React.FC = () => {
                 </span>
               ))}
             </div>
-          </div>
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Explore</h3>
-            <div className="mt-4 grid gap-3 text-sm font-semibold text-white/72">
-              <a href="/services" onClick={navigate('services')} className="hover:text-white">Services</a>
-              <a href="/site-availability" onClick={navigate('locations')} className="hover:text-white">Available Sites</a>
-              <a href="/pricing" onClick={navigate('pricing')} className="hover:text-white">Pricing</a>
-              <a href="/contact" onClick={navigate('contact')} className="hover:text-white">Contact</a>
-              <a href="/login" className="hover:text-white">Staff Login</a>
+            <div className="mt-7 flex gap-2.5">
+              {[
+                { href: 'https://www.instagram.com/dreamboxadvertisingzw', label: 'Instagram', icon: Instagram },
+                { href: 'https://www.facebook.com/dreamboxadvertisingzim', label: 'Facebook', icon: Facebook },
+                { href: 'https://wa.me/263778018909', label: 'WhatsApp', icon: Send },
+              ].map(social => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  aria-label={social.label}
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-white/65 transition hover:-translate-y-0.5 hover:border-indigo-300/40 hover:bg-indigo-500/15 hover:text-white"
+                >
+                  <social.icon size={16} />
+                </a>
+              ))}
             </div>
           </div>
           <div>
-            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Socials</h3>
-            <div className="mt-4 grid gap-3 text-sm font-semibold text-white/72">
-              <a href="https://www.instagram.com/dreamboxadvertisingzw" className="hover:text-white">Instagram</a>
-              <a href="https://www.facebook.com/dreamboxadvertisingzim" className="hover:text-white">Facebook</a>
-              <a href="https://wa.me/263778018909" className="inline-flex items-center gap-2 hover:text-white">
-                WhatsApp <Send size={14} />
+            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Explore</h3>
+            <div className="mt-2.5 h-0.5 w-8 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
+            <div className="mt-5 grid gap-3 text-sm font-semibold text-white/72">
+              {NAV_LINKS.filter(link => link.key !== 'home').map(link => (
+                <a
+                  key={link.key}
+                  href={link.href}
+                  onClick={navigate(link.key)}
+                  className="group inline-flex items-center gap-2 transition hover:text-white"
+                >
+                  <ArrowRight size={12} className="-ml-5 text-indigo-300 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
+                  {link.label}
+                </a>
+              ))}
+              <a href="/login" className="group inline-flex items-center gap-2 transition hover:text-white">
+                <ArrowRight size={12} className="-ml-5 text-indigo-300 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
+                Staff Login
               </a>
+            </div>
+          </div>
+          <div>
+            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Services</h3>
+            <div className="mt-2.5 h-0.5 w-8 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
+            <div className="mt-5 grid gap-3 text-sm font-semibold text-white/72">
+              {['Billboard Advertising', 'Airport Advertising', 'Digital Billboards'].map(label => (
+                <a
+                  key={label}
+                  href="/services"
+                  onClick={navigate('services')}
+                  className="group inline-flex items-center gap-2 transition hover:text-white"
+                >
+                  <ArrowRight size={12} className="-ml-5 text-indigo-300 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
+                  {label}
+                </a>
+              ))}
             </div>
           </div>
           <div>
             <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Contact</h3>
-            <div className="mt-4 grid gap-3 text-sm font-semibold text-white/72">
-              <a href={`tel:${phone}`} className="inline-flex items-start gap-3 hover:text-white">
+            <div className="mt-2.5 h-0.5 w-8 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
+            <div className="mt-5 grid gap-3 text-sm font-semibold text-white/72">
+              <a href={`tel:${phone}`} className="inline-flex items-start gap-3 transition hover:text-white">
                 <Phone size={16} className="mt-0.5 shrink-0 text-indigo-300" /> {phone}
               </a>
-              <a href={`mailto:${email}`} className="inline-flex items-start gap-3 break-all hover:text-white">
+              <a href={`mailto:${email}`} className="inline-flex items-start gap-3 break-all transition hover:text-white">
                 <Mail size={16} className="mt-0.5 shrink-0 text-indigo-300" /> {email}
               </a>
               <span className="inline-flex items-start gap-3">
@@ -1045,11 +1240,15 @@ export const PublicWebsite: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="relative mx-auto mt-12 flex max-w-7xl flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
-          <p>&copy; 2026 Dreambox Advertising (Pvt) Ltd. All rights reserved.</p>
-          <p className="inline-flex items-center gap-2">
-            <ShieldCheck size={13} className="text-emerald-400" /> Powered by Dreambox CRM
-          </p>
+
+        <div className="relative mx-auto mt-12 max-w-7xl">
+          <div className="h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+          <div className="flex flex-col gap-3 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
+            <p>&copy; 2026 Dreambox Advertising (Pvt) Ltd. All rights reserved. Harare, Zimbabwe.</p>
+            <p className="inline-flex items-center gap-2">
+              <ShieldCheck size={13} className="text-emerald-400" /> Powered by Dreambox CRM
+            </p>
+          </div>
         </div>
       </footer>
     </div>
