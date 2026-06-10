@@ -9,12 +9,14 @@ import {
   Mail,
   MapPin,
   Megaphone,
+  Menu,
   Phone,
   Send,
   ShieldCheck,
   Sparkles,
   Target,
   Users,
+  X,
 } from 'lucide-react';
 import {
   getBillboards,
@@ -90,6 +92,29 @@ const testimonials = [
 ];
 
 type PublicPage = 'home' | 'services' | 'locations' | 'pricing' | 'contact';
+
+const PAGE_META: Record<Exclude<PublicPage, 'home'>, { label: string; title: string; subtitle: string }> = {
+  services: {
+    label: 'What we offer',
+    title: 'Services',
+    subtitle: 'Billboard, airport, and digital outdoor media — pick the canvas that fits your campaign.',
+  },
+  locations: {
+    label: 'Network',
+    title: 'Available Sites & Prices',
+    subtitle: 'Live availability across the Dreambox network, calculated from active contracts.',
+  },
+  pricing: {
+    label: 'Rates',
+    title: 'Pricing',
+    subtitle: 'Transparent monthly rates on every site, with ROI built into your campaign.',
+  },
+  contact: {
+    label: 'Get started',
+    title: 'Contact Us',
+    subtitle: 'Tell us your target towns, dates, and goals — we will prepare a client-ready quote.',
+  },
+};
 
 type AvailabilityItem = {
   board: Billboard;
@@ -242,6 +267,7 @@ export const PublicWebsite: React.FC = () => {
   const [page, setPage] = useState<PublicPage>(() => getPageFromPath());
   const [form, setForm] = useState<EnquiryFormState>(EMPTY_ENQUIRY);
   const [enquiryStatus, setEnquiryStatus] = useState<'idle' | 'sent'>('idle');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,6 +288,7 @@ export const PublicWebsite: React.FC = () => {
     const path = nextPage === 'home' ? '/' : nextPage === 'locations' ? '/site-availability' : `/${nextPage}`;
     window.history.pushState(null, '', path);
     setPage(nextPage);
+    setMobileNavOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -292,6 +319,12 @@ export const PublicWebsite: React.FC = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useEffect(() => {
+    document.title = page === 'home'
+      ? 'Dreambox Advertising — Outdoor Media in Zimbabwe'
+      : `${PAGE_META[page].title} — Dreambox Advertising`;
+  }, [page]);
 
   const phone = profile?.phone || '+263 778 018 909';
   const email = profile?.email || 'info@dreamboxadvertising.com';
@@ -422,11 +455,25 @@ export const PublicWebsite: React.FC = () => {
           </a>
 
           <nav className="hidden items-center gap-7 text-sm font-semibold text-white/78 md:flex">
-            <a href="/" onClick={navigate('home')} className="hover:text-white">Home</a>
-            <a href="/services" onClick={navigate('services')} className="hover:text-white">Services</a>
-            <a href="/site-availability" onClick={navigate('locations')} className="hover:text-white">Available Sites</a>
-            <a href="/pricing" onClick={navigate('pricing')} className="hover:text-white">Pricing</a>
-            <a href="/contact" onClick={navigate('contact')} className="hover:text-white">Contact</a>
+            {([
+              { key: 'home' as PublicPage, href: '/', label: 'Home' },
+              { key: 'services' as PublicPage, href: '/services', label: 'Services' },
+              { key: 'locations' as PublicPage, href: '/site-availability', label: 'Available Sites' },
+              { key: 'pricing' as PublicPage, href: '/pricing', label: 'Pricing' },
+              { key: 'contact' as PublicPage, href: '/contact', label: 'Contact' },
+            ]).map(link => (
+              <a
+                key={link.key}
+                href={link.href}
+                onClick={navigate(link.key)}
+                aria-current={page === link.key ? 'page' : undefined}
+                className={page === link.key
+                  ? 'border-b-2 border-indigo-400 pb-1 text-white'
+                  : 'pb-1 hover:text-white'}
+              >
+                {link.label}
+              </a>
+            ))}
           </nav>
 
           <div className="flex items-center gap-2">
@@ -438,16 +485,76 @@ export const PublicWebsite: React.FC = () => {
             </a>
             <a
               href="https://wa.me/263778018909"
-              className="inline-flex items-center gap-2 rounded-md bg-indigo-500 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400"
+              className="hidden items-center gap-2 rounded-md bg-indigo-500 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 sm:inline-flex"
             >
               Book Appointment <ArrowRight size={14} />
             </a>
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(open => !open)}
+              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileNavOpen}
+              className="inline-flex items-center justify-center rounded-md border border-white/20 p-2.5 text-white transition hover:bg-white/10 md:hidden"
+            >
+              {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
           </div>
         </div>
+
+        {mobileNavOpen && (
+          <nav className="border-t border-slate-700/50 bg-[#1e293b] px-4 py-4 md:hidden" aria-label="Mobile navigation">
+            <div className="grid gap-1">
+              {([
+                { key: 'home' as PublicPage, href: '/', label: 'Home' },
+                { key: 'services' as PublicPage, href: '/services', label: 'Services' },
+                { key: 'locations' as PublicPage, href: '/site-availability', label: 'Available Sites' },
+                { key: 'pricing' as PublicPage, href: '/pricing', label: 'Pricing' },
+                { key: 'contact' as PublicPage, href: '/contact', label: 'Contact' },
+              ]).map(link => (
+                <a
+                  key={link.key}
+                  href={link.href}
+                  onClick={navigate(link.key)}
+                  aria-current={page === link.key ? 'page' : undefined}
+                  className={`rounded-md px-3 py-3 text-sm font-semibold transition ${
+                    page === link.key ? 'bg-indigo-500/15 text-white' : 'text-white/78 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  {link.label}
+                </a>
+              ))}
+              <a href="/login" className="rounded-md px-3 py-3 text-sm font-semibold text-white/78 transition hover:bg-white/5 hover:text-white">
+                Staff Login
+              </a>
+              <a
+                href="https://wa.me/263778018909"
+                className="mt-2 inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-4 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:bg-indigo-400"
+              >
+                Book Appointment <ArrowRight size={14} />
+              </a>
+            </div>
+          </nav>
+        )}
       </header>
 
       <main>
-        <section className="relative min-h-[94vh] overflow-hidden bg-slate-950 pt-[72px] text-white">
+        {page !== 'home' && (
+          <section className="relative overflow-hidden bg-slate-950 pt-[72px] text-white">
+            <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-400/70 to-transparent" />
+            <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+              <nav className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45" aria-label="Breadcrumb">
+                <a href="/" onClick={navigate('home')} className="hover:text-white">Home</a>
+                <span className="mx-2 text-white/25">/</span>
+                <span className="text-indigo-300">{PAGE_META[page].label}</span>
+              </nav>
+              <h1 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">{PAGE_META[page].title}</h1>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/65 sm:text-base">{PAGE_META[page].subtitle}</p>
+            </div>
+          </section>
+        )}
+
+        {page === 'home' && <section className="relative min-h-[94vh] overflow-hidden bg-slate-950 pt-[72px] text-white">
           <img
             src={heroImage}
             alt="Premium outdoor billboard beside an urban roadway"
@@ -522,9 +629,9 @@ export const PublicWebsite: React.FC = () => {
               </div>
             </div>
           </div>
-        </section>
+        </section>}
 
-        <section className="-mt-10 relative z-10 px-4 sm:hidden" aria-label="Dreambox network statistics">
+        {page === 'home' && <section className="-mt-10 relative z-10 px-4 sm:hidden" aria-label="Dreambox network statistics">
           <div className="premium-card mx-auto grid max-w-7xl grid-cols-2 sm:grid-cols-4">
             {stats.map(item => (
               <div key={item.label} className="border-b border-r border-slate-100 p-5 last:border-r-0 sm:border-b-0">
@@ -533,7 +640,7 @@ export const PublicWebsite: React.FC = () => {
               </div>
             ))}
           </div>
-        </section>
+        </section>}
 
         {(page === 'home') && <section id="partners" className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
           <div className="premium-card animate-reveal-up p-5 sm:p-8">
@@ -558,7 +665,7 @@ export const PublicWebsite: React.FC = () => {
         {(page === 'home' || page === 'services') && <section id="services" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
             <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">What we offer</p>
+              {page !== 'services' && <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">What we offer</p>}
               <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
                 Where do you want to advertise?
               </h2>
@@ -595,18 +702,33 @@ export const PublicWebsite: React.FC = () => {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">Network</p>
-                <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Available Sites & Prices</h2>
+                {page !== 'locations' && (
+                  <>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">Network</p>
+                    <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Available Sites & Prices</h2>
+                  </>
+                )}
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
                   Every CRM billboard is listed here. Availability is calculated from active contracts, with side and LED slot status shown on each card.
                 </p>
               </div>
-              <a
-                href="/locations"
-                className="inline-flex w-fit items-center gap-2 rounded-md border border-white/20 px-5 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:bg-white/10"
-              >
-                Open Map <Globe2 size={15} />
-              </a>
+              <div className="flex flex-wrap gap-3">
+                {page === 'home' && (
+                  <a
+                    href="/site-availability"
+                    onClick={navigate('locations')}
+                    className="inline-flex w-fit items-center gap-2 rounded-md bg-indigo-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:bg-indigo-400"
+                  >
+                    View All Sites <ArrowRight size={15} />
+                  </a>
+                )}
+                <a
+                  href="/locations"
+                  className="inline-flex w-fit items-center gap-2 rounded-md border border-white/20 px-5 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:bg-white/10"
+                >
+                  Open Map <Globe2 size={15} />
+                </a>
+              </div>
             </div>
 
             {shownAvailability.length > 0 ? (
