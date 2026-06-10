@@ -128,7 +128,15 @@ export const reloadAllFromApi = async (): Promise<void> => {
             api.get<any[]>('/api/printing-jobs').then(d => { if (d) printingJobs = d; }),
             api.get<any[]>('/api/maintenance').then(d => { if (d) maintenanceLogs = d; }),
             api.get<any[]>('/api/tasks').then(d => { if (d) tasks = d; }),
-            api.get<any>('/api/company-profile').then(d => { if (d) { companyProfile = d; companyLogo = d.logo || null; } }),
+            api.get<any>('/api/company-profile').then(d => {
+                if (d) {
+                    // Merge over defaults: profiles saved before new fields existed (e.g. bank
+                    // details) come back blank, which would strip payment info from every PDF.
+                    const overrides = Object.fromEntries(Object.entries(d).filter(([, v]) => v !== null && v !== undefined && v !== ''));
+                    companyProfile = { ...DEFAULT_PROFILE, ...overrides } as CompanyProfile;
+                    companyLogo = d.logo || null;
+                }
+            }),
             api.get<any[]>('/api/audit-logs?limit=500').then(d => { if (d) auditLogs = d; }),
         ]);
         const rejected = results.filter(r => r.status === 'rejected');

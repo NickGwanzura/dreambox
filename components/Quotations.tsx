@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   getInvoices, getClients, getBillboards, addInvoice, updateInvoice, deleteInvoice,
-  addContract, subscribe, getNextQuoteNumber, duplicateQuotation,
+  addClient, addContract, subscribe, getNextQuoteNumber, duplicateQuotation,
   convertQuotationToInvoice, markQuotationSent, markQuotationStatus
 } from '../services/mockData';
 import { calculateContractMonths } from '../utils/contractDate';
@@ -23,6 +23,8 @@ import { QuotationTimeline } from './quotations/QuotationTimeline';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 
 type InvoiceLineItem = Invoice['items'][number];
+
+const NEW_CLIENT_OPTION = '__new_client__';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => (
   <div className="group relative">
@@ -79,6 +81,7 @@ export const Quotations: React.FC = () => {
   const [expiryDate, setExpiryDate] = useState('');
   const [terms, setTerms] = useState('');
   const [notes, setNotes] = useState('');
+  const [newClientForm, setNewClientForm] = useState({ companyName: '', contactPerson: '', phone: '', email: '' });
 
   useEffect(() => {
     setCurrentUser(getCurrentUser());
@@ -191,6 +194,7 @@ export const Quotations: React.FC = () => {
     setEditingQuotation(null);
     setConvertingQuotation(null);
     setConvertForm({ billboardId: '', startDate: '', endDate: '' });
+    setNewClientForm({ companyName: '', contactPerson: '', phone: '', email: '' });
   };
 
   const addItem = () => {
@@ -211,16 +215,40 @@ export const Quotations: React.FC = () => {
     setFormData({ ...formData, items: (formData.items || []).filter((_, i) => i !== index) });
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  // Resolves the selected client, creating it on the fly when "New Client" was chosen,
+  // so a quote can be issued without saving the client in the Clients page first.
+  const resolveClientId = async (): Promise<string | null> => {
+    if (formData.clientId !== NEW_CLIENT_OPTION) {
+      if (!formData.clientId) { alert('Please select a client or add a new one.'); return null; }
+      return formData.clientId;
+    }
+    const companyName = newClientForm.companyName.trim();
+    if (!companyName) { alert("Please enter the new client's company name."); return null; }
+    const client: Client = {
+      id: (Date.now()).toString(),
+      companyName,
+      contactPerson: newClientForm.contactPerson.trim() || 'N/A',
+      email: newClientForm.email.trim() || '',
+      phone: newClientForm.phone.trim() || '',
+      status: 'Active',
+    };
+    await addClient(client);
+    setAllClients(getClients());
+    return client.id;
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canCreateQuotations(currentUser)) {
       alert('You do not have permission to create quotations.');
       return;
     }
+    const clientId = await resolveClientId();
+    if (!clientId) return;
     if (editingQuotation) {
       const updated: Invoice = {
         ...editingQuotation,
-        clientId: formData.clientId!,
+        clientId,
         date: formData.date!,
         items: formData.items || [],
         subtotal,
@@ -240,7 +268,7 @@ export const Quotations: React.FC = () => {
     } else {
       const newDoc: Invoice = {
         id: `QT-${Date.now().toString().slice(-6)}`,
-        clientId: formData.clientId!,
+        clientId,
         date: formData.date!,
         items: formData.items || [],
         subtotal,
@@ -696,10 +724,23 @@ export const Quotations: React.FC = () => {
               </div>
               <form onSubmit={handleCreate} className="p-4 sm:p-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]} />
+                  <MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, {value: NEW_CLIENT_OPTION, label: '+ New Client (quick add)'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]} />
                   <MinimalInput label="Date" type="date" value={formData.date} onChange={(e: any) => setFormData({...formData, date: e.target.value})} />
                   <MinimalInput label="Expiry Date" type="date" value={expiryDate} onChange={(e: any) => setExpiryDate(e.target.value)} />
                 </div>
+
+                {formData.clientId === NEW_CLIENT_OPTION && (
+                  <div className="bg-indigo-50/60 rounded-2xl p-4 sm:p-5 space-y-3 border border-indigo-100">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-700">New Client Details</h4>
+                    <p className="text-xs text-slate-600">This client will be saved automatically when you create the quotation.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <MinimalInput label="Company Name" required value={newClientForm.companyName} onChange={(e: any) => setNewClientForm({ ...newClientForm, companyName: e.target.value })} />
+                      <MinimalInput label="Contact Person" value={newClientForm.contactPerson} onChange={(e: any) => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
+                      <MinimalInput label="Phone" value={newClientForm.phone} onChange={(e: any) => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                      <MinimalInput label="Email" type="email" value={newClientForm.email} onChange={(e: any) => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+                    </div>
+                  </div>
+                )}
 
                 {/* Line Items */}
                 <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 space-y-3 border border-slate-100">
