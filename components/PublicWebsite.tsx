@@ -14,6 +14,7 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  Star,
   Target,
   Users,
   X,
@@ -564,12 +565,13 @@ export const PublicWebsite: React.FC = () => {
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950 to-transparent" />
           <div className="relative mx-auto grid min-h-[calc(94vh-72px)] max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
             <div className="max-w-3xl">
-              <div className="mb-5 inline-flex animate-reveal-up items-center gap-2 rounded-md border border-indigo-300/30 bg-indigo-500/15 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-indigo-100 backdrop-blur">
-                <Sparkles size={14} />
-                Get the Best Billboard Site in Harare
+              <div className="mb-6 inline-flex animate-reveal-up items-center gap-2 rounded-full border border-indigo-300/30 bg-indigo-500/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-indigo-100 backdrop-blur">
+                <Sparkles size={13} />
+                Zimbabwe&apos;s Outdoor Media Partner
               </div>
-              <h1 className="max-w-3xl animate-reveal-up animation-delay-100 text-4xl font-black leading-[1.02] text-white sm:text-6xl lg:text-7xl">
-                Outdoor media that puts your brand in motion.
+              <h1 className="max-w-3xl animate-reveal-up animation-delay-100 text-4xl font-black leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-7xl">
+                Outdoor media that puts your brand{' '}
+                <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent">in motion.</span>
               </h1>
               <p className="mt-6 max-w-xl animate-reveal-up animation-delay-200 text-base leading-7 text-white/82 sm:text-lg">
                 Dreambox Advertising helps Zimbabwean brands choose visible billboard, airport, and digital outdoor placements with clear pricing and CRM-backed follow-up.
@@ -578,17 +580,24 @@ export const PublicWebsite: React.FC = () => {
                 <a
                   href="/site-availability"
                   onClick={navigate('locations')}
-                  className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-6 py-3 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-7 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-xl shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-indigo-400"
                 >
                   Explore Locations <MapPin size={17} />
                 </a>
                 <a
                   href="/contact"
                   onClick={navigate('contact')}
-                  className="inline-flex items-center justify-center gap-2 rounded-md border border-white/25 bg-white/10 px-6 py-3 text-sm font-bold uppercase tracking-wide text-white backdrop-blur transition hover:bg-white/15"
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-white/25 bg-white/10 px-7 py-3.5 text-sm font-bold uppercase tracking-wide text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
                 >
                   Request a Quote <ArrowRight size={17} />
                 </a>
+              </div>
+              <div className="mt-7 flex animate-reveal-up animation-delay-300 flex-wrap gap-x-6 gap-y-2.5">
+                {['Verified, maintained sites', 'Transparent monthly rates', 'Response within 24 hours'].map(item => (
+                  <span key={item} className="inline-flex items-center gap-2 text-xs font-bold text-white/72">
+                    <CheckCircle size={14} className="text-emerald-400" /> {item}
+                  </span>
+                ))}
               </div>
               <div className="mt-8 grid max-w-xl animate-reveal-up animation-delay-500 grid-cols-2 gap-3 sm:grid-cols-4">
                 {stats.map(item => (
@@ -653,8 +662,8 @@ export const PublicWebsite: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {partnerLogos.map(partner => (
-                <div key={partner.name} className="premium-card premium-card-hover flex h-24 items-center justify-center p-4">
-                  <img src={partner.src} alt={`${partner.name} logo`} className="max-h-full max-w-full object-contain" />
+                <div key={partner.name} className="premium-card premium-card-hover group flex h-24 items-center justify-center p-4">
+                  <img src={partner.src} alt={`${partner.name} logo`} className="max-h-full max-w-full object-contain opacity-75 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0" />
                 </div>
               ))}
             </div>
@@ -894,11 +903,16 @@ export const PublicWebsite: React.FC = () => {
             <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">What people are saying</p>
             <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Clients trust Dreambox Media.</h2>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
-              {testimonials.map((quote, index) => (
-                <blockquote key={quote} className="premium-dark-card premium-dark-card-hover p-6">
-                  <p className="text-sm leading-7 text-white/78">{quote}</p>
-                  <footer className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-indigo-200">
-                    Client {index + 1}
+              {testimonials.map(quote => (
+                <blockquote key={quote} className="premium-dark-card premium-dark-card-hover flex flex-col p-6">
+                  <div className="flex gap-1 text-amber-300" aria-label="5 out of 5 stars">
+                    {Array.from({ length: 5 }).map((_, star) => (
+                      <Star key={star} size={14} fill="currentColor" strokeWidth={0} />
+                    ))}
+                  </div>
+                  <p className="mt-4 flex-1 text-sm leading-7 text-white/78">&ldquo;{quote}&rdquo;</p>
+                  <footer className="mt-5 flex items-center gap-2 border-t border-white/10 pt-4 text-[11px] font-black uppercase tracking-[0.16em] text-indigo-200">
+                    <ShieldCheck size={14} className="text-emerald-400" /> Verified client review
                   </footer>
                 </blockquote>
               ))}
@@ -933,12 +947,52 @@ export const PublicWebsite: React.FC = () => {
         </section>}
       </main>
 
-      <footer className="relative overflow-hidden border-t border-slate-800 bg-slate-950 px-4 py-14 text-white sm:px-6 lg:px-8">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/70 to-transparent" />
+      <section aria-label="Start a campaign" className="relative overflow-hidden bg-slate-950 px-4 pt-20 text-white sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-7xl">
+          <div className="premium-accent-card p-8 sm:p-12">
+            <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+            <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-100">Ready when you are</p>
+                <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-white sm:text-4xl">
+                  Put your brand on Zimbabwe&apos;s busiest roads.
+                </h2>
+                <p className="mt-4 max-w-lg text-sm leading-7 text-white/75">
+                  Send your target towns, dates, and budget. Every enquiry reaches our team as a tracked CRM lead &mdash; no forms lost, no follow-up missed.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2.5">
+                  {['No-obligation quote', 'Response within 24 hours', 'Live availability before you commit'].map(item => (
+                    <span key={item} className="inline-flex items-center gap-2 text-xs font-bold text-white/78">
+                      <CheckCircle size={14} className="text-emerald-300" /> {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 lg:items-end">
+                <a
+                  href="/contact"
+                  onClick={navigate('contact')}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-7 py-4 text-sm font-black uppercase tracking-wide text-slate-950 shadow-xl shadow-slate-950/30 transition hover:-translate-y-0.5 hover:bg-indigo-50 lg:w-auto"
+                >
+                  Start a Campaign <ArrowRight size={16} />
+                </a>
+                <a
+                  href="https://wa.me/263778018909"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-white/30 bg-white/10 px-7 py-4 text-sm font-bold uppercase tracking-wide text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15 lg:w-auto"
+                >
+                  WhatsApp Us <Send size={15} />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="relative overflow-hidden bg-slate-950 px-4 py-16 text-white sm:px-6 lg:px-8">
         <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
         <div className="absolute -bottom-32 left-8 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
 
-        <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.25fr_0.75fr_0.75fr_1fr]">
+        <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.3fr_0.7fr_0.7fr_1fr]">
           <div className="max-w-md">
             <LogoLockup logo={logo} inverted />
             <p className="mt-5 max-w-sm text-sm leading-7 text-white/65">
@@ -955,9 +1009,10 @@ export const PublicWebsite: React.FC = () => {
           <div>
             <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Explore</h3>
             <div className="mt-4 grid gap-3 text-sm font-semibold text-white/72">
-              <a href="/site-availability" onClick={navigate('locations')} className="hover:text-white">Available Sites</a>
               <a href="/services" onClick={navigate('services')} className="hover:text-white">Services</a>
+              <a href="/site-availability" onClick={navigate('locations')} className="hover:text-white">Available Sites</a>
               <a href="/pricing" onClick={navigate('pricing')} className="hover:text-white">Pricing</a>
+              <a href="/contact" onClick={navigate('contact')} className="hover:text-white">Contact</a>
               <a href="/login" className="hover:text-white">Staff Login</a>
             </div>
           </div>
@@ -971,23 +1026,30 @@ export const PublicWebsite: React.FC = () => {
               </a>
             </div>
           </div>
-          <div className="premium-dark-card p-5">
-            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Start a campaign</h3>
-            <p className="mt-3 text-sm leading-6 text-white/65">
-              Send your target towns and dates. Every website enquiry is captured as a CRM lead for follow-up.
-            </p>
-            <a
-              href="/contact"
-              onClick={navigate('contact')}
-              className="mt-5 inline-flex items-center gap-2 rounded-md bg-indigo-500 px-4 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400"
-            >
-              Create Enquiry <ArrowRight size={14} />
-            </a>
+          <div>
+            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Contact</h3>
+            <div className="mt-4 grid gap-3 text-sm font-semibold text-white/72">
+              <a href={`tel:${phone}`} className="inline-flex items-start gap-3 hover:text-white">
+                <Phone size={16} className="mt-0.5 shrink-0 text-indigo-300" /> {phone}
+              </a>
+              <a href={`mailto:${email}`} className="inline-flex items-start gap-3 break-all hover:text-white">
+                <Mail size={16} className="mt-0.5 shrink-0 text-indigo-300" /> {email}
+              </a>
+              <span className="inline-flex items-start gap-3">
+                <MapPin size={16} className="mt-0.5 shrink-0 text-indigo-300" />
+                <span>54 Brooke Village, Borrowdale Brooke, Harare</span>
+              </span>
+              <span className="inline-flex items-start gap-3">
+                <Clock size={16} className="mt-0.5 shrink-0 text-indigo-300" /> Mon&ndash;Fri, 8am&ndash;5pm CAT
+              </span>
+            </div>
           </div>
         </div>
-        <div className="relative mx-auto mt-10 flex max-w-7xl flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
-          <p>&copy; 2026 Dreambox Advertising. All rights reserved.</p>
-          <p>Powered by Dreambox CRM.</p>
+        <div className="relative mx-auto mt-12 flex max-w-7xl flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
+          <p>&copy; 2026 Dreambox Advertising (Pvt) Ltd. All rights reserved.</p>
+          <p className="inline-flex items-center gap-2">
+            <ShieldCheck size={13} className="text-emerald-400" /> Powered by Dreambox CRM
+          </p>
         </div>
       </footer>
     </div>
