@@ -10,4 +10,5 @@ RUN npm run build
 
 EXPOSE 3000
 
-CMD ["npx", "tsx", "server.ts"]
+# Use node --import tsx instead of npx for faster, more reliable startup
+CMD ["node", "--import", "tsx", "server.ts"]

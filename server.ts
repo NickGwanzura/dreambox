@@ -127,6 +127,10 @@ async function registerRoutes() {
   app.all('/api/contracts',             adapt(contracts,           'contracts'));
   app.all('/api/contract-amendments',   adapt(contractAmendments,  'contract-amendments'));
   app.all('/api/invoices',              adapt(invoices,            'invoices'));
+
+  // Quotation events (activity timeline)
+  const quotationEvents = await import('./api/quotation-events.js');
+  app.all('/api/quotation-events',       adapt(quotationEvents,     'quotation-events'));
   app.all('/api/expenses',              adapt(expenses,            'expenses'));
   app.all('/api/tasks',                 adapt(tasks,               'tasks'));
   app.all('/api/maintenance',           adapt(maintenance,         'maintenance'));
