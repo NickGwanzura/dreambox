@@ -182,9 +182,20 @@ async function registerRoutes() {
 
 function serveStatic() {
   const distPath = path.join(__dirname, 'dist');
-  app.use(express.static(distPath));
-  // SPA: all non-API routes return index.html
+  // Hashed build assets: cache forever, and 404 when missing — falling through to
+  // index.html serves text/html for module scripts, which breaks stale clients and
+  // gets cached at the CDN edge under the asset URL.
+  app.use('/assets', express.static(path.join(distPath, 'assets'), {
+    maxAge: '1y',
+    immutable: true,
+  }), (_req, res) => {
+    res.status(404).type('text/plain').send('Not found');
+  });
+  app.use(express.static(distPath, { index: false }));
+  // SPA: all non-API routes return index.html, never cached so new deploys
+  // (with new asset hashes) are picked up immediately.
   app.get('/{*splat}', (_req, res) => {
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(distPath, 'index.html'));
   });
   log.boot(`  Static files       ✓  serving from ${distPath}`);

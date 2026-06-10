@@ -81,7 +81,7 @@ export const Quotations: React.FC = () => {
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    getCurrentUser().then(u => setCurrentUser(u));
+    setCurrentUser(getCurrentUser());
   }, []);
 
   useEffect(() => {
