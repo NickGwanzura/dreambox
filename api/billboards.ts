@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { validateBillboard, ValidationError } from '../utils/validation';
 import { hasValidCoordinates, isFallbackCoordinate } from '../utils/coordinates';
+import { uploadBase64Image } from '../lib/uploadBase64';
 
 const coordinateSchema = z.object({
   lat: z.number(),
@@ -44,7 +45,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       validateBillboard(req.body);
-      const data = fromClient(req.body);
+      const imageUrl = await uploadBase64Image('billboards', req.body.imageUrl);
+      const data = fromClient({ ...req.body, imageUrl });
       const row = await prisma.billboard.create({ data });
       return res.status(201).json(toClient(row));
     }
@@ -53,9 +55,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
       validateBillboard(req.body);
-      const data = fromClient(req.body);
-      // Upsert: update if exists, create if not (handles client-side generated IDs)
       const existing = await prisma.billboard.findUnique({ where: { id: id as string } });
+      const imageUrl = await uploadBase64Image('billboards', req.body.imageUrl, existing?.imageUrl);
+      const data = fromClient({ ...req.body, imageUrl });
+      // Upsert: update if exists, create if not (handles client-side generated IDs)
       const row = existing
         ? await prisma.billboard.update({ where: { id: id as string }, data })
         : await prisma.billboard.create({ data: { ...data, id: id as string } });

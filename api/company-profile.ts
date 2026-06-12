@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireAdmin, cors } from '../lib/auth';
+import { uploadBase64Image } from '../lib/uploadBase64';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
@@ -18,10 +19,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const adminPayload = requireAdmin(req, res);
       if (!adminPayload) return;
       const { id, ...data } = req.body ?? {};
+      const existing = await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } });
+      const logo = await uploadBase64Image('logos', data.logo, existing?.logo);
       const row = await prisma.companyProfile.upsert({
         where: { id: 'profile_v1' },
-        update: data,
-        create: { id: 'profile_v1', name: data.name ?? '', ...data },
+        update: { ...data, ...(logo !== undefined && { logo }) },
+        create: { id: 'profile_v1', name: data.name ?? '', ...data, ...(logo !== undefined && { logo }) },
       });
       return res.status(200).json(row);
     }
