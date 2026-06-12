@@ -1,5 +1,63 @@
 @import "tailwindcss";
 
+/* Helvetica Neue — system font, explicit local() load for all weights */
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue UltraLight'), local('HelveticaNeue-UltraLight');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue Thin'), local('HelveticaNeue-Thin');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue Light'), local('HelveticaNeue-Light');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue'), local('HelveticaNeue'), local('Helvetica Neue Regular'), local('HelveticaNeue-Roman');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue Medium'), local('HelveticaNeue-Medium');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue Medium'), local('HelveticaNeue-Medium');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue Bold'), local('HelveticaNeue-Bold');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue Bold'), local('HelveticaNeue-Bold');
+  font-weight: 800 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @font-face {
   font-family: 'Helvena';
   src: url('/fonts/Helvena-Extralight.woff2') format('woff2');
@@ -60,8 +118,8 @@
   --animate-fade-in: fadeIn 0.5s ease-out forwards;
   --animate-float: float 6s ease-in-out infinite;
 
-  --font-sans: 'Helvena', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --font-display: 'Helvena', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-sans: 'Helvetica Neue', 'Helvena', Helvetica, Arial, sans-serif;
+  --font-display: 'Helvetica Neue', 'Helvena', Helvetica, Arial, sans-serif;
 
   @keyframes blob {
     0% { transform: translate(0px, 0px) scale(1); }
@@ -108,7 +166,7 @@
 
 @layer base {
   html {
-    font-family: 'Helvena', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Helvetica Neue', 'Helvena', Helvetica, Arial, sans-serif;
   }
 
   h1,
@@ -117,7 +175,7 @@
   h4,
   h5,
   h6 {
-    font-family: 'Helvena', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Helvetica Neue', 'Helvena', Helvetica, Arial, sans-serif;
     letter-spacing: -0.02em;
   }
 }

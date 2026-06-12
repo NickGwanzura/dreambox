@@ -112,7 +112,7 @@ const PAGE_META: Record<Exclude<PublicPage, 'home'>, { label: string; title: str
   services: {
     label: 'What we offer',
     title: 'Services',
-    subtitle: 'Billboard, airport, and digital outdoor media — pick the canvas that fits your campaign.',
+    subtitle: 'Billboard, airport, and digital outdoor media. Pick the canvas that fits your campaign.',
   },
   locations: {
     label: 'Network',
@@ -127,7 +127,7 @@ const PAGE_META: Record<Exclude<PublicPage, 'home'>, { label: string; title: str
   contact: {
     label: 'Get started',
     title: 'Contact Us',
-    subtitle: 'Tell us your target towns, dates, and goals — we will prepare a client-ready quote.',
+    subtitle: 'Tell us your target towns, dates, and goals and we will prepare a client-ready quote.',
   },
 };
 
@@ -142,15 +142,15 @@ const NAV_LINKS: { key: PublicPage; href: string; label: string }[] = [
 const FAQS = [
   {
     q: 'How much does billboard advertising cost in Zimbabwe?',
-    a: 'Rates depend on the site, format, and side. Static billboard sides typically start around $450 per month, while LED digital boards are priced per rotating slot. Every card on our Sites & Pricing page shows its exact monthly rate — no hidden fees.',
+    a: 'Rates depend on the site, format, and side. Static billboard sides typically start around $450 per month, while LED digital boards are priced per rotating slot. Every card on our Sites and Pricing page shows its exact monthly rate with no hidden fees.',
   },
   {
     q: 'How do I know a billboard is actually available?',
-    a: 'Availability on this website is calculated live from our active contracts. If a side or slot shows as available, it is genuinely open — and you can enquire or join a waitlist directly from the site card.',
+    a: 'Availability on this website is calculated live from our active contracts. If a side or slot shows as available, it is genuinely open. You can enquire or join a waitlist directly from the site card.',
   },
   {
     q: 'What is the minimum campaign duration?',
-    a: 'Most campaigns run between 3 and 12 months. We can accommodate shorter bursts for product launches and events — tell us your dates and we will recommend the best option.',
+    a: 'Most campaigns run between 3 and 12 months. We can accommodate shorter bursts for product launches and events. Tell us your dates and we will recommend the best option.',
   },
   {
     q: 'Who handles printing and installation?',
@@ -162,7 +162,7 @@ const FAQS = [
   },
   {
     q: 'Can I see a site before booking?',
-    a: 'Yes. Every billboard has a public location page with photos, size, traffic data, and a map pin — and we are happy to arrange an in-person site visit.',
+    a: 'Yes. Every billboard has a public location page with photos, size, traffic data, and a map pin. We are happy to arrange an in-person site visit.',
   },
   {
     q: 'Do you offer digital (LED) billboard advertising?',
@@ -379,8 +379,8 @@ export const PublicWebsite: React.FC = () => {
 
   useEffect(() => {
     document.title = page === 'home'
-      ? 'Dreambox Advertising — Outdoor Media in Zimbabwe'
-      : `${PAGE_META[page].title} — Dreambox Advertising`;
+      ? 'Dreambox Advertising | Outdoor Media in Zimbabwe'
+      : `${PAGE_META[page].title} | Dreambox Advertising`;
   }, [page]);
 
   const phone = profile?.phone || '+263 778 018 909';
@@ -721,7 +721,7 @@ export const PublicWebsite: React.FC = () => {
                 </span>
               </h1>
               <p className="mt-6 max-w-lg animate-reveal-up animation-delay-200 text-[15px] leading-7 text-white/70 sm:text-base">
-                Dreambox helps Zimbabwean brands choose visible billboard, airport, and digital outdoor placements — with clear pricing and CRM-backed follow-up.
+                Dreambox helps Zimbabwean brands choose visible billboard and digital outdoor placements, with clear pricing and a dedicated team behind every campaign.
               </p>
               <div className="mt-8 flex animate-reveal-up animation-delay-300 flex-col gap-3 sm:flex-row">
                 <a
@@ -834,36 +834,67 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
-        {(page === 'home' || page === 'services') && <section id="services" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
-            <div>
-              {page !== 'services' && <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">What we offer</p>}
-              <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+        {(page === 'home' || page === 'services') && <section id="services" className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+          <div className="mb-14 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="animate-reveal-up">
+              {page !== 'services' && <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-indigo-500">What we offer</p>}
+              <h2 className="max-w-sm text-4xl font-black leading-[1.07] tracking-tight text-slate-950 sm:text-5xl">
                 Where do you want to advertise?
               </h2>
             </div>
-            <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-              Dreambox offers billboard advertising and related outdoor media services to help clients make their message understood.
+            <p className="max-w-md animate-reveal-up animation-delay-100 text-[15px] leading-7 text-slate-500">
+              Dreambox delivers billboard and digital out-of-home placements that put your brand in front of the right audience.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2">
             {[
-              { icon: Target, title: 'Billboard Advertising', body: 'Highly visual, brand-building, cost-effective outdoor media for campaigns that need street-level attention.', meta: 'Static roadside media' },
-              { icon: Building2, title: 'Airport Advertising', body: 'Showcase your brand to business and leisure travelers in high-intent airport environments.', meta: 'Travel audience reach' },
-              { icon: Megaphone, title: 'Digital Billboard', body: 'High-impact digital out-of-home placements built for dominant, iconic campaign visibility.', meta: 'LED and rotating slots' },
-            ].map((service, index) => (
-              <article key={service.title} className="premium-card premium-card-hover group animate-reveal-up p-6">
+              {
+                icon: Target,
+                num: '01',
+                title: 'Billboard Advertising',
+                body: 'Highly visual, brand-building outdoor media for campaigns that demand street-level attention across Zimbabwe\'s busiest corridors.',
+                meta: 'Static roadside media',
+                delay: 0,
+              },
+              {
+                icon: Megaphone,
+                num: '02',
+                title: 'Digital Billboard',
+                body: 'High-impact LED out-of-home placements with rotating slots, built for dominant, iconic visibility at premium intersections.',
+                meta: 'LED & rotating slots',
+                delay: 120,
+              },
+            ].map((service) => (
+              <article
+                key={service.title}
+                className="group relative animate-reveal-up overflow-hidden rounded-2xl border border-slate-100 bg-white p-8 shadow-sm transition-all duration-500 hover:-translate-y-1.5 hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/[0.07]"
+                style={{ animationDelay: `${service.delay}ms` }}
+              >
+                {/* Hover glow */}
+                <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-indigo-500/[0.06] blur-3xl transition-opacity duration-500 opacity-0 group-hover:opacity-100" />
+                {/* Top shimmer line */}
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/0 to-transparent transition-all duration-500 group-hover:via-indigo-400/60" />
+
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
-                    <service.icon className="h-6 w-6" />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100/80 transition-all duration-300 group-hover:bg-indigo-600 group-hover:text-white group-hover:ring-indigo-600">
+                    <service.icon className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
                   </div>
-                  <span className="text-xs font-black text-slate-300">0{index + 1}</span>
+                  <span className="font-black text-slate-200 transition-colors duration-300 group-hover:text-indigo-200" style={{ fontSize: '2.5rem', lineHeight: 1 }}>
+                    {service.num}
+                  </span>
                 </div>
-                <h3 className="mt-5 text-lg font-black text-slate-950">{service.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{service.body}</p>
-                <div className="mt-5 border-t border-slate-100 pt-4 text-[10px] font-black uppercase tracking-[0.16em] text-indigo-600">
-                  {service.meta}
+
+                <h3 className="mt-7 text-2xl font-black leading-tight tracking-tight text-slate-950">{service.title}</h3>
+                <p className="mt-3 text-[15px] leading-7 text-slate-500">{service.body}</p>
+
+                <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-5">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 transition-colors duration-300 group-hover:text-indigo-600">
+                    {service.meta}
+                  </span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-slate-50 text-slate-400 transition-all duration-300 group-hover:border-indigo-200 group-hover:bg-indigo-50 group-hover:text-indigo-600">
+                    <ArrowRight size={13} className="transition-transform duration-300 group-hover:translate-x-0.5" />
+                  </span>
                 </div>
               </article>
             ))}
@@ -878,14 +909,14 @@ export const PublicWebsite: React.FC = () => {
                 Book a campaign in three steps.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
-                From shortlist to street in as little as two weeks — with a real team and live availability behind every step.
+                From shortlist to street in as little as two weeks, with a real team and live availability behind every step.
               </p>
             </div>
             <div className="relative mt-12 grid gap-5 md:grid-cols-3">
               <div className="absolute inset-x-[16%] top-10 hidden h-px bg-gradient-to-r from-indigo-200 via-violet-300 to-indigo-200 md:block" aria-hidden="true" />
               {[
                 { icon: MapPin, step: '01', title: 'Pick your site', body: 'Browse live availability and transparent rates across the network, then shortlist the placements that fit your audience.', delay: 'animation-delay-100' },
-                { icon: Send, step: '02', title: 'Get your quote', body: 'Send an enquiry — our team responds within 24 hours with a no-obligation, client-ready quotation.', delay: 'animation-delay-200' },
+                { icon: Send, step: '02', title: 'Get your quote', body: 'Send an enquiry. Our team responds within 24 hours with a no-obligation, client-ready quotation.', delay: 'animation-delay-200' },
                 { icon: Megaphone, step: '03', title: 'Go live', body: 'We handle printing, installation, and maintenance while you track your campaign from day one.', delay: 'animation-delay-300' },
               ].map(item => (
                 <div key={item.step} className={`premium-card premium-card-hover relative animate-reveal-up ${item.delay} p-7 text-center`}>
