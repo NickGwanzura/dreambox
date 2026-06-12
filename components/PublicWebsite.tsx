@@ -333,6 +333,7 @@ export const PublicWebsite: React.FC = () => {
   const [enquiryStatus, setEnquiryStatus] = useState<'idle' | 'sent' | 'error'>('idle');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [cookieDismissed, setCookieDismissed] = useState(() => localStorage.getItem('db_cookie_ok') === '1');
 
   useEffect(() => {
     let cancelled = false;
@@ -792,17 +793,6 @@ export const PublicWebsite: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </section>}
-
-        {page === 'home' && <section className="-mt-10 relative z-10 px-4 sm:hidden" aria-label="Dreambox network statistics">
-          <div className="premium-card mx-auto grid max-w-7xl grid-cols-2 sm:grid-cols-4">
-            {stats.map(item => (
-              <div key={item.label} className="border-b border-r border-slate-100 p-5 last:border-r-0 sm:border-b-0">
-                <div className="text-2xl font-black text-slate-950 sm:text-3xl">{item.value}</div>
-                <div className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{item.label}</div>
-              </div>
-            ))}
           </div>
         </section>}
 
@@ -1479,6 +1469,34 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Cookie notice */}
+      {!cookieDismissed && (
+        <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-4xl items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-950/10 sm:items-center sm:gap-6 sm:rounded-xl sm:p-4">
+            <div className="flex-1 text-[13px] leading-6 text-slate-600">
+              <span className="font-black text-slate-950">We use cookies</span> to keep the site functional and understand how visitors use it. No advertising or third-party tracking.{' '}
+              <a href="/privacy" className="font-semibold text-indigo-600 underline-offset-2 hover:underline">
+                Privacy policy
+              </a>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                onClick={() => { localStorage.setItem('db_cookie_ok', '1'); setCookieDismissed(true); }}
+                className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-black uppercase tracking-wide text-white transition hover:bg-slate-800"
+              >
+                Accept
+              </button>
+              <button
+                onClick={() => { localStorage.setItem('db_cookie_ok', '1'); setCookieDismissed(true); }}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-black uppercase tracking-wide text-slate-600 transition hover:bg-slate-50"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
