@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
+  BarChart2,
   BarChart3,
   Building2,
   CheckCircle,
   Clock,
+  DollarSign,
   Facebook,
   Globe2,
   Instagram,
@@ -21,6 +23,7 @@ import {
   Target,
   Users,
   X,
+  Zap,
 } from 'lucide-react';
 import {
   getBillboards,
@@ -901,6 +904,89 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
+        {page === 'home' && <section id="why-dreambox" className="bg-slate-950 py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-16 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="animate-reveal-up">
+                <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-indigo-400">Why Dreambox</p>
+                <h2 className="max-w-sm text-4xl font-black leading-[1.07] tracking-tight text-white sm:text-5xl">
+                  Built for brands that need results.
+                </h2>
+              </div>
+              <p className="max-w-md animate-reveal-up animation-delay-100 text-[15px] leading-7 text-slate-400">
+                Every part of the Dreambox process is designed to remove guesswork and get your campaign visible faster.
+              </p>
+            </div>
+
+            <div className="grid gap-px bg-white/[0.06] sm:grid-cols-2 lg:grid-cols-4 rounded-2xl overflow-hidden">
+              {[
+                {
+                  num: '01',
+                  icon: CheckCircle,
+                  title: 'Verified sites',
+                  body: 'Every location is physically audited, photographed, and mapped. No phantom inventory or stale listings.',
+                  stat: '100%',
+                  statLabel: 'audited network',
+                  delay: 0,
+                },
+                {
+                  num: '02',
+                  icon: DollarSign,
+                  title: 'Transparent pricing',
+                  body: 'Monthly rates are displayed on every site card. No negotiation theatre, no hidden production markups.',
+                  stat: '$0',
+                  statLabel: 'hidden fees',
+                  delay: 80,
+                },
+                {
+                  num: '03',
+                  icon: Zap,
+                  title: '7 to 14 day go-live',
+                  body: 'Once artwork is approved and the site is booked, your campaign is printed, installed, and live within two weeks.',
+                  stat: '14',
+                  statLabel: 'days to live',
+                  delay: 160,
+                },
+                {
+                  num: '04',
+                  icon: BarChart2,
+                  title: 'CRM-tracked campaigns',
+                  body: 'Every contract, invoice, and campaign milestone is logged in our system so your team always has a clear record.',
+                  stat: '1',
+                  statLabel: 'source of truth',
+                  delay: 240,
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="group relative animate-reveal-up bg-slate-950 p-8 transition-colors duration-300 hover:bg-slate-900"
+                  style={{ animationDelay: `${item.delay}ms` }}
+                >
+                  {/* top accent line on hover */}
+                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/0 to-transparent transition-all duration-500 group-hover:via-indigo-500" />
+
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20 transition-all duration-300 group-hover:bg-indigo-500 group-hover:text-white group-hover:ring-indigo-500">
+                      <item.icon className="h-5 w-5" />
+                    </div>
+                    <span className="font-black text-white/10 transition-colors duration-300 group-hover:text-indigo-500/30" style={{ fontSize: '2rem', lineHeight: 1 }}>
+                      {item.num}
+                    </span>
+                  </div>
+
+                  <div className="mt-8 border-b border-white/[0.06] pb-6">
+                    <div className="text-4xl font-black tracking-tight text-white">{item.stat}</div>
+                    <div className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{item.statLabel}</div>
+                  </div>
+
+                  <h3 className="mt-6 text-base font-black text-white">{item.title}</h3>
+                  <p className="mt-2 text-[13px] leading-6 text-slate-400">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>}
+
         {page === 'home' && <section id="how-it-works" className="bg-white py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
@@ -940,6 +1026,35 @@ export const PublicWebsite: React.FC = () => {
                 Start with Step One <ArrowRight size={16} />
               </a>
             </div>
+          </div>
+        </section>}
+
+        {page === 'home' && <section id="industries" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="animate-reveal-up">
+              <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-indigo-500">Industries served</p>
+              <h2 className="max-w-xs text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl">
+                Who we work with.
+              </h2>
+            </div>
+            <p className="max-w-md animate-reveal-up animation-delay-100 text-[15px] leading-7 text-slate-500">
+              Dreambox serves brands across every major category active in the Zimbabwean market.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {[
+              'FMCG', 'Telecommunications', 'Banking and Finance', 'Real Estate',
+              'Retail', 'Government and NGO', 'Healthcare', 'Automotive',
+              'Hospitality and Tourism', 'Education', 'Insurance', 'Media and Entertainment',
+            ].map((industry, i) => (
+              <span
+                key={industry}
+                className="animate-reveal-up rounded-full border border-slate-200 bg-white px-5 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                style={{ animationDelay: `${i * 40}ms` }}
+              >
+                {industry}
+              </span>
+            ))}
           </div>
         </section>}
 
