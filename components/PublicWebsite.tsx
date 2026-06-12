@@ -109,7 +109,7 @@ const testimonials = [
   },
 ];
 
-type PublicPage = 'home' | 'services' | 'locations' | 'faq' | 'contact';
+type PublicPage = 'home' | 'services' | 'locations' | 'faq' | 'contact' | 'privacy' | 'terms';
 
 const PAGE_META: Record<Exclude<PublicPage, 'home'>, { label: string; title: string; subtitle: string }> = {
   services: {
@@ -131,6 +131,16 @@ const PAGE_META: Record<Exclude<PublicPage, 'home'>, { label: string; title: str
     label: 'Get started',
     title: 'Contact Us',
     subtitle: 'Tell us your target towns, dates, and goals and we will prepare a client-ready quote.',
+  },
+  privacy: {
+    label: 'Legal',
+    title: 'Privacy Policy',
+    subtitle: 'How Dreambox Advertising collects, uses, and protects your personal information.',
+  },
+  terms: {
+    label: 'Legal',
+    title: 'Terms of Use',
+    subtitle: 'The terms and conditions that govern your use of the Dreambox Advertising website.',
   },
 };
 
@@ -256,6 +266,8 @@ const getPageFromPath = (): PublicPage => {
   if (path === '/faq') return 'faq';
   if (path === '/contact') return 'contact';
   if (path === '/site-availability' || path === '/available-sites' || path === '/pricing') return 'locations';
+  if (path === '/privacy' || path === '/privacy-policy') return 'privacy';
+  if (path === '/terms' || path === '/terms-of-use') return 'terms';
   return 'home';
 };
 
@@ -1082,6 +1094,130 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
+        {page === 'privacy' && <section className="bg-white py-16">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <div className="prose prose-slate max-w-none">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Legal</p>
+              <p className="mt-1 text-sm text-slate-400">Last updated: June 2026</p>
+
+              {[
+                {
+                  heading: '1. Who we are',
+                  body: 'Dreambox Advertising (Private) Limited ("Dreambox", "we", "us") is an outdoor media company registered in Zimbabwe. Our registered address is 54 Brooke Village, Borrowdale Brooke, Harare. You can contact us at info@dreamboxadvertising.com or +263 778 018 909.',
+                },
+                {
+                  heading: '2. Information we collect',
+                  body: 'When you submit an enquiry through this website we collect the name, company, email address, phone number, and campaign details you provide. We also collect standard server logs (IP address, browser type, referring URL) to maintain site security and performance. We do not use third-party advertising trackers or sell data to third parties.',
+                },
+                {
+                  heading: '3. How we use your information',
+                  body: 'We use your contact details solely to respond to your enquiry, prepare quotations, and manage your advertising campaign. Internal records are maintained in our CRM system to ensure accurate invoicing and campaign tracking. We do not use your information for unsolicited marketing beyond the campaign you enquired about.',
+                },
+                {
+                  heading: '4. Cookies',
+                  body: 'This website uses a single functional cookie (db_cookie_ok) to record that you have acknowledged this notice. No advertising cookies, tracking pixels, or cross-site cookies are set. You can clear this cookie at any time through your browser settings.',
+                },
+                {
+                  heading: '5. Data sharing',
+                  body: 'We do not sell, rent, or share your personal data with third parties except where required by Zimbabwean law or a court order. Our website infrastructure is operated by Railway (cloud hosting) and Cloudflare (storage). Both process data only on our behalf and under confidentiality obligations.',
+                },
+                {
+                  heading: '6. Data retention',
+                  body: 'Enquiry and campaign records are retained for a minimum of five years to comply with Zimbabwean commercial and tax law. You may request deletion of pre-campaign enquiry data that has not resulted in a contract by contacting us in writing.',
+                },
+                {
+                  heading: '7. Your rights',
+                  body: 'You have the right to request access to, correction of, or deletion of your personal data held by us. To exercise these rights, please contact info@dreamboxadvertising.com. We will respond within 30 days.',
+                },
+                {
+                  heading: '8. Security',
+                  body: 'All data is transmitted over HTTPS. Access to our CRM is protected by password authentication. We review our security practices periodically and notify affected individuals of any breach as required by law.',
+                },
+                {
+                  heading: '9. Changes to this policy',
+                  body: 'We may update this Privacy Policy from time to time. The "Last updated" date at the top of this page will reflect any changes. Continued use of the website after a change constitutes acceptance of the updated policy.',
+                },
+                {
+                  heading: '10. Contact',
+                  body: 'Questions about this policy should be directed to info@dreamboxadvertising.com or by post to 54 Brooke Village, Borrowdale Brooke, Harare, Zimbabwe.',
+                },
+              ].map(section => (
+                <div key={section.heading} className="mt-8 border-t border-slate-100 pt-8 first:border-0 first:pt-0">
+                  <h2 className="text-base font-black text-slate-950">{section.heading}</h2>
+                  <p className="mt-3 text-[15px] leading-7 text-slate-600">{section.body}</p>
+                </div>
+              ))}
+
+              <div className="mt-12 rounded-2xl border border-indigo-100 bg-indigo-50 p-6">
+                <p className="text-sm font-black text-indigo-900">Questions?</p>
+                <p className="mt-1 text-sm leading-6 text-indigo-700">Email us at <a href="mailto:info@dreamboxadvertising.com" className="underline">info@dreamboxadvertising.com</a> and we will respond within 30 days.</p>
+              </div>
+            </div>
+          </div>
+        </section>}
+
+        {page === 'terms' && <section className="bg-white py-16">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <div className="prose prose-slate max-w-none">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Legal</p>
+              <p className="mt-1 text-sm text-slate-400">Last updated: June 2026</p>
+
+              {[
+                {
+                  heading: '1. Acceptance of terms',
+                  body: 'By accessing or using the Dreambox Advertising website (dreamboxadvertising.co.zw), you agree to be bound by these Terms of Use. If you do not agree, please do not use the website.',
+                },
+                {
+                  heading: '2. Use of the website',
+                  body: 'This website is provided for informational and commercial enquiry purposes. You may browse site listings, submit enquiries, and access public content. You must not use the website to submit false or misleading information, attempt to access restricted areas, scrape or reproduce content without permission, or engage in any conduct that disrupts the service.',
+                },
+                {
+                  heading: '3. Enquiries and quotations',
+                  body: 'Submitting an enquiry form does not constitute a binding contract. A campaign contract is only formed when both parties have signed a written agreement and a deposit has been received. Quoted rates are indicative and subject to site availability at the time of booking.',
+                },
+                {
+                  heading: '4. Availability information',
+                  body: 'Availability displayed on this website is calculated from our active contract database and is updated in real time. While we take care to keep this accurate, we do not guarantee that a site shown as available will remain available at the time your booking is confirmed.',
+                },
+                {
+                  heading: '5. Intellectual property',
+                  body: 'All content on this website, including text, photography, graphics, and the Dreambox brand mark, is the property of Dreambox Advertising (Pvt) Ltd or its licensors. You may not reproduce, distribute, or create derivative works without prior written consent.',
+                },
+                {
+                  heading: '6. Limitation of liability',
+                  body: 'To the extent permitted by Zimbabwean law, Dreambox Advertising is not liable for any indirect, incidental, or consequential loss arising from your use of this website or reliance on information displayed on it. Our total liability for any claim arising from the website is limited to ZWL 1.',
+                },
+                {
+                  heading: '7. Third-party links',
+                  body: 'This website may contain links to third-party websites. We are not responsible for the content, privacy practices, or accuracy of those sites. Links do not constitute an endorsement.',
+                },
+                {
+                  heading: '8. Governing law',
+                  body: 'These Terms of Use are governed by the laws of Zimbabwe. Any disputes arising from your use of this website shall be subject to the exclusive jurisdiction of the courts of Zimbabwe.',
+                },
+                {
+                  heading: '9. Changes to these terms',
+                  body: 'We may update these Terms of Use at any time. The "Last updated" date will reflect changes. Continued use of the website after changes are posted constitutes your acceptance of the revised terms.',
+                },
+                {
+                  heading: '10. Contact',
+                  body: 'For any questions regarding these terms, contact us at info@dreamboxadvertising.com or +263 778 018 909.',
+                },
+              ].map(section => (
+                <div key={section.heading} className="mt-8 border-t border-slate-100 pt-8 first:border-0 first:pt-0">
+                  <h2 className="text-base font-black text-slate-950">{section.heading}</h2>
+                  <p className="mt-3 text-[15px] leading-7 text-slate-600">{section.body}</p>
+                </div>
+              ))}
+
+              <div className="mt-12 rounded-2xl border border-indigo-100 bg-indigo-50 p-6">
+                <p className="text-sm font-black text-indigo-900">Questions about these terms?</p>
+                <p className="mt-1 text-sm leading-6 text-indigo-700">Email us at <a href="mailto:info@dreamboxadvertising.com" className="underline">info@dreamboxadvertising.com</a></p>
+              </div>
+            </div>
+          </div>
+        </section>}
+
         {(page === 'home' || page === 'locations') && <section id="network" className="bg-slate-950 py-20 text-white">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
@@ -1463,6 +1599,11 @@ export const PublicWebsite: React.FC = () => {
           <div className="h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
           <div className="flex flex-col gap-3 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
             <p>&copy; 2026 Dreambox Advertising (Pvt) Ltd. All rights reserved. Harare, Zimbabwe.</p>
+            <div className="flex items-center gap-4">
+              <a href="/privacy" onClick={navigate('privacy')} className="transition hover:text-white">Privacy Policy</a>
+              <span className="text-white/20">·</span>
+              <a href="/terms" onClick={navigate('terms')} className="transition hover:text-white">Terms of Use</a>
+            </div>
             <p className="inline-flex items-center gap-2">
               <ShieldCheck size={13} className="text-emerald-400" /> Powered by Dreambox CRM
             </p>
@@ -1487,7 +1628,7 @@ export const PublicWebsite: React.FC = () => {
           <div className="mx-auto flex max-w-4xl items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-950/10 sm:items-center sm:gap-6 sm:rounded-xl sm:p-4">
             <div className="flex-1 text-[13px] leading-6 text-slate-600">
               <span className="font-black text-slate-950">We use cookies</span> to keep the site functional and understand how visitors use it. No advertising or third-party tracking.{' '}
-              <a href="/privacy" className="font-semibold text-indigo-600 underline-offset-2 hover:underline">
+              <a href="/privacy" onClick={navigate('privacy')} className="font-semibold text-indigo-600 underline-offset-2 hover:underline">
                 Privacy policy
               </a>
             </div>
