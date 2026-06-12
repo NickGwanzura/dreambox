@@ -21,10 +21,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { id, ...data } = req.body ?? {};
       const existing = await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } });
       const logo = await uploadBase64Image('logos', data.logo, existing?.logo);
+      const heroImageUrl = await uploadBase64Image('logos', data.heroImageUrl, (existing as any)?.heroImageUrl ?? null);
+      const uploads = {
+        ...(logo !== undefined && { logo }),
+        ...(heroImageUrl !== undefined && { heroImageUrl }),
+      };
       const row = await prisma.companyProfile.upsert({
         where: { id: 'profile_v1' },
-        update: { ...data, ...(logo !== undefined && { logo }) },
-        create: { id: 'profile_v1', name: data.name ?? '', ...data, ...(logo !== undefined && { logo }) },
+        update: { ...data, ...uploads },
+        create: { id: 'profile_v1', name: data.name ?? '', ...data, ...uploads },
       });
       return res.status(200).json(row);
     }

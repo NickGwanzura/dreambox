@@ -1,6 +1,14 @@
 import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog, QuotationEvent } from '../types';
 import { api, isConfigured } from './apiClient';
 import { STORAGE_KEYS, splitInclusiveVat, VAT_RATE } from './constants';
+import { exportAllData } from './storage';
+import {
+  createBackup,
+  restoreBackupFromData,
+  listBackups,
+  formatBackupDate,
+  formatBytes,
+} from './backupService';
 
 export const ZIM_TOWNS = [
   "Harare", "Bulawayo", "Mutare", "Gweru", "Kwekwe", 
@@ -1168,13 +1176,60 @@ export const RELEASE_NOTES = [
 export const triggerAutoBackup = () => {};
 export const runMaintenanceCheck = () => 0;
 export const syncToNeon = async () => {};
-export const simulateCloudSync = async () => new Date().toISOString();
-export const createSystemBackup = () => '{}';
-export const restoreSystemBackup = async (_data: string) => ({ success: false, count: 0 });
-export const getLastManualBackupDate = () => 'N/A';
-export const getAutoBackupStatus = () => 'N/A';
-export const getStorageUsage = () => '0 B';
-export const getLastCloudBackupDate = () => 'N/A';
+export const simulateCloudSync = async () => {
+  try {
+    const backup = await createBackup();
+    try { localStorage.setItem('lastCloudBackupDate', backup.createdAt); } catch {}
+    return backup.createdAt;
+  } catch (e) {
+    console.error('[simulateCloudSync] failed', e);
+    throw e;
+  }
+};
+export const createSystemBackup = async (): Promise<string> => {
+  const result = await exportAllData();
+  if (result.error) throw new Error(result.error);
+  const json = JSON.stringify(result.data ?? {}, null, 2);
+  try { localStorage.setItem('lastManualBackupDate', new Date().toISOString()); } catch {}
+  return json;
+};
+export const restoreSystemBackup = async (data: string): Promise<{ success: boolean; count: number; errors: string[] }> => {
+  const parsed = JSON.parse(data);
+  const res = await restoreBackupFromData(parsed);
+  return { success: res.success, count: res.restored, errors: res.errors };
+};
+export const getLastManualBackupDate = (): string => {
+  try {
+    const raw = localStorage.getItem('lastManualBackupDate');
+    return raw ? formatBackupDate(raw) : 'N/A';
+  } catch { return 'N/A'; }
+};
+export const getAutoBackupStatus = () => 'Enabled';
+export const getStorageUsage = (): string => {
+  try {
+    const raw = localStorage.getItem('lastManualBackupDate');
+    return raw ? 'Cloud (R2)' : '0 B';
+  } catch { return '0 B'; }
+};
+export const getLastCloudBackupDate = (): string => {
+  try {
+    const raw = localStorage.getItem('lastCloudBackupDate');
+    return raw ? formatBackupDate(raw) : 'N/A';
+  } catch { return 'N/A'; }
+};
+export const refreshLastCloudBackupDate = async (): Promise<string> => {
+  try {
+    const backups = await listBackups();
+    if (backups.length > 0) {
+      const latest = backups[0].createdAt;
+      try { localStorage.setItem('lastCloudBackupDate', latest); } catch {}
+      return formatBackupDate(latest);
+    }
+  } catch (e) {
+    console.error('[refreshLastCloudBackupDate] failed', e);
+  }
+  return getLastCloudBackupDate();
+};
 export const verifyDataIntegrity = () => null;
 
 // --- Getters ---
@@ -1191,6 +1246,14 @@ export const getTasks = () => tasks || [];
 export const getMaintenanceLogs = () => maintenanceLogs || [];
 export const getCompanyLogo = () => companyLogo;
 export const getCompanyProfile = () => companyProfile;
+export const getHeroImageUrl = (): string | null => (companyProfile as any)?.heroImageUrl || null;
+export const getPartnerLogos = (): { name: string; src: string }[] => {
+  try {
+    const raw = (companyProfile as any)?.partnerLogos;
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch { return []; }
+};
 export const findUser = (identifier: string) => { const term = identifier.toLowerCase().trim(); return users.find(u => u.email.toLowerCase() === term || (u.username && u.username.toLowerCase() === term)); };
 export const findUserByEmail = findUser;
 

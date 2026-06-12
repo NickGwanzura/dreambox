@@ -1,0 +1,563 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Globe,
+  Image,
+  Upload,
+  X,
+  Plus,
+  Trash2,
+  Save,
+  CheckCircle,
+  Loader2,
+  AlertTriangle,
+  LayoutTemplate,
+  Users2,
+  MoveUp,
+  MoveDown,
+} from 'lucide-react';
+import { getToken } from '../../services/apiClient';
+
+export type PartnerLogo = { name: string; src: string };
+
+const FALLBACK_LOGOS: PartnerLogo[] = [
+  { name: 'Cardinal Properties', src: 'https://static.wixstatic.com/media/6d48c9_b05994263fed4b859517750397b8c30b~mv2.png/v1/fill/w_546,h_326,al_c,lg_1,q_85,enc_avif,quality_auto/Cardinal%20Properties%20Logo%20SQ.png' },
+  { name: 'Clouds To You', src: 'https://static.wixstatic.com/media/6d48c9_03a536103d9a46e4a1cdb30f4f386f55~mv2.jpg/v1/fill/w_546,h_326,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/Clouds%20to%20you%20logo%20Sq.jpg' },
+  { name: 'Coca-Cola', src: 'https://static.wixstatic.com/media/6d48c9_cb4241c2dec5483d9587c8fa395bb4f9~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Coke%20logo%20sq.jpg' },
+  { name: 'Colgate', src: 'https://static.wixstatic.com/media/6d48c9_5afcb36a36c44a27a58695b08a35acfa~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Colgate%20logo%20sq.jpg' },
+  { name: 'National Foods', src: 'https://static.wixstatic.com/media/6d48c9_95cb0cc7425d45329afa4f2bfbc1bd7f~mv2.png/v1/fill/w_546,h_326,al_c,lg_1,q_85,enc_avif,quality_auto/NatFoods%20Logo%20Sq.png' },
+  { name: 'Pepsi', src: 'https://static.wixstatic.com/media/6d48c9_f1e0ceacc8264d0b9666333f4cd583f1~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Pepsi%20logo%20sq.jpg' },
+];
+
+function authHeaders() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function uploadToR2(dataUrl: string): Promise<string> {
+  const res = await fetch('/api/upload-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ dataUrl, folder: 'logos' }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+    throw new Error(err.error || 'Upload failed');
+  }
+  const { url } = await res.json();
+  return url;
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function isDataUrl(s: string) {
+  return s.startsWith('data:');
+}
+
+export const WebsiteSettings: React.FC = () => {
+  // ── Hero image ───────────────────────────────────────────────────────────
+  const [heroUrl, setHeroUrl] = useState<string>('');           // saved R2 URL
+  const [heroPreview, setHeroPreview] = useState<string>('');   // local base64 or saved URL
+  const [heroSaving, setHeroSaving] = useState(false);
+  const [heroStatus, setHeroStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [heroError, setHeroError] = useState('');
+  const heroInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Partner logos ────────────────────────────────────────────────────────
+  const [logos, setLogos] = useState<PartnerLogo[]>([]);
+  const [logosSaving, setLogosSaving] = useState(false);
+  const [logosStatus, setLogosStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [logosError, setLogosError] = useState('');
+  // New-logo form
+  const [addName, setAddName] = useState('');
+  const [addPreview, setAddPreview] = useState('');
+  const [addUploading, setAddUploading] = useState(false);
+  const [addError, setAddError] = useState('');
+  const addFileRef = useRef<HTMLInputElement>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // ── Per-logo replace input refs ──────────────────────────────────────────
+  const replaceRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+
+  // ── Load ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/company-profile', {
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const savedHero = data.heroImageUrl || '';
+          setHeroUrl(savedHero);
+          setHeroPreview(savedHero);
+          if (data.partnerLogos) {
+            try { setLogos(JSON.parse(data.partnerLogos)); } catch {}
+          } else {
+            setLogos(FALLBACK_LOGOS);
+          }
+        }
+      } catch {}
+    })();
+  }, []);
+
+  // ── Hero handlers ─────────────────────────────────────────────────────────
+  const handleHeroFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setHeroError('Max 5 MB'); setHeroStatus('error'); return; }
+    setHeroError('');
+    setHeroStatus('idle');
+    const dataUrl = await readFileAsDataUrl(file);
+    setHeroPreview(dataUrl);
+    e.target.value = '';
+  };
+
+  const handleHeroDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) { setHeroError('Max 5 MB'); setHeroStatus('error'); return; }
+    setHeroError('');
+    setHeroStatus('idle');
+    const dataUrl = await readFileAsDataUrl(file);
+    setHeroPreview(dataUrl);
+  }, []);
+
+  const saveHero = async () => {
+    setHeroSaving(true);
+    setHeroStatus('idle');
+    setHeroError('');
+    try {
+      // Get current full profile to merge into
+      const getRes = await fetch('/api/company-profile', {
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      });
+      const current = getRes.ok ? await getRes.json() : {};
+      const res = await fetch('/api/company-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ ...current, heroImageUrl: heroPreview || null }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      const saved = await res.json();
+      const savedUrl = saved.heroImageUrl || '';
+      setHeroUrl(savedUrl);
+      setHeroPreview(savedUrl);
+      setHeroStatus('saved');
+      setTimeout(() => setHeroStatus('idle'), 3000);
+    } catch (e: any) {
+      setHeroError(e.message || 'Save failed');
+      setHeroStatus('error');
+    } finally {
+      setHeroSaving(false);
+    }
+  };
+
+  const clearHero = () => {
+    setHeroPreview('');
+    setHeroStatus('idle');
+    setHeroError('');
+  };
+
+  // ── Partner logo handlers ─────────────────────────────────────────────────
+  const handleAddFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setAddError('Max 2 MB'); return; }
+    setAddError('');
+    setAddUploading(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const url = await uploadToR2(dataUrl);
+      setAddPreview(url);
+    } catch (err: any) {
+      // Fall back to data URL if R2 is not configured
+      const dataUrl = await readFileAsDataUrl(file).catch(() => '');
+      if (dataUrl) setAddPreview(dataUrl);
+      else setAddError(err.message || 'Upload failed');
+    } finally {
+      setAddUploading(false);
+    }
+    e.target.value = '';
+  };
+
+  const confirmAddLogo = () => {
+    if (!addName.trim() || !addPreview) return;
+    setLogos(prev => [...prev, { name: addName.trim(), src: addPreview }]);
+    setAddName('');
+    setAddPreview('');
+    setAddError('');
+    setShowAddForm(false);
+  };
+
+  const removeLogo = (index: number) => {
+    setLogos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const moveLogo = (index: number, dir: -1 | 1) => {
+    setLogos(prev => {
+      const next = [...prev];
+      const swap = index + dir;
+      if (swap < 0 || swap >= next.length) return prev;
+      [next[index], next[swap]] = [next[swap], next[index]];
+      return next;
+    });
+  };
+
+  const handleReplaceFile = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) return;
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const url = await uploadToR2(dataUrl).catch(() => dataUrl);
+      setLogos(prev => prev.map((l, i) => i === index ? { ...l, src: url } : l));
+    } catch {}
+    e.target.value = '';
+  };
+
+  const saveLogos = async () => {
+    setLogosSaving(true);
+    setLogosStatus('idle');
+    setLogosError('');
+    try {
+      const getRes = await fetch('/api/company-profile', {
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      });
+      const current = getRes.ok ? await getRes.json() : {};
+      const res = await fetch('/api/company-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ ...current, partnerLogos: JSON.stringify(logos) }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setLogosStatus('saved');
+      setTimeout(() => setLogosStatus('idle'), 3000);
+    } catch (e: any) {
+      setLogosError(e.message || 'Save failed');
+      setLogosStatus('error');
+    } finally {
+      setLogosSaving(false);
+    }
+  };
+
+  const resetLogos = () => {
+    setLogos(FALLBACK_LOGOS);
+    setLogosStatus('idle');
+    setLogosError('');
+  };
+
+  const heroChanged = heroPreview !== heroUrl;
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 bg-indigo-50 rounded-xl"><Globe className="w-6 h-6 text-indigo-600" /></div>
+        <div>
+          <h3 className="text-xl font-bold text-slate-800">Website Content</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Manage public-facing images — hero background and partner logos</p>
+        </div>
+      </div>
+
+      {/* ── Hero Image ──────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+          <div className="p-2 bg-white rounded-lg text-indigo-600 shadow-sm border border-slate-100">
+            <LayoutTemplate size={18} />
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-800">Hero Background Image</h4>
+            <p className="text-xs text-slate-500">Displays as the homepage hero backdrop. If empty, the site uses a depth gradient.</p>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Drop zone */}
+          <div
+            onDragOver={e => e.preventDefault()}
+            onDrop={handleHeroDrop}
+            onClick={() => heroInputRef.current?.click()}
+            className="relative cursor-pointer rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors overflow-hidden"
+            style={{ minHeight: 200 }}
+          >
+            {heroPreview ? (
+              <img
+                src={heroPreview}
+                alt="Hero preview"
+                className="w-full h-52 object-cover"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-52 gap-3 text-slate-400">
+                <div className="p-4 bg-slate-100 rounded-full"><Image size={28} /></div>
+                <p className="text-sm font-semibold">Drop image here or click to upload</p>
+                <p className="text-xs">PNG, JPG, WebP — max 5 MB</p>
+              </div>
+            )}
+            {heroPreview && (
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/40">
+                <div className="bg-white/90 px-4 py-2 rounded-lg text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Upload size={15} /> Replace Image
+                </div>
+              </div>
+            )}
+          </div>
+          <input ref={heroInputRef} type="file" accept="image/*" className="hidden" onChange={handleHeroFile} />
+
+          {/* Status / URL */}
+          {heroUrl && !isDataUrl(heroUrl) && (
+            <p className="text-xs text-slate-500 font-mono truncate">Current: {heroUrl}</p>
+          )}
+          {!heroUrl && !heroPreview && (
+            <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+              <CheckCircle size={13} className="text-indigo-400 shrink-0" />
+              No hero image set — the depth gradient is displayed on the public site.
+            </div>
+          )}
+
+          {/* Error */}
+          {heroStatus === 'error' && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertTriangle size={13} /> {heroError || 'Save failed'}
+            </div>
+          )}
+          {heroStatus === 'saved' && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <CheckCircle size={13} /> Hero image saved successfully.
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => heroInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <Upload size={14} /> Upload Image
+            </button>
+            {heroPreview && (
+              <button
+                type="button"
+                onClick={clearHero}
+                className="flex items-center gap-2 px-4 py-2.5 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50 transition-colors"
+              >
+                <X size={14} /> Clear
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={saveHero}
+              disabled={heroSaving || (!heroChanged && heroStatus !== 'idle')}
+              className={`ml-auto flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm transition-all disabled:opacity-50 ${
+                heroChanged
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20'
+                  : 'bg-slate-900 text-white hover:bg-slate-800'
+              }`}
+            >
+              {heroSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {heroSaving ? 'Saving…' : heroChanged ? 'Save New Image' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Partner Logos ────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white rounded-lg text-indigo-600 shadow-sm border border-slate-100">
+              <Users2 size={18} />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-800">Partner / Client Logos</h4>
+              <p className="text-xs text-slate-500">Displayed in the Partners section on the homepage. Drag to reorder.</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={resetLogos}
+              className="px-3 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Reset to Default
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowAddForm(v => !v); setAddError(''); }}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors"
+            >
+              <Plus size={14} /> Add Logo
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Add logo form */}
+          {showAddForm && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 space-y-4">
+              <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider">New Partner Logo</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Company name</label>
+                  <input
+                    type="text"
+                    value={addName}
+                    onChange={e => setAddName(e.target.value)}
+                    placeholder="e.g. Econet Wireless"
+                    className="w-full px-3 py-2.5 border border-indigo-200 rounded-xl text-sm bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Logo image</label>
+                  <div
+                    className="relative flex items-center gap-3 px-3 py-2 border border-indigo-200 rounded-xl bg-white cursor-pointer hover:border-indigo-400 transition-colors"
+                    onClick={() => addFileRef.current?.click()}
+                  >
+                    {addPreview ? (
+                      <img src={addPreview} alt="preview" className="h-8 w-12 object-contain rounded" />
+                    ) : (
+                      <div className="h-8 w-12 flex items-center justify-center bg-slate-100 rounded">
+                        <Image size={16} className="text-slate-400" />
+                      </div>
+                    )}
+                    <span className="text-xs font-semibold text-slate-600">
+                      {addUploading ? 'Uploading…' : addPreview ? 'Change image' : 'Select image'}
+                    </span>
+                    {addUploading && <Loader2 size={14} className="animate-spin text-indigo-500 ml-auto" />}
+                  </div>
+                  <input ref={addFileRef} type="file" accept="image/*" className="hidden" onChange={handleAddFile} />
+                </div>
+              </div>
+              {addError && (
+                <p className="text-xs text-red-600 font-semibold flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> {addError}
+                </p>
+              )}
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddForm(false); setAddName(''); setAddPreview(''); setAddError(''); }}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmAddLogo}
+                  disabled={!addName.trim() || !addPreview || addUploading}
+                  className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                >
+                  <Plus size={13} /> Add to List
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Logo list */}
+          {logos.length === 0 ? (
+            <div className="py-10 text-center text-slate-400">
+              <Users2 size={32} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-medium">No partner logos. Click &ldquo;Add Logo&rdquo; to get started.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {logos.map((logo, i) => (
+                <div key={i} className="flex items-center gap-4 py-3">
+                  {/* Thumbnail */}
+                  <div
+                    className="h-12 w-20 shrink-0 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center p-1.5 cursor-pointer hover:border-indigo-300 transition-colors group relative overflow-hidden"
+                    onClick={() => replaceRefs.current.get(i)?.click()}
+                    title="Click to replace image"
+                  >
+                    <img src={logo.src} alt={logo.name} className="max-h-full max-w-full object-contain" />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Upload size={12} className="text-white" />
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={el => { if (el) replaceRefs.current.set(i, el); else replaceRefs.current.delete(i); }}
+                      onChange={e => handleReplaceFile(i, e)}
+                    />
+                  </div>
+
+                  {/* Name (editable) */}
+                  <input
+                    type="text"
+                    value={logo.name}
+                    onChange={e => setLogos(prev => prev.map((l, idx) => idx === i ? { ...l, name: e.target.value } : l))}
+                    className="flex-1 text-sm font-semibold text-slate-700 bg-transparent border-b border-transparent focus:border-slate-300 focus:outline-none py-1 transition-colors"
+                  />
+
+                  {/* Controls */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => moveLogo(i, -1)}
+                      disabled={i === 0}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-30"
+                      title="Move up"
+                    >
+                      <MoveUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveLogo(i, 1)}
+                      disabled={i === logos.length - 1}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-30"
+                      title="Move down"
+                    >
+                      <MoveDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeLogo(i)}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Status */}
+          {logosStatus === 'error' && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertTriangle size={13} /> {logosError || 'Save failed'}
+            </div>
+          )}
+          {logosStatus === 'saved' && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <CheckCircle size={13} /> Partner logos saved.
+            </div>
+          )}
+
+          {/* Save logos button */}
+          <div className="flex justify-end pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={saveLogos}
+              disabled={logosSaving}
+              className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-800 disabled:opacity-50 shadow-sm transition-all"
+            >
+              {logosSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {logosSaving ? 'Saving…' : 'Save Partner Logos'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

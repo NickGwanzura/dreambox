@@ -312,6 +312,9 @@ export interface CompanyProfile {
     contractTemplate?: string;
     // VAT rate as a fraction (e.g. 0.155 for 15.5%). Blank/unset = use built-in default.
     vatRate?: number;
+    // Website content — managed from Settings → Website tab
+    heroImageUrl?: string;      // R2 URL; blank = use depth gradient
+    partnerLogos?: string;      // JSON: [{name: string; src: string}]
 }
 
 /**

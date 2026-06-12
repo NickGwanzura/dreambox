@@ -336,6 +336,8 @@ model CompanyProfile {
   emailSignature    String?
   contractTemplate  String?
   vatRate           Float?
+  heroImageUrl      String?
+  partnerLogos      String?
 
   @@map("company_profile")
 }

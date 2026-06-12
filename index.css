@@ -12,7 +12,8 @@
   --animate-fade-in: fadeIn 0.5s ease-out forwards;
   --animate-float: float 6s ease-in-out infinite;
 
-  --font-sans: 'General Sans', sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', system-ui, sans-serif;
 
   @keyframes blob {
     0% { transform: translate(0px, 0px) scale(1); }
@@ -46,9 +47,29 @@
     to { transform: scale(1.1) translate3d(-1.2%, -1%, 0); }
   }
 
+  @keyframes glowPulse {
+    0%, 100% { opacity: 0.65; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+
   @keyframes lineSweep {
     from { transform: translateX(-100%); }
     to { transform: translateX(100%); }
+  }
+}
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Outfit', system-ui, sans-serif;
   }
 }
 
@@ -169,11 +190,23 @@
   .animation-delay-300 { animation-delay: 300ms; }
   .animation-delay-500 { animation-delay: 500ms; }
 
+  .animate-glow-pulse {
+    animation: glowPulse 8s ease-in-out infinite;
+  }
+
+  .hero-depth-grid {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.22) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.22) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-reveal-up,
     .animate-soft-scale,
     .animate-image-drift,
-    .animate-line-sweep {
+    .animate-line-sweep,
+    .animate-glow-pulse {
       animation: none !important;
     }
   }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
@@ -27,6 +27,8 @@ import {
   getCompanyLogo,
   getCompanyProfile,
   getContracts,
+  getHeroImageUrl,
+  getPartnerLogos,
 } from '../services/mockData';
 import {
   addCRMCompany,
@@ -37,13 +39,10 @@ import {
 } from '../services/crmService';
 import { Billboard, BillboardType, Contract } from '../types';
 
-const heroImage =
-  'https://static.wixstatic.com/media/6d48c9_e91e4e95c38c4e0d977a7973c2d23ae8~mv2.jpg/v1/fill/w_1200,h_900,al_c,q_85,enc_avif,quality_auto/6d48c9_e91e4e95c38c4e0d977a7973c2d23ae8~mv2.jpg';
-
 const liveLogo =
   'https://static.wixstatic.com/media/33e2c5_fa30ae7289ea444186df47e4189fca0d~mv2.png/v1/crop/x_0,y_194,w_526,h_100/fill/w_678,h_136,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/IMG_9520__1_-removebg-preview.png';
 
-const partnerLogos = [
+const DEFAULT_PARTNER_LOGOS = [
   {
     name: 'Cardinal Properties',
     src: 'https://static.wixstatic.com/media/6d48c9_b05994263fed4b859517750397b8c30b~mv2.png/v1/fill/w_546,h_326,al_c,lg_1,q_85,enc_avif,quality_auto/Cardinal%20Properties%20Logo%20SQ.png',
@@ -90,9 +89,21 @@ const liveLocationCards = [
 ];
 
 const testimonials = [
-  'Their team of experts took the time to understand our advertising needs and crafted a customized strategy.',
-  'We highly recommend Dreambox Media for any business looking to make a lasting impact.',
-  "Dreambox Media's attention to detail and commitment to delivering results have made them our go-to agency.",
+  {
+    quote: 'Their team took the time to understand our advertising needs and crafted a customized outdoor strategy that drove real awareness.',
+    name: 'Marketing Director',
+    company: 'National Foods',
+  },
+  {
+    quote: 'We highly recommend Dreambox for any business looking to make a lasting impact on Zimbabwean roads.',
+    name: 'Brand Manager',
+    company: 'Coca-Cola Zimbabwe',
+  },
+  {
+    quote: 'Attention to detail and commitment to delivering results have made Dreambox our go-to outdoor media partner.',
+    name: 'Operations Lead',
+    company: 'Cardinal Properties',
+  },
 ];
 
 type PublicPage = 'home' | 'services' | 'locations' | 'faq' | 'contact';
@@ -181,6 +192,7 @@ type EnquiryFormState = {
   billboardType: string;
   campaignDuration: string;
   message: string;
+  website: string;
 };
 
 const EMPTY_ENQUIRY: EnquiryFormState = {
@@ -192,18 +204,17 @@ const EMPTY_ENQUIRY: EnquiryFormState = {
   billboardType: '',
   campaignDuration: '',
   message: '',
+  website: '',
 };
 
 const LogoLockup: React.FC<{ logo?: string | null; inverted?: boolean }> = ({ logo, inverted = false }) => (
   <span className="flex items-center gap-3">
     {logo ? (
-      <span className={`flex h-12 w-40 items-center rounded-md px-3 py-2 ${
-        inverted
-          ? 'bg-white/[0.08] ring-1 ring-white/15 shadow-lg shadow-slate-950/20'
-          : 'bg-white ring-1 ring-slate-200 shadow-lg shadow-slate-950/5'
-      }`}>
-        <img src={logo} alt="Dreambox logo" className="max-h-full w-full object-contain" />
-      </span>
+      <img
+        src={logo}
+        alt="Dreambox logo"
+        className="h-10 w-auto max-w-[156px] object-contain"
+      />
     ) : (
       <span className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-black text-white shadow-lg shadow-indigo-500/20">
         D
@@ -311,9 +322,13 @@ export const PublicWebsite: React.FC = () => {
   const contracts = getContracts();
   const logo = getCompanyLogo() || liveLogo;
   const profile = getCompanyProfile();
+  const heroImageUrl = getHeroImageUrl();
+  const storedPartnerLogos = getPartnerLogos();
+  const partnerLogos = storedPartnerLogos.length ? storedPartnerLogos : DEFAULT_PARTNER_LOGOS;
   const [page, setPage] = useState<PublicPage>(() => getPageFromPath());
   const [form, setForm] = useState<EnquiryFormState>(EMPTY_ENQUIRY);
-  const [enquiryStatus, setEnquiryStatus] = useState<'idle' | 'sent'>('idle');
+  const [enquiryStatus, setEnquiryStatus] = useState<'idle' | 'sent' | 'error'>('idle');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
@@ -431,7 +446,11 @@ export const PublicWebsite: React.FC = () => {
 
   const submitEnquiry = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
     const selectedAvailability = shownAvailability.find(item => item.board.name === form.locationInterest);
+
+    setIsSubmitting(true);
+    setEnquiryStatus('idle');
 
     try {
       const response = await fetch('/api/public-lead', {
@@ -445,13 +464,25 @@ export const PublicWebsite: React.FC = () => {
         }),
       });
 
-      if (!response.ok) throw new Error('Public lead API unavailable');
-    } catch {
-      createLocalLead();
-    }
+      if (response.status === 400) {
+        throw new Error('Validation failed');
+      }
 
-    setEnquiryStatus('sent');
-    setForm(EMPTY_ENQUIRY);
+      if (!response.ok) throw new Error('Public lead API unavailable');
+
+      setEnquiryStatus('sent');
+      setForm(EMPTY_ENQUIRY);
+    } catch {
+      try {
+        createLocalLead();
+        setEnquiryStatus('sent');
+        setForm(EMPTY_ENQUIRY);
+      } catch {
+        setEnquiryStatus('error');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const EnquiryForm = ({ compact = false }: { compact?: boolean }) => (
@@ -464,26 +495,42 @@ export const PublicWebsite: React.FC = () => {
           Enquiry captured. A new website lead has been added to the CRM.
         </div>
       )}
-      <input name="name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="Name" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
-      <input name="company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="Company" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
-      <input name="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} type="email" required placeholder="Email" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
-      <input name="phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="Phone" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
-      <select name="locationInterest" value={form.locationInterest} onChange={e => setForm({ ...form, locationInterest: e.target.value })} className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
+      {enquiryStatus === 'error' && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 sm:col-span-2">
+          Something went wrong. Please try again or contact us on WhatsApp.
+        </div>
+      )}
+      <input name="name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="Name" aria-label="Name" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+      <input name="company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="Company" aria-label="Company" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+      <input name="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} type="email" required placeholder="Email" aria-label="Email" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+      <input name="phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="Phone" aria-label="Phone" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+      <select name="locationInterest" value={form.locationInterest} onChange={e => setForm({ ...form, locationInterest: e.target.value })} aria-label="Location interest" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
         <option value="">Location interest</option>
         {shownAvailability.slice(0, 12).map(item => (
           <option key={`${item.board.id}-${item.label}`} value={item.board.name}>{item.board.name} - {item.label}</option>
         ))}
       </select>
-      <select name="billboardType" value={form.billboardType} onChange={e => setForm({ ...form, billboardType: e.target.value })} className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
+      <select name="billboardType" value={form.billboardType} onChange={e => setForm({ ...form, billboardType: e.target.value })} aria-label="Media type" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
         <option value="">Media type</option>
         <option value="Billboard Advertising">Billboard Advertising</option>
         <option value="Airport Advertising">Airport Advertising</option>
         <option value="Digital Billboard">Digital Billboard</option>
       </select>
-      <input name="campaignDuration" value={form.campaignDuration} onChange={e => setForm({ ...form, campaignDuration: e.target.value })} placeholder="Campaign duration" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
-      <textarea name="message" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} placeholder="Campaign details" rows={compact ? 4 : 5} className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 sm:col-span-2" />
-      <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-6 py-3 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 sm:col-span-2">
-        Create Website Lead <CheckCircle size={16} />
+      <input name="campaignDuration" value={form.campaignDuration} onChange={e => setForm({ ...form, campaignDuration: e.target.value })} placeholder="Campaign duration" aria-label="Campaign duration" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
+      {/* Honeypot field — hidden from real users */}
+      <input
+        name="website"
+        value={form.website}
+        onChange={e => setForm({ ...form, website: e.target.value })}
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="absolute h-0 w-0 opacity-0"
+        style={{ position: 'absolute', left: '-9999px' }}
+      />
+      <textarea name="message" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} placeholder="Campaign details" aria-label="Campaign details" rows={compact ? 4 : 5} className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 sm:col-span-2" />
+      <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-6 py-3 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:bg-slate-400 disabled:cursor-not-allowed sm:col-span-2">
+        {isSubmitting ? 'Sending...' : 'Create Website Lead'} <CheckCircle size={16} />
       </button>
     </form>
   );
@@ -605,35 +652,58 @@ export const PublicWebsite: React.FC = () => {
       <main>
         {page !== 'home' && (
           <section className="relative overflow-hidden bg-slate-950 pt-[72px] text-white md:pt-[108px]">
-            <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
-            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-400/70 to-transparent" />
-            <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-              <nav className="animate-reveal-up text-[11px] font-black uppercase tracking-[0.18em] text-white/45" aria-label="Breadcrumb">
-                <a href="/" onClick={navigate('home')} className="hover:text-white">Home</a>
-                <span className="mx-2 text-white/25">/</span>
-                <span className="text-indigo-300">{PAGE_META[page].label}</span>
+            <div className="absolute -right-24 -top-20 h-80 w-80 rounded-full bg-indigo-500/[0.12] blur-3xl" />
+            <div className="absolute left-1/3 top-0 h-60 w-60 rounded-full bg-violet-500/[0.08] blur-3xl" />
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent" />
+            <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+              <nav className="animate-reveal-up text-[10px] font-black uppercase tracking-[0.2em] text-white/35" aria-label="Breadcrumb">
+                <a href="/" onClick={navigate('home')} className="transition hover:text-white/70">Home</a>
+                <span className="mx-2 text-white/20">/</span>
+                <span className="text-indigo-300/80">{PAGE_META[page].label}</span>
               </nav>
-              <h1 className="mt-4 animate-reveal-up animation-delay-100 text-4xl font-black leading-tight sm:text-5xl">{PAGE_META[page].title}</h1>
-              <p className="mt-4 max-w-2xl animate-reveal-up animation-delay-200 text-sm leading-7 text-white/65 sm:text-base">{PAGE_META[page].subtitle}</p>
+              <h1 className="mt-3 animate-reveal-up animation-delay-100 text-4xl font-black leading-[1.08] tracking-tight sm:text-5xl">{PAGE_META[page].title}</h1>
+              <p className="mt-4 max-w-xl animate-reveal-up animation-delay-200 text-sm leading-7 text-white/55 sm:text-[15px]">{PAGE_META[page].subtitle}</p>
             </div>
           </section>
         )}
 
         {page === 'home' && <section className="relative min-h-[94vh] overflow-hidden bg-slate-950 pt-[72px] text-white md:pt-[108px]">
-          <img
-            src={heroImage}
-            alt="Premium outdoor billboard beside an urban roadway"
-            className="absolute inset-0 h-full w-full object-cover animate-image-drift"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
+          {heroImageUrl ? (
+            <>
+              <img
+                src={heroImageUrl}
+                alt="Hero background"
+                loading="eager"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover animate-image-drift"
+              />
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
+            </>
+          ) : (
+            <>
+              {/* Depth gradient — base */}
+              <div className="absolute inset-0 bg-[linear-gradient(155deg,#020617_0%,#0d1224_28%,#14103a_60%,#080c1e_100%)]" />
+              {/* Radial glow — top-right indigo */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_85%_70%_at_74%_8%,rgba(99,102,241,0.30)_0%,transparent_62%)]" />
+              {/* Radial glow — bottom-left violet */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_58%_52%_at_6%_84%,rgba(109,40,217,0.20)_0%,transparent_58%)]" />
+              {/* Animated orb — primary */}
+              <div className="absolute right-[11%] top-[13%] h-[520px] w-[520px] animate-glow-pulse rounded-full bg-indigo-500/[0.11] blur-[140px]" />
+              {/* Animated orb — secondary, offset phase */}
+              <div className="absolute left-[4%] bottom-[22%] h-[380px] w-[380px] animate-glow-pulse rounded-full bg-violet-600/[0.09] blur-[110px]" style={{ animationDelay: '-4s' }} />
+              {/* Subtle perspective grid */}
+              <div className="hero-depth-grid absolute inset-0 opacity-[0.05]" />
+            </>
+          )}
+          {/* Bottom fade to merge with next section */}
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950 to-transparent" />
           <div className="relative mx-auto grid min-h-[calc(94vh-72px)] max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 md:min-h-[calc(94vh-108px)] lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
             <div className="max-w-3xl">
-              <div className="mb-6 inline-flex animate-reveal-up items-center gap-2 rounded-full border border-indigo-300/30 bg-indigo-500/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-indigo-100 backdrop-blur">
-                <Sparkles size={13} />
+              <div className="mb-6 inline-flex animate-reveal-up items-center gap-2 rounded-full border border-indigo-400/25 bg-white/[0.07] px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-indigo-200 backdrop-blur-sm">
+                <Sparkles size={11} className="text-indigo-300" />
                 Zimbabwe&apos;s Outdoor Media Partner
               </div>
-              <h1 className="max-w-3xl text-4xl font-black leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-7xl">
+              <h1 className="max-w-3xl text-[2.6rem] font-black leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-[4.5rem]">
                 {'Outdoor media that puts your brand'.split(' ').map((word, index) => (
                   <span
                     key={index}
@@ -650,68 +720,73 @@ export const PublicWebsite: React.FC = () => {
                   in motion.
                 </span>
               </h1>
-              <p className="mt-6 max-w-xl animate-reveal-up animation-delay-200 text-base leading-7 text-white/82 sm:text-lg">
-                Dreambox Advertising helps Zimbabwean brands choose visible billboard, airport, and digital outdoor placements with clear pricing and CRM-backed follow-up.
+              <p className="mt-6 max-w-lg animate-reveal-up animation-delay-200 text-[15px] leading-7 text-white/70 sm:text-base">
+                Dreambox helps Zimbabwean brands choose visible billboard, airport, and digital outdoor placements — with clear pricing and CRM-backed follow-up.
               </p>
               <div className="mt-8 flex animate-reveal-up animation-delay-300 flex-col gap-3 sm:flex-row">
                 <a
                   href="/site-availability"
                   onClick={navigate('locations')}
-                  className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-7 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-xl shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-indigo-400"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-7 py-3.5 text-sm font-black uppercase tracking-wide text-slate-950 shadow-xl shadow-slate-950/20 transition hover:-translate-y-0.5 hover:bg-indigo-50"
                 >
-                  Explore Locations <MapPin size={17} />
+                  Explore Locations <MapPin size={15} />
                 </a>
                 <a
                   href="/contact"
                   onClick={navigate('contact')}
-                  className="inline-flex items-center justify-center gap-2 rounded-md border border-white/25 bg-white/10 px-7 py-3.5 text-sm font-bold uppercase tracking-wide text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/[0.07] px-7 py-3.5 text-sm font-bold uppercase tracking-wide text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/[0.12]"
                 >
-                  Request a Quote <ArrowRight size={17} />
+                  Request a Quote <ArrowRight size={15} />
                 </a>
               </div>
               <div className="mt-7 flex animate-reveal-up animation-delay-300 flex-wrap gap-x-6 gap-y-2.5">
                 {['Verified, maintained sites', 'Transparent monthly rates', 'Response within 24 hours'].map(item => (
-                  <span key={item} className="inline-flex items-center gap-2 text-xs font-bold text-white/72">
-                    <CheckCircle size={14} className="text-emerald-400" /> {item}
+                  <span key={item} className="inline-flex items-center gap-2 text-xs font-semibold text-white/55">
+                    <CheckCircle size={13} className="text-emerald-400/80" /> {item}
                   </span>
                 ))}
               </div>
-              <div className="mt-8 grid max-w-xl animate-reveal-up animation-delay-500 grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="mt-9 grid max-w-xl animate-reveal-up animation-delay-500 grid-cols-2 gap-2.5 sm:grid-cols-4">
                 {stats.map(item => (
-                  <div key={item.label} className="premium-dark-card premium-dark-card-hover p-3 backdrop-blur">
+                  <div key={item.label} className="rounded-xl border border-white/[0.08] bg-white/[0.05] p-3.5 backdrop-blur-sm">
                     <div className="text-xl font-black text-white">{item.value}</div>
-                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.14em] text-white/45">{item.label}</div>
+                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.14em] text-white/38">{item.label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="hidden lg:block">
-              <div className="premium-dark-card ml-auto max-w-md animate-soft-scale animation-delay-300 p-5 backdrop-blur-xl">
-                <div className="relative mb-4 h-px overflow-hidden bg-white/10">
-                  <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-indigo-300 to-transparent animate-line-sweep" />
+              <div className="ml-auto max-w-[380px] animate-soft-scale animation-delay-300 overflow-hidden rounded-2xl border border-white/[0.1] bg-white/[0.05] backdrop-blur-xl">
+                {/* Shimmer line */}
+                <div className="relative h-px overflow-hidden bg-white/10">
+                  <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-indigo-300/60 to-transparent animate-line-sweep" />
                 </div>
-                <div className="overflow-hidden rounded-md bg-slate-900">
-                  <img src={liveLocationCards[0].image} alt="Dreambox billboard location preview" className="h-64 w-full object-cover" />
+                {/* Billboard photo */}
+                <div className="overflow-hidden">
+                  <img src={liveLocationCards[0].image} alt="Dreambox billboard location preview" loading="eager" decoding="async" className="h-56 w-full object-cover opacity-90" />
                 </div>
-                <div className="mt-5 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-200">Featured inventory</p>
-                    <h2 className="mt-2 text-2xl font-black text-white">Live site availability</h2>
-                    <p className="mt-2 text-sm leading-6 text-white/62">Browse every CRM billboard and see side, slot, and pricing status before sending an enquiry.</p>
+                {/* Content */}
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300">Featured inventory</p>
+                      <h2 className="mt-1.5 text-xl font-black leading-tight text-white">Live site availability</h2>
+                      <p className="mt-1.5 text-sm leading-6 text-white/55">Browse every CRM billboard with side, slot, and pricing status.</p>
+                    </div>
+                    <div className="shrink-0 rounded-lg bg-emerald-400 px-3 py-2 text-center">
+                      <div className="text-base font-black text-slate-950">{availableSites.filter(item => item.available).length || shownAvailability.length}</div>
+                      <div className="text-[9px] font-black uppercase tracking-wide text-slate-800">Open</div>
+                    </div>
                   </div>
-                  <div className="rounded-md bg-emerald-400 px-3 py-2 text-center text-slate-950">
-                    <div className="text-lg font-black">{availableSites.filter(item => item.available).length || shownAvailability.length}</div>
-                    <div className="text-[9px] font-black uppercase tracking-wide">Open</div>
-                  </div>
+                  <a
+                    href="/site-availability"
+                    onClick={navigate('locations')}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.08] px-5 py-2.5 text-xs font-black uppercase tracking-wide text-white transition hover:bg-white/[0.14]"
+                  >
+                    View All Sites <ArrowRight size={13} />
+                  </a>
                 </div>
-                <a
-                  href="/site-availability"
-                  onClick={navigate('locations')}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-xs font-black uppercase tracking-wide text-slate-950 transition hover:bg-indigo-50"
-                >
-                  View All Sites <ArrowRight size={14} />
-                </a>
               </div>
             </div>
           </div>
@@ -728,23 +803,34 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
-        {(page === 'home') && <section id="partners" className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
-          <div className="premium-card animate-reveal-up p-5 sm:p-8">
-          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div>
+        {(page === 'home') && <section id="partners" className="mx-auto max-w-7xl px-4 pt-20 sm:px-6 lg:px-8">
+          <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="animate-reveal-up">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Our valued partners</p>
-              <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+              <h2 className="mt-2 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
                 Trusted by great Zimbabwean brands.
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {partnerLogos.map((partner, index) => (
-                <div key={partner.name} className="premium-card premium-card-hover group flex h-24 animate-reveal-up items-center justify-center p-4" style={{ animationDelay: `${index * 70}ms` }}>
-                  <img src={partner.src} alt={`${partner.name} logo`} className="max-h-full max-w-full object-contain opacity-75 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0" />
-                </div>
-              ))}
-            </div>
+            <p className="animate-reveal-up animation-delay-100 text-sm text-slate-500 sm:max-w-xs sm:text-right">
+              Brands that count on Dreambox for outdoor presence across Zimbabwe.
+            </p>
           </div>
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 sm:grid-cols-3">
+            {partnerLogos.map((partner, index) => (
+              <div
+                key={partner.name}
+                className="group flex h-28 animate-reveal-up items-center justify-center bg-white p-6 transition duration-300 hover:bg-slate-50"
+                style={{ animationDelay: `${index * 60}ms` }}
+              >
+                <img
+                  src={partner.src}
+                  alt={`${partner.name} logo`}
+                  loading="lazy"
+                  decoding="async"
+                  className="max-h-12 max-w-full object-contain opacity-50 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0"
+                />
+              </div>
+            ))}
           </div>
         </section>}
 
@@ -905,7 +991,7 @@ export const PublicWebsite: React.FC = () => {
                 >
                   <div className="relative h-60 overflow-hidden bg-slate-800">
                     {item.board.imageUrl ? (
-                      <img src={item.board.imageUrl} alt={item.board.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                      <img src={item.board.imageUrl} alt={item.board.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-3 bg-white">
                         <Building2 className="h-10 w-10 text-slate-200" />
@@ -987,7 +1073,7 @@ export const PublicWebsite: React.FC = () => {
                     className="premium-dark-card premium-dark-card-hover group animate-reveal-up"
                   >
                     <div className="relative h-64 overflow-hidden bg-slate-800">
-                      <img src={location.image} alt={`${location.name} billboard location`} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                      <img src={location.image} alt={`${location.name} billboard location`} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
                       <span className="absolute left-4 top-4 rounded-md bg-white/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-950 backdrop-blur">
                         Billboard Site
@@ -1058,16 +1144,17 @@ export const PublicWebsite: React.FC = () => {
             <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">What people are saying</p>
             <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Clients trust Dreambox Media.</h2>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
-              {testimonials.map((quote, index) => (
-                <blockquote key={quote} className="premium-dark-card premium-dark-card-hover flex animate-reveal-up flex-col p-6" style={{ animationDelay: `${index * 100}ms` }}>
+              {testimonials.map((item, index) => (
+                <blockquote key={item.quote} className="premium-dark-card premium-dark-card-hover flex animate-reveal-up flex-col p-6" style={{ animationDelay: `${index * 100}ms` }}>
                   <div className="flex gap-1 text-amber-300" aria-label="5 out of 5 stars">
                     {Array.from({ length: 5 }).map((_, star) => (
                       <Star key={star} size={14} fill="currentColor" strokeWidth={0} />
                     ))}
                   </div>
-                  <p className="mt-4 flex-1 text-sm leading-7 text-white/78">&ldquo;{quote}&rdquo;</p>
-                  <footer className="mt-5 flex items-center gap-2 border-t border-white/10 pt-4 text-[11px] font-black uppercase tracking-[0.16em] text-indigo-200">
-                    <ShieldCheck size={14} className="text-emerald-400" /> Verified client review
+                  <p className="mt-4 flex-1 text-sm leading-7 text-white/78">&ldquo;{item.quote}&rdquo;</p>
+                  <footer className="mt-5 border-t border-white/10 pt-4">
+                    <p className="text-sm font-black text-white">{item.name}</p>
+                    <p className="text-xs font-semibold text-indigo-200">{item.company}</p>
                   </footer>
                 </blockquote>
               ))}

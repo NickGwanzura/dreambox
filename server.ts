@@ -128,8 +128,11 @@ async function registerRoutes() {
   const users             = await import('./api/users.js');
   const ai                = await import('./api/ai.js');
   const contractAmendments = await import('./api/contract-amendments.js');
+  const backup             = await import('./api/backup.js');
+  const uploadImage        = await import('./api/upload-image.js');
 
   app.all('/api/billboards',            adapt(billboards,          'billboards'));
+  app.all('/api/backup',                adapt(backup,              'backup'));
   app.all('/api/clients',               adapt(clients,             'clients'));
   app.all('/api/audit-logs',            adapt(auditLogs,           'audit-logs'));
   app.all('/api/contracts',             adapt(contracts,           'contracts'));
@@ -145,6 +148,7 @@ async function registerRoutes() {
   app.all('/api/outsourced',            adapt(outsourced,          'outsourced'));
   app.all('/api/printing-jobs',         adapt(printingJobs,        'printing-jobs'));
   app.all('/api/company-profile',       adapt(companyProf,         'company-profile'));
+  app.all('/api/upload-image',          adapt(uploadImage,         'upload-image'));
   app.all('/api/users',                 adapt(users,               'users'));
   app.all('/api/ai',                    adapt(ai,                  'ai'));
   log.boot('  Core routes        ✓  (billboards, clients, contracts, contract-amendments, invoices, expenses, tasks, maintenance, outsourced, printing-jobs, company-profile, users, ai)');
@@ -174,8 +178,10 @@ async function registerRoutes() {
 
   // Cron
   const expenseReport = await import('./api/cron/expense-report.js');
+  const backupCron    = await import('./api/cron/backup.js');
   app.all('/api/cron/expense-report', adapt(expenseReport, 'cron/expense-report'));
-  log.boot('  Cron routes        ✓  (expense-report)');
+  app.all('/api/cron/backup',         adapt(backupCron,    'cron/backup'));
+  log.boot('  Cron routes        ✓  (expense-report, backup)');
 
   // 404 handler for unknown /api/* routes
   app.use('/api/{*splat}', (req, res) => {
