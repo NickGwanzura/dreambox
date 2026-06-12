@@ -12,8 +12,8 @@
   --animate-fade-in: fadeIn 0.5s ease-out forwards;
   --animate-float: float 6s ease-in-out infinite;
 
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
   @keyframes blob {
     0% { transform: translate(0px, 0px) scale(1); }
@@ -60,7 +60,7 @@
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   }
 
   h1,
@@ -69,7 +69,8 @@
   h4,
   h5,
   h6 {
-    font-family: 'Outfit', system-ui, sans-serif;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    letter-spacing: -0.02em;
   }
 }
 
