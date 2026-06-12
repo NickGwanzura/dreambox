@@ -116,6 +116,7 @@ model Billboard {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
+  @@index([coordinatesLat, coordinatesLng])
   @@map("billboards")
 }
 

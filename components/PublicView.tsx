@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { getBillboards, getCompanyLogo, getContracts } from '../services/mockData';
 import { Billboard, Contract } from '../types';
 import { estimateDailyViews } from '../services/aiService';
+import { hasValidCoordinates } from '../utils/coordinates';
 import L from 'leaflet';
 import { MapPin, Maximize2, Car, Layers, Zap, X, ExternalLink, DollarSign, CheckCircle, XCircle, Clock, Phone, Mail, AlertTriangle, Search, Filter, ImageIcon } from 'lucide-react';
 
@@ -64,14 +65,8 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
         return Array.from(unique).sort();
     }, [allBillboards]);
 
-    // Valid coordinates check: non-null, non-zero lat/lng within Zimbabwe range
-    const hasValidCoordinates = useCallback((b: Billboard): boolean => {
-        return !!(
-            b.coordinates &&
-            b.coordinates.lat !== 0 &&
-            b.coordinates.lng !== 0
-        );
-    }, []);
+    // Valid coordinates check: shared helper that also rejects fallback coords and out-of-range values
+    const hasValidCoords = useCallback((b: Billboard): boolean => hasValidCoordinates(b), []);
 
     // Filtered billboards for map sidebar
     const filteredBillboards = useMemo(() => {
@@ -94,8 +89,8 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
     }, [allBillboards, searchQuery, townFilter, typeFilter]);
 
     const mappedBillboardsCount = useMemo(
-        () => filteredBillboards.filter(b => hasValidCoordinates(b)).length,
-        [filteredBillboards, hasValidCoordinates]
+        () => filteredBillboards.filter(b => hasValidCoords(b)).length,
+        [filteredBillboards, hasValidCoords]
     );
 
     // Fetch Groq estimate for a billboard
@@ -162,18 +157,18 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
     }, [allBillboards, type, billboardId]);
 
     const otherBillboards = useMemo(
-        () => allBillboards.filter(b => b.id !== billboard?.id && hasValidCoordinates(b)),
-        [allBillboards, billboard?.id, hasValidCoordinates]
+        () => allBillboards.filter(b => b.id !== billboard?.id && hasValidCoords(b)),
+        [allBillboards, billboard?.id, hasValidCoords]
     );
 
     // Focus map on a specific billboard
     const focusMapOnBillboard = useCallback((boardId: string) => {
         const board = allBillboards.find(b => b.id === boardId);
-        if (board && hasValidCoordinates(board) && mapRef.current) {
+        if (board && hasValidCoords(board) && mapRef.current) {
             mapRef.current.setView([board.coordinates!.lat, board.coordinates!.lng], 14, { animate: true });
             setSelectedBoardId(boardId);
         }
-    }, [allBillboards, hasValidCoordinates]);
+    }, [allBillboards, hasValidCoords]);
 
     // Get effective daily views (data or AI estimate)
     const getEffectiveViews = useCallback((board: Billboard): number => {
@@ -259,12 +254,12 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             }
         });
 
-        const boards = type === 'map' ? filteredBillboards.filter(b => hasValidCoordinates(b)) : allBillboards;
+        const boards = type === 'map' ? filteredBillboards.filter(b => hasValidCoords(b)) : allBillboards;
 
-        if (type === 'billboard' && billboard && hasValidCoordinates(billboard)) {
+        if (type === 'billboard' && billboard && hasValidCoords(billboard)) {
             // Plot every other location as a muted secondary marker
             boards.forEach(b => {
-                if (b.id === billboard.id || !hasValidCoordinates(b)) return;
+                if (b.id === billboard.id || !hasValidCoords(b)) return;
                 L.marker([b.coordinates.lat, b.coordinates.lng], { icon: OtherIcon, zIndexOffset: 0 })
                     .addTo(map)
                     .bindPopup(renderOtherPopup(b));
@@ -291,7 +286,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             }
 
             boards.forEach(b => {
-                if (hasValidCoordinates(b)) {
+                if (hasValidCoords(b)) {
                     const isSelected = b.id === selectedBoardId;
                     const icon = isSelected ? SelectedIcon : DefaultIcon;
                     const zIndex = isSelected ? 1000 : 0;
@@ -304,7 +299,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
         map.invalidateSize();
 
-    }, [billboard, type, filteredBillboards, allBillboards, selectedBoardId, viewEstimates, hasValidCoordinates]);
+    }, [billboard, type, filteredBillboards, allBillboards, selectedBoardId, viewEstimates, hasValidCoords]);
 
     if (type === 'billboard' && !billboard) {
         return (

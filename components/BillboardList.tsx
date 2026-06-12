@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Billboard, BillboardType, Client, Contract } from '../types';
 import { getBillboards, addBillboard, updateBillboard, deleteBillboard, clients, ZIM_TOWNS, addClient, addContract, getClients, updateClient, getContracts, subscribe } from '../services/mockData';
 import { analyzeBillboardLocation } from '../services/aiService';
+import { geocodeLocation, GeocodeMatch } from '../services/geocodingService';
+import { hasValidCoordinates, hasMissingCoordinates, isFallbackCoordinate, getTownCenter, formatCoordinate, getConfiguredTowns } from '../utils/coordinates';
 import { MapPin, X, Edit2, Save, Plus, Image as ImageIcon, Map as MapIcon, Grid as GridIcon, Trash2, AlertTriangle, Share2, Eye, List as ListIcon, Search, Link2, Upload, Download, Layers, Users, Sparkles, RefreshCw, Car, ZoomIn, Maximize2, Hash, Zap, MousePointer2, FileText, Globe, FileDown } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
@@ -236,12 +238,16 @@ export const BillboardList: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [pickingLocation, setPickingLocation] = useState(false);
+  const [geocodeResult, setGeocodeResult] = useState<GeocodeMatch | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
+  const [townOptions, setTownOptions] = useState<string[]>(getConfiguredTowns(ZIM_TOWNS));
   
   const [newBillboard, setNewBillboard] = useState<Partial<Billboard>>({
     name: '', location: '', town: 'Harare', type: BillboardType.Static, width: 0, height: 0,
     sideARate: 0, sideBRate: 0, ratePerSlot: 0, totalSlots: 10, rentedSlots: 0, imageUrl: '', visibility: '', dailyTraffic: 0,
     sideAStatus: 'Available', sideBStatus: 'Available',
-    coordinates: { lat: -17.8292, lng: 31.0522 },
+    coordinates: { lat: 0, lng: 0 },
     notes: ''
   });
 
@@ -271,22 +277,19 @@ export const BillboardList: React.FC = () => {
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: 'OpenStreetMap', maxZoom: 19 }).addTo(map);
         const DefaultIcon = L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
         
-        filteredBillboards.forEach(b => {
-            if (b.coordinates && b.coordinates.lat !== 0 && b.coordinates.lng !== 0) {
-                const popupContent = isClientView ? `<div><strong>${b.name}</strong></div>` : `<div><strong>${b.name}</strong><div>${b.location}</div></div>`;
-                L.marker([b.coordinates.lat, b.coordinates.lng], { icon: DefaultIcon }).addTo(map).bindPopup(popupContent);
-            }
+        const validBoards = filteredBillboards.filter(b => hasValidCoordinates(b));
+        validBoards.forEach(b => {
+            const popupContent = isClientView ? `<div><strong>${b.name}</strong></div>` : `<div><strong>${b.name}</strong><div>${b.location}</div></div>`;
+            L.marker([b.coordinates.lat, b.coordinates.lng], { icon: DefaultIcon }).addTo(map).bindPopup(popupContent);
         });
 
+        if (validBoards.length > 0) {
+            const bounds = L.latLngBounds(validBoards.map(b => [b.coordinates.lat, b.coordinates.lng]));
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
         if (showHeatmap) {
-            const heatPoints = [
-                { lat: -17.8292, lng: 31.0522, r: 800, color: 'red' }, 
-                { lat: -17.825, lng: 31.033, r: 600, color: 'orange' }, 
-                { lat: -17.863, lng: 31.029, r: 500, color: 'orange' }, 
-                { lat: -17.785, lng: 31.053, r: 500, color: 'red' }, 
-                { lat: -17.91, lng: 31.13, r: 400, color: 'red' }, 
-                ...filteredBillboards.map(b => ({ lat: b.coordinates.lat, lng: b.coordinates.lng, r: 200, color: 'blue' }))
-            ];
+            const heatPoints = validBoards.map(b => ({ lat: b.coordinates.lat, lng: b.coordinates.lng, r: 200, color: 'blue' }));
 
             heatPoints.forEach(p => {
                 L.circle([p.lat, p.lng], {
@@ -315,10 +318,12 @@ export const BillboardList: React.FC = () => {
           if (pickerMapRef.current) { pickerMapRef.current.remove(); pickerMapRef.current = null; }
 
           const target = editingBillboard || newBillboard;
-          const initialLat = target.coordinates?.lat || -17.8292;
-          const initialLng = target.coordinates?.lng || 31.0522;
+          const townCenter = getTownCenter(target.town);
+          const hasValid = hasValidCoordinates(target as any);
+          const initialLat = hasValid ? target.coordinates!.lat : townCenter.lat;
+          const initialLng = hasValid ? target.coordinates!.lng : townCenter.lng;
 
-          const map = L.map(pickerContainerRef.current).setView([initialLat, initialLng], 14);
+          const map = L.map(pickerContainerRef.current).setView([initialLat, initialLng], hasValid ? 16 : 13);
           pickerMapRef.current = map;
           
           L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
@@ -365,11 +370,11 @@ export const BillboardList: React.FC = () => {
     const billboard: Billboard = {
       id: (Date.now()).toString(), name: newBillboard.name!, location: newBillboard.location!, town: newBillboard.town || 'Harare', type: newBillboard.type!, width: newBillboard.width!, height: newBillboard.height!,
       sideARate: newBillboard.sideARate, sideBRate: newBillboard.sideBRate, ratePerSlot: newBillboard.ratePerSlot, totalSlots: newBillboard.totalSlots, rentedSlots: 0,
-      sideAStatus: 'Available', sideBStatus: 'Available', imageUrl: newBillboard.imageUrl || '', visibility: newBillboard.visibility, dailyTraffic: newBillboard.dailyTraffic, coordinates: newBillboard.coordinates || { lat: -17.82, lng: 31.05 },
+      sideAStatus: 'Available', sideBStatus: 'Available', imageUrl: newBillboard.imageUrl || '', visibility: newBillboard.visibility, dailyTraffic: newBillboard.dailyTraffic, coordinates: newBillboard.coordinates || { lat: 0, lng: 0 },
       notes: newBillboard.notes
     };
-    addBillboard(billboard); setIsAddModalOpen(false); setPickingLocation(false);
-    setNewBillboard({ name: '', location: '', town: 'Harare', type: BillboardType.Static, width: 0, height: 0, sideARate: 0, sideBRate: 0, ratePerSlot: 0, totalSlots: 10, rentedSlots: 0, imageUrl: '', visibility: '', dailyTraffic: 0, coordinates: { lat: -17.8292, lng: 31.0522 }, sideAStatus: 'Available', sideBStatus: 'Available', notes: '' });
+    addBillboard(billboard); setIsAddModalOpen(false); setPickingLocation(false); setGeocodeResult(null); setGeocodeError(null);
+    setNewBillboard({ name: '', location: '', town: 'Harare', type: BillboardType.Static, width: 0, height: 0, sideARate: 0, sideBRate: 0, ratePerSlot: 0, totalSlots: 10, rentedSlots: 0, imageUrl: '', visibility: '', dailyTraffic: 0, coordinates: { lat: 0, lng: 0 }, sideAStatus: 'Available', sideBStatus: 'Available', notes: '' });
   };
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
     const file = e.target.files?.[0];
@@ -405,6 +410,34 @@ export const BillboardList: React.FC = () => {
       
       if(result.coordinates) {
           alert(`AI Analysis Complete!\nCoordinates found: ${result.coordinates.lat}, ${result.coordinates.lng}`);
+      }
+  };
+
+  const handleGeocode = async (isEdit: boolean) => {
+      const target = isEdit ? editingBillboard : newBillboard;
+      if (!target?.location || !target?.town) {
+          setGeocodeError('Please enter Location and Town first.');
+          return;
+      }
+      setIsGeocoding(true);
+      setGeocodeError(null);
+      setGeocodeResult(null);
+      try {
+          const result = await geocodeLocation(target.location, target.town);
+          if (result) {
+              setGeocodeResult(result);
+              if (isEdit && editingBillboard) {
+                  setEditingBillboard({ ...editingBillboard, coordinates: { lat: result.lat, lng: result.lng } });
+              } else {
+                  setNewBillboard({ ...newBillboard, coordinates: { lat: result.lat, lng: result.lng } });
+              }
+          } else {
+              setGeocodeError('No coordinates found. Try a more specific location or use the map picker.');
+          }
+      } catch (e: any) {
+          setGeocodeError(e.message || 'Geocoding failed.');
+      } finally {
+          setIsGeocoding(false);
       }
   };
 
@@ -485,7 +518,7 @@ export const BillboardList: React.FC = () => {
                   ratePerSlot: Number(rateA) || 0,
                   totalSlots: 10,
                   rentedSlots: 0,
-                  coordinates: { lat: Number(lat) || -17.82, lng: Number(lng) || 31.05 },
+                  coordinates: { lat: Number(lat) || 0, lng: Number(lng) || 0 },
                   sideAStatus: 'Available',
                   sideBStatus: 'Available',
                   visibility: 'Imported Data',
@@ -713,17 +746,34 @@ export const BillboardList: React.FC = () => {
                         </div>
                         <MinimalInput label="Location" value={newBillboard.location} onChange={(e: any) => setNewBillboard({...newBillboard, location: e.target.value})} required />
                         <div className="grid grid-cols-2 gap-6">
-                            <MinimalSelect label="Town" value={newBillboard.town} onChange={(e: any) => setNewBillboard({...newBillboard, town: e.target.value})} options={ZIM_TOWNS.map(t => ({value: t, label: t}))} />
-                            <div className="flex gap-4 items-end">
-                                <div className="flex-1 space-y-2">
-                                    <div className="flex gap-2">
-                                        <MinimalInput label="Lat" type="number" value={newBillboard.coordinates?.lat} onChange={(e: any) => setNewBillboard({...newBillboard, coordinates: {...newBillboard.coordinates!, lat: Number(e.target.value)}})} />
-                                        <MinimalInput label="Lng" type="number" value={newBillboard.coordinates?.lng} onChange={(e: any) => setNewBillboard({...newBillboard, coordinates: {...newBillboard.coordinates!, lng: Number(e.target.value)}})} />
+                            <MinimalSelect label="Town" value={newBillboard.town} onChange={(e: any) => setNewBillboard({...newBillboard, town: e.target.value})} options={townOptions.map(t => ({value: t, label: t}))} />
+                            <div className="space-y-2">
+                                <div className="flex gap-4 items-end">
+                                    <div className="flex-1">
+                                        <div className="flex gap-2">
+                                            <MinimalInput label="Lat" type="number" value={newBillboard.coordinates?.lat} onChange={(e: any) => setNewBillboard({...newBillboard, coordinates: {...newBillboard.coordinates!, lat: Number(e.target.value)}})} />
+                                            <MinimalInput label="Lng" type="number" value={newBillboard.coordinates?.lng} onChange={(e: any) => setNewBillboard({...newBillboard, coordinates: {...newBillboard.coordinates!, lng: Number(e.target.value)}})} />
+                                        </div>
                                     </div>
+                                    <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
+                                        <MousePointer2 size={18}/>
+                                    </button>
+                                    <button type="button" onClick={() => handleGeocode(false)} disabled={isGeocoding || !newBillboard.location || !newBillboard.town} className="mb-2 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1" title="Geocode Address">
+                                        {isGeocoding ? <RefreshCw size={14} className="animate-spin"/> : <MapPin size={14}/>} {isGeocoding ? 'Finding...' : 'Find'}
+                                    </button>
                                 </div>
-                                <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
-                                    <MousePointer2 size={18}/>
-                                </button>
+                                {hasMissingCoordinates(newBillboard as any) && (
+                                    <p className="text-[11px] text-amber-600 flex items-center gap-1"><AlertTriangle size={12}/> Coordinates missing. Click Find or use the map picker.</p>
+                                )}
+                                {!hasMissingCoordinates(newBillboard as any) && isFallbackCoordinate(newBillboard.coordinates!.lat, newBillboard.coordinates!.lng) && (
+                                    <p className="text-[11px] text-amber-600 flex items-center gap-1"><AlertTriangle size={12}/> This is the default location. Please verify or geocode.</p>
+                                )}
+                                {geocodeResult && (
+                                    <p className="text-[11px] text-emerald-600 flex items-start gap-1"><MapPin size={12} className="shrink-0 mt-0.5"/> Found: {geocodeResult.displayName} ({formatCoordinate(geocodeResult.lat, geocodeResult.lng)})</p>
+                                )}
+                                {geocodeError && (
+                                    <p className="text-[11px] text-red-600 flex items-center gap-1"><AlertTriangle size={12}/> {geocodeError}</p>
+                                )}
                             </div>
                         </div>
                         {pickingLocation && (
@@ -828,19 +878,36 @@ export const BillboardList: React.FC = () => {
                         
                         <div className="grid grid-cols-2 gap-6">
                             <MinimalInput label="Location" value={editingBillboard.location} onChange={(e: any) => setEditingBillboard({...editingBillboard, location: e.target.value})} required />
-                            <MinimalSelect label="Town" value={editingBillboard.town} onChange={(e: any) => setEditingBillboard({...editingBillboard, town: e.target.value})} options={ZIM_TOWNS.map(t => ({value: t, label: t}))} />
+                            <MinimalSelect label="Town" value={editingBillboard.town} onChange={(e: any) => setEditingBillboard({...editingBillboard, town: e.target.value})} options={townOptions.map(t => ({value: t, label: t}))} />
                         </div>
 
-                        <div className="flex gap-4 items-end">
-                            <div className="flex-1 space-y-2">
-                                <div className="flex gap-2">
-                                    <MinimalInput label="Lat" type="number" value={editingBillboard.coordinates?.lat} onChange={(e: any) => setEditingBillboard({...editingBillboard, coordinates: {...editingBillboard.coordinates!, lat: Number(e.target.value)}})} />
-                                    <MinimalInput label="Lng" type="number" value={editingBillboard.coordinates?.lng} onChange={(e: any) => setEditingBillboard({...editingBillboard, coordinates: {...editingBillboard.coordinates!, lng: Number(e.target.value)}})} />
+                        <div className="space-y-2">
+                            <div className="flex gap-4 items-end">
+                                <div className="flex-1">
+                                    <div className="flex gap-2">
+                                        <MinimalInput label="Lat" type="number" value={editingBillboard.coordinates?.lat} onChange={(e: any) => setEditingBillboard({...editingBillboard, coordinates: {...editingBillboard.coordinates!, lat: Number(e.target.value)}})} />
+                                        <MinimalInput label="Lng" type="number" value={editingBillboard.coordinates?.lng} onChange={(e: any) => setEditingBillboard({...editingBillboard, coordinates: {...editingBillboard.coordinates!, lng: Number(e.target.value)}})} />
+                                    </div>
                                 </div>
+                                <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
+                                    <MousePointer2 size={18}/>
+                                </button>
+                                <button type="button" onClick={() => handleGeocode(true)} disabled={isGeocoding || !editingBillboard.location || !editingBillboard.town} className="mb-2 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1" title="Geocode Address">
+                                    {isGeocoding ? <RefreshCw size={14} className="animate-spin"/> : <MapPin size={14}/>} {isGeocoding ? 'Finding...' : 'Find'}
+                                </button>
                             </div>
-                            <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
-                                <MousePointer2 size={18}/>
-                            </button>
+                            {hasMissingCoordinates(editingBillboard) && (
+                                <p className="text-[11px] text-amber-600 flex items-center gap-1"><AlertTriangle size={12}/> Coordinates missing. Click Find or use the map picker.</p>
+                            )}
+                            {!hasMissingCoordinates(editingBillboard) && isFallbackCoordinate(editingBillboard.coordinates.lat, editingBillboard.coordinates.lng) && (
+                                <p className="text-[11px] text-amber-600 flex items-center gap-1"><AlertTriangle size={12}/> This is the default location. Please verify or geocode.</p>
+                            )}
+                            {geocodeResult && (
+                                <p className="text-[11px] text-emerald-600 flex items-start gap-1"><MapPin size={12} className="shrink-0 mt-0.5"/> Found: {geocodeResult.displayName} ({formatCoordinate(geocodeResult.lat, geocodeResult.lng)})</p>
+                            )}
+                            {geocodeError && (
+                                <p className="text-[11px] text-red-600 flex items-center gap-1"><AlertTriangle size={12}/> {geocodeError}</p>
+                            )}
                         </div>
 
                         {pickingLocation && (

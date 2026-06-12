@@ -2,6 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
+import { validateBillboard, ValidationError } from '../utils/validation';
+import { hasValidCoordinates, isFallbackCoordinate } from '../utils/coordinates';
+
+const coordinateSchema = z.object({
+  lat: z.number(),
+  lng: z.number(),
+});
 
 const billboardSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -10,6 +17,7 @@ const billboardSchema = z.object({
   type: z.enum(['Static', 'LED']),
   width: z.number(),
   height: z.number(),
+  coordinates: coordinateSchema.optional(),
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -35,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
+      validateBillboard(req.body);
       const data = fromClient(req.body);
       const row = await prisma.billboard.create({ data });
       return res.status(201).json(toClient(row));
@@ -43,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      validateBillboard(req.body);
       const data = fromClient(req.body);
       // Upsert: update if exists, create if not (handles client-side generated IDs)
       const existing = await prisma.billboard.findUnique({ where: { id: id as string } });
@@ -63,6 +73,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
     console.error('[billboards]', e);
+    if (e instanceof ValidationError) {
+      return res.status(400).json({ error: e.message, field: e.field });
+    }
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -70,15 +83,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 // Map flat Prisma row → nested coordinates object expected by frontend
 function toClient(row: any) {
   const { coordinatesLat, coordinatesLng, ...rest } = row;
-  return { ...rest, coordinates: { lat: coordinatesLat ?? 0, lng: coordinatesLng ?? 0 } };
+  const lat = coordinatesLat ?? 0;
+  const lng = coordinatesLng ?? 0;
+  return {
+    ...rest,
+    coordinates: { lat, lng },
+    hasValidCoordinates: hasValidCoordinates({ coordinates: { lat, lng } }),
+  };
 }
 
 // Map nested coordinates → flat columns for Prisma
 function fromClient(body: any) {
-  const { coordinates, createdAt, updatedAt, ...rest } = body ?? {};
+  const { coordinates, createdAt, updatedAt, hasValidCoordinates, ...rest } = body ?? {};
+  const lat = coordinates?.lat;
+  const lng = coordinates?.lng;
+
+  // Treat zero/fallback coordinates as missing so they don't pollute the map.
+  const normalizedLat =
+    typeof lat === 'number' && Number.isFinite(lat) && !(lat === 0 && lng === 0) && !isFallbackCoordinate(lat, lng ?? 0)
+      ? lat
+      : null;
+  const normalizedLng =
+    typeof lng === 'number' && Number.isFinite(lng) && !(lat === 0 && lng === 0) && !isFallbackCoordinate(lat ?? 0, lng)
+      ? lng
+      : null;
+
   return {
     ...rest,
-    coordinatesLat: coordinates?.lat ?? null,
-    coordinatesLng: coordinates?.lng ?? null,
+    coordinatesLat: normalizedLat,
+    coordinatesLng: normalizedLng,
   };
 }

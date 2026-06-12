@@ -4,9 +4,10 @@ import { createUser, updateUserData, deleteUserData, approveUser, rejectUser, fe
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canAccessSettings } from '../utils/settingsAccess';
 import { generateAppFeaturesPDF, generateUserManualPDF } from '../services/pdfGenerator';
-import { Shield, Building, ScrollText, Download, Plus, X, Save, Phone, MapPin, Edit2, Trash2, AlertTriangle, Cloud, Upload, RefreshCw, Clock, HardDrive, Sparkles, Loader2, CheckCircle, FileText, ChevronRight, Server, Wifi, Activity, Lock, Copy, FileCheck, Layers, Cpu, Code2, UserCheck, Users, Database, UserX, Key, History, SlashSquare, Settings2, Mail } from 'lucide-react';
+import { Shield, Building, ScrollText, Download, Plus, X, Save, Phone, MapPin, Edit2, Trash2, AlertTriangle, Cloud, Upload, RefreshCw, Clock, HardDrive, Sparkles, Loader2, CheckCircle, FileText, ChevronRight, Server, Wifi, Activity, Lock, Copy, FileCheck, Layers, Cpu, Code2, UserCheck, Users, Database, UserX, Key, History, SlashSquare, Settings2, Mail, Globe } from 'lucide-react';
 import { User as UserType, CompanyProfile, UserPermissions, LoginHistoryEntry } from '../types';
 import { DataSyncManager } from './DataSyncManager';
+import { LocationSettings } from './settings/LocationSettings';
 
 const ROLE_OPTIONS = [
   { value: 'Admin', label: 'Administrator' },
@@ -82,7 +83,7 @@ export const Settings: React.FC = () => {
     );
   }
 
-  const [activeTab, setActiveTab] = useState<'General' | 'Audit' | 'Data' | 'ReleaseNotes'>('General');
+  const [activeTab, setActiveTab] = useState<'General' | 'Locations' | 'Audit' | 'Data' | 'ReleaseNotes'>('General');
   const [users, setUsers] = useState<UserType[]>(getLocalUsers());
   const [auditLogs, setAuditLogs] = useState(getAuditLogs());
   const [logoPreview, setLogoPreview] = useState(getCompanyLogo());
@@ -390,6 +391,7 @@ export const Settings: React.FC = () => {
           </div>
           <div className="flex bg-white rounded-full border border-slate-200 p-1 shadow-sm overflow-x-auto max-w-full">
             <button onClick={() => setActiveTab('General')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'General' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>General</button>
+            <button onClick={() => setActiveTab('Locations')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Locations' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>Locations</button>
             <button onClick={() => setActiveTab('Data')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Data' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>Data & Sync</button>
             <button onClick={() => setActiveTab('Audit')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'Audit' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>Audit Logs</button>
             <button onClick={() => setActiveTab('ReleaseNotes')} className={`px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'ReleaseNotes' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`}>Release Notes</button>
@@ -633,6 +635,11 @@ export const Settings: React.FC = () => {
               )}
           </div>
           </div>
+        )}
+
+        {/* LOCATIONS TAB */}
+        {activeTab === 'Locations' && (
+          <div className="animate-fade-in"><LocationSettings /></div>
         )}
 
         {/* DATA TAB */}

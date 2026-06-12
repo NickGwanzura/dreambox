@@ -339,11 +339,6 @@ export const PublicWebsite: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const visibleBoards = useMemo(
-    () => billboards.filter(board => board.coordinates?.lat && board.coordinates?.lng).slice(0, 3),
-    [billboards]
-  );
-
   const availableSites = useMemo(
     () => getAvailableSites(billboards, contracts),
     [billboards, contracts]
@@ -900,7 +895,7 @@ export const PublicWebsite: React.FC = () => {
 
             {shownAvailability.length > 0 ? (
               <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {(page === 'home' ? shownAvailability.slice(0, 6) : shownAvailability).map((item, index) => (
+                {shownAvailability.map((item, index) => (
                 <a
                   key={`${item.board.id}-${item.label}`}
                   href={item.board.id.startsWith('live-') ? '/contact' : billboardLink(item.board)}

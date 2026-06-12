@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma';
 import { cors } from '../lib/auth';
+import { hasValidCoordinates } from '../utils/coordinates';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
@@ -28,8 +29,12 @@ function toPublicClient(row: any) {
     ...rest
   } = row;
 
+  const lat = coordinatesLat ?? 0;
+  const lng = coordinatesLng ?? 0;
+
   return {
     ...rest,
-    coordinates: { lat: coordinatesLat ?? 0, lng: coordinatesLng ?? 0 },
+    coordinates: { lat, lng },
+    hasValidCoordinates: hasValidCoordinates({ coordinates: { lat, lng } }),
   };
 }

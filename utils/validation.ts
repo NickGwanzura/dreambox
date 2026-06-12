@@ -11,6 +11,7 @@ import {
   MIN_PASSWORD_LENGTH 
 } from '../services/constants';
 import { Billboard, Client, Contract, User, Invoice, Expense, Task, CRMCompany, CRMContact, CRMOpportunity, CRMTouchpoint, CRMTask } from '../types';
+import { hasValidCoordinates, isFallbackCoordinate } from './coordinates';
 
 export class ValidationError extends Error {
   constructor(message: string, public field?: string) {
@@ -94,6 +95,9 @@ export const validateBillboard = (data: Partial<Billboard>): void => {
   if (data.coordinates) {
     validators.number(data.coordinates.lat, 'Latitude', -90, 90);
     validators.number(data.coordinates.lng, 'Longitude', -180, 180);
+    if (isFallbackCoordinate(data.coordinates.lat, data.coordinates.lng)) {
+      throw new ValidationError('Coordinates appear to be the default fallback location. Please use the map picker or geocode the address.', 'coordinates');
+    }
   }
   
   if (data.dailyTraffic !== undefined) {

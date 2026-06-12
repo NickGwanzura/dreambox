@@ -105,6 +105,14 @@ async function registerRoutes() {
   app.all('/api/auth/resend-verification',   adapt(resendVerify, 'auth/resend-verification'));
   log.boot('  Auth routes        ✓  (signin, signup, me, reset-password, update-password, resend-verification)');
 
+  // Public resources
+  const publicBillboards = await import('./api/public-billboards.js');
+  const geocode          = await import('./api/geocode.js');
+
+  app.all('/api/public-billboards', adapt(publicBillboards, 'public-billboards'));
+  app.all('/api/geocode',           adapt(geocode,          'geocode'));
+  log.boot('  Public routes      ✓  (public-billboards, geocode)');
+
   // Core resources
   const auditLogs    = await import('./api/audit-logs.js');
   const billboards   = await import('./api/billboards.js');
