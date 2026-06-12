@@ -1031,33 +1031,56 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
-        {page === 'home' && <section id="industries" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="animate-reveal-up">
-              <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-indigo-500">Industries served</p>
-              <h2 className="max-w-xs text-3xl font-black leading-tight tracking-tight text-slate-950 sm:text-4xl">
-                Who we work with.
-              </h2>
+        {page === 'home' && <section id="industries" className="relative overflow-hidden bg-slate-950 py-20">
+          <div className="mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="animate-reveal-up">
+                <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-indigo-400">Industries served</p>
+                <h2 className="max-w-xs text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl">
+                  Who we work with.
+                </h2>
+              </div>
+              <p className="max-w-md animate-reveal-up animation-delay-100 text-[15px] leading-7 text-slate-400">
+                Dreambox serves brands across every major sector active in the Zimbabwean market.
+              </p>
             </div>
-            <p className="max-w-md animate-reveal-up animation-delay-100 text-[15px] leading-7 text-slate-500">
-              Dreambox serves brands across every major category active in the Zimbabwean market.
-            </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            {[
-              'FMCG', 'Telecommunications', 'Banking and Finance', 'Real Estate',
-              'Retail', 'Government and NGO', 'Healthcare', 'Automotive',
-              'Hospitality and Tourism', 'Education', 'Insurance', 'Media and Entertainment',
-            ].map((industry, i) => (
-              <span
-                key={industry}
-                className="animate-reveal-up rounded-full border border-slate-200 bg-white px-5 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
-                style={{ animationDelay: `${i * 40}ms` }}
-              >
-                {industry}
-              </span>
-            ))}
+
+          {/* Row 1 — left to right */}
+          <div className="relative">
+            <div className="flex animate-marquee gap-4 whitespace-nowrap">
+              {['FMCG', 'Telecommunications', 'Banking and Finance', 'Real Estate', 'Retail', 'Government and NGO', 'Healthcare', 'Automotive', 'Hospitality and Tourism', 'Education', 'Insurance', 'Media and Entertainment',
+                'FMCG', 'Telecommunications', 'Banking and Finance', 'Real Estate', 'Retail', 'Government and NGO', 'Healthcare', 'Automotive', 'Hospitality and Tourism', 'Education', 'Insurance', 'Media and Entertainment',
+              ].map((industry, i) => (
+                <span
+                  key={i}
+                  className="inline-flex shrink-0 items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-6 py-3 text-[13px] font-semibold text-white/60 backdrop-blur-sm transition-colors duration-200 hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-white"
+                >
+                  {industry}
+                </span>
+              ))}
+            </div>
           </div>
+
+          {/* Row 2 — right to left */}
+          <div className="relative mt-4">
+            <div className="flex animate-marquee-reverse gap-4 whitespace-nowrap">
+              {['Automotive', 'Media and Entertainment', 'Real Estate', 'Healthcare', 'FMCG', 'Education', 'Banking and Finance', 'Retail', 'Insurance', 'Telecommunications', 'Government and NGO', 'Hospitality and Tourism',
+                'Automotive', 'Media and Entertainment', 'Real Estate', 'Healthcare', 'FMCG', 'Education', 'Banking and Finance', 'Retail', 'Insurance', 'Telecommunications', 'Government and NGO', 'Hospitality and Tourism',
+              ].map((industry, i) => (
+                <span
+                  key={i}
+                  className="inline-flex shrink-0 items-center rounded-full border border-white/[0.06] bg-white/[0.025] px-6 py-3 text-[13px] font-semibold text-white/40 backdrop-blur-sm transition-colors duration-200 hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-white/70"
+                >
+                  {industry}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* edge fades */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-950 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-950 to-transparent" />
         </section>}
 
         {page === 'faq' && <section id="faq" className="bg-white py-20">
