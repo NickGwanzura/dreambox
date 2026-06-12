@@ -55,7 +55,11 @@ export async function uploadFile(
     })
   );
 
-  const url = publicUrl ? `${publicUrl.replace(/\/$/, '')}/${key}` : `${endpoint.replace(/\/$/, '')}/${bucket}/${key}`;
+  // The R2 endpoint usually already contains the bucket path; avoid doubling it.
+  const baseUrl = endpoint.endsWith(`/${bucket}`)
+    ? endpoint.replace(/\/$/, '')
+    : `${endpoint.replace(/\/$/, '')}/${bucket}`;
+  const url = publicUrl ? `${publicUrl.replace(/\/$/, '')}/${key}` : `${baseUrl}/${key}`;
   return { key, url };
 }
 
