@@ -1,5 +1,53 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Helvena';
+  src: url('/fonts/Helvena-Extralight.woff2') format('woff2');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Helvena';
+  src: url('/fonts/Helvena-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Helvena';
+  src: url('/fonts/Helvena-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Helvena';
+  src: url('/fonts/Helvena-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Helvena';
+  src: url('/fonts/Helvena-Semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Helvena';
+  src: url('/fonts/Helvena-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-primary: #0f172a;
   --color-secondary: #1e293b;
@@ -12,8 +60,8 @@
   --animate-fade-in: fadeIn 0.5s ease-out forwards;
   --animate-float: float 6s ease-in-out infinite;
 
-  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --font-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-sans: 'Helvena', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-display: 'Helvena', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
   @keyframes blob {
     0% { transform: translate(0px, 0px) scale(1); }
@@ -60,7 +108,7 @@
 
 @layer base {
   html {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Helvena', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   }
 
   h1,
@@ -69,7 +117,7 @@
   h4,
   h5,
   h6 {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Helvena', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     letter-spacing: -0.02em;
   }
 }
