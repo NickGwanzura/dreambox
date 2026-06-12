@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma';
 import { cors } from '../lib/auth';
+import { notifyAdminWebsiteLead } from '../lib/notifyAdmin';
 
 const clean = (value: unknown): string =>
   String(value || '').trim().slice(0, 1000);
@@ -20,6 +21,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const campaignDuration = clean(req.body?.campaignDuration) || 'To be confirmed';
     const message = clean(req.body?.message);
     const estimatedValue = Number(req.body?.estimatedValue || 0) || undefined;
+    const honeypot = clean(req.body?.website);
+
+    // Spam honeypot: bots often fill this hidden field
+    if (honeypot) {
+      return res.status(400).json({ error: 'Invalid submission' });
+    }
 
     if (!name || !email) {
       return res.status(400).json({ error: 'name and email are required' });
@@ -91,6 +98,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         recordId: opportunity.id,
       },
     }).catch(() => undefined);
+
+    notifyAdminWebsiteLead({
+      name,
+      email,
+      phone,
+      company: companyName,
+      locationInterest,
+      billboardType,
+      campaignDuration,
+      estimatedValue,
+      message,
+      opportunityId: opportunity.id,
+    });
 
     return res.status(201).json({ company, contact, opportunity });
   } catch (e: any) {

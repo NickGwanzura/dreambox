@@ -13,6 +13,9 @@ import {
   Wifi,
   WifiOff,
   CheckCircle2,
+  Archive,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import { useToast } from './ToastProvider';
 import {
@@ -26,6 +29,15 @@ import {
   pullAllFromNeon,
   pushAllToNeon,
 } from '../services/neonSyncManager';
+import {
+  listBackups,
+  createBackup,
+  deleteBackup,
+  restoreBackup,
+  formatBytes,
+  formatBackupDate,
+  type BackupManifestEntry,
+} from '../services/backupService';
 import { logger } from '../utils/logger';
 
 export const DataSyncManager: React.FC = () => {
@@ -36,12 +48,25 @@ export const DataSyncManager: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoringFromCloud, setIsRestoringFromCloud] = useState(false);
+  const [backups, setBackups] = useState<BackupManifestEntry[]>([]);
   const [dbStats, setDbStats] = useState<{ tables: Record<string, number>; totalRecords: number } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<{ configured: boolean; connected: boolean; error?: string } | null>(null);
 
   useEffect(() => {
     checkConnection();
     loadStats();
+    loadBackups();
+  }, []);
+
+  const loadBackups = useCallback(async () => {
+    try {
+      const list = await listBackups();
+      setBackups(list);
+    } catch (e: any) {
+      logger.error('[DataSyncManager] Failed to load backups', e.message);
+    }
   }, []);
 
   const checkConnection = async () => {
@@ -138,6 +163,72 @@ export const DataSyncManager: React.FC = () => {
     const stats = await getDatabaseStats();
     setDbStats(stats);
   }, []);
+
+  const handleCreateBackup = async () => {
+    setIsBackingUp(true);
+    showToast('Creating cloud backup...', 'info');
+    try {
+      const backup = await createBackup();
+      setBackups(prev => [backup, ...prev]);
+      showToast(`Backup created: ${backup.recordCount.toLocaleString()} records`, 'success');
+    } catch (e: any) {
+      showToast('Backup failed: ' + (e.message || 'Unknown error'), 'error');
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleDownloadBackup = async (backup: BackupManifestEntry) => {
+    try {
+      const res = await fetch(backup.url);
+      if (!res.ok) throw new Error('Download failed');
+      const json = await res.text();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = backup.key.split('/').pop() || `dreambox-backup-${backup.id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      showToast('Download failed: ' + (e.message || 'Unknown error'), 'error');
+    }
+  };
+
+  const handleRestoreBackup = async (backup: BackupManifestEntry) => {
+    if (!confirm(`Restore backup from ${formatBackupDate(backup.createdAt)}? This will overwrite matching records.`)) return;
+    setIsRestoringFromCloud(true);
+    showToast('Restoring backup...', 'info');
+    try {
+      const result = await restoreBackup(backup.id);
+      if (result.success && result.errors.length === 0) {
+        showToast(`Restored ${result.restored.toLocaleString()} records. Reloading...`, 'success');
+        window.location.reload();
+      } else if (result.success && result.errors.length > 0) {
+        showToast(`Restored with ${result.errors.length} warning(s). Reloading...`, 'warning');
+        window.location.reload();
+      } else {
+        showToast('Restore failed: ' + (result.errors[0] || 'Unknown error'), 'error');
+      }
+    } catch (e: any) {
+      showToast('Restore failed: ' + (e.message || 'Unknown error'), 'error');
+    } finally {
+      setIsRestoringFromCloud(false);
+    }
+  };
+
+  const handleDeleteBackup = async (backup: BackupManifestEntry) => {
+    if (!confirm(`Delete backup from ${formatBackupDate(backup.createdAt)}?`)) return;
+    try {
+      await deleteBackup(backup.id);
+      setBackups(prev => prev.filter(b => b.id !== backup.id));
+      showToast('Backup deleted', 'success');
+    } catch (e: any) {
+      showToast('Delete failed: ' + (e.message || 'Unknown error'), 'error');
+    }
+  };
 
   const formatTime = (timestamp: number) => {
     if (!timestamp) return 'Never';
@@ -376,6 +467,89 @@ export const DataSyncManager: React.FC = () => {
             </li>
           </ul>
         </div>
+      </div>
+
+      {/* Cloud Backups */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Cloud className="w-5 h-5 text-blue-500" />
+            <h3 className="text-lg font-bold text-slate-800">Cloud Backups (R2)</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadBackups}
+              className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-50"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+            <button
+              onClick={handleCreateBackup}
+              disabled={isBackingUp}
+              className="flex items-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-medium px-4 py-1.5 rounded-lg transition-all"
+            >
+              <Archive className={`w-4 h-4 ${isBackingUp ? 'animate-pulse' : ''}`} />
+              {isBackingUp ? 'Creating...' : 'Create Backup'}
+            </button>
+          </div>
+        </div>
+
+        {backups.length === 0 ? (
+          <div className="text-center text-slate-900 py-8 bg-slate-50 rounded-xl border border-slate-100">
+            No cloud backups yet. Click "Create Backup" to store a full snapshot in R2.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-900 border-b border-slate-100">
+                  <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 font-medium">Records</th>
+                  <th className="pb-3 font-medium">Size</th>
+                  <th className="pb-3 font-medium">Created By</th>
+                  <th className="pb-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {backups.map(backup => (
+                  <tr key={backup.id} className="group">
+                    <td className="py-3 text-slate-800">{formatBackupDate(backup.createdAt)}</td>
+                    <td className="py-3 text-slate-800">{backup.recordCount.toLocaleString()}</td>
+                    <td className="py-3 text-slate-800">{formatBytes(backup.size)}</td>
+                    <td className="py-3 text-slate-800">{backup.createdBy}</td>
+                    <td className="py-3 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100">
+                        <button
+                          onClick={() => handleDownloadBackup(backup)}
+                          title="Download"
+                          className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleRestoreBackup(backup)}
+                          disabled={isRestoringFromCloud}
+                          title="Restore"
+                          className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg disabled:opacity-40"
+                        >
+                          <RotateCcw className={`w-4 h-4 ${isRestoringFromCloud ? 'animate-spin' : ''}`} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBackup(backup)}
+                          title="Delete"
+                          className="p-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
