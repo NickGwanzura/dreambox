@@ -1466,6 +1466,17 @@ export const PublicWebsite: React.FC = () => {
             <p className="inline-flex items-center gap-2">
               <ShieldCheck size={13} className="text-emerald-400" /> Powered by Dreambox CRM
             </p>
+            <p className="text-white/30">
+              Built and maintained by{' '}
+              <a
+                href="https://spiritus.co.zw"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-white/50 transition hover:text-white"
+              >
+                Spiritus Systems
+              </a>
+            </p>
           </div>
         </div>
       </footer>
