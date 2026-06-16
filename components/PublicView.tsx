@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { getBillboards, getCompanyLogo, getContracts } from '../services/mockData';
+import { getBillboards, getContracts } from '../services/mockData';
 import { Billboard, Contract } from '../types';
 import { estimateDailyViews } from '../services/aiService';
 import { hasValidCoordinates } from '../utils/coordinates';
 import L from 'leaflet';
-import { MapPin, Maximize2, Car, Layers, Zap, X, ExternalLink, DollarSign, CheckCircle, XCircle, Clock, Phone, Mail, AlertTriangle, Search, Filter, ImageIcon } from 'lucide-react';
+import { MapPin, Maximize2, Car, Layers, Zap, X, DollarSign, CheckCircle, Clock, Phone, Mail, AlertTriangle, Search, ImageIcon, Menu, ArrowRight } from 'lucide-react';
 
 const toSlug = (name: string): string =>
     name.toLowerCase()
@@ -12,6 +12,29 @@ const toSlug = (name: string): string =>
         .replace(/^-+|-+$/g, '');
 
 const billboardLink = (b: Billboard): string => `/billboard/${toSlug(b.name)}-${b.id.slice(-8)}`;
+
+const liveLogo =
+    'https://static.wixstatic.com/media/33e2c5_fa30ae7289ea444186df47e4189fca0d~mv2.png/v1/crop/x_0,y_194,w_526,h_100/fill/w_678,h_136,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/IMG_9520__1_-removebg-preview.png';
+
+const publicNavLinks = [
+    { href: '/', label: 'Home' },
+    { href: '/services', label: 'Services' },
+    { href: '/site-availability', label: 'Available Sites' },
+    { href: '/pricing', label: 'Pricing' },
+    { href: '/contact', label: 'Contact' },
+];
+
+const PublicLogo: React.FC<{ logo?: string | null }> = ({ logo }) => (
+    <span className="flex items-center gap-3">
+        <span className="flex h-12 w-40 items-center rounded-md bg-white/[0.08] px-3 py-2 ring-1 ring-white/12">
+            {logo ? (
+                <img src={logo} alt="Dreambox Advertising" className="max-h-full max-w-full object-contain" />
+            ) : (
+                <span className="text-sm font-black uppercase tracking-[0.18em] text-white">Dreambox</span>
+            )}
+        </span>
+    </span>
+);
 
 const fetchPublicBillboards = async (): Promise<Billboard[] | null> => {
     try {
@@ -49,12 +72,13 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
     const [contracts, setContracts] = useState<Contract[]>([]);
     const mapRef = useRef<L.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
-    const logo = getCompanyLogo();
+    const logo = liveLogo;
 
     // Map view state
     const [searchQuery, setSearchQuery] = useState('');
     const [townFilter, setTownFilter] = useState<string>('all');
     const [typeFilter, setTypeFilter] = useState<string>('all');
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const [viewEstimates, setViewEstimates] = useState<Record<string, { dailyTraffic: number; description: string }>>({});
     const [estimating, setEstimating] = useState<Set<string>>(new Set());
     const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
@@ -314,26 +338,93 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-            {/* Public Header */}
-            <div className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 px-6 py-4 flex justify-between items-center shadow-sm">
-                <div className="flex items-center gap-3">
-                    {logo ? <img src={logo} alt="Logo" className="w-10 h-10 rounded-lg object-contain bg-white border border-slate-100 p-1"/> : <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">D</div>}
-                    <div>
-                        <h1 className="text-lg font-bold text-slate-900 leading-tight">Dreambox Locations</h1>
-                        <p className="text-xs text-slate-900">Public Asset Viewer</p>
-                    </div>
-                </div>
-                <div className="flex gap-3">
-                    {type === 'billboard' && (
-                        <a href="/locations" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-900 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-colors">
-                            <Layers size={14}/> View Full Map
-                        </a>
-                    )}
-                    <a href="/login" className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-800 transition-colors flex items-center gap-2">
-                        CRM Login <ExternalLink size={12} />
+            <header className="sticky inset-x-0 top-0 z-50 bg-[#1e293b]/92 shadow-2xl shadow-slate-950/20 backdrop-blur-xl">
+                <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+                    <a href="/" className="flex items-center gap-3" aria-label="Dreambox Advertising home">
+                        <PublicLogo logo={logo} />
                     </a>
+
+                    <nav className="hidden items-center gap-8 text-sm font-semibold text-white/78 md:flex" aria-label="Primary navigation">
+                        {publicNavLinks.map(link => (
+                            <a key={link.href} href={link.href} className="transition hover:text-white">
+                                {link.label}
+                            </a>
+                        ))}
+                    </nav>
+
+                    <div className="hidden items-center gap-2 md:flex">
+                        {type === 'billboard' && (
+                            <a
+                                href="/locations"
+                                className="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-white/10"
+                            >
+                                <Layers size={14} /> Full Map
+                            </a>
+                        )}
+                        <a
+                            href="/login"
+                            className="rounded-md border border-white/20 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-white/10"
+                        >
+                            Staff Login
+                        </a>
+                        <a
+                            href="https://wa.me/263778018909"
+                            className="inline-flex items-center gap-2 rounded-md bg-indigo-500 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400"
+                        >
+                            Book Appointment <ArrowRight size={14} />
+                        </a>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setMobileNavOpen(open => !open)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/20 text-white transition hover:bg-white/10 md:hidden"
+                        aria-label="Toggle navigation menu"
+                        aria-expanded={mobileNavOpen}
+                    >
+                        {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+                    </button>
                 </div>
-            </div>
+
+                {mobileNavOpen && (
+                    <nav className="border-t border-slate-700/50 bg-[#1e293b] px-4 py-4 md:hidden" aria-label="Mobile navigation">
+                        <div className="grid gap-2">
+                            {publicNavLinks.map(link => (
+                                <a
+                                    key={link.href}
+                                    href={link.href}
+                                    onClick={() => setMobileNavOpen(false)}
+                                    className="rounded-md px-3 py-3 text-sm font-bold text-white/82 transition hover:bg-white/10 hover:text-white"
+                                >
+                                    {link.label}
+                                </a>
+                            ))}
+                            {type === 'billboard' && (
+                                <a
+                                    href="/locations"
+                                    onClick={() => setMobileNavOpen(false)}
+                                    className="rounded-md px-3 py-3 text-sm font-bold text-white/82 transition hover:bg-white/10 hover:text-white"
+                                >
+                                    Full Map
+                                </a>
+                            )}
+                            <a
+                                href="/login"
+                                onClick={() => setMobileNavOpen(false)}
+                                className="rounded-md px-3 py-3 text-sm font-bold text-white/82 transition hover:bg-white/10 hover:text-white"
+                            >
+                                Staff Login
+                            </a>
+                            <a
+                                href="https://wa.me/263778018909"
+                                className="mt-2 inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-4 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20"
+                            >
+                                Book Appointment <ArrowRight size={14} />
+                            </a>
+                        </div>
+                    </nav>
+                )}
+            </header>
 
             <div className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full space-y-6">
                 

@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import {
   getBillboards,
-  getCompanyLogo,
   getCompanyProfile,
   getContracts,
   getHeroImageUrl,
@@ -88,6 +87,29 @@ const liveLocationCards = [
   {
     name: 'NEWLANDS',
     image: 'https://static.wixstatic.com/media/6d48c9_964676760db84f56a413eb5a8c10c9b9~mv2.jpeg/v1/fill/w_520,h_390,al_c,q_80,enc_avif,quality_auto/WhatsApp%20Image%202025-05-03%20at%2010_55_25%20(1).jpeg',
+  },
+];
+
+const campaignGallery = [
+  {
+    title: 'Roadside Visibility',
+    location: 'Msasa, Harare',
+    image: liveLocationCards[0].image,
+  },
+  {
+    title: 'Retail Corridor Campaign',
+    location: 'Madokero, Harare',
+    image: liveLocationCards[1].image,
+  },
+  {
+    title: 'Airport Route Presence',
+    location: 'Airport Road',
+    image: liveLocationCards[2].image,
+  },
+  {
+    title: 'Premium Urban Placement',
+    location: 'Newlands, Harare',
+    image: liveLocationCards[3].image,
   },
 ];
 
@@ -335,7 +357,7 @@ export const PublicWebsite: React.FC = () => {
   const [publicBillboards, setPublicBillboards] = useState<Billboard[]>(() => getBillboards());
   const billboards = publicBillboards;
   const contracts = getContracts();
-  const logo = getCompanyLogo() || liveLogo;
+  const logo = liveLogo;
   const profile = getCompanyProfile();
   const heroImageUrl = getHeroImageUrl();
   const storedPartnerLogos = getPartnerLogos();
@@ -420,6 +442,13 @@ export const PublicWebsite: React.FC = () => {
     priceSummary: index === 2 ? '$1,200 / slot' : `From $${850 + index * 150}/mo`,
     available: true,
   }));
+  const digitalAvailability = shownAvailability.filter(item => {
+    const type = String(item.board.type || '').toLowerCase();
+    return type.includes('led') || type.includes('digital');
+  });
+  const featuredDigitalSites = digitalAvailability.length
+    ? digitalAvailability.slice(0, 3)
+    : shownAvailability.filter(item => item.board.type === BillboardType.LED).slice(0, 3);
 
   const createLocalLead = () => {
     const companyName = form.company.trim() || form.name.trim() || 'Website Enquiry';
@@ -839,6 +868,74 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
+        {(page === 'home' || page === 'services') && <section id="digital-billboards" className="bg-slate-950 py-20 text-white">
+          <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8">
+            <div className="animate-reveal-up">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-indigo-300">Digital billboards</p>
+              <h2 className="mt-3 max-w-xl text-4xl font-black leading-[1.07] tracking-tight text-white sm:text-5xl">
+                High-impact LED visibility for campaigns that need momentum.
+              </h2>
+              <p className="mt-5 max-w-lg text-[15px] leading-7 text-white/68">
+                Digital billboard slots give your brand motion, frequency, and day-to-night presence at premium traffic points.
+              </p>
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {[
+                  { label: 'Rotating Slots', value: 'LED' },
+                  { label: 'Flexible Bursts', value: 'Fast' },
+                  { label: 'Night Visibility', value: '24/7' },
+                ].map(item => (
+                  <div key={item.label} className="premium-dark-card p-4">
+                    <div className="text-2xl font-black text-white">{item.value}</div>
+                    <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-indigo-200">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+              <a
+                href="/site-availability"
+                onClick={navigate('locations')}
+                className="mt-8 inline-flex items-center gap-2 rounded-md bg-indigo-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400"
+              >
+                View Digital Sites <ArrowRight size={15} />
+              </a>
+            </div>
+
+            <div className="animate-soft-scale overflow-hidden rounded-md border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/30">
+              <div className="relative h-80 overflow-hidden sm:h-[430px]">
+                <img
+                  src={featuredDigitalSites[0]?.board.imageUrl || liveLocationCards[2].image}
+                  alt="Digital billboard campaign preview"
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover opacity-90 transition duration-700 hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                <div className="absolute bottom-5 left-5 right-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-200">Featured digital format</p>
+                  <h3 className="mt-2 text-2xl font-black text-white">{featuredDigitalSites[0]?.board.name || 'Airport Road LED'}</h3>
+                  <p className="mt-2 text-sm font-semibold text-white/70">
+                    {featuredDigitalSites[0]?.label || 'Digital slots available'}
+                  </p>
+                </div>
+              </div>
+              <div className="grid divide-y divide-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                {(featuredDigitalSites.length ? featuredDigitalSites : shownAvailability.slice(0, 3)).slice(0, 3).map(item => (
+                  <a
+                    key={`${item.board.id}-digital-feature`}
+                    href={item.board.id.startsWith('live-') ? '/contact' : billboardLink(item.board)}
+                    className="group p-4 transition hover:bg-white/[0.06]"
+                  >
+                    <p className="truncate text-sm font-black text-white">{item.board.name}</p>
+                    <p className="mt-1 text-xs font-semibold text-white/50">{item.monthlyRate ? `${money(item.monthlyRate)}/mo` : 'Quote'}</p>
+                    <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-indigo-200">
+                      Details <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>}
+
         {(page === 'home' || page === 'services') && <section id="services" className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
           <div className="mb-14 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="animate-reveal-up">
@@ -952,10 +1049,10 @@ export const PublicWebsite: React.FC = () => {
                 {
                   num: '04',
                   icon: BarChart2,
-                  title: 'CRM-tracked campaigns',
-                  body: 'Every contract, invoice, and campaign milestone is logged in our system so your team always has a clear record.',
+                  title: 'Clear campaign records',
+                  body: 'From booking to installation, your contracts, invoices, and key campaign milestones stay easy to reference.',
                   stat: '1',
-                  statLabel: 'source of truth',
+                  statLabel: 'clear record',
                   delay: 240,
                 },
               ].map((item) => (
@@ -1457,6 +1554,49 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
+        {(page === 'home' || page === 'services' || page === 'contact') && <section id="campaign-gallery" className="bg-slate-50 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="animate-reveal-up">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Previous campaigns</p>
+                <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                  See how brands show up with Dreambox.
+                </h2>
+              </div>
+              <p className="max-w-md animate-reveal-up animation-delay-100 text-sm leading-7 text-slate-600">
+                A quick look at outdoor placements and campaign-ready locations before you send your brief.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {campaignGallery.map((item, index) => (
+                <article
+                  key={item.title}
+                  className="group animate-reveal-up overflow-hidden rounded-md bg-slate-900 shadow-xl shadow-slate-950/10"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                >
+                  <div className="relative h-72 overflow-hidden">
+                    <img
+                      src={item.image}
+                      alt={`${item.title} billboard campaign`}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="text-lg font-black text-white">{item.title}</h3>
+                      <p className="mt-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-indigo-100">
+                        <MapPin size={13} /> {item.location}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>}
+
         <section id="contact" className="bg-white py-20">
           <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
             <div>
@@ -1495,7 +1635,7 @@ export const PublicWebsite: React.FC = () => {
                   Put your brand on Zimbabwe&apos;s busiest roads.
                 </h2>
                 <p className="mt-4 max-w-lg text-sm leading-7 text-white/75">
-                  Send your target towns, dates, and budget. Every enquiry reaches our team as a tracked CRM lead &mdash; no forms lost, no follow-up missed.
+                  Send your target towns, dates, and budget on WhatsApp. Our team will help you choose available sites and move quickly toward a quote.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2.5">
                   {['No-obligation quote', 'Response within 24 hours', 'Live availability before you commit'].map(item => (
@@ -1507,17 +1647,10 @@ export const PublicWebsite: React.FC = () => {
               </div>
               <div className="flex flex-col gap-3 lg:items-end">
                 <a
-                  href="/contact"
-                  onClick={navigate('contact')}
+                  href="https://wa.me/263778018909?text=Hi%20Dreambox%2C%20I%27d%20like%20to%20start%20an%20outdoor%20advertising%20campaign."
                   className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-7 py-4 text-sm font-black uppercase tracking-wide text-slate-950 shadow-xl shadow-slate-950/30 transition hover:-translate-y-0.5 hover:bg-indigo-50 lg:w-auto"
                 >
-                  Start a Campaign <ArrowRight size={16} />
-                </a>
-                <a
-                  href="https://wa.me/263778018909"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-white/30 bg-white/10 px-7 py-4 text-sm font-bold uppercase tracking-wide text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15 lg:w-auto"
-                >
-                  WhatsApp Us <Send size={15} />
+                  Start Your Campaign <Send size={15} />
                 </a>
               </div>
             </div>
