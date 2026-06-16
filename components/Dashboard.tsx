@@ -367,7 +367,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <ComposedChart data={financialTrends} barGap={4}>
                   <defs>
                     <linearGradient id="billedGrad" x1="0" y1="0" x2="0" y2="1">
@@ -415,7 +415,7 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
               <h3 className="text-lg font-bold text-slate-900 mb-4">Revenue by Location</h3>
               <div className="h-44">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={metrics.revenueByTownData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                     <XAxis type="number" hide />

@@ -17,17 +17,19 @@ function validateTotals(data: any): string | null {
   const grossItems = items.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
   const discountAmount = Math.min(grossItems, Math.max(0, Number(data.discountAmount) || 0));
   const grossAfterDiscount = Math.max(0, grossItems - discountAmount);
+  const vatAmount = Number(data.vatAmount) || 0;
   const expectedSubtotal = Number((data.subtotal || 0).toFixed(2));
   const expectedTotal = Number((data.total || 0).toFixed(2));
   const calcSubtotal = Number(grossAfterDiscount.toFixed(2));
-  
+  const calcTotal = Number((grossAfterDiscount + vatAmount).toFixed(2));
+
   // Allow small floating point tolerance
   const tolerance = 1;
   if (Math.abs(expectedSubtotal - calcSubtotal) > tolerance) {
     return `Subtotal mismatch: expected ~${calcSubtotal}, got ${expectedSubtotal}`;
   }
-  if (Math.abs(expectedTotal - calcSubtotal) > tolerance && Math.abs(expectedTotal - expectedSubtotal) > tolerance) {
-    return `Total mismatch: expected ~${calcSubtotal}, got ${expectedTotal}`;
+  if (Math.abs(expectedTotal - calcTotal) > tolerance) {
+    return `Total mismatch: expected ~${calcTotal}, got ${expectedTotal}`;
   }
   return null;
 }
