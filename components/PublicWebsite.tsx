@@ -71,47 +71,6 @@ const DEFAULT_PARTNER_LOGOS = [
   },
 ];
 
-const liveLocationCards = [
-  {
-    name: 'MSASA',
-    image: 'https://static.wixstatic.com/media/6d48c9_0af9ee7c9e304b5ea163ef08f62555b9~mv2.jpeg/v1/fill/w_520,h_390,al_c,q_80,enc_avif,quality_auto/WhatsApp%20Image%202025-05-03%20at%2010_55_26%20(1).jpeg',
-  },
-  {
-    name: 'MADOKERO',
-    image: 'https://static.wixstatic.com/media/6d48c9_da90a7e59ba64fd6990759dea14c05f6~mv2.jpeg/v1/fill/w_520,h_390,al_c,q_80,enc_avif,quality_auto/WhatsApp%20Image%202024-02-26%20at%2014_12_38.jpeg',
-  },
-  {
-    name: 'AIRPORT RD',
-    image: 'https://static.wixstatic.com/media/6d48c9_03971a6cc77f46bea990dbece4e44d99~mv2.jpg/v1/fill/w_520,h_390,al_c,q_80,enc_avif,quality_auto/Airport.jpg',
-  },
-  {
-    name: 'NEWLANDS',
-    image: 'https://static.wixstatic.com/media/6d48c9_964676760db84f56a413eb5a8c10c9b9~mv2.jpeg/v1/fill/w_520,h_390,al_c,q_80,enc_avif,quality_auto/WhatsApp%20Image%202025-05-03%20at%2010_55_25%20(1).jpeg',
-  },
-];
-
-const campaignGallery = [
-  {
-    title: 'Roadside Visibility',
-    location: 'Msasa, Harare',
-    image: liveLocationCards[0].image,
-  },
-  {
-    title: 'Retail Corridor Campaign',
-    location: 'Madokero, Harare',
-    image: liveLocationCards[1].image,
-  },
-  {
-    title: 'Airport Route Presence',
-    location: 'Airport Road',
-    image: liveLocationCards[2].image,
-  },
-  {
-    title: 'Premium Urban Placement',
-    location: 'Newlands, Harare',
-    image: liveLocationCards[3].image,
-  },
-];
 
 const testimonials = [
   {
@@ -423,25 +382,7 @@ export const PublicWebsite: React.FC = () => {
 
   const phone = profile?.phone || '+263 778 018 909';
   const email = profile?.email || 'info@dreamboxadvertising.com';
-  const shownAvailability = availableSites.length ? availableSites : liveLocationCards.map((location, index) => ({
-    board: {
-      id: `live-${location.name}`,
-      name: location.name,
-      location: location.name,
-      town: 'Harare',
-      type: index === 2 ? BillboardType.LED : BillboardType.Static,
-      width: index === 2 ? 6 : 12,
-      height: index === 2 ? 3 : 3,
-      imageUrl: location.image,
-      coordinates: { lat: 0, lng: 0 },
-      dailyTraffic: index === 2 ? 45000 : 28000 + index * 5000,
-    },
-    label: index === 2 ? 'Digital slots available' : 'Static placement available',
-    slotsFree: index === 2 ? 4 : 1,
-    monthlyRate: index === 2 ? 1200 : 850 + index * 150,
-    priceSummary: index === 2 ? '$1,200 / slot' : `From $${850 + index * 150}/mo`,
-    available: true,
-  }));
+  const shownAvailability = availableSites;
   const digitalAvailability = shownAvailability.filter(item => {
     const type = String(item.board.type || '').toLowerCase();
     return type.includes('led') || type.includes('digital');
@@ -808,8 +749,13 @@ export const PublicWebsite: React.FC = () => {
                   <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-indigo-300/60 to-transparent animate-line-sweep" />
                 </div>
                 {/* Billboard photo */}
-                <div className="overflow-hidden">
-                  <img src={liveLocationCards[0].image} alt="Dreambox billboard location preview" loading="eager" decoding="async" className="h-56 w-full object-cover opacity-90" />
+                <div className="overflow-hidden bg-slate-800">
+                  {(() => {
+                    const img = billboards.find(b => b.imageUrl)?.imageUrl;
+                    return img
+                      ? <img src={img} alt="Dreambox billboard location preview" loading="eager" decoding="async" className="h-56 w-full object-cover opacity-90" />
+                      : <div className="h-56 bg-gradient-to-br from-indigo-900/60 to-slate-900" />;
+                  })()}
                 </div>
                 {/* Content */}
                 <div className="p-5">
@@ -900,14 +846,18 @@ export const PublicWebsite: React.FC = () => {
             </div>
 
             <div className="animate-soft-scale overflow-hidden rounded-md border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/30">
-              <div className="relative h-80 overflow-hidden sm:h-[430px]">
-                <img
-                  src={featuredDigitalSites[0]?.board.imageUrl || liveLocationCards[2].image}
-                  alt="Digital billboard campaign preview"
-                  loading="lazy"
-                  decoding="async"
-                  className="h-full w-full object-cover opacity-90 transition duration-700 hover:scale-105"
-                />
+              <div className="relative h-80 overflow-hidden bg-slate-800 sm:h-[430px]">
+                {(featuredDigitalSites[0]?.board.imageUrl || shownAvailability.find(s => s.board.imageUrl)?.board.imageUrl) ? (
+                  <img
+                    src={featuredDigitalSites[0]?.board.imageUrl || shownAvailability.find(s => s.board.imageUrl)?.board.imageUrl}
+                    alt="Digital billboard campaign preview"
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover opacity-90 transition duration-700 hover:scale-105"
+                  />
+                ) : (
+                  <div className="h-full bg-gradient-to-br from-indigo-900/50 via-slate-900 to-slate-950" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
                 <div className="absolute bottom-5 left-5 right-5">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-200">Featured digital format</p>
@@ -1458,27 +1408,31 @@ export const PublicWebsite: React.FC = () => {
               </div>
             ) : (
               <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {liveLocationCards.map(location => (
+                {shownAvailability.slice(0, 4).map((item, idx) => (
                   <a
-                    key={location.name}
-                    href="/locations"
+                    key={item.board.id}
+                    href={item.board.id.startsWith('live-') ? '/contact' : billboardLink(item.board)}
+                    onClick={item.board.id.startsWith('live-') ? navigate('contact') : undefined}
                     className="premium-dark-card premium-dark-card-hover group animate-reveal-up"
+                    style={{ animationDelay: `${idx * 70}ms` }}
                   >
                     <div className="relative h-64 overflow-hidden bg-slate-800">
-                      <img src={location.image} alt={`${location.name} billboard location`} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                      {item.board.imageUrl
+                        ? <img src={item.board.imageUrl} alt={item.board.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        : <div className="h-full bg-gradient-to-br from-indigo-900/40 to-slate-900" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
                       <span className="absolute left-4 top-4 rounded-md bg-white/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-950 backdrop-blur">
-                        Billboard Site
+                        {item.board.type}
                       </span>
                       <div className="absolute bottom-4 left-4 right-4">
-                        <h3 className="text-xl font-black text-white">{location.name}</h3>
+                        <h3 className="text-xl font-black text-white">{item.board.name}</h3>
                         <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-white/72">
-                          <MapPin size={14} /> Zimbabwe outdoor media
+                          <MapPin size={14} /> {item.board.town || 'Zimbabwe'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-5">
-                      <span className="text-xs font-bold uppercase tracking-[0.14em] text-white/55">Location preview</span>
+                      <span className="text-xs font-bold uppercase tracking-[0.14em] text-white/55">{item.available ? 'Available' : 'On waitlist'}</span>
                       <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide text-indigo-200">
                         Explore <ArrowRight size={13} />
                       </span>
@@ -1569,29 +1523,35 @@ export const PublicWebsite: React.FC = () => {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {campaignGallery.map((item, index) => (
-                <article
-                  key={item.title}
+              {shownAvailability.slice(0, 4).map((item, index) => (
+                <a
+                  key={item.board.id}
+                  href={item.board.id.startsWith('live-') ? '/site-availability' : billboardLink(item.board)}
+                  onClick={item.board.id.startsWith('live-') ? navigate('locations') : undefined}
                   className="group animate-reveal-up overflow-hidden rounded-md bg-slate-900 shadow-xl shadow-slate-950/10"
                   style={{ animationDelay: `${index * 80}ms` }}
                 >
-                  <div className="relative h-72 overflow-hidden">
-                    <img
-                      src={item.image}
-                      alt={`${item.title} billboard campaign`}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                    />
+                  <div className="relative h-72 overflow-hidden bg-slate-800">
+                    {item.board.imageUrl ? (
+                      <img
+                        src={item.board.imageUrl}
+                        alt={`${item.board.name} billboard`}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="h-full bg-gradient-to-br from-indigo-900/40 via-slate-800 to-slate-900" />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
                     <div className="absolute bottom-4 left-4 right-4">
-                      <h3 className="text-lg font-black text-white">{item.title}</h3>
+                      <h3 className="text-lg font-black text-white">{item.board.name}</h3>
                       <p className="mt-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-indigo-100">
-                        <MapPin size={13} /> {item.location}
+                        <MapPin size={13} /> {item.board.location || item.board.town}
                       </p>
                     </div>
                   </div>
-                </article>
+                </a>
               ))}
             </div>
           </div>
