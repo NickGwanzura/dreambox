@@ -26,13 +26,11 @@ const publicNavLinks = [
 
 const PublicLogo: React.FC<{ logo?: string | null }> = ({ logo }) => (
     <span className="flex items-center gap-3">
-        <span className="flex h-12 w-40 items-center rounded-md bg-white/[0.08] px-3 py-2 ring-1 ring-white/12">
-            {logo ? (
-                <img src={logo} alt="Dreambox Advertising" className="max-h-full max-w-full object-contain" />
-            ) : (
-                <span className="text-sm font-black uppercase tracking-[0.18em] text-white">Dreambox</span>
-            )}
-        </span>
+        {logo ? (
+            <img src={logo} alt="Dreambox Advertising" className="h-12 w-auto max-w-[168px] object-contain" />
+        ) : (
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-white">Dreambox</span>
+        )}
     </span>
 );
 
