@@ -263,7 +263,10 @@ export const updateBillboard = async (updated: Billboard) => {
     billboards = billboards.map(b => b.id === updated.id ? updated : b);
     if (isConfigured()) {
         try {
-            await api.put('/api/billboards', updated, { id: updated.id });
+            const saved = await api.put<Billboard>('/api/billboards', updated, { id: updated.id });
+            if (saved) {
+                billboards = billboards.map(b => b.id === saved.id ? saved : b);
+            }
         } catch (e) {
             console.error('[updateBillboard] API error:', e);
         }
