@@ -48,29 +48,70 @@ const hasValidImage = (url?: string) => {
     return true;
 };
 
-// Dynamic Availability Checker for List Display
-const getAvailabilityStatus = (billboard: Billboard) => {
+const getActiveBillboardContracts = (billboardId: string) => {
     const today = new Date();
-    const activeContracts = getContracts().filter(c =>
-        c.billboardId === billboard.id &&
+    return getContracts().filter(c =>
+        c.billboardId === billboardId &&
         String(c.status || '').toLowerCase() === 'active' &&
         new Date(c.startDate) <= today &&
         new Date(c.endDate) >= today
     );
+};
+
+const formatTraffic = (value?: number) => {
+    if (!value) return '-';
+    if (value < 1000) return value.toLocaleString();
+    if (value < 10000) return `${(value / 1000).toFixed(1).replace('.0', '')}k`;
+    return `${Math.round(value / 1000).toLocaleString()}k`;
+};
+
+const money = (value?: number) => `$${(value || 0).toLocaleString()}`;
+
+const getBillboardAvailabilityDetails = (billboard: Billboard) => {
+    const activeContracts = getActiveBillboardContracts(billboard.id);
 
     if (billboard.type === 'Static') {
-        const sideABooked = activeContracts.some(c => c.side === 'A' || c.side === 'Both');
-        const sideBBooked = activeContracts.some(c => c.side === 'B' || c.side === 'Both');
+        const sideABooked = activeContracts.some(c => c.side === 'A' || c.side === 'Both' || (c.details || '').includes('Side A'));
+        const sideBBooked = activeContracts.some(c => c.side === 'B' || c.side === 'Both' || (c.details || '').includes('Side B'));
+        const sideAStatus = billboard.sideAStatus || 'Available';
+        const sideBStatus = billboard.sideBStatus || 'Available';
+        const sideAOpen = sideAStatus === 'Available' && !sideABooked;
+        const sideBOpen = sideBStatus === 'Available' && !sideBBooked;
+        const openSides = [
+            ...(sideAOpen ? [{ side: 'A', rate: billboard.sideARate || 0 }] : []),
+            ...(sideBOpen ? [{ side: 'B', rate: billboard.sideBRate || 0 }] : [])
+        ];
+        const rates = openSides.map(s => s.rate).filter(rate => rate > 0);
+        const minRate = rates.length ? Math.min(...rates) : 0;
+        const maxRate = rates.length ? Math.max(...rates) : 0;
+        const priceLabel = rates.length === 1
+            ? `Side ${openSides[0].side} ${money(rates[0])}`
+            : rates.length > 1 && minRate !== maxRate
+                ? `${money(minRate)}-${money(maxRate)}`
+                : minRate > 0
+                    ? money(minRate)
+                    : '';
         
-        if (sideABooked && sideBBooked) return 'Booked';
-        if (sideABooked || sideBBooked) return 'Partial'; // One side available
-        return 'Open';
-    } else {
-        // LED
-        const bookedCount = activeContracts.length;
-        if (bookedCount >= (billboard.totalSlots || 1)) return 'Booked';
-        return 'Open';
+        if (sideAOpen && sideBOpen) return { status: 'Open' as const, label: 'A+B Open', sublabel: 'Both sides available', priceLabel, sideAOpen, sideBOpen, openSlots: 2, totalSlots: 2 };
+        if (sideAOpen || sideBOpen) return { status: 'Partial' as const, label: `Side ${sideAOpen ? 'A' : 'B'} Open`, sublabel: `${sideAOpen ? 'Side B' : 'Side A'} occupied`, priceLabel, sideAOpen, sideBOpen, openSlots: 1, totalSlots: 2 };
+        if (sideAStatus === 'Maintenance' || sideBStatus === 'Maintenance') return { status: 'Booked' as const, label: 'Maintenance', sublabel: 'Unavailable', priceLabel, sideAOpen, sideBOpen, openSlots: 0, totalSlots: 2 };
+        return { status: 'Booked' as const, label: 'Booked', sublabel: 'No sides open', priceLabel, sideAOpen, sideBOpen, openSlots: 0, totalSlots: 2 };
     }
+
+    const totalSlots = Math.max(1, billboard.totalSlots || 1);
+    const rentedSlots = Math.max(billboard.rentedSlots || 0, activeContracts.length);
+    const openSlots = Math.max(0, totalSlots - rentedSlots);
+    const status = openSlots <= 0 ? 'Booked' as const : 'Open' as const;
+    return {
+        status,
+        label: openSlots > 0 ? `${openSlots}/${totalSlots} Slots Open` : 'Booked',
+        sublabel: openSlots > 0 ? `${openSlots} available now` : 'No slots open',
+        priceLabel: billboard.ratePerSlot ? `${money(billboard.ratePerSlot)}/slot` : '',
+        sideAOpen: false,
+        sideBOpen: false,
+        openSlots,
+        totalSlots
+    };
 }
 
 interface BillboardCardProps {
@@ -85,39 +126,38 @@ interface BillboardCardProps {
 }
 
 const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit, onDelete, getClientName, onShare, onViewImage, canUserDelete }) => {
-    const status = getAvailabilityStatus(billboard);
+    const availability = getBillboardAvailabilityDetails(billboard);
+    const status = availability.status;
     const isAvailable = status === 'Open';
     const isPartial = status === 'Partial';
 
     const gradientClass = getPlaceholderGradient(billboard.id);
     const hasImage = hasValidImage(billboard.imageUrl);
-    
-    // Calculate display rate
-    const displayRate = billboard.type === 'Static' 
-        ? (billboard.sideARate || 0) 
-        : (billboard.ratePerSlot || 0);
+    const currentClientNames = billboard.type === 'Static' ? [
+        !availability.sideAOpen ? getClientName(billboard.sideAClientId) : '',
+        !availability.sideBOpen ? getClientName(billboard.sideBClientId) : ''
+    ].filter(name => name && name !== 'Available' && name !== 'Unknown') : [];
 
     return (
         <div className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-100 transition-all duration-300 flex flex-col h-full overflow-hidden">
             {/* Image Header - Reduced height for better proportions */}
             <div className={`h-48 relative overflow-hidden ${!hasImage ? gradientClass : 'bg-slate-100'}`}>
+                <div className={`absolute inset-0 ${gradientClass} flex flex-col items-center justify-center text-white/40 p-6 text-center`}>
+                    <ImageIcon size={40} strokeWidth={1} className="mb-2 opacity-50"/>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">No Image</span>
+                </div>
                 {hasImage ? (
                     <img 
                         src={billboard.imageUrl} 
                         alt={billboard.name} 
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-zoom-in"
+                        className="relative z-[1] w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-zoom-in"
                         onClick={() => onViewImage(billboard.imageUrl!)}
                         onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                             (e.target as HTMLImageElement).parentElement?.classList.add(...gradientClass.split(' '));
                         }}
                     />
-                ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-white/40 p-6 text-center">
-                        <ImageIcon size={40} strokeWidth={1} className="mb-2 opacity-50"/>
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">No Image</span>
-                    </div>
-                )}
+                ) : null}
                 
                 {/* Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/20 to-transparent"></div>
@@ -136,7 +176,7 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
                     </div>
                     <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full shadow-md border flex items-center gap-1.5 ${isAvailable ? 'bg-emerald-500 text-white border-emerald-400' : isPartial ? 'bg-amber-500 text-white border-amber-400' : 'bg-rose-500 text-white border-rose-400'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-white animate-pulse' : 'bg-white'}`}></span>
-                        {isAvailable ? 'Open' : isPartial ? 'Partial' : 'Booked'}
+                        {availability.label}
                     </span>
                 </div>
                 
@@ -162,10 +202,10 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
                         </span>
                         <span className="text-[10px] text-slate-900 font-mono">ID: {billboard.id.slice(-4)}</span>
                     </div>
-                    {displayRate > 0 && (
+                    {availability.priceLabel && (
                         <span className="text-sm font-bold text-slate-900">
-                            ${displayRate.toLocaleString()}
-                            <span className="text-[10px] font-medium text-slate-900">/mo</span>
+                            {availability.priceLabel}
+                            {billboard.type === BillboardType.Static && <span className="text-[10px] font-medium text-slate-900">/mo</span>}
                         </span>
                     )}
                 </div>
@@ -174,7 +214,7 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
                 <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 mb-4">
                     <div className="flex flex-col items-center text-center">
                         <span className="text-slate-900 mb-1"><Car size={16}/></span>
-                        <span className="text-xs font-bold text-slate-700">{billboard.dailyTraffic ? (billboard.dailyTraffic / 1000).toFixed(0) + 'k' : '-'}</span>
+                        <span className="text-xs font-bold text-slate-700">{formatTraffic(billboard.dailyTraffic)}</span>
                         <span className="text-[9px] text-slate-900">Views</span>
                     </div>
                     <div className="flex flex-col items-center text-center border-x border-slate-100">
@@ -184,9 +224,20 @@ const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit,
                     </div>
                     <div className="flex flex-col items-center text-center">
                         <span className="text-slate-900 mb-1"><Layers size={16}/></span>
-                        <span className="text-xs font-bold text-slate-700">{billboard.type === 'Static' ? '2 Sides' : `${billboard.totalSlots || 0} Slots`}</span>
+                        <span className="text-xs font-bold text-slate-700">{billboard.type === 'Static' ? `${availability.openSlots}/2 Open` : `${availability.openSlots}/${availability.totalSlots}`}</span>
                         <span className="text-[9px] text-slate-900">Format</span>
                     </div>
+                </div>
+
+                <div className="mb-4 flex flex-wrap gap-2">
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide ${isAvailable ? 'bg-emerald-50 text-emerald-700' : isPartial ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
+                        {availability.sublabel}
+                    </span>
+                    {currentClientNames.length > 0 && (
+                        <span className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-700 truncate max-w-full">
+                            {currentClientNames.join(', ')}
+                        </span>
+                    )}
                 </div>
 
                 {/* AI Insight - Compact */}
@@ -261,9 +312,10 @@ export const BillboardList: React.FC = () => {
 
   const filteredBillboards = billboards.filter(b => {
     const matchesFilter = filter === 'All' ? true : b.type === filter;
-    const matchesSearch = b.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          b.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          b.town.toLowerCase().includes(searchTerm.toLowerCase());
+    const lowerSearch = searchTerm.toLowerCase();
+    const matchesSearch = (b.name || '').toLowerCase().includes(lowerSearch) || 
+                          (b.location || '').toLowerCase().includes(lowerSearch) ||
+                          (b.town || '').toLowerCase().includes(lowerSearch);
     return matchesFilter && matchesSearch;
   });
 
@@ -304,7 +356,7 @@ export const BillboardList: React.FC = () => {
 
     } catch (e) { console.error("Failed to initialize map:", e); }
     return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } }
-  }, [viewMode, filter, isClientView, searchTerm, showHeatmap]); 
+  }, [viewMode, filter, isClientView, searchTerm, showHeatmap, billboards]); 
 
   // Location Picker Map Logic
   useEffect(() => {
@@ -443,16 +495,25 @@ export const BillboardList: React.FC = () => {
 
   const getClientName = (clientId?: string) => { if(!clientId) return 'Available'; return clients.find(c => c.id === clientId)?.companyName || 'Unknown'; };
   
-  const shareBillboard = (b: Billboard) => { 
-      const url = `${window.location.origin}${window.location.pathname}?public=true&type=billboard&id=${b.id}`;
-      navigator.clipboard.writeText(url); 
-      alert("Public Share Link copied to clipboard!\nAnyone with this link can view this billboard details."); 
+  const shareBillboard = async (b: Billboard) => { 
+      const slug = `${(b.name || 'billboard').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${b.id.slice(-8)}`;
+      const url = `${window.location.origin}/billboard/${slug}`;
+      try {
+          await navigator.clipboard.writeText(url);
+          alert("Public Share Link copied to clipboard!\nAnyone with this link can view this billboard details.");
+      } catch {
+          window.prompt("Copy this public share link:", url);
+      }
   };
 
-  const shareMap = () => {
+  const shareMap = async () => {
       const url = `${window.location.origin}${window.location.pathname}?public=true&type=map`;
-      navigator.clipboard.writeText(url);
-      alert("Public Map Link copied to clipboard!\n\nThis link allows read-only access to your full inventory map.");
+      try {
+          await navigator.clipboard.writeText(url);
+          alert("Public Map Link copied to clipboard!\n\nThis link allows read-only access to your full inventory map.");
+      } catch {
+          window.prompt("Copy this public map link:", url);
+      }
   }
 
   const downloadTemplate = () => {
@@ -650,12 +711,12 @@ export const BillboardList: React.FC = () => {
         ) : (
             <div className={`flex-1 overflow-y-auto pr-2 pb-20 ${viewMode === 'list' ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'}`}>
                 {filteredBillboards.map((b, idx) => {
-                    const status = getAvailabilityStatus(b);
+                    const availability = getBillboardAvailabilityDetails(b);
+                    const status = availability.status;
                     const isAvailable = status === 'Open';
                     const isPartial = status === 'Partial';
                     const gradientClass = getPlaceholderGradient(b.id);
                     const hasImage = hasValidImage(b.imageUrl);
-                    const displayRate = b.type === 'Static' ? (b.sideARate || 0) : (b.ratePerSlot || 0);
 
                     return viewMode === 'list' ? (
                          <div key={b.id} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-xl transition-all group hover:-translate-y-1">
@@ -665,20 +726,22 @@ export const BillboardList: React.FC = () => {
                                      className={`w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 shadow-sm relative group-hover:scale-105 transition-transform cursor-zoom-in ${!hasImage ? gradientClass : ''}`}
                                      onClick={() => hasImage && setViewImage(b.imageUrl!)}
                                  >
+                                     <div className={`absolute inset-0 ${gradientClass} flex items-center justify-center text-white/30`}><ImageIcon size={28}/></div>
                                      {hasImage ? (
                                          <img
                                             src={b.imageUrl}
-                                            className="w-full h-full object-cover"
+                                            alt={b.name}
+                                            className="relative z-[1] w-full h-full object-cover"
                                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement?.classList.add(...gradientClass.split(' ')); }}
                                          />
-                                     ) : ( <div className="w-full h-full flex items-center justify-center text-white/30"><ImageIcon size={28}/></div> )}
+                                     ) : null}
                                  </div>
                              </div>
                              <div className="flex-1 min-w-0">
                                  <div className="flex items-center gap-3 mb-1">
                                      <h4 className="font-bold text-slate-900 truncate text-lg tracking-tight" title={b.name}>{b.name}</h4>
                                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border shrink-0 ${isAvailable ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isPartial ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                                         {isAvailable ? 'Open' : isPartial ? '1 Side Open' : 'Booked'}
+                                         {availability.label}
                                      </span>
                                  </div>
                                  <p className="text-xs text-slate-900 font-medium flex items-center gap-1 truncate mb-2">
@@ -686,14 +749,14 @@ export const BillboardList: React.FC = () => {
                                  </p>
                                  <div className="flex flex-wrap gap-4 text-[10px] text-slate-900 font-bold uppercase tracking-wide">
                                      <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
-                                     <span className="flex items-center gap-1"><Car size={10}/> {b.dailyTraffic ? (b.dailyTraffic/1000).toFixed(0)+'k' : '-'} Views</span>
-                                     {b.type === BillboardType.LED && <span className="flex items-center gap-1"><Layers size={10}/> {b.totalSlots || 0} Slots</span>}
+                                     <span className="flex items-center gap-1"><Car size={10}/> {formatTraffic(b.dailyTraffic)} Views</span>
+                                     <span className="flex items-center gap-1"><Layers size={10}/> {b.type === BillboardType.LED ? `${availability.openSlots}/${availability.totalSlots} Slots Open` : `${availability.openSlots}/2 Sides Open`}</span>
                                  </div>
                              </div>
                              <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-50 sm:border-t-0 mt-2 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
                                  <div className="flex flex-col items-end mr-2">
                                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-1 ${b.type === BillboardType.LED ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>{b.type}</span>
-                                     {displayRate > 0 && <span className="text-sm font-bold text-slate-900">${displayRate.toLocaleString()}<span className="text-[10px] font-medium text-slate-900">/mo</span></span>}
+                                     {availability.priceLabel && <span className="text-sm font-bold text-slate-900">{availability.priceLabel}{b.type === BillboardType.Static && <span className="text-[10px] font-medium text-slate-900">/mo</span>}</span>}
                                      <span className="text-[10px] text-slate-900 font-mono">ID: {b.id.slice(-4)}</span>
                                  </div>
                                  <div className="flex gap-2">

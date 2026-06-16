@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, MapPin, Plus, Check } from 'lucide-react';
 import { Billboard, BillboardType } from '../../types';
-import { getBillboards } from '../../services/mockData';
+import { getBillboards, getContracts } from '../../services/mockData';
 
 interface CatalogueItem {
   description: string;
@@ -20,13 +20,38 @@ export const BillboardCatalogue: React.FC<Props> = ({ onAddItems }) => {
   const [search, setSearch] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
+  const getActiveContracts = (billboardId: string) => {
+    const today = new Date();
+    return getContracts().filter(c =>
+      c.billboardId === billboardId &&
+      String(c.status || '').toLowerCase() === 'active' &&
+      new Date(c.startDate) <= today &&
+      new Date(c.endDate) >= today
+    );
+  };
+
+  const isSideAvailable = (billboard: Billboard, side: 'A' | 'B') => {
+    const status = side === 'A' ? billboard.sideAStatus : billboard.sideBStatus;
+    if ((status || 'Available') !== 'Available') return false;
+    const contracts = getActiveContracts(billboard.id);
+    return !contracts.some(c =>
+      c.side === side || c.side === 'Both' || (c.details || '').includes(`Side ${side}`)
+    );
+  };
+
+  const getAvailableLedSlots = (billboard: Billboard) => {
+    const contracts = getActiveContracts(billboard.id);
+    const rentedSlots = Math.max(billboard.rentedSlots || 0, contracts.length);
+    return Math.max(0, (billboard.totalSlots || 0) - rentedSlots);
+  };
+
   const filtered = useMemo(() => {
     const lower = search.toLowerCase();
     return lower
       ? allBillboards.filter(b =>
-          b.name.toLowerCase().includes(lower) ||
-          b.location.toLowerCase().includes(lower) ||
-          b.town.toLowerCase().includes(lower)
+          (b.name || '').toLowerCase().includes(lower) ||
+          (b.location || '').toLowerCase().includes(lower) ||
+          (b.town || '').toLowerCase().includes(lower)
         )
       : allBillboards;
   }, [allBillboards, search]);
@@ -57,15 +82,23 @@ export const BillboardCatalogue: React.FC<Props> = ({ onAddItems }) => {
       const b = allBillboards.find(x => x.id === billboardId);
       if (!b) return;
       if (variant === 'sideA') {
+        if (!isSideAvailable(b, 'A')) return;
         items.push({ description: `${b.name} — ${b.location}, ${b.town} (Side A)`, amount: b.sideARate || 0, billboardId: b.id, side: 'A' });
       } else if (variant === 'sideB') {
+        if (!isSideAvailable(b, 'B')) return;
         items.push({ description: `${b.name} — ${b.location}, ${b.town} (Side B)`, amount: b.sideBRate || 0, billboardId: b.id, side: 'B' });
       } else if (variant === 'led') {
+        if (getAvailableLedSlots(b) <= 0) return;
         items.push({ description: `${b.name} — ${b.location}, ${b.town} (LED, 1 slot)`, amount: b.ratePerSlot || 0, billboardId: b.id, slots: 1 });
       }
     });
-    onAddItems(items);
-    setSelectedItems(new Set());
+    if (items.length > 0) {
+      onAddItems(items);
+      setSelectedItems(new Set());
+    } else {
+      alert('None of your selected billboards are currently available. Please refresh and try again.');
+      setSelectedItems(new Set());
+    }
   };
 
   return (
@@ -98,7 +131,10 @@ export const BillboardCatalogue: React.FC<Props> = ({ onAddItems }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {boards.map(b => {
                 const isLED = b.type === BillboardType.LED;
-                const availSlots = Math.max(0, (b.totalSlots || 0) - (b.rentedSlots || 0));
+                const availSlots = getAvailableLedSlots(b);
+                const ledAvailable = availSlots > 0;
+                const sideAAvailable = isSideAvailable(b, 'A');
+                const sideBAvailable = isSideAvailable(b, 'B');
                 return (
                   <div key={b.id} className="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -113,8 +149,12 @@ export const BillboardCatalogue: React.FC<Props> = ({ onAddItems }) => {
                     {isLED ? (
                       <button
                         type="button"
-                        onClick={() => toggleItem(`${b.id}::led`)}
+                        disabled={!ledAvailable}
+                        onClick={() => ledAvailable && toggleItem(`${b.id}::led`)}
                         className={`w-full flex items-center justify-between p-2 rounded-lg border text-left transition-all ${
+                          !ledAvailable
+                            ? 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'
+                            : 
                           selectedItems.has(`${b.id}::led`)
                             ? 'border-indigo-500 bg-indigo-50'
                             : 'border-slate-200 bg-white hover:bg-slate-50'
@@ -123,7 +163,7 @@ export const BillboardCatalogue: React.FC<Props> = ({ onAddItems }) => {
                         <div>
                           <p className="text-[10px] font-bold uppercase text-slate-900">LED Slot</p>
                           <p className="text-xs font-bold text-slate-800">${(b.ratePerSlot || 0).toLocaleString()}/slot</p>
-                          <p className="text-[10px] text-slate-900">{availSlots} available</p>
+                          <p className="text-[10px] text-slate-900">{availSlots} of {b.totalSlots || 0} available</p>
                         </div>
                         {selectedItems.has(`${b.id}::led`) ? (
                           <Check size={16} className="text-indigo-600" />
@@ -135,8 +175,12 @@ export const BillboardCatalogue: React.FC<Props> = ({ onAddItems }) => {
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => toggleItem(`${b.id}::sideA`)}
+                          disabled={!sideAAvailable}
+                          onClick={() => sideAAvailable && toggleItem(`${b.id}::sideA`)}
                           className={`flex flex-col p-2 rounded-lg border text-left transition-all ${
+                            !sideAAvailable
+                              ? 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'
+                              :
                             selectedItems.has(`${b.id}::sideA`)
                               ? 'border-indigo-500 bg-indigo-50'
                               : 'border-slate-200 bg-white hover:bg-slate-50'
@@ -157,8 +201,12 @@ export const BillboardCatalogue: React.FC<Props> = ({ onAddItems }) => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => toggleItem(`${b.id}::sideB`)}
+                          disabled={!sideBAvailable}
+                          onClick={() => sideBAvailable && toggleItem(`${b.id}::sideB`)}
                           className={`flex flex-col p-2 rounded-lg border text-left transition-all ${
+                            !sideBAvailable
+                              ? 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'
+                              :
                             selectedItems.has(`${b.id}::sideB`)
                               ? 'border-indigo-500 bg-indigo-50'
                               : 'border-slate-200 bg-white hover:bg-slate-50'
