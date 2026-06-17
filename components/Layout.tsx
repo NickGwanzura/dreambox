@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   LayoutDashboard, Map, MapPin, Users, FileText, CreditCard, Receipt, Settings as SettingsIcon,
   Menu, X, Bell, LogOut, Printer, Globe, PieChart, Wallet, ChevronRight, CheckSquare, Wrench, Database, RefreshCw,
-  Building2, Target, FileSignature
+  Building2, Target, FileSignature, BarChart2
 } from 'lucide-react';
 import { getCurrentUser, signOut } from '../services/authService';
 import { isConfigured as isNeonConfigured, checkConnection as checkNeonConnection } from '../services/apiClient';
@@ -193,6 +193,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const allMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
     { id: 'analytics', label: 'Profit & Analytics', icon: PieChart, roles: ['Admin', 'Manager'] },
+    { id: 'intelligence', label: 'Business Intelligence', icon: BarChart2, roles: ['Admin', 'Manager'] },
     { id: 'crm', label: 'CRM & Outreach', icon: Target, roles: null },
     { id: 'billboards', label: 'Billboards', icon: Map, roles: null },
     { id: 'locations', label: 'Billboard Locations', icon: MapPin, roles: null, external: true },

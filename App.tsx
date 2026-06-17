@@ -16,6 +16,7 @@ const Settings = lazyWithRetry(() => import('./components/Settings').then(m => (
 const ContractTemplatePage = lazyWithRetry(() => import('./components/ContractTemplatePage').then(m => ({ default: m.ContractTemplatePage })));
 const OutsourcedList = lazyWithRetry(() => import('./components/OutsourcedList').then(m => ({ default: m.OutsourcedList })));
 const Analytics = lazyWithRetry(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
+const BusinessIntelligence = lazyWithRetry(() => import('./components/BusinessIntelligence').then(m => ({ default: m.BusinessIntelligence })));
 const Payments = lazyWithRetry(() => import('./components/Payments').then(m => ({ default: m.Payments })));
 const Tasks = lazyWithRetry(() => import('./components/Tasks').then(m => ({ default: m.Tasks })));
 const Maintenance = lazyWithRetry(() => import('./components/Maintenance').then(m => ({ default: m.Maintenance })));
@@ -187,10 +188,16 @@ const App: React.FC = () => {
               <Dashboard />
             </FeatureErrorBoundary>
           );
-        case 'analytics': 
+        case 'analytics':
           return (
             <FeatureErrorBoundary featureName="Analytics" onReset={() => setPageError(null)}>
               <Analytics />
+            </FeatureErrorBoundary>
+          );
+        case 'intelligence':
+          return (
+            <FeatureErrorBoundary featureName="Business Intelligence" onReset={() => setPageError(null)}>
+              <BusinessIntelligence />
             </FeatureErrorBoundary>
           );
         case 'crm': 
