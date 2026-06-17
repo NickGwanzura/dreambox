@@ -2,11 +2,21 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, requireQuotationWritePermission, requireQuotationApprovePermission, cors } from '../lib/auth';
+import { log } from '../lib/serverLogger.js';
+
+const invoiceItemSchema = z.object({
+  description: z.string().min(1, 'Item description is required'),
+  quantity: z.number().positive('Quantity must be positive'),
+  unitPrice: z.number().nonnegative('Unit price must be non-negative'),
+  amount: z.number().nonnegative('Amount must be non-negative'),
+  billboardId: z.string().optional(),
+  contractId: z.string().optional(),
+});
 
 const invoiceSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
   date: z.string().min(1, 'Date is required'),
-  items: z.array(z.any()).min(1, 'At least one item is required'),
+  items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
   subtotal: z.number({ error: 'Subtotal is required' }),
   total: z.number({ error: 'Total is required' }),
   type: z.enum(['Invoice', 'Quotation', 'Proforma', 'Receipt']).optional(),
@@ -48,7 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const rows = await prisma.invoice.findMany({ orderBy: { createdAt: 'asc' } });
+      const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
+      const skip = Math.max(0, Number(req.query.skip) || 0);
+      const rows = await prisma.invoice.findMany({ orderBy: { createdAt: 'asc' }, take: limit, skip });
       return res.status(200).json(rows);
     }
 
@@ -88,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const row = await prisma.invoice.create({ data: requestedId ? { ...data, id: requestedId } : data });
-      console.log(`[invoices] POST created ${row.type} ${row.id} for client ${row.clientId}`);
+      log.info(`[invoices] POST created ${row.type} ${row.id} for client ${row.clientId}`);
       return res.status(201).json(row);
     }
 
@@ -134,20 +146,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Verify invoice exists before checking permissions
       const target = await prisma.invoice.findUnique({ where: { id: id as string } });
       if (!target) {
-        console.warn(`[invoices] DELETE requested for non-existent invoice ${id}`);
+        log.warn(`[invoices] DELETE requested for non-existent invoice ${id}`);
         return res.status(404).json({ error: 'Invoice not found' });
       }
 
       if (!requireDeletePermission(req, res)) return;
 
       await prisma.invoice.delete({ where: { id: id as string } });
-      console.log(`[invoices] DELETE removed invoice ${id} (type=${target.type}, status=${target.status}, total=${target.total})`);
+      log.info(`[invoices] DELETE removed invoice ${id} (type=${target.type}, status=${target.status}, total=${target.total})`);
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
-    console.error('[invoices]', e);
+    log.error('[invoices]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
