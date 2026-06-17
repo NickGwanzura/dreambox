@@ -133,7 +133,7 @@ export const BusinessIntelligence: React.FC = () => {
         : null;
       const hasActiveQuote = invoices.some(i => i.clientId === cl.id && (i.type === 'Quotation' || i.type === 'Proforma') && i.quoteStatus !== 'Converted' && i.quoteStatus !== 'Rejected');
       const atRisk = nextExpiry !== null && nextExpiry <= 60 && !hasActiveQuote;
-      return { id: cl.id, name: cl.name, clv, pending, contracts: clContracts.length, nextExpiry, atRisk };
+      return { id: cl.id, name: cl.companyName, clv, pending, contracts: clContracts.length, nextExpiry, atRisk };
     }).sort((a, b) => b.clv - a.clv);
   }, [clients, invoices, activeContracts]);
 
@@ -252,7 +252,7 @@ export const BusinessIntelligence: React.FC = () => {
                       <div key={c.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
                         <div className={`w-1.5 h-8 rounded-full ${c.urgency === 'high' ? 'bg-red-400' : 'bg-amber-400'}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{client?.name || 'Unknown Client'}</p>
+                          <p className="text-xs font-semibold text-slate-800 truncate">{client?.companyName || 'Unknown Client'}</p>
                           <p className="text-[11px] text-slate-500 truncate">{board?.name || c.billboardId}</p>
                         </div>
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${c.urgency === 'high' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}>
@@ -401,7 +401,7 @@ export const BusinessIntelligence: React.FC = () => {
                   return (
                     <div key={c.id} className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-lg">
                       <div>
-                        <p className="text-xs font-semibold text-slate-800">{client?.name || '—'}</p>
+                        <p className="text-xs font-semibold text-slate-800">{client?.companyName || '—'}</p>
                         <p className="text-[11px] text-slate-500">{board?.name || '—'} · expires in {daysUntil(c.endDate)}d</p>
                       </div>
                       <span className="text-sm font-bold text-red-600">{formatCurrency(c.monthlyRate)}<span className="text-[10px] text-red-400">/mo</span></span>
@@ -683,7 +683,7 @@ export const BusinessIntelligence: React.FC = () => {
                         const client = clients.find(c => c.id === q.clientId);
                         return (
                           <div key={q.id} className="flex items-center justify-between text-[11px]">
-                            <span className="text-slate-600">{client?.name || q.clientId}</span>
+                            <span className="text-slate-600">{client?.companyName || q.clientId}</span>
                             <span className="font-semibold text-slate-700">{formatCurrency(q.total)}</span>
                           </div>
                         );
