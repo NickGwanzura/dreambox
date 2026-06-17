@@ -412,7 +412,7 @@ export const WebsiteSettings: React.FC = () => {
                     value={addName}
                     onChange={e => setAddName(e.target.value)}
                     placeholder="e.g. Econet Wireless"
-                    className="w-full px-3 py-2.5 border border-indigo-200 rounded-xl text-sm bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    className="w-full px-3 py-2.5 border border-indigo-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                   />
                 </div>
                 <div>
@@ -495,7 +495,7 @@ export const WebsiteSettings: React.FC = () => {
                     type="text"
                     value={logo.name}
                     onChange={e => setLogos(prev => prev.map((l, idx) => idx === i ? { ...l, name: e.target.value } : l))}
-                    className="flex-1 text-sm font-semibold text-slate-700 bg-transparent border-b border-transparent focus:border-slate-300 focus:outline-none py-1 transition-colors"
+                    className="flex-1 text-sm font-semibold text-slate-900 bg-transparent border-b border-transparent focus:border-slate-300 focus:outline-none py-1 transition-colors"
                   />
 
                   {/* Controls */}
