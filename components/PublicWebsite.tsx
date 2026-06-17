@@ -152,7 +152,7 @@ const FAQS = [
   },
   {
     q: 'How quickly can my campaign go live?',
-    a: 'Once artwork is approved and the site is booked, campaigns typically go live within 7 to 14 days, depending on printing and installation scheduling.',
+    a: 'Once artwork is approved and the site is booked, campaigns typically go live within 3 days. Our team handles printing, installation, and all logistics to get you up as fast as possible.',
   },
   {
     q: 'Can I see a site before booking?',
@@ -783,7 +783,7 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
-        {(page === 'home') && <section id="partners" className="mx-auto max-w-7xl px-4 pt-20 sm:px-6 lg:px-8">
+        {(page === 'home') && <section id="partners" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="animate-reveal-up">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Our valued partners</p>
