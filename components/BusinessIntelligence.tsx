@@ -674,27 +674,114 @@ export const BusinessIntelligence: React.FC = () => {
                 ))}
 
                 {coldQuotes.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-slate-100">
-                    <p className="text-xs font-bold text-amber-600 mb-2 flex items-center gap-1.5">
-                      <Clock size={12} /> {coldQuotes.length} quotes have gone cold (&gt;14 days)
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
+                      <Clock size={12} /> {coldQuotes.length} quotes have gone cold
                     </p>
-                    <div className="space-y-1">
-                      {coldQuotes.slice(0, 3).map(q => {
-                        const client = clients.find(c => c.id === q.clientId);
-                        return (
-                          <div key={q.id} className="flex items-center justify-between text-[11px]">
-                            <span className="text-slate-600">{client?.companyName || q.clientId}</span>
-                            <span className="font-semibold text-slate-700">{formatCurrency(q.total)}</span>
-                          </div>
-                        );
-                      })}
-                      {coldQuotes.length > 3 && <p className="text-[10px] text-slate-400">+{coldQuotes.length - 3} more</p>}
-                    </div>
+                    <span className="text-[10px] text-slate-400">See full report below</span>
                   </div>
                 )}
               </div>
             </div>
           </div>
+
+          {/* Cold Quotes Full Report */}
+          {coldQuotes.length > 0 && (
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-amber-100 bg-amber-50 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                    <Clock size={14} /> Cold Quotes Report
+                  </h3>
+                  <p className="text-[11px] text-amber-600 mt-0.5">
+                    {coldQuotes.length} quotes with no activity for more than 14 days &mdash; {formatCurrency(coldQuotes.reduce((s, q) => s + q.total, 0))} total at stake
+                  </p>
+                </div>
+                <div className="flex gap-3 text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-500"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />Expired</span>
+                  <span className="flex items-center gap-1.5 text-slate-500"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Sent / Draft</span>
+                  <span className="flex items-center gap-1.5 text-slate-500"><span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />No Status</span>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50">
+                      {['Client', 'Ref', 'Type', 'Status', 'Days Cold', 'Expires', 'Items', 'Value'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {coldQuotes
+                      .slice()
+                      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                      .map(q => {
+                        const client = clients.find(c => c.id === q.clientId);
+                        const daysCold = Math.abs(daysUntil(q.date));
+                        const isExpired = q.expiryDate ? new Date(q.expiryDate) < new Date() : false;
+                        const daysToExpiry = q.expiryDate ? daysUntil(q.expiryDate) : null;
+                        const status = q.quoteStatus || '—';
+                        const dotColor = isExpired ? 'bg-red-400' : (status === 'Sent' || status === 'Draft') ? 'bg-amber-400' : 'bg-slate-300';
+                        const itemSummary = q.items
+                          .slice(0, 2)
+                          .map(it => it.description?.split('(')[0]?.trim() || it.description)
+                          .join(', ') + (q.items.length > 2 ? ` +${q.items.length - 2}` : '');
+                        return (
+                          <tr key={q.id} className={`hover:bg-slate-50 ${isExpired ? 'bg-red-50/40' : ''}`}>
+                            <td className="px-4 py-3">
+                              <p className="font-semibold text-slate-800 whitespace-nowrap">{client?.companyName || '—'}</p>
+                              {q.sentTo && <p className="text-[10px] text-slate-400 mt-0.5">{q.sentTo}</p>}
+                            </td>
+                            <td className="px-4 py-3 text-slate-500 whitespace-nowrap font-mono text-[10px]">
+                              {q.quoteNumber || q.id.slice(-6).toUpperCase()}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${q.type === 'Proforma' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                                {q.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full inline-block flex-shrink-0 ${dotColor}`} />
+                                <span className="text-slate-600 whitespace-nowrap">{status}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`font-bold whitespace-nowrap ${daysCold >= 30 ? 'text-red-600' : daysCold >= 21 ? 'text-amber-600' : 'text-slate-700'}`}>
+                                {daysCold}d
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {daysToExpiry !== null ? (
+                                <span className={`text-[11px] font-medium ${isExpired ? 'text-red-500' : daysToExpiry <= 7 ? 'text-amber-600' : 'text-slate-500'}`}>
+                                  {isExpired ? `Expired ${Math.abs(daysToExpiry)}d ago` : `${daysToExpiry}d left`}
+                                </span>
+                              ) : <span className="text-slate-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3 max-w-[200px]">
+                              <p className="text-[11px] text-slate-500 truncate">{itemSummary || '—'}</p>
+                            </td>
+                            <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">
+                              {formatCurrency(q.total)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200 bg-slate-50">
+                      <td colSpan={7} className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Total at stake</td>
+                      <td className="px-4 py-3 font-black text-slate-900 text-sm whitespace-nowrap">
+                        {formatCurrency(coldQuotes.reduce((s, q) => s + q.total, 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
