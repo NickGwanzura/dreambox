@@ -990,9 +990,9 @@ export const PublicWebsite: React.FC = () => {
                 {
                   num: '03',
                   icon: Zap,
-                  title: '7 to 14 day go-live',
-                  body: 'Once artwork is approved and the site is booked, your campaign is printed, installed, and live within two weeks.',
-                  stat: '14',
+                  title: '3 day go-live',
+                  body: 'Once artwork is approved and the site is booked, your campaign is printed, installed, and live within 3 days.',
+                  stat: '3',
                   statLabel: 'days to live',
                   delay: 160,
                 },
@@ -1044,7 +1044,7 @@ export const PublicWebsite: React.FC = () => {
                 Book a campaign in three steps.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
-                From shortlist to street in as little as two weeks, with a real team and live availability behind every step.
+                From shortlist to street in as little as 3 days, with a real team and live availability behind every step.
               </p>
             </div>
             <div className="relative mt-12 grid gap-5 md:grid-cols-3">
