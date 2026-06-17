@@ -1,4 +1,4 @@
-import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog, QuotationEvent } from '../types';
+import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog, QuotationEvent, QuoteStatus } from '../types';
 import { api, isConfigured } from './apiClient';
 import { STORAGE_KEYS, splitInclusiveVat, VAT_RATE } from './constants';
 import { exportAllData } from './storage';
@@ -145,7 +145,13 @@ export const reloadAllFromApi = async (): Promise<void> => {
                     companyLogo = d.logo || null;
                 }
             }),
-            api.get<any[]>('/api/audit-logs?limit=500').then(d => { if (d) auditLogs = d; }),
+            api.get<any[]>('/api/audit-logs?limit=500').then(d => {
+                if (d) auditLogs = d.map((row: any) => ({
+                    ...row,
+                    timestamp: row.timestamp || (row.createdAt ? new Date(row.createdAt).toLocaleString() : ''),
+                    user: row.user || row.userEmail || row.userId || 'System',
+                }));
+            }),
         ]);
         const rejected = results.filter(r => r.status === 'rejected');
         if (rejected.length > 0) {
@@ -231,7 +237,9 @@ export const logAction = (action: string, details: string, userOverride?: string
     };
     auditLogs = [log, ...auditLogs];
     if (isConfigured()) {
-        api.post('/api/audit-logs', log).catch(() => {});
+        api.post('/api/audit-logs', log).catch((e) => {
+            console.warn('[logAction] Failed to persist audit log:', action, e?.message || e);
+        });
     }
     notifyListeners();
 };
@@ -244,16 +252,20 @@ export const resetSystemData = () => {
 
 // --- Billboard CRUD ---
 export const addBillboard = async (billboard: Billboard) => {
+    // Optimistic: show immediately with local data (including base64 image preview)
+    billboards = [...billboards, billboard];
+    notifyListeners();
+
     if (isConfigured()) {
         try {
             const created = await api.post<Billboard>('/api/billboards', billboard);
-            billboards = [...billboards, created];
+            // Replace optimistic entry with server version; preserve local imageUrl if server didn't return one
+            const merged = { ...created, imageUrl: created.imageUrl || billboard.imageUrl };
+            billboards = billboards.map(b => b.id === billboard.id ? merged : b);
         } catch (e) {
             console.error('[addBillboard] API error, using local:', e);
-            billboards = [...billboards, billboard];
+            // Optimistic entry already in place — no action needed
         }
-    } else {
-        billboards = [...billboards, billboard];
     }
     logAction('Create Billboard', `Added ${billboard.name} (${billboard.type})`);
     notifyListeners();
@@ -261,11 +273,14 @@ export const addBillboard = async (billboard: Billboard) => {
 
 export const updateBillboard = async (updated: Billboard) => {
     billboards = billboards.map(b => b.id === updated.id ? updated : b);
+    notifyListeners(); // Fire immediately so image appears without waiting for API
     if (isConfigured()) {
         try {
             const saved = await api.put<Billboard>('/api/billboards', updated, { id: updated.id });
             if (saved) {
-                billboards = billboards.map(b => b.id === saved.id ? saved : b);
+                // Preserve local imageUrl if the server didn't return one (e.g. R2 not configured)
+                const merged = { ...saved, imageUrl: saved.imageUrl || updated.imageUrl };
+                billboards = billboards.map(b => b.id === merged.id ? merged : b);
             }
         } catch (e) {
             console.error('[updateBillboard] API error:', e);
@@ -589,7 +604,7 @@ export const duplicateQuotation = async (id: string): Promise<Invoice | null> =>
         id: `QT-${Date.now().toString().slice(-6)}`,
         quoteNumber: getNextQuoteNumber(),
         date: new Date().toISOString().split('T')[0],
-        quoteStatus: 'Draft',
+        quoteStatus: QuoteStatus.Draft,
         expiryDate: undefined,
         sentAt: undefined,
         sentTo: undefined,
@@ -612,7 +627,7 @@ export const convertQuotationToInvoice = async (id: string): Promise<Invoice | n
         id: `INV-${Date.now().toString().slice(-6)}`,
         type: 'Invoice',
         status: 'Pending',
-        quoteStatus: 'Converted',
+        quoteStatus: QuoteStatus.Converted,
         convertedToInvoiceId: undefined,
         convertedAt: new Date().toISOString(),
     };
@@ -620,7 +635,7 @@ export const convertQuotationToInvoice = async (id: string): Promise<Invoice | n
     // Update original quotation to mark as converted
     const updatedQuotation: Invoice = {
         ...quotation,
-        quoteStatus: 'Converted',
+        quoteStatus: QuoteStatus.Converted,
         convertedToInvoiceId: invoice.id,
         convertedAt: new Date().toISOString(),
     };
@@ -635,7 +650,7 @@ export const markQuotationSent = async (id: string, sentTo?: string) => {
     if (!quotation) return;
     const updated: Invoice = {
         ...quotation,
-        quoteStatus: 'Sent',
+        quoteStatus: QuoteStatus.Sent,
         sentAt: new Date().toISOString(),
         sentTo: sentTo || quotation.sentTo,
     };
@@ -908,10 +923,28 @@ export const addUser = async (user: User) => {
 };
 
 export const updateUser = async (updated: User) => {
+    // Optimistic local update — will be corrected by server response below
     users = users.map(u => u.id === updated.id ? updated : u);
     if (isConfigured()) {
         try {
-            await api.put('/api/users', updated, { id: updated.id });
+            // Strip password before sending — API ignores it but no need to transmit
+            const { password: _pw, ...payload } = updated as any;
+            const saved = await api.put<User>('/api/users', payload, { id: updated.id });
+            if (saved) {
+                // Replace optimistic copy with server-confirmed record
+                users = users.map(u => u.id === saved.id ? saved : u);
+                // If this is the currently logged-in user, keep the session in sync
+                try {
+                    const sessionRaw = localStorage.getItem('billboard_user');
+                    if (sessionRaw) {
+                        const session = JSON.parse(sessionRaw);
+                        if (session.id === saved.id) {
+                            localStorage.setItem('billboard_user', JSON.stringify({ ...session, ...saved }));
+                            window.dispatchEvent(new CustomEvent('profile-updated', { detail: saved }));
+                        }
+                    }
+                } catch {}
+            }
         } catch (e) {
             console.error('[updateUser] API error:', e);
         }
@@ -1328,7 +1361,7 @@ export const markOverdueInvoices = async () => {
   if (changed.length > 0) {
     if (isConfigured()) {
       for (const inv of changed) {
-        try { await api.put('/api/invoices', inv, { id: inv.id }); }
+        try { await api.put('/api/invoices', { status: 'Overdue' }, { id: inv.id }); }
         catch (e) { console.error('[markOverdueInvoices] API error:', e); }
       }
     }

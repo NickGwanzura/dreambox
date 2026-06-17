@@ -55,6 +55,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     getCurrentUser().then(u => { if (u) setUser(u); });
   }, []);
 
+  useEffect(() => {
+    const onProfileUpdated = (e: Event) => {
+      const updated = (e as CustomEvent).detail;
+      if (updated) setUser(prev => prev ? { ...prev, ...updated } : updated);
+    };
+    window.addEventListener('profile-updated', onProfileUpdated);
+    return () => window.removeEventListener('profile-updated', onProfileUpdated);
+  }, []);
+
   // Body scroll lock when sidebar is open on mobile
   useEffect(() => {
     if (sidebarOpen) {

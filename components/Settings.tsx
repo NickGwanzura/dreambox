@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getUsers as getLocalUsers, addUser as addLocalUser, updateUser as updateLocalUser, deleteUser as deleteLocalUser, getAuditLogs, getCompanyLogo, setCompanyLogo, getCompanyProfile, updateCompanyProfile, RELEASE_NOTES, resetSystemData, createSystemBackup, restoreSystemBackup, getLastManualBackupDate, getAutoBackupStatus, getStorageUsage, simulateCloudSync, getLastCloudBackupDate, refreshLastCloudBackupDate, verifyDataIntegrity, syncToNeon, subscribe } from '../services/mockData';
-import { createUser, updateUserData, deleteUserData, approveUser, rejectUser, fetchAllUsers, suspendUser, reactivateUser, unlockUser, updateUserPermissions, bulkInviteUsers, fetchLoginHistory, adminResetPassword } from '../services/userManagement';
+import { createUser, deleteUserData, approveUser, rejectUser, fetchAllUsers, suspendUser, reactivateUser, unlockUser, updateUserPermissions, bulkInviteUsers, fetchLoginHistory, adminResetPassword } from '../services/userManagement';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canAccessSettings } from '../utils/settingsAccess';
 import { generateAppFeaturesPDF, generateUserManualPDF } from '../services/pdfGenerator';
@@ -184,12 +184,14 @@ export const Settings: React.FC = () => {
     e.preventDefault();
     if (!editingUser) return;
     setIsUserLoading(true);
-    const { error } = await updateUserData(editingUser.id, editingUser);
-    if (error) { alert(`Error: ${error.message}`); }
-    else {
-      updateLocalUser(editingUser);
+    try {
+      // updateLocalUser (mockData.updateUser) handles the API call, response sync,
+      // localStorage session update, and profile-updated event dispatch
+      await updateLocalUser(editingUser);
       await refreshUsers();
       setEditingUser(null);
+    } catch (err: any) {
+      alert(`Error: ${err.message || 'Failed to save changes'}`);
     }
     setIsUserLoading(false);
   };
@@ -502,7 +504,7 @@ export const Settings: React.FC = () => {
                       <MinimalInput label="Account Number" value={profile.bankAccountNumber} onChange={(e: any) => setProfile({ ...profile, bankAccountNumber: e.target.value })} />
                       <MinimalInput label="Branch" value={profile.bankBranch} onChange={(e: any) => setProfile({ ...profile, bankBranch: e.target.value })} />
                       <MinimalInput label="SWIFT / BIC" value={profile.bankSwift} onChange={(e: any) => setProfile({ ...profile, bankSwift: e.target.value })} />
-                      <MinimalInput label="Payment Terms" value={profile.paymentTerms} onChange={(e: any) => setProfile({ ...profile, paymentTerms: e.target.value })} placeholder="e.g. Due within 14 days" />
+                      <div className="md:col-span-2"><MinimalTextarea label="Payment Terms" value={profile.paymentTerms} onChange={(e: any) => setProfile({ ...profile, paymentTerms: e.target.value })} rows={4} placeholder={"100% payment required before campaign commencement.\nBooking is confirmed upon receipt of payment.\nAll prices are quoted in USD."} /></div>
                     </div>
                   </div>
                   <div className="border-t border-slate-50 pt-6">
