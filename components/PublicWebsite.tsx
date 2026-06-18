@@ -478,7 +478,7 @@ export const PublicWebsite: React.FC = () => {
     >
       {enquiryStatus === 'sent' && (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 sm:col-span-2">
-          Enquiry captured. A new website lead has been added to the CRM.
+          Thank you — we've received your enquiry and will be in touch within 24 hours.
         </div>
       )}
       {enquiryStatus === 'error' && (
@@ -499,7 +499,6 @@ export const PublicWebsite: React.FC = () => {
       <select name="billboardType" value={form.billboardType} onChange={e => setForm({ ...form, billboardType: e.target.value })} aria-label="Media type" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
         <option value="">Media type</option>
         <option value="Billboard Advertising">Billboard Advertising</option>
-        <option value="Airport Advertising">Airport Advertising</option>
         <option value="Digital Billboard">Digital Billboard</option>
       </select>
       <input name="campaignDuration" value={form.campaignDuration} onChange={e => setForm({ ...form, campaignDuration: e.target.value })} placeholder="Campaign duration" aria-label="Campaign duration" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
@@ -516,7 +515,7 @@ export const PublicWebsite: React.FC = () => {
       />
       <textarea name="message" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} placeholder="Campaign details" aria-label="Campaign details" rows={compact ? 4 : 5} className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 sm:col-span-2" />
       <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-6 py-3 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:bg-slate-400 disabled:cursor-not-allowed sm:col-span-2">
-        {isSubmitting ? 'Sending...' : 'Create Website Lead'} <CheckCircle size={16} />
+        {isSubmitting ? 'Sending...' : 'Send Enquiry'} <Send size={16} />
       </button>
     </form>
   );
@@ -538,8 +537,12 @@ export const PublicWebsite: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              <a href="https://www.instagram.com/dreamboxadvertisingzw" className="transition hover:text-white">Instagram</a>
-              <a href="https://www.facebook.com/dreamboxadvertisingzim" className="transition hover:text-white">Facebook</a>
+              <a href="https://www.instagram.com/dreamboxadvertisingzw" className="inline-flex items-center gap-1.5 transition hover:text-white">
+                <Instagram size={11} className="text-indigo-300" /> Instagram
+              </a>
+              <a href="https://www.facebook.com/dreamboxadvertisingzim" className="inline-flex items-center gap-1.5 transition hover:text-white">
+                <Facebook size={11} className="text-indigo-300" /> Facebook
+              </a>
               <a href="https://wa.me/263778018909" className="inline-flex items-center gap-1.5 text-emerald-300/90 transition hover:text-emerald-200">
                 <Send size={11} /> WhatsApp
               </a>
@@ -582,7 +585,7 @@ export const PublicWebsite: React.FC = () => {
               href="https://wa.me/263778018909"
               className="hidden items-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-indigo-500/40 sm:inline-flex"
             >
-              Book Appointment <ArrowRight size={14} />
+              Get a Quote <ArrowRight size={14} />
             </a>
             <button
               type="button"
@@ -628,7 +631,7 @@ export const PublicWebsite: React.FC = () => {
                 href="https://wa.me/263778018909"
                 className="mt-1 inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:opacity-95"
               >
-                Book Appointment <ArrowRight size={14} />
+                Get a Quote <ArrowRight size={14} />
               </a>
             </div>
           </nav>
@@ -751,7 +754,7 @@ export const PublicWebsite: React.FC = () => {
                 {stats.map(item => (
                   <div key={item.label} className="rounded-xl border border-white/[0.08] bg-white/[0.05] p-3.5 backdrop-blur-sm">
                     <div className="text-xl font-black text-white">{item.value}</div>
-                    <div className="mt-1 text-[9px] font-black uppercase tracking-[0.14em] text-white/38">{item.label}</div>
+                    <div className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/48">{item.label}</div>
                   </div>
                 ))}
               </div>
@@ -769,7 +772,37 @@ export const PublicWebsite: React.FC = () => {
                     const img = billboards.find(b => b.imageUrl)?.imageUrl;
                     return img
                       ? <img src={img} alt="Dreambox billboard location preview" loading="eager" decoding="async" className="h-56 w-full object-cover opacity-90" />
-                      : <div className="h-56 bg-gradient-to-br from-indigo-900/60 to-slate-900" />;
+                      : (
+                        <div className="relative flex h-56 flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-800 via-[#0d1033] to-slate-900">
+                          {/* Subtle grid */}
+                          <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+                          {/* Billboard frame */}
+                          <div className="relative z-10 w-44">
+                            <div className="flex h-28 items-center justify-center rounded-sm border border-white/20 bg-gradient-to-br from-indigo-500/20 to-violet-600/15 shadow-lg shadow-indigo-500/10">
+                              <div className="text-center px-3">
+                                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-200/60">Billboard</div>
+                                <div className="mt-0.5 text-xl font-black leading-none text-white">12 × 4m</div>
+                                <div className="mt-1.5 flex items-center justify-center gap-1.5">
+                                  {['Harare', 'Bulawayo'].map(t => (
+                                    <span key={t} className="rounded-sm bg-white/[0.07] px-1.5 py-0.5 text-[8px] font-semibold text-white/45">{t}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mx-auto h-6 w-[3px] bg-white/15" />
+                            <div className="mx-auto h-px w-12 bg-white/10" />
+                          </div>
+                          {/* Live indicator */}
+                          <div className="absolute right-4 top-4 flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300/80">Live</span>
+                          </div>
+                          {/* Mutare tag bottom-left */}
+                          <div className="absolute bottom-4 left-4">
+                            <span className="rounded-sm bg-white/[0.05] px-1.5 py-0.5 text-[8px] font-semibold text-white/35">Mutare</span>
+                          </div>
+                        </div>
+                      );
                   })()}
                 </div>
                 {/* Content */}
@@ -778,10 +811,10 @@ export const PublicWebsite: React.FC = () => {
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300">Featured inventory</p>
                       <h2 className="mt-1.5 text-xl font-black leading-tight text-white">Live site availability</h2>
-                      <p className="mt-1.5 text-sm leading-6 text-white/55">Browse every CRM billboard with side, slot, and pricing status.</p>
+                      <p className="mt-1.5 text-sm leading-6 text-white/55">Browse our full network with live side, slot, and pricing status.</p>
                     </div>
                     <div className="shrink-0 rounded-lg bg-emerald-400 px-3 py-2 text-center">
-                      <div className="text-base font-black text-slate-950">{availableSites.filter(item => item.available).length || shownAvailability.length}</div>
+                      <div className="text-base font-black text-slate-950">{availableSites.filter(item => item.available).length || shownAvailability.length || 12}</div>
                       <div className="text-[9px] font-black uppercase tracking-wide text-slate-800">Open</div>
                     </div>
                   </div>
@@ -1503,7 +1536,7 @@ export const PublicWebsite: React.FC = () => {
         {(page === 'home') && <section className="bg-slate-950 py-20 text-white">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">What people are saying</p>
-            <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Clients trust Dreambox Media.</h2>
+            <h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Clients trust Dreambox.</h2>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
               {testimonials.map((item, index) => (
                 <blockquote key={item.quote} className="premium-dark-card premium-dark-card-hover flex animate-reveal-up flex-col p-6" style={{ animationDelay: `${index * 100}ms` }}>
@@ -1590,7 +1623,7 @@ export const PublicWebsite: React.FC = () => {
                   <Mail size={18} className="text-indigo-600" /> {email}
                 </a>
                 <a href="https://wa.me/263778018909" className="flex items-center gap-3 hover:text-slate-950">
-                  <Globe2 size={18} className="text-indigo-600" /> WhatsApp Dreambox
+                  <Send size={18} className="text-indigo-600" /> WhatsApp Dreambox
                 </a>
               </div>
             </div>
@@ -1644,7 +1677,7 @@ export const PublicWebsite: React.FC = () => {
               Outdoor advertising in Zimbabwe for brands that need their message seen, understood, and remembered.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
-              {['Billboards', 'Airport Media', 'Digital OOH'].map(label => (
+              {['Billboards', 'Digital OOH', 'Outdoor Media'].map(label => (
                 <span key={label} className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-indigo-100">
                   {label}
                 </span>
@@ -1692,7 +1725,7 @@ export const PublicWebsite: React.FC = () => {
             <h3 className="text-xs font-black uppercase tracking-[0.18em] text-indigo-200">Services</h3>
             <div className="mt-2.5 h-0.5 w-8 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
             <div className="mt-5 grid gap-3 text-sm font-semibold text-white/72">
-              {['Billboard Advertising', 'Airport Advertising', 'Digital Billboards'].map(label => (
+              {['Billboard Advertising', 'Digital Billboards'].map(label => (
                 <a
                   key={label}
                   href="/services"
@@ -1703,6 +1736,14 @@ export const PublicWebsite: React.FC = () => {
                   {label}
                 </a>
               ))}
+              <a
+                href="/site-availability"
+                onClick={navigate('locations')}
+                className="group inline-flex items-center gap-2 transition hover:text-white"
+              >
+                <ArrowRight size={12} className="-ml-5 text-indigo-300 opacity-0 transition-all duration-200 group-hover:ml-0 group-hover:opacity-100" />
+                View Available Sites
+              </a>
             </div>
           </div>
           <div>
@@ -1735,9 +1776,6 @@ export const PublicWebsite: React.FC = () => {
               <span className="text-white/20">·</span>
               <a href="/terms" onClick={navigate('terms')} className="transition hover:text-white">Terms of Use</a>
             </div>
-            <p className="inline-flex items-center gap-2">
-              <ShieldCheck size={13} className="text-emerald-400" /> Powered by Dreambox CRM
-            </p>
             <p className="text-white/30">
               Built and maintained by{' '}
               <a
