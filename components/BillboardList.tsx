@@ -292,7 +292,9 @@ export const BillboardList: React.FC = () => {
       setPickingLocation(false);
       showToast('Billboard saved', 'success');
     } catch (err: any) {
-      showToast(err?.message || 'Failed to save billboard', 'error', 8000);
+      const msg = err?.message || 'Failed to save billboard';
+      console.error('[handleSaveEdit] Save failed:', { billboard: editingBillboard.id, name: editingBillboard.name, error: msg, full: err });
+      showToast(`Save failed: ${msg}`, 'error', 10000);
     }
   };
   const handleConfirmDelete = async () => {

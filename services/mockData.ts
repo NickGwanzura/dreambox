@@ -294,7 +294,13 @@ export const updateBillboard = async (updated: Billboard) => {
                 billboards = billboards.map(b => b.id === updated.id ? previous : b);
                 notifyListeners();
             }
-            console.error('[updateBillboard] API error:', e);
+            console.error('[updateBillboard] Save failed for billboard:', {
+                id: updated.id,
+                name: updated.name,
+                errorMessage: e?.message,
+                errorStatus: e?.status,
+                stack: e?.stack,
+            });
             throw e;
         }
     }
