@@ -267,13 +267,14 @@
   .premium-card {
     position: relative;
     overflow: hidden;
-    border-radius: 0.375rem;
+    border-radius: 0.75rem;
     border: 1px solid rgba(226, 232, 240, 0.92);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+      linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(248, 250, 252, 0.96));
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.9) inset,
-      0 18px 50px rgba(15, 23, 42, 0.08);
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 4px 6px rgba(15, 23, 42, 0.04),
+      0 20px 56px rgba(15, 23, 42, 0.09);
   }
 
   .premium-card::before,
@@ -296,22 +297,25 @@
 
   .premium-card-hover:hover {
     transform: translateY(-5px);
-    border-color: rgba(129, 140, 248, 0.48);
+    border-color: rgba(129, 140, 248, 0.55);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 24px 70px rgba(15, 23, 42, 0.14);
+      0 1px 0 rgba(255, 255, 255, 0.98) inset,
+      0 4px 8px rgba(15, 23, 42, 0.05),
+      0 28px 72px rgba(99, 102, 241, 0.12),
+      0 28px 72px rgba(15, 23, 42, 0.12);
   }
 
   .premium-dark-card {
     position: relative;
     overflow: hidden;
-    border-radius: 0.375rem;
+    border-radius: 0.75rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.045));
+      linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.048));
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 24px 70px rgba(2, 6, 23, 0.28);
+      0 1px 0 rgba(255, 255, 255, 0.09) inset,
+      0 4px 8px rgba(2, 6, 23, 0.18),
+      0 24px 70px rgba(2, 6, 23, 0.30);
   }
 
   .premium-dark-card-hover {
@@ -334,13 +338,14 @@
   .premium-accent-card {
     position: relative;
     overflow: hidden;
-    border-radius: 0.375rem;
-    border: 1px solid rgba(165, 180, 252, 0.34);
+    border-radius: 0.75rem;
+    border: 1px solid rgba(165, 180, 252, 0.38);
     background:
-      linear-gradient(135deg, rgba(79, 70, 229, 1), rgba(30, 41, 59, 0.98));
+      linear-gradient(135deg, rgba(79, 70, 229, 1), rgba(109, 40, 217, 0.95) 50%, rgba(30, 41, 59, 0.98));
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.12) inset,
-      0 28px 80px rgba(49, 46, 129, 0.28);
+      0 1px 0 rgba(255, 255, 255, 0.14) inset,
+      0 4px 12px rgba(49, 46, 129, 0.20),
+      0 32px 88px rgba(49, 46, 129, 0.36);
   }
 
   .premium-accent-card::before {

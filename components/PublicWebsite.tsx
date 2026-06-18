@@ -514,7 +514,7 @@ export const PublicWebsite: React.FC = () => {
         style={{ position: 'absolute', left: '-9999px' }}
       />
       <textarea name="message" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} placeholder="Campaign details" aria-label="Campaign details" rows={compact ? 4 : 5} className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 sm:col-span-2" />
-      <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-500 px-6 py-3 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:bg-slate-400 disabled:cursor-not-allowed sm:col-span-2">
+      <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3 text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-indigo-500/40 disabled:from-slate-400 disabled:to-slate-400 disabled:translate-y-0 disabled:cursor-not-allowed sm:col-span-2">
         {isSubmitting ? 'Sending...' : 'Send Enquiry'} <Send size={16} />
       </button>
     </form>
@@ -629,7 +629,7 @@ export const PublicWebsite: React.FC = () => {
               </div>
               <a
                 href="https://wa.me/263778018909"
-                className="mt-1 inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:opacity-95"
+                className="mt-1 inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-indigo-500/40"
               >
                 Get a Quote <ArrowRight size={14} />
               </a>
@@ -887,7 +887,7 @@ export const PublicWebsite: React.FC = () => {
               <a
                 href="/site-availability"
                 onClick={navigate('locations')}
-                className="mt-8 inline-flex items-center gap-2 rounded-md bg-indigo-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400"
+                className="mt-8 inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-indigo-500/40"
               >
                 View Digital Sites <ArrowRight size={15} />
               </a>
@@ -968,7 +968,7 @@ export const PublicWebsite: React.FC = () => {
             ].map((service) => (
               <article
                 key={service.title}
-                className="group relative animate-reveal-up overflow-hidden rounded-2xl border border-slate-100 bg-white p-8 shadow-sm transition-all duration-500 hover:-translate-y-1.5 hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/[0.07]"
+                className="group relative animate-reveal-up overflow-hidden rounded-2xl border border-slate-100 bg-white p-8 shadow-[0_2px_16px_rgba(15,23,42,0.06)] transition-all duration-500 hover:-translate-y-2 hover:border-indigo-100 hover:shadow-[0_24px_64px_rgba(99,102,241,0.10),0_4px_20px_rgba(15,23,42,0.08)]"
                 style={{ animationDelay: `${service.delay}ms` }}
               >
                 {/* Hover glow */}
@@ -1355,7 +1355,7 @@ export const PublicWebsite: React.FC = () => {
                   <a
                     href="/site-availability"
                     onClick={navigate('locations')}
-                    className="inline-flex w-fit items-center gap-2 rounded-md bg-indigo-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white transition hover:bg-indigo-400"
+                    className="inline-flex w-fit items-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-indigo-500/40"
                   >
                     View All Sites <ArrowRight size={15} />
                   </a>
@@ -1383,9 +1383,9 @@ export const PublicWebsite: React.FC = () => {
                     {item.board.imageUrl ? (
                       <img src={item.board.imageUrl} alt={item.board.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                     ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-white">
-                        <Building2 className="h-10 w-10 text-slate-200" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">Photo coming soon</span>
+                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950">
+                        <Building2 className="h-10 w-10 text-white/15" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/25">Photo coming soon</span>
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
@@ -1438,10 +1438,10 @@ export const PublicWebsite: React.FC = () => {
                           window.history.pushState(null, '', '/contact');
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        className={`rounded-md px-3 py-2 text-xs font-black uppercase tracking-wide transition ${
+                        className={`rounded-md px-3 py-2 text-xs font-black uppercase tracking-wide transition hover:-translate-y-0.5 ${
                           item.available
-                            ? 'bg-white text-slate-950 hover:bg-indigo-50'
-                            : 'bg-slate-700 text-white hover:bg-slate-600'
+                            ? 'bg-white text-slate-950 shadow-md shadow-slate-950/15 hover:bg-indigo-50 hover:shadow-lg hover:shadow-indigo-500/15'
+                            : 'bg-slate-700 text-white/80 hover:bg-slate-600'
                         }`}
                       >
                         {item.available ? 'Enquire' : 'Join Waitlist'}
@@ -1509,7 +1509,7 @@ export const PublicWebsite: React.FC = () => {
               </p>
               <a
                 href="https://wa.me/263778018909"
-                className="mt-6 inline-flex items-center gap-2 rounded-md bg-indigo-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400"
+                className="mt-6 inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-indigo-500/40"
               >
                 Get a Quotation <ArrowRight size={15} />
               </a>
@@ -1576,7 +1576,7 @@ export const PublicWebsite: React.FC = () => {
                   key={item.board.id}
                   href={item.board.id.startsWith('live-') ? '/site-availability' : billboardLink(item.board)}
                   onClick={item.board.id.startsWith('live-') ? navigate('locations') : undefined}
-                  className="group animate-reveal-up overflow-hidden rounded-md bg-slate-900 shadow-xl shadow-slate-950/10"
+                  className="group animate-reveal-up overflow-hidden rounded-xl border border-white/[0.07] bg-slate-900 shadow-xl shadow-slate-950/20 transition-all duration-500 hover:-translate-y-1.5 hover:border-white/[0.14] hover:shadow-2xl hover:shadow-slate-950/30"
                   style={{ animationDelay: `${index * 80}ms` }}
                 >
                   <div className="relative h-72 overflow-hidden bg-slate-800">
