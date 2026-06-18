@@ -1,4 +1,49 @@
 
+// ─── Maintenance / Migration Mode ────────────────────────────────────────────
+// Set to true to show the migration notice to all visitors.
+const MAINTENANCE_MODE = true;
+
+function MaintenanceScreen() {
+  return (
+    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+         className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+      <div className="bg-slate-800 rounded-2xl p-10 max-w-lg w-full text-center shadow-2xl border border-slate-700">
+        {/* Icon */}
+        <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-indigo-500/20">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+
+        {/* Heading */}
+        <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">System Migration in Progress</h1>
+        <p className="text-indigo-400 text-sm font-medium mb-6 uppercase tracking-widest">Scheduled Maintenance</p>
+
+        {/* Body */}
+        <p className="text-slate-300 text-sm leading-relaxed mb-4">
+          We're migrating Dreambox CRM to a new, faster infrastructure. Your data is safe —
+          all records, contracts, and media are being transferred securely.
+        </p>
+        <p className="text-slate-400 text-sm leading-relaxed mb-8">
+          We expect to be back online shortly. Thank you for your patience.
+        </p>
+
+        {/* Divider */}
+        <div className="border-t border-slate-700 mb-6" />
+
+        {/* Contact */}
+        <p className="text-slate-500 text-xs">
+          Urgent? Reach us at{' '}
+          <a href="mailto:info@dreamboxadvertising.com" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+            info@dreamboxadvertising.com
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 import React, { useState, useEffect, ReactNode, useCallback, Suspense } from 'react';
 import { Layout } from './components/Layout';
 import { Auth } from './components/Auth';
@@ -316,6 +361,16 @@ const App: React.FC = () => {
       return null;
     }
   };
+
+  // ─── Maintenance gate ────────────────────────────────────────────────────────
+  if (MAINTENANCE_MODE) {
+    return (
+      <ErrorBoundary>
+        <MaintenanceScreen />
+      </ErrorBoundary>
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Public View Routing (No Auth Required)
   if (publicMode.active) {

@@ -3,22 +3,100 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dreambox — Maintenance</title>
+<title>Dreambox — System Migration</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .card { background: #1e293b; border-radius: 16px; padding: 48px; max-width: 480px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,.5); }
-  h1 { font-size: 24px; margin-bottom: 12px; color: #f8fafc; }
-  p { color: #94a3b8; line-height: 1.6; margin-bottom: 20px; font-size: 15px; }
-  .spinner { width: 40px; height: 40px; border: 3px solid #334155; border-top-color: #6366f1; border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 24px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .card {
+    background: #1e293b;
+    border-radius: 20px;
+    padding: 48px 40px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    border: 1px solid #334155;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  }
+  .icon-wrap {
+    width: 64px;
+    height: 64px;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #818cf8;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 24px;
+  }
+  p {
+    color: #94a3b8;
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 12px;
+  }
+  p:last-of-type { margin-bottom: 0; }
+  hr {
+    border: none;
+    border-top: 1px solid #334155;
+    margin: 24px 0;
+  }
+  .contact {
+    font-size: 12px;
+    color: #64748b;
+  }
+  .contact a {
+    color: #818cf8;
+    text-decoration: none;
+  }
+  .contact a:hover {
+    color: #a5b4fc;
+  }
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="spinner"></div>
-  <h1>Under Maintenance</h1>
-  <p>We're restoring data to get things back to normal. Should be back online shortly.</p>
+  <div class="icon-wrap">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  </div>
+  <h1>System Migration in Progress</h1>
+  <span class="badge">Scheduled Maintenance</span>
+  <p>
+    We're migrating Dreambox CRM to a new, faster infrastructure. Your data is safe —
+    all records, contracts, and media are being transferred securely.
+  </p>
+  <p>We expect to be back online shortly. Thank you for your patience.</p>
+  <hr>
+  <p class="contact">
+    Urgent? Reach us at
+    <a href="mailto:info@dreamboxadvertising.com">info@dreamboxadvertising.com</a>
+  </p>
 </div>
 </body>
 </html>
