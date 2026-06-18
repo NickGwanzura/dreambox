@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, FileText, CreditCard, Receipt, Plus, Trash2, Zap, ChevronDown, Download, Loader, TrendingDown } from 'lucide-react';
-import { addInvoice, addExpense, getClients } from '../services/mockData';
+import { X, FileText, CreditCard, Receipt, Plus, Trash2, Zap, ChevronDown, Download, Loader, TrendingDown, UserPlus, ArrowLeft } from 'lucide-react';
+import { addInvoice, addExpense, addClient, getClients } from '../services/mockData';
 import { generateInvoicePDF } from '../services/pdfGenerator';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { getEffectiveVatRate } from '../services/mockData';
 import type { Invoice, Client, Expense } from '../types';
+
+type ClientMode = 'list' | 'create';
 
 type DocType = 'Quotation' | 'Invoice' | 'Receipt' | 'Expense';
 
@@ -52,6 +54,13 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
   const [expenseDescription, setExpenseDescription] = useState('');
   const [expenseAmount, setExpenseAmount] = useState(0);
   const [expenseReference, setExpenseReference] = useState('');
+  // New client inline form
+  const [clientMode, setClientMode] = useState<ClientMode>('list');
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientContact, setNewClientContact] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [creatingClient, setCreatingClient] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const currentUser = getCurrentUser();
 
@@ -63,6 +72,8 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
     if (open) {
       setDocType(initialType);
       setError(null);
+      setClientMode('list');
+      setShowClientList(false);
     }
   }, [open, initialType]);
 
@@ -76,7 +87,32 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
   const filteredClients = allClients.filter(c =>
     c.companyName.toLowerCase().includes(clientSearch.toLowerCase()) ||
     c.contactPerson.toLowerCase().includes(clientSearch.toLowerCase())
-  ).slice(0, 8);
+  );
+
+  const handleCreateClient = async () => {
+    if (!newClientName.trim() || !newClientContact.trim() || !newClientPhone.trim()) return;
+    setCreatingClient(true);
+    try {
+      const newClient: Client = {
+        id: `CL-${Date.now()}`,
+        companyName: newClientName.trim(),
+        contactPerson: newClientContact.trim(),
+        phone: newClientPhone.trim(),
+        email: newClientEmail.trim() || undefined,
+        status: 'Active',
+      };
+      await addClient(newClient);
+      const refreshed = getClients();
+      setAllClients(refreshed);
+      const created = refreshed.find(c => c.companyName === newClient.companyName && c.contactPerson === newClient.contactPerson) || newClient;
+      setSelectedClient(created);
+      setShowClientList(false);
+      setClientMode('list');
+      setNewClientName(''); setNewClientContact(''); setNewClientPhone(''); setNewClientEmail('');
+    } finally {
+      setCreatingClient(false);
+    }
+  };
 
   const gross = items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
   const vatRate = getEffectiveVatRate();
@@ -323,31 +359,99 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                   </button>
                   {showClientList && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-10 overflow-hidden">
-                      <div className="p-2 border-b border-slate-100">
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Search clients..."
-                          value={clientSearch}
-                          onChange={e => setClientSearch(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
-                        />
-                      </div>
-                      <div className="max-h-48 overflow-y-auto">
-                        {filteredClients.length > 0 ? filteredClients.map(c => (
+                      {clientMode === 'create' ? (
+                        /* ── Inline new client form ── */
+                        <div className="p-4 space-y-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <button
+                              type="button"
+                              onClick={() => setClientMode('list')}
+                              className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
+                            >
+                              <ArrowLeft size={14} />
+                            </button>
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">New Client</span>
+                          </div>
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="Company name *"
+                            value={newClientName}
+                            onChange={e => setNewClientName(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Contact person *"
+                            value={newClientContact}
+                            onChange={e => setNewClientContact(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="tel"
+                              placeholder="Phone *"
+                              value={newClientPhone}
+                              onChange={e => setNewClientPhone(e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                            />
+                            <input
+                              type="email"
+                              placeholder="Email (optional)"
+                              value={newClientEmail}
+                              onChange={e => setNewClientEmail(e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                            />
+                          </div>
                           <button
-                            key={c.id}
                             type="button"
-                            onClick={() => { setSelectedClient(c); setShowClientList(false); setClientSearch(''); }}
-                            className="w-full text-left px-4 py-2.5 hover:bg-indigo-50 transition-colors"
+                            onClick={handleCreateClient}
+                            disabled={creatingClient || !newClientName.trim() || !newClientContact.trim() || !newClientPhone.trim()}
+                            className="w-full py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
                           >
-                            <p className="text-sm font-semibold text-slate-900">{c.companyName}</p>
-                            <p className="text-xs text-slate-500">{c.contactPerson}</p>
+                            {creatingClient ? <Loader size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                            {creatingClient ? 'Creating...' : 'Create & Select'}
                           </button>
-                        )) : (
-                          <p className="text-xs text-slate-400 px-4 py-3 text-center">No clients found</p>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        /* ── Search & full scroll list ── */
+                        <>
+                          <div className="p-2 border-b border-slate-100">
+                            <input
+                              autoFocus
+                              type="text"
+                              placeholder={`Search ${allClients.length} client${allClients.length !== 1 ? 's' : ''}...`}
+                              value={clientSearch}
+                              onChange={e => setClientSearch(e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                            />
+                          </div>
+                          <div className="max-h-64 overflow-y-auto">
+                            {filteredClients.length > 0 ? filteredClients.map(c => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => { setSelectedClient(c); setShowClientList(false); setClientSearch(''); }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-indigo-50 transition-colors"
+                              >
+                                <p className="text-sm font-semibold text-slate-900">{c.companyName}</p>
+                                <p className="text-xs text-slate-500">{c.contactPerson}{c.phone ? ` · ${c.phone}` : ''}</p>
+                              </button>
+                            )) : (
+                              <p className="text-xs text-slate-400 px-4 py-3 text-center">No clients match "{clientSearch}"</p>
+                            )}
+                          </div>
+                          <div className="p-2 border-t border-slate-100">
+                            <button
+                              type="button"
+                              onClick={() => setClientMode('create')}
+                              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            >
+                              <UserPlus size={13} /> New Client
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
