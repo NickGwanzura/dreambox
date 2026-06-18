@@ -7,10 +7,11 @@ import { cors } from '../../lib/auth';
 import { validatePassword } from '../../lib/passwordPolicy.js';
 import { checkRateLimit } from '../../lib/rateLimiter.js';
 import { notifyAdminNewUser } from '../../lib/notifyAdmin.js';
+import { log } from '../../lib/serverLogger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
-const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
+const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
+const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 
 const signupSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -103,7 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         </body>
         </html>
       `,
-    }).catch(err => console.error('[auth/signup] email send failed:', err));
+    }).catch(err => log.error('[auth/signup] email send failed:', err));
 
     notifyAdminNewUser({
       firstName: user.firstName,
@@ -117,7 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { passwordHash: _, ...safeUser } = user;
     return res.status(201).json({ user: safeUser });
   } catch (e: any) {
-    console.error('[auth/signup]', e);
+    log.error('[auth/signup]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

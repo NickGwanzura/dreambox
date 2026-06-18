@@ -5,7 +5,7 @@ import { requireAuth, requireDeletePermission, requireQuotationWritePermission, 
 import { log } from '../lib/serverLogger.js';
 
 const invoiceItemSchema = z.object({
-  description: z.string().min(1, 'Item description is required'),
+  description: z.string().min(1, 'Item description is required').max(500, 'Item description too long'),
   quantity: z.number().positive('Quantity must be positive'),
   unitPrice: z.number().nonnegative('Unit price must be non-negative'),
   amount: z.number().nonnegative('Amount must be non-negative'),
@@ -16,10 +16,12 @@ const invoiceItemSchema = z.object({
 const invoiceSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
   date: z.string().min(1, 'Date is required'),
-  items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
+  items: z.array(invoiceItemSchema).min(1, 'At least one item is required').max(100, 'Too many line items'),
   subtotal: z.number({ error: 'Subtotal is required' }),
   total: z.number({ error: 'Total is required' }),
   type: z.enum(['Invoice', 'Quotation', 'Proforma', 'Receipt']).optional(),
+  terms: z.string().max(2000, 'Terms too long').optional(),
+  notes: z.string().max(2000, 'Notes too long').optional(),
 });
 
 function validateTotals(data: any): string | null {
@@ -45,7 +47,7 @@ function validateTotals(data: any): string | null {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   const payload = requireAuth(req, res);
   if (!payload) return;
@@ -70,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       const body = req.body ?? {};
-      const { createdAt, updatedAt, id: requestedId, ...data } = body;
+      const { createdAt, updatedAt, id: _clientId, ...data } = body;
 
       // Permission check for quotations
       if (String(body.type).toLowerCase() === 'quotation') {
@@ -83,23 +85,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Validation failed', details: [totalError] });
       }
 
-      // Duplicate ID protection: if client sends an ID that already exists, reject
-      if (requestedId) {
-        const conflict = await prisma.invoice.findUnique({ where: { id: requestedId } });
+      // Server-side quoteNumber generation for Quotations — prevents client-side counter collisions
+      // across concurrent sessions and page reloads.
+      if (String(body.type).toLowerCase() === 'quotation' && !data.quoteNumber) {
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const count = await prisma.invoice.count({ where: { quoteNumber: { startsWith: `QT-${today}` } } });
+        data.quoteNumber = `QT-${today}-${String(count + 1).padStart(3, '0')}`;
+      }
+
+      // Duplicate quote number protection (for manually supplied numbers or races on same counter)
+      if (data.quoteNumber) {
+        const conflict = await prisma.invoice.findUnique({ where: { quoteNumber: data.quoteNumber } });
         if (conflict) {
-          return res.status(409).json({ error: 'Invoice with this ID already exists', existingId: requestedId });
+          return res.status(409).json({ error: 'Quotation number already exists', quoteNumber: data.quoteNumber });
         }
       }
 
-      // Duplicate quote number protection
-      if (body.quoteNumber) {
-        const conflict = await prisma.invoice.findUnique({ where: { quoteNumber: body.quoteNumber } });
-        if (conflict) {
-          return res.status(409).json({ error: 'Quotation number already exists', quoteNumber: body.quoteNumber });
-        }
-      }
-
-      const row = await prisma.invoice.create({ data: requestedId ? { ...data, id: requestedId } : data });
+      // Always let Prisma generate the UUID — never trust client-supplied IDs
+      const row = await prisma.invoice.create({ data });
       log.info(`[invoices] POST created ${row.type} ${row.id} for client ${row.clientId}`);
       return res.status(201).json(row);
     }

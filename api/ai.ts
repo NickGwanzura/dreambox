@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Groq from 'groq-sdk';
 import { requireAuth, cors } from '../lib/auth';
+import { log } from '../lib/serverLogger.js';
 
 const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
 
@@ -27,7 +28,7 @@ function parseRequestBody(req: VercelRequest): AIRequestBody | null {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   const payload = requireAuth(req, res);
   if (!payload) return;
@@ -76,19 +77,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : typeof e?.response?.status === 'number'
           ? e.response.status
           : 502;
-    const errorMessage =
-      e?.error?.message ||
-      e?.message ||
-      'AI request failed';
 
-    console.error('[api/ai] GROQ error:', {
+    log.error('[api/ai] GROQ error', {
       status: upstreamStatus,
-      message: errorMessage,
+      message: e?.error?.message || e?.message,
       name: e?.name,
     });
 
-    return res
-      .status(upstreamStatus >= 400 && upstreamStatus < 600 ? upstreamStatus : 502)
-      .json({ error: errorMessage });
+    // Return a generic message — never leak upstream error details to the client
+    const clientStatus = upstreamStatus === 429 ? 429 : 502;
+    const clientMessage = upstreamStatus === 429
+      ? 'AI service is temporarily busy. Please try again shortly.'
+      : 'AI service unavailable. Please try again later.';
+
+    return res.status(clientStatus).json({ error: clientMessage });
   }
 }

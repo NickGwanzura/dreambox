@@ -663,7 +663,12 @@ export const PublicWebsite: React.FC = () => {
                 decoding="async"
                 className="absolute inset-0 h-full w-full object-cover animate-image-drift"
               />
+              {/* Directional left-to-right darkening for text legibility */}
               <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
+              {/* Edge vignette — darkens all four corners for cinematic depth */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_38%_52%,transparent_25%,rgba(2,6,23,0.72)_100%)]" />
+              {/* Top atmospheric scrim */}
+              <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-slate-950/60 to-transparent" />
             </>
           ) : (
             <>
@@ -677,8 +682,18 @@ export const PublicWebsite: React.FC = () => {
               <div className="absolute right-[11%] top-[13%] h-[520px] w-[520px] animate-glow-pulse rounded-full bg-indigo-500/[0.11] blur-[140px]" />
               {/* Animated orb — secondary, offset phase */}
               <div className="absolute left-[4%] bottom-[22%] h-[380px] w-[380px] animate-glow-pulse rounded-full bg-violet-600/[0.09] blur-[110px]" style={{ animationDelay: '-4s' }} />
-              {/* Subtle perspective grid */}
-              <div className="hero-depth-grid absolute inset-0 opacity-[0.05]" />
+              {/* Animated orb — tertiary accent, far right bottom */}
+              <div className="absolute right-[2%] bottom-[10%] h-[260px] w-[260px] animate-glow-pulse rounded-full bg-cyan-600/[0.07] blur-[90px]" style={{ animationDelay: '-7s' }} />
+              {/* Perspective floor grid — recedes to horizon */}
+              <div className="hero-depth-grid absolute inset-0 opacity-[0.16]" />
+              {/* Edge vignette — darkens corners to push depth inward */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_78%_at_50%_42%,transparent_28%,rgba(2,6,23,0.68)_100%)]" />
+              {/* Top atmospheric haze — horizon fog */}
+              <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/55 to-transparent" />
+              {/* Light shaft — subtle vertical beam from top right */}
+              <div className="absolute right-[30%] top-0 h-3/4 w-[180px] bg-gradient-to-b from-indigo-400/[0.06] via-indigo-400/[0.02] to-transparent" style={{ clipPath: 'polygon(30% 0, 70% 0, 100% 100%, 0% 100%)' }} />
+              {/* Noise grain texture */}
+              <div className="hero-noise absolute inset-0 opacity-[0.03] mix-blend-screen" />
             </>
           )}
           {/* Bottom fade to merge with next section */}

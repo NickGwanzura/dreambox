@@ -128,7 +128,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
 
   const availability = getAvailabilityForExtension();
 
-  const handleApply = () => {
+  const handleApply = async () => {
     setError(null);
 
     if (!isValidChange) {
@@ -213,20 +213,20 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
       const originalSnapshot = { ...contract };
       
       try {
-        updateContract(updatedContract);
-      } catch (contractErr) {
+        await updateContract(updatedContract);
+      } catch (contractErr: any) {
         console.error('Contract update failed. No changes were applied.');
         setError('Failed to update contract. No changes were applied.');
         setSaving(false);
         return;
       }
-      
+
       try {
-        addContractAmendment(amendment);
+        await addContractAmendment(amendment);
       } catch (amendmentErr) {
         console.error('Amendment record failed. Rolling back contract...');
         try {
-          updateContract(originalSnapshot);
+          await updateContract(originalSnapshot);
           setError('Contract was updated but the amendment record failed. The contract has been rolled back. Please try again.');
         } catch (rollbackErr) {
           console.error('CRITICAL: Rollback also failed.', rollbackErr);
@@ -245,18 +245,22 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           const { subtotal, vat: vatAmount } = contract.hasVat
             ? splitInclusiveVat(gross, vatRate)
             : { subtotal: gross, vat: 0 };
-          addInvoice({
-            id: `INV-AM-${contract.id}-${monthDate.replace(/-/g, '')}-${Date.now().toString(36).slice(-4)}`,
-            contractId: contract.id,
-            clientId: contract.clientId,
-            date: monthDate,
-            items: [{ description: `Monthly Rental (Amendment Extension) — ${monthDate}`, amount: gross }],
-            subtotal,
-            vatAmount,
-            total: gross,
-            status: 'Pending',
-            type: 'Invoice',
-          });
+          try {
+            await addInvoice({
+              contractId: contract.id,
+              clientId: contract.clientId,
+              date: monthDate,
+              items: [{ description: `Monthly Rental (Amendment Extension) — ${monthDate}`, amount: gross }],
+              subtotal,
+              vatAmount,
+              total: gross,
+              status: 'Pending',
+              type: 'Invoice',
+            } as any);
+          } catch (invErr: any) {
+            console.error('Failed to create extension invoice:', invErr);
+            alert(`Failed: ${invErr?.message || 'Server error. Please try again.'}`);
+          }
         }
       }
 
@@ -270,7 +274,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           (i.status === 'Pending' || i.status === 'Overdue')
         );
         const unmatchedInvoices: string[] = [];
-        contractInvoices.forEach(inv => {
+        for (const inv of contractInvoices) {
           // Recalculate each invoice with the new monthly rate
           const updatedItems = inv.items.map(item => {
             // Match items that look like monthly rental lines
@@ -284,17 +288,22 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           const { subtotal: newSubtotal, vat: newVat } = contract.hasVat
             ? splitInclusiveVat(newGross, vatRate)
             : { subtotal: newGross, vat: 0 };
-          updateInvoice({
-            ...inv,
-            items: updatedItems,
-            subtotal: newSubtotal,
-            vatAmount: newVat,
-            total: newGross,
-          });
+          try {
+            await updateInvoice({
+              ...inv,
+              items: updatedItems,
+              subtotal: newSubtotal,
+              vatAmount: newVat,
+              total: newGross,
+            });
+          } catch (invErr: any) {
+            console.error('Failed to update invoice:', invErr);
+            alert(`Failed: ${invErr?.message || 'Server error. Please try again.'}`);
+          }
           if (!wasModified && inv.items.length > 0) {
             unmatchedInvoices.push(inv.id);
           }
-        });
+        }
         if (contractInvoices.length > 0) {
           logAction('Rate Change', `Updated ${contractInvoices.length} invoice(s) for contract ${contract.id} with new rate $${effectiveMonthlyRate}`);
         }
@@ -311,9 +320,14 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           setShowInvoiceDeleteConfirm(true);
           return;
         }
-        affectedInvoices.forEach(inv => {
-          deleteInvoice(inv.id);
-        });
+        for (const inv of affectedInvoices) {
+          try {
+            await deleteInvoice(inv.id);
+          } catch (invErr: any) {
+            console.error('Failed to delete affected invoice:', invErr);
+            alert(`Failed: ${invErr?.message || 'Server error. Please try again.'}`);
+          }
+        }
         if (affectedInvoices.length > 0) {
           logAction('Reduction', `Removed ${affectedInvoices.length} invoice(s) beyond new end date for contract ${contract.id}`);
         }

@@ -7,9 +7,10 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireAdmin, requireDeletePermission, cors } from '../lib/auth';
 import { validatePassword } from '../lib/passwordPolicy.js';
 import { notifyAdminNewUser } from '../lib/notifyAdmin.js';
+import { log } from '../lib/serverLogger.js';
 
-const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
-const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
+const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
+const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -48,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
         return res.status(200).json(history);
       } catch (e: any) {
-        console.error('[users GET loginHistory]', e);
+        log.error('[users GET loginHistory]', e);
         return res.status(500).json({ error: 'Internal server error' });
       }
     }
@@ -60,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       return res.status(200).json(users);
     } catch (e: any) {
-      console.error('[users GET]', e);
+      log.error('[users GET]', e);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -125,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             to: email,
             subject: `You've been invited to Dreambox CRM`,
             html: buildInviteEmail(firstName, tempPassword),
-          }).catch(err => console.error('[users bulkInvite] email failed:', err));
+          }).catch(err => log.error('[users bulkInvite] email failed:', err));
 
           notifyAdminNewUser({
             firstName, lastName, email,
@@ -184,7 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(200).json({ message: `Password reset email sent to ${targetUser.email}` });
       } catch (e: any) {
-        console.error('[users POST adminReset]', e);
+        log.error('[users POST adminReset]', e);
         return res.status(500).json({ error: 'Failed to send reset email' });
       }
     }
@@ -229,7 +230,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           to: email,
           subject: `You've been added to Dreambox CRM`,
           html: buildInviteEmail(firstName, tempPassword),
-        }).catch(err => console.error('[users POST] email failed:', err));
+        }).catch(err => log.error('[users POST] email failed:', err));
       }
 
       notifyAdminNewUser({
@@ -243,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.status(201).json({ user, tempPassword: !password ? tempPassword : undefined });
     } catch (e: any) {
-      console.error('[users POST]', e);
+      log.error('[users POST]', e);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -308,7 +309,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       return res.status(200).json(updated);
     } catch (e: any) {
-      console.error('[users PUT]', e);
+      log.error('[users PUT]', e);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -343,7 +344,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await prisma.user.delete({ where: { id: id as string } });
       return res.status(200).json({ success: true, alreadyDeleted: false });
     } catch (e: any) {
-      console.error('[users DELETE]', e);
+      log.error('[users DELETE]', e);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }

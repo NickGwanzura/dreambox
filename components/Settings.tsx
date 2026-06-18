@@ -145,19 +145,27 @@ export const Settings: React.FC = () => {
     if (file) {
       if (file.size > 1024 * 1024) { alert("Image size is too large (Max 1MB)."); return; }
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64 = reader.result as string;
         setLogoPreview(base64);
-        setCompanyLogo(base64);
-        alert("Logo updated and saved successfully.");
+        try {
+          await setCompanyLogo(base64);
+          alert("Logo updated and saved successfully.");
+        } catch (err: any) {
+          alert(`Failed to save logo: ${err?.message || 'Server error. Please try again.'}`);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSaveCompanyDetails = () => {
-    updateCompanyProfile(profile);
-    alert("Company details updated successfully.");
+  const handleSaveCompanyDetails = async () => {
+    try {
+      await updateCompanyProfile(profile);
+      alert("Company details updated successfully.");
+    } catch (err: any) {
+      alert(`Failed to save company details: ${err?.message || 'Server error. Please try again.'}`);
+    }
   };
 
   const handleAddUser = async (e: React.FormEvent) => {

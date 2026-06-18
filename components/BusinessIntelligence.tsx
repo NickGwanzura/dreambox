@@ -4,7 +4,8 @@ import {
 } from 'recharts';
 import {
   AlertTriangle, TrendingUp, Users, Monitor, DollarSign, FileText,
-  Clock, CheckCircle2, XCircle, ArrowUpRight, Zap, Shield, Target, BarChart2
+  Clock, CheckCircle2, XCircle, ArrowUpRight, Zap, Shield, Target, BarChart2,
+  Lightbulb, PhoneCall, RefreshCw, TrendingDown, Star, Package
 } from 'lucide-react';
 import {
   getContracts, getInvoices, getClients, getBillboards,
@@ -12,7 +13,19 @@ import {
 import { BillboardType } from '../types';
 import { formatCurrency } from '../services/profitAnalytics';
 
-type BITab = 'overview' | 'forecast' | 'assets' | 'clients' | 'funnel';
+type BITab = 'overview' | 'forecast' | 'assets' | 'clients' | 'funnel' | 'recommendations';
+
+type RecPriority = 'critical' | 'high' | 'medium' | 'growth';
+
+interface Recommendation {
+  id: string;
+  priority: RecPriority;
+  category: string;
+  title: string;
+  detail: string;
+  impact: string;
+  action: string;
+}
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -162,6 +175,165 @@ export const BusinessIntelligence: React.FC = () => {
     ? Math.round(invoices.filter(i => i.type === 'Invoice').reduce((s, i) => s + i.total, 0) / invoiceCount)
     : 0;
 
+  // ── Recommendations engine ────────────────────────────────────────────────
+
+  const recommendations = useMemo<Recommendation[]>(() => {
+    const recs: Recommendation[] = [];
+
+    // 1. Overdue invoices — critical collection risk
+    if (overdueInvoices.length > 0) {
+      const total = overdueInvoices.reduce((s, i) => s + i.total, 0);
+      const clientNames = [...new Set(overdueInvoices.map(i => {
+        const cl = clients.find(c => c.id === i.clientId);
+        return cl?.companyName || 'Unknown';
+      }))].slice(0, 3).join(', ');
+      recs.push({
+        id: 'overdue',
+        priority: 'critical',
+        category: 'Collections',
+        title: `Collect ${formatCurrency(total)} in overdue invoices`,
+        detail: `${overdueInvoices.length} invoice${overdueInvoices.length > 1 ? 's' : ''} are overdue from: ${clientNames}${overdueInvoices.length > 3 ? ' and others' : ''}.`,
+        impact: formatCurrency(total) + ' at risk',
+        action: 'Send payment reminders and escalate to phone calls for the largest balances.',
+      });
+    }
+
+    // 2. Expiring contracts with no renewal quote in pipeline — high churn risk
+    const expiringNoQuote = expiring30.filter(c => {
+      return !invoices.some(i => i.clientId === c.clientId && (i.type === 'Quotation' || i.type === 'Proforma') && i.quoteStatus !== 'Converted' && i.quoteStatus !== 'Rejected');
+    });
+    if (expiringNoQuote.length > 0) {
+      const atRiskMRR = expiringNoQuote.reduce((s, c) => s + c.monthlyRate, 0);
+      recs.push({
+        id: 'renew-30',
+        priority: 'critical',
+        category: 'Renewals',
+        title: `Renew ${expiringNoQuote.length} contract${expiringNoQuote.length > 1 ? 's' : ''} expiring in 30 days`,
+        detail: `${formatCurrency(atRiskMRR)}/mo of guaranteed revenue expires with no renewal quote issued yet.`,
+        impact: formatCurrency(atRiskMRR) + '/mo at risk',
+        action: 'Issue renewal quotations immediately — these accounts have no active quote in pipeline.',
+      });
+    }
+
+    // 3. At-risk clients (60 day window, no quote)
+    if (atRiskClients.length > 0) {
+      const names = atRiskClients.slice(0, 3).map(c => c.name).join(', ');
+      recs.push({
+        id: 'at-risk-clients',
+        priority: 'high',
+        category: 'Client Retention',
+        title: `${atRiskClients.length} account${atRiskClients.length > 1 ? 's' : ''} at risk of churning`,
+        detail: `${names}${atRiskClients.length > 3 ? ' and others' : ''} have contracts expiring within 60 days and no active quote.`,
+        impact: 'Potential revenue loss',
+        action: 'Schedule calls and send proforma invoices to lock in renewals before competitors approach.',
+      });
+    }
+
+    // 4. Cold quotes — high pipeline leak
+    if (coldQuotes.length > 0) {
+      const coldValue = coldQuotes.reduce((s, q) => s + q.total, 0);
+      const oldest = coldQuotes.reduce((prev, cur) => new Date(cur.date) < new Date(prev.date) ? cur : prev);
+      const oldestClient = clients.find(c => c.id === oldest.clientId)?.companyName || 'Unknown';
+      recs.push({
+        id: 'cold-quotes',
+        priority: 'high',
+        category: 'Pipeline',
+        title: `Follow up on ${coldQuotes.length} cold quote${coldQuotes.length > 1 ? 's' : ''}`,
+        detail: `${formatCurrency(coldValue)} in pipeline has had no activity for 14+ days. Oldest is ${oldestClient}'s quote.`,
+        impact: formatCurrency(coldValue) + ' pipeline',
+        action: 'Call each prospect directly. For expired quotes, reissue with updated pricing and a limited-time offer.',
+      });
+    }
+
+    // 5. Vacant boards — opportunity cost
+    if (vacantBoards.length > 0) {
+      const potentialMRR = vacantBoards.reduce((s, b) => {
+        const avgRate = totalMRR / Math.max(assetData.filter(a => a.occupancy > 0).length, 1);
+        return s + avgRate;
+      }, 0);
+      recs.push({
+        id: 'vacant',
+        priority: 'high',
+        category: 'Asset Utilisation',
+        title: `${vacantBoards.length} board${vacantBoards.length > 1 ? 's' : ''} generating zero revenue`,
+        detail: `${vacantBoards.map(b => b.name).slice(0, 3).join(', ')}${vacantBoards.length > 3 ? ` +${vacantBoards.length - 3} more` : ''} are completely unoccupied.`,
+        impact: `~${formatCurrency(Math.round(potentialMRR))}/mo opportunity`,
+        action: 'Run a targeted campaign for these locations — offer discounted first-month rates to new advertisers to get them occupied.',
+      });
+    }
+
+    // 6. Revenue concentration risk
+    if (clientData.length > 0 && totalMRR > 0) {
+      const topClient = clientData[0];
+      const topClientMRR = activeContracts.filter(c => c.clientId === topClient.id).reduce((s, c) => s + c.monthlyRate, 0);
+      const concentration = Math.round((topClientMRR / totalMRR) * 100);
+      if (concentration >= 35) {
+        recs.push({
+          id: 'concentration',
+          priority: 'medium',
+          category: 'Risk Management',
+          title: `Revenue concentrated: ${topClient.name} = ${concentration}% of MRR`,
+          detail: `A single client accounts for ${concentration}% of your monthly recurring revenue. Loss of this account would be severe.`,
+          impact: formatCurrency(topClientMRR) + '/mo exposure',
+          action: 'Actively prospect new clients and diversify your portfolio to reduce dependency on any single account.',
+        });
+      }
+    }
+
+    // 7. Low conversion rate
+    if ((quotationCount + proformaCount) >= 5 && conversionRate < 35) {
+      recs.push({
+        id: 'conversion',
+        priority: 'medium',
+        category: 'Sales Efficiency',
+        title: `Quote-to-payment conversion is low at ${conversionRate}%`,
+        detail: `Only ${conversionRate}% of quotes convert to paid revenue. Industry benchmark is 40–60%.`,
+        impact: 'Sales efficiency gap',
+        action: 'Review quote pricing and presentation. Add an expiry date to create urgency. Follow up every cold quote within 48 hours.',
+      });
+    }
+
+    // 8. Upsell top clients with available sides
+    const topClientUpsell = clientData.slice(0, 3).filter(c => {
+      const clientContracts = activeContracts.filter(ac => ac.clientId === c.id);
+      const usedBoardIds = new Set(clientContracts.map(ac => ac.billboardId));
+      return usedBoardIds.size < billboards.length && c.clv > 0;
+    });
+    if (topClientUpsell.length > 0) {
+      const names = topClientUpsell.map(c => c.name).join(', ');
+      recs.push({
+        id: 'upsell',
+        priority: 'growth',
+        category: 'Growth',
+        title: `Upsell opportunity with top ${topClientUpsell.length} client${topClientUpsell.length > 1 ? 's' : ''}`,
+        detail: `${names} are high-value accounts with available board sides they don't yet occupy.`,
+        impact: 'Revenue expansion',
+        action: 'Pitch additional billboard placements to existing high-value clients — upselling costs 5× less than new client acquisition.',
+      });
+    }
+
+    // 9. LED boards if occupancy is low
+    const ledBoards = billboards.filter(b => b.type === BillboardType.LED);
+    const ledOccupancy = ledBoards.length > 0
+      ? Math.round(((ledBoards.reduce((s, b) => s + (b.rentedSlots || 0), 0)) / (ledBoards.reduce((s, b) => s + (b.totalSlots || 0), 0) || 1)) * 100)
+      : null;
+    if (ledOccupancy !== null && ledOccupancy < 60 && ledBoards.length > 0) {
+      recs.push({
+        id: 'led-slots',
+        priority: 'growth',
+        category: 'Digital Inventory',
+        title: `LED boards at ${ledOccupancy}% capacity — sell more slots`,
+        detail: `Digital LED inventory is underutilised. Multiple timeslots are available across ${ledBoards.length} board${ledBoards.length > 1 ? 's' : ''}.`,
+        impact: `${ledBoards.reduce((s, b) => s + ((b.totalSlots || 0) - (b.rentedSlots || 0)), 0)} slots available`,
+        action: "Package unsold LED slots as short-term or trial campaigns to attract SME advertisers who cannot commit to static placements.",
+      });
+    }
+
+    // Sort: critical → high → medium → growth
+    const order: RecPriority[] = ['critical', 'high', 'medium', 'growth'];
+    return recs.sort((a, b) => order.indexOf(a.priority) - order.indexOf(b.priority));
+  }, [overdueInvoices, expiring30, atRiskClients, coldQuotes, vacantBoards, clientData, totalMRR, activeContracts, quotationCount, proformaCount, conversionRate, assetData, billboards, clients, invoices]);
+
   // ─────────────────────────────────────────────────────────────────────────
 
   const tabs: { id: BITab; label: string }[] = [
@@ -170,6 +342,7 @@ export const BusinessIntelligence: React.FC = () => {
     { id: 'assets', label: 'Assets' },
     { id: 'clients', label: 'Clients' },
     { id: 'funnel', label: 'Sales Funnel' },
+    { id: 'recommendations', label: 'Recommendations' },
   ];
 
   return (
@@ -784,6 +957,120 @@ export const BusinessIntelligence: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* ── RECOMMENDATIONS ── */}
+      {tab === 'recommendations' && (() => {
+        const priorityMeta: Record<RecPriority, { label: string; color: string; bg: string; border: string; dot: string }> = {
+          critical: { label: 'Critical', color: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200',    dot: 'bg-red-500' },
+          high:     { label: 'High',     color: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200',  dot: 'bg-amber-500' },
+          medium:   { label: 'Medium',   color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', dot: 'bg-indigo-500' },
+          growth:   { label: 'Growth',   color: 'text-emerald-700',bg: 'bg-emerald-50',border: 'border-emerald-200',dot: 'bg-emerald-500' },
+        };
+
+        const categoryIcon: Record<string, React.ElementType> = {
+          'Collections':       DollarSign,
+          'Renewals':          RefreshCw,
+          'Client Retention':  Shield,
+          'Pipeline':          Target,
+          'Asset Utilisation': Monitor,
+          'Risk Management':   AlertTriangle,
+          'Sales Efficiency':  TrendingDown,
+          'Growth':            TrendingUp,
+          'Digital Inventory': Zap,
+        };
+
+        const criticalRecs  = recommendations.filter(r => r.priority === 'critical');
+        const highRecs      = recommendations.filter(r => r.priority === 'high');
+        const mediumRecs    = recommendations.filter(r => r.priority === 'medium');
+        const growthRecs    = recommendations.filter(r => r.priority === 'growth');
+
+        return (
+          <div className="space-y-6">
+            {/* Summary row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {([
+                { label: 'Critical', count: criticalRecs.length,  ...priorityMeta.critical },
+                { label: 'High',     count: highRecs.length,      ...priorityMeta.high },
+                { label: 'Medium',   count: mediumRecs.length,    ...priorityMeta.medium },
+                { label: 'Growth',   count: growthRecs.length,    ...priorityMeta.growth },
+              ] as const).map(p => (
+                <div key={p.label} className={`rounded-2xl p-4 border ${p.bg} ${p.border} flex items-center gap-3`}>
+                  <span className={`w-3 h-3 rounded-full ${p.dot} shrink-0`} />
+                  <div>
+                    <p className={`text-xl font-black ${p.color}`}>{p.count}</p>
+                    <p className={`text-[11px] font-bold uppercase tracking-wider ${p.color} opacity-70`}>{p.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {recommendations.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
+                <CheckCircle2 size={40} className="mx-auto text-emerald-400 mb-3" />
+                <h3 className="text-sm font-bold text-slate-800 mb-1">All clear — no action items</h3>
+                <p className="text-xs text-slate-400">Your portfolio is healthy. Check back as new data comes in.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recommendations.map((rec, i) => {
+                  const meta  = priorityMeta[rec.priority];
+                  const Icon  = categoryIcon[rec.category] || Lightbulb;
+                  return (
+                    <div key={rec.id} className={`bg-white rounded-2xl border ${meta.border} shadow-sm overflow-hidden`}>
+                      <div className={`flex items-start gap-4 p-5`}>
+                        {/* Left: number + priority dot */}
+                        <div className="flex flex-col items-center gap-2 shrink-0 pt-0.5">
+                          <span className={`w-7 h-7 rounded-full ${meta.bg} flex items-center justify-center text-[11px] font-black ${meta.color}`}>
+                            {i + 1}
+                          </span>
+                          <span className={`w-1 flex-1 rounded-full ${meta.dot} opacity-30 min-h-[16px]`} style={{ width: 3 }} />
+                        </div>
+
+                        {/* Main content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${meta.bg} ${meta.color} border ${meta.border}`}>
+                              {meta.label}
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                              <Icon size={10} /> {rec.category}
+                            </span>
+                          </div>
+
+                          <h4 className="text-sm font-bold text-slate-900 mb-1">{rec.title}</h4>
+                          <p className="text-xs text-slate-500 leading-relaxed mb-3">{rec.detail}</p>
+
+                          {/* Action box */}
+                          <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                            <PhoneCall size={13} className="text-indigo-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">Recommended Action</p>
+                              <p className="text-xs text-slate-700 leading-relaxed">{rec.action}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: impact badge */}
+                        <div className={`shrink-0 text-right hidden sm:block`}>
+                          <div className={`px-3 py-2 rounded-xl ${meta.bg} border ${meta.border}`}>
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Impact</p>
+                            <p className={`text-xs font-black ${meta.color} whitespace-nowrap`}>{rec.impact}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Footer note */}
+            <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5">
+              <Lightbulb size={11} /> Recommendations are generated automatically from live data in your portfolio.
+            </p>
+          </div>
+        );
+      })()}
     </div>
   );
 };

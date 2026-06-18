@@ -23,8 +23,17 @@ export const ContractList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [contractToPermanentDelete, setContractToPermanentDelete] = useState<Contract | null>(null);
   const [isDeletingPermanent, setIsDeletingPermanent] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<'All' | 'Static' | 'Digital'>('All');
+  const [newContract, setNewContract] = useState<Contract | null>(null);
+
+  const getContractBillboardType = (contract: Contract) => getBillboards().find(b => b.id === contract.billboardId)?.type;
+
+  const staticCount  = contracts.filter(c => getContractBillboardType(c) === BillboardType.Static).length;
+  const digitalCount = contracts.filter(c => getContractBillboardType(c) === BillboardType.LED).length;
 
   const filteredContracts = contracts.filter(contract => {
+      if (typeFilter === 'Static'  && getContractBillboardType(contract) !== BillboardType.Static) return false;
+      if (typeFilter === 'Digital' && getContractBillboardType(contract) !== BillboardType.LED)    return false;
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       const clientName = getClientName(contract.clientId).toLowerCase();
@@ -46,13 +55,14 @@ export const ContractList: React.FC = () => {
         if (contractToPermanentDelete) { setContractToPermanentDelete(null); return; }
         if (sendModal) { setSendModal(null); return; }
         if (renewContract) { setRenewContract(null); return; }
+        if (newContract) { setNewContract(null); return; }
         if (editContract) { setEditContract(null); return; }
         if (selectedContract) { setSelectedContract(null); return; }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [contractToPermanentDelete, sendModal, renewContract, editContract, selectedContract]);
+  }, [contractToPermanentDelete, sendModal, renewContract, newContract, editContract, selectedContract]);
 
   // Subscribe to real-time updates from other components
   useEffect(() => {
@@ -112,6 +122,34 @@ export const ContractList: React.FC = () => {
       };
 
       return { ...next, details: getLineDetails(next) };
+  };
+
+  const makeBlankContract = (): Contract => {
+      const today = new Date().toISOString().split('T')[0];
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
+      const firstClient = clients[0];
+      const firstBillboard = getBillboards()[0];
+      const isLED = firstBillboard?.type === BillboardType.LED;
+      const draft: Contract = {
+          id: `new-${Date.now()}`,
+          clientId: firstClient?.id || '',
+          billboardId: firstBillboard?.id || '',
+          startDate: today,
+          endDate: nextYear.toISOString().split('T')[0],
+          monthlyRate: isLED ? (firstBillboard?.ratePerSlot || 0) : (firstBillboard?.sideARate || 0),
+          installationCost: 0,
+          printingCost: 0,
+          productionCost: 0,
+          hasVat: false,
+          totalContractValue: 0,
+          status: 'Pending',
+          details: isLED ? 'Slot 1' : 'Side A',
+          side: isLED ? undefined : 'A',
+          slotNumber: isLED ? 1 : undefined,
+          createdAt: new Date().toISOString(),
+      };
+      return draft;
   };
 
   const handleDownload = (contract: Contract) => {
@@ -317,6 +355,36 @@ export const ContractList: React.FC = () => {
       }
   };
 
+  const handleCreateSave = async () => {
+      if (!newContract || saving) return;
+      if (!newContract.clientId) { setEditError('Please select a client.'); return; }
+      if (!newContract.startDate || !newContract.endDate) { setEditError('Start date and end date are required.'); return; }
+      if (new Date(newContract.endDate) < new Date(newContract.startDate)) { setEditError('End date cannot be before start date.'); return; }
+      const available = checkAvailabilityForEdit(newContract, newContract.startDate, newContract.endDate);
+      if (!available.ok) { setEditError(available.reason || 'Billboard not available for selected dates.'); return; }
+      setSaving(true);
+      try {
+          const months = calculateContractMonths(newContract.startDate, newContract.endDate);
+          const gross = (newContract.monthlyRate * months) + newContract.installationCost + newContract.printingCost + (newContract.productionCost || 0);
+          const contract: Contract = {
+              ...newContract,
+              id: `C-${Date.now().toString().slice(-6)}`,
+              totalContractValue: gross,
+              createdAt: new Date().toISOString(),
+              lastModifiedDate: new Date().toISOString(),
+              lastModifiedBy: 'Current User',
+          };
+          await addContract(contract);
+          setContracts(getContracts());
+          setNewContract(null);
+      } catch (error) {
+          console.error('[ContractList] handleCreateSave error:', error);
+          setEditError('Failed to create contract. Please try again.');
+      } finally {
+          setSaving(false);
+      }
+  };
+
   const openTermAdjustment = (contract: Contract) => {
       setSelectedContract(null);
       setEditContract(null);
@@ -369,11 +437,42 @@ export const ContractList: React.FC = () => {
                 className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900"
               />
             </div>
-            <button className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2 shrink-0">
+            <button onClick={() => { setNewContract(makeBlankContract()); setEditError(null); }} className="bg-slate-900 text-white px-5 py-3 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2 shrink-0">
               <PlusIcon size={18} /> <span className="hidden sm:inline">New Contract</span>
             </button>
           </div>
         </div>
+
+        {/* Type tabs */}
+        <div className="flex items-center gap-2">
+          {([
+            { key: 'All',     label: 'All Contracts', count: contracts.length },
+            { key: 'Static',  label: 'Static',        count: staticCount },
+            { key: 'Digital', label: 'Digital / LED',  count: digitalCount },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setTypeFilter(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all border ${
+                typeFilter === tab.key
+                  ? tab.key === 'Digital'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                    : tab.key === 'Static'
+                    ? 'bg-orange-500 text-white border-orange-500 shadow-md'
+                    : 'bg-slate-900 text-white border-slate-900 shadow-md'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {tab.label}
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                typeFilter === tab.key ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="grid gap-4">
           {filteredContracts.map(contract => (
             <div key={contract.id} className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group">
@@ -382,7 +481,15 @@ export const ContractList: React.FC = () => {
                   <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{getClientName(contract.clientId)}</h3>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{getClientName(contract.clientId)}</h3>
+                    {(() => {
+                      const bType = getContractBillboardType(contract);
+                      return bType === BillboardType.LED
+                        ? <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200">Digital LED</span>
+                        : <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-orange-100 text-orange-700 border border-orange-200">Static</span>;
+                    })()}
+                  </div>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-900 mt-1">
                     <span className="font-medium text-slate-700 truncate">{getBillboardName(contract.billboardId)}</span>
                     <span className="hidden sm:inline text-slate-300">•</span>
@@ -444,8 +551,8 @@ export const ContractList: React.FC = () => {
               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search className="text-slate-300" size={32} />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-1">No contracts found</h3>
-              <p className="text-slate-900 text-sm">Try adjusting your search terms.</p>
+              <h3 className="text-lg font-bold text-slate-900 mb-1">No {typeFilter !== 'All' ? typeFilter + ' ' : ''}contracts found</h3>
+              <p className="text-slate-900 text-sm">{searchQuery ? 'Try adjusting your search.' : typeFilter !== 'All' ? `No ${typeFilter} billboard contracts yet.` : 'No contracts yet.'}</p>
             </div>
           )}
         </div>
@@ -710,6 +817,165 @@ export const ContractList: React.FC = () => {
                 <button onClick={() => { if (!saving) setEditContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
                 <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Contract Modal */}
+      {newContract && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setNewContract(null); }}>
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">New Contract</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Fill in the details below to create a new contract</p>
+              </div>
+              <button onClick={() => { if (!saving) setNewContract(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
+            </div>
+            <div className="p-8 space-y-6">
+
+              {editError && (
+                <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3">
+                  <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{editError}</p>
+                </div>
+              )}
+
+              {/* Client */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Client</p>
+                <select
+                  value={newContract.clientId}
+                  onChange={(e) => setNewContract({ ...newContract, clientId: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                >
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.companyName}</option>)}
+                </select>
+              </div>
+
+              {/* Billboard Assignment */}
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Billboard Assignment</p>
+                <select
+                  value={newContract.billboardId}
+                  onChange={(e) => setNewContract(withBillboardDefaults(newContract, e.target.value))}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                >
+                  {getBillboards().map(b => <option key={b.id} value={b.id}>{b.name} - {b.location}</option>)}
+                </select>
+                {(() => {
+                  const billboard = getBillboard(newContract.billboardId);
+                  if (!billboard) return null;
+                  if (billboard.type === BillboardType.Static) {
+                    return (
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['A', 'B', 'Both'] as const).map(side => (
+                          <button
+                            key={side}
+                            type="button"
+                            onClick={() => {
+                              const next = { ...newContract, side, slotNumber: undefined, monthlyRate: getDefaultRate(newContract.billboardId, side) };
+                              setNewContract({ ...next, details: getLineDetails(next) });
+                            }}
+                            className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${newContract.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
+                          >
+                            {side === 'Both' ? 'Both A&B' : `Side ${side}`}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-900 mb-2">LED Slot</label>
+                      <select
+                        value={newContract.slotNumber || 1}
+                        onChange={(e) => {
+                          const next = { ...newContract, slotNumber: Number(e.target.value), side: undefined };
+                          setNewContract({ ...next, details: getLineDetails(next) });
+                        }}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                      >
+                        {Array.from({ length: billboard.totalSlots || 10 }, (_, i) => <option key={i + 1} value={i + 1}>Slot {i + 1}</option>)}
+                      </select>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Contract Status */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Contract Status</p>
+                <select value={newContract.status} onChange={(e) => setNewContract({ ...newContract, status: e.target.value as 'Active' | 'Pending' | 'Expired' })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800">
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+
+              {/* Rental Period */}
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Rental Period</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Start Date</label>
+                    <input type="date" value={newContract.startDate} onChange={(e) => setNewContract({ ...newContract, startDate: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-800" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">End Date</label>
+                    <input type="date" value={newContract.endDate} onChange={(e) => setNewContract({ ...newContract, endDate: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-800" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 1) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+1 Month</button>
+                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 3) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+3 Months</button>
+                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 6) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+6 Months</button>
+                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 12) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+12 Months</button>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
+                  <span className="text-slate-500 font-medium">Term length</span>
+                  <span className="text-slate-900 font-bold">{calculateContractMonthsSafe(newContract.startDate, newContract.endDate)} month(s)</span>
+                </div>
+              </div>
+
+              {/* Financials */}
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Financials</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Monthly Rate ($)</label>
+                    <input type="number" value={newContract.monthlyRate} onChange={(e) => setNewContract({ ...newContract, monthlyRate: Number(e.target.value) })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800" />
+                    {newContract.hasVat && newContract.monthlyRate > 0 && (
+                      <p className="text-[10px] text-slate-500 mt-1">Net: ${splitInclusiveVat(newContract.monthlyRate, vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(newContract.monthlyRate, vatRate).vat.toFixed(2)}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Installation Cost ($)</label>
+                    <input type="number" value={newContract.installationCost} onChange={(e) => setNewContract({ ...newContract, installationCost: Number(e.target.value) })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Printing Cost ($)</label>
+                    <input type="number" value={newContract.printingCost} onChange={(e) => setNewContract({ ...newContract, printingCost: Number(e.target.value) })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Production Fee ($)</label>
+                    <input type="number" value={newContract.productionCost || 0} onChange={(e) => setNewContract({ ...newContract, productionCost: Number(e.target.value) })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800" />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={newContract.hasVat} onChange={(e) => setNewContract({ ...newContract, hasVat: e.target.checked })} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+                  <span className="text-sm font-medium text-slate-900">Rate includes VAT ({vatPct})</span>
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => { if (!saving) setNewContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
+                <button onClick={handleCreateSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Creating…' : 'Create Contract'}
                 </button>
               </div>
             </div>

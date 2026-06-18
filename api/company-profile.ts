@@ -2,9 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireAdmin, cors } from '../lib/auth';
 import { uploadBase64Image } from '../lib/uploadBase64';
+import { log } from '../lib/serverLogger.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
@@ -36,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
-    console.error('[company-profile]', e);
+    log.error('[company-profile]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

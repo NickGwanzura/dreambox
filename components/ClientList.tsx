@@ -56,7 +56,7 @@ export const ClientList: React.FC = () => {
       return () => { unsubscribe(); };
   }, []);
 
-  const handleAddClient = (e: React.FormEvent) => {
+  const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
     const client: Client = {
         id: (Date.now()).toString(),
@@ -67,18 +67,37 @@ export const ClientList: React.FC = () => {
         status: 'Active',
         billingDay: newClient.billingDay
     };
-    addClient(client); setIsAddModalOpen(false); setNewClient({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined });
-  };
-
-  const handleUpdateClient = (e: React.FormEvent) => {
-    e.preventDefault();
-    if(editingClient) {
-        updateClient(editingClient);
-        setEditingClient(null);
+    try {
+        await addClient(client);
+        setIsAddModalOpen(false);
+        setNewClient({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined });
+    } catch (err: any) {
+        alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
-  const handleConfirmDelete = () => { if (clientToDelete) { deleteClient(clientToDelete.id); setClientToDelete(null); } };
+  const handleUpdateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(editingClient) {
+        try {
+            await updateClient(editingClient);
+            setEditingClient(null);
+        } catch (err: any) {
+            alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+        }
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+      if (clientToDelete) {
+          try {
+              await deleteClient(clientToDelete.id);
+              setClientToDelete(null);
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          }
+      }
+  };
 
   // Parse a CSV line respecting quoted fields and escaped quotes ("")
   const parseCsvLine = (line: string): string[] => {
@@ -127,7 +146,7 @@ export const ClientList: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const text = (ev.target?.result as string) || '';
       const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
       if (lines.length < 2) {
@@ -153,7 +172,7 @@ export const ClientList: React.FC = () => {
       let updated = 0, created = 0, skipped = 0;
       const details: string[] = [];
 
-      for (let r = 1; r < lines.length; r++) {
+      for (let r = 1; r < lines.length; r++) { // eslint-disable-line no-await-in-loop
         const cols = parseCsvLine(lines[r]);
         const companyName = (cols[iCompany] || '').trim();
         if (!companyName) { skipped++; continue; }
@@ -181,8 +200,9 @@ export const ClientList: React.FC = () => {
             merged.phone !== existing.phone ||
             merged.billingDay !== existing.billingDay ||
             merged.status !== existing.status;
-          if (changed) { updateClient(merged); updated++; }
-          else { skipped++; }
+          if (changed) {
+            try { await updateClient(merged); updated++; } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
+          } else { skipped++; }
         } else {
           const newClient: Client = {
             id: `CLI-${Date.now()}-${Math.floor(Math.random() * 1000)}-${r}`,
@@ -193,9 +213,7 @@ export const ClientList: React.FC = () => {
             status: (status === 'Inactive') ? 'Inactive' : 'Active',
             billingDay,
           };
-          addClient(newClient);
-          byName.set(companyName.toLowerCase().trim(), newClient);
-          created++;
+          try { await addClient(newClient); byName.set(companyName.toLowerCase().trim(), newClient); created++; } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
         }
       }
 

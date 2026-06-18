@@ -4,7 +4,7 @@ import { requireAuth, requireAdmin, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const payload = requireAuth(req, res);

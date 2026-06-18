@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { cors } from '../lib/auth';
+import { log } from '../lib/serverLogger.js';
 
 interface NominatimResult {
   place_id: number;
@@ -39,7 +40,7 @@ function setCached(q: string, town: string | undefined, results: GeocodeResult[]
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -72,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!response.ok) {
-      console.error('[geocode] Nominatim error:', response.status, response.statusText);
+      log.error('[geocode] Nominatim error:', response.status, response.statusText);
       return res.status(502).json({ error: 'Geocoding service unavailable' });
     }
 
@@ -90,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     setCached(query, townName, results);
     return res.status(200).json({ results });
   } catch (e: any) {
-    console.error('[geocode]', e);
+    log.error('[geocode]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

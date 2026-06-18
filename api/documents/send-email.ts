@@ -11,6 +11,7 @@ import { prisma } from '../../lib/prisma';
 import { requireAuth, cors, requireQuotationWritePermission } from '../../lib/auth';
 import { escapeHtml } from '../../lib/htmlEscape';
 import { buildInvoicePdf, buildContractPdf } from '../../lib/documentPdf';
+import { log } from '../../lib/serverLogger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
@@ -213,15 +214,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data: { quoteStatus: 'Sent', sentAt: new Date(), sentTo: finalTo.join(', ') }
         });
       } catch (e) {
-        console.warn('[documents/send-email] Failed to update quotation sent status:', e);
+        log.warn('[documents/send-email] Failed to update quotation sent status:', e);
       }
     }
 
     const displayTo = finalTo.join(', ') + (ccList.length ? ` (cc: ${ccList.join(', ')})` : '');
-    console.log(`[documents/send-email] Sent ${documentType} ${documentId} to ${displayTo} with PDF attachment`);
+    log.info(`[documents/send-email] Sent ${documentType} ${documentId} to ${displayTo} with PDF attachment`);
     return res.status(200).json({ message: `${documentType} sent to ${displayTo}`, to: displayTo, attachment: pdfFilename });
   } catch (e: any) {
-    console.error('[documents/send-email]', e);
+    log.error('[documents/send-email]', e);
     return res.status(500).json({ error: 'Failed to send email' });
   }
 }

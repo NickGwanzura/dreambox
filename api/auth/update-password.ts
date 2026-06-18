@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, signToken, cors } from '../../lib/auth';
 import { validatePassword } from '../../lib/passwordPolicy.js';
+import { log } from '../../lib/serverLogger.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -60,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const newToken = signToken({ userId: updated.id, email: updated.email, role: updated.role, status: updated.status });
     return res.status(200).json({ message: 'Password updated successfully', token: newToken });
   } catch (e: any) {
-    console.error('[auth/update-password]', e);
+    log.error('[auth/update-password]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   getInvoices, getClients, getBillboards, addInvoice, updateInvoice, deleteInvoice,
-  addClient, addContract, subscribe, getNextQuoteNumber, duplicateQuotation,
+  addClient, addContract, subscribe, duplicateQuotation,
   convertQuotationToInvoice, markQuotationSent, markQuotationStatus
 } from '../services/mockData';
 import { calculateContractMonths } from '../utils/contractDate';
@@ -260,14 +260,18 @@ export const Quotations: React.FC = () => {
         terms: terms || undefined,
         notes: notes || undefined,
       };
-      updateInvoice(updated);
-      setInvoices(getInvoices());
-      setIsModalOpen(false);
-      resetForm();
-      alert('Quotation Updated Successfully!');
+      try {
+        await updateInvoice(updated);
+        setInvoices(getInvoices());
+        setIsModalOpen(false);
+        resetForm();
+        alert('Quotation Updated Successfully!');
+      } catch (err: any) {
+        alert(`Failed to update quotation: ${err?.message || 'Server error. Please try again.'}`);
+      }
     } else {
-      const newDoc: Invoice = {
-        id: `QT-${Date.now().toString().slice(-6)}`,
+      // No client-side id or quoteNumber — server generates both to prevent collisions
+      const newDoc = {
         clientId,
         date: formData.date!,
         items: formData.items || [],
@@ -276,19 +280,22 @@ export const Quotations: React.FC = () => {
         discountDescription: discountAmount > 0 ? discountDescription.trim() || undefined : undefined,
         vatAmount,
         total,
-        status: 'Pending',
-        type: 'Quotation',
-        quoteNumber: getNextQuoteNumber(),
+        status: 'Pending' as const,
+        type: 'Quotation' as const,
         expiryDate: expiryDate || undefined,
         terms: terms || undefined,
         notes: notes || undefined,
-        quoteStatus: 'Draft',
+        quoteStatus: QuoteStatus.Draft,
       };
-      addInvoice(newDoc);
-      setInvoices(getInvoices());
-      setIsModalOpen(false);
-      resetForm();
-      alert('Quotation Created Successfully!');
+      try {
+        await addInvoice(newDoc as Invoice);
+        setInvoices(getInvoices());
+        setIsModalOpen(false);
+        resetForm();
+        alert('Quotation Created Successfully!');
+      } catch (err: any) {
+        alert(`Failed to save quotation: ${err?.message || 'Server error. Please try again.'}`);
+      }
     }
   };
 
@@ -318,14 +325,18 @@ export const Quotations: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (doc: Invoice) => {
+  const handleDelete = async (doc: Invoice) => {
     if (!canDelete(currentUser)) {
       alert('You do not have permission to delete quotations.');
       return;
     }
     if (window.confirm(`Are you sure you want to delete quotation ${doc.quoteNumber || doc.id}? This action cannot be undone.`)) {
-      deleteInvoice(doc.id);
-      setInvoices(getInvoices());
+      try {
+        await deleteInvoice(doc.id);
+        setInvoices(getInvoices());
+      } catch (err: any) {
+        alert(`Failed to delete quotation: ${err?.message || 'Server error. Please try again.'}`);
+      }
     }
   };
 
@@ -334,10 +345,14 @@ export const Quotations: React.FC = () => {
       alert('You do not have permission to duplicate quotations.');
       return;
     }
-    const dup = await duplicateQuotation(doc.id);
-    if (dup) {
-      setInvoices(getInvoices());
-      alert(`Quotation duplicated: ${dup.quoteNumber || dup.id}`);
+    try {
+      const dup = await duplicateQuotation(doc.id);
+      if (dup) {
+        setInvoices(getInvoices());
+        alert(`Quotation duplicated: ${dup.quoteNumber || dup.id}`);
+      }
+    } catch (err: any) {
+      alert(`Failed to duplicate quotation: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
@@ -347,10 +362,14 @@ export const Quotations: React.FC = () => {
       return;
     }
     if (!window.confirm(`Convert quotation ${doc.quoteNumber || doc.id} to an invoice?`)) return;
-    const inv = await convertQuotationToInvoice(doc.id);
-    if (inv) {
-      setInvoices(getInvoices());
-      alert(`Converted to Invoice ${inv.id}`);
+    try {
+      const inv = await convertQuotationToInvoice(doc.id);
+      if (inv) {
+        setInvoices(getInvoices());
+        alert(`Converted to Invoice ${inv.id}`);
+      }
+    } catch (err: any) {
+      alert(`Failed to convert quotation: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
@@ -362,7 +381,7 @@ export const Quotations: React.FC = () => {
     setConvertingQuotation(doc);
   };
 
-  const handleConvertToContractSubmit = (e: React.FormEvent) => {
+  const handleConvertToContractSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!convertingQuotation || !convertForm.billboardId || !convertForm.startDate || !convertForm.endDate) return;
     const bb = getBillboards().find(b => b.id === convertForm.billboardId);
@@ -390,21 +409,21 @@ export const Quotations: React.FC = () => {
       createdAt: new Date().toISOString(),
     };
     try {
-      addContract(contract);
+      await addContract(contract);
       const updatedQuotation: Invoice = {
         ...convertingQuotation,
-        quoteStatus: 'Converted',
+        quoteStatus: QuoteStatus.Converted,
         convertedToContractId: contract.id,
         convertedAt: new Date().toISOString(),
       };
-      updateInvoice(updatedQuotation);
+      await updateInvoice(updatedQuotation);
       setInvoices(getInvoices());
       setConvertingQuotation(null);
       setConvertForm({ billboardId: '', startDate: '', endDate: '' });
       alert(`Contract ${contract.id} created. Quotation preserved.`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to convert:', err);
-      alert('Failed to create contract.');
+      alert(`Failed to create contract: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
@@ -424,7 +443,7 @@ export const Quotations: React.FC = () => {
     setSendModal({ doc, client });
   };
 
-  const handleWhatsAppShare = (doc: Invoice) => {
+  const handleWhatsAppShare = async (doc: Invoice) => {
     if (!canSendQuotations(currentUser)) {
       alert('You do not have permission to share quotations.');
       return;
@@ -434,8 +453,12 @@ export const Quotations: React.FC = () => {
     const message = `Hi ${client.contactPerson}, please find your quotation from Dreambox Advertising: ${doc.quoteNumber || doc.id} — $${doc.total.toLocaleString()}. Valid until ${doc.expiryDate || '30 days from now'}.`;
     const url = `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
-    markQuotationSent(doc.id, client.phone);
-    setInvoices(getInvoices());
+    try {
+      await markQuotationSent(doc.id, client.phone);
+      setInvoices(getInvoices());
+    } catch (err: any) {
+      alert(`Could not mark as sent: ${err?.message || 'Server error.'}`);
+    }
   };
 
   const handleMarkStatus = async (doc: Invoice, status: QuoteStatus) => {
@@ -443,8 +466,12 @@ export const Quotations: React.FC = () => {
       alert('Only Admin or Manager can change quotation status.');
       return;
     }
-    await markQuotationStatus(doc.id, status);
-    setInvoices(getInvoices());
+    try {
+      await markQuotationStatus(doc.id, status);
+      setInvoices(getInvoices());
+    } catch (err: any) {
+      alert(`Failed to update status: ${err?.message || 'Server error. Please try again.'}`);
+    }
   };
 
   const handleView = (doc: Invoice) => {
@@ -693,8 +720,8 @@ export const Quotations: React.FC = () => {
                         )}
                         {canApproveQuotations(currentUser) && doc.quoteStatus !== 'Converted' && (
                           <>
-                            <button onClick={() => handleMarkStatus(doc, 'Accepted')} className="p-2 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Mark Accepted"><CheckCircle size={16} /></button>
-                            <button onClick={() => handleMarkStatus(doc, 'Rejected')} className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" title="Mark Rejected"><XCircle size={16} /></button>
+                            <button onClick={() => handleMarkStatus(doc, QuoteStatus.Accepted)} className="p-2 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Mark Accepted"><CheckCircle size={16} /></button>
+                            <button onClick={() => handleMarkStatus(doc, QuoteStatus.Rejected)} className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" title="Mark Rejected"><XCircle size={16} /></button>
                           </>
                         )}
                         {canDelete(currentUser) && (

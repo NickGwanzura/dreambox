@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType, getNextQuoteNumber } from '../services/mockData';
+import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType } from '../services/mockData';
 import { calculateContractMonths } from '../utils/contractDate';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
 import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, Building2, Phone, Mail, Globe, Send, Edit, ArrowRight, Receipt } from 'lucide-react';
-import { Invoice, Contract, BillboardType } from '../types';
+import { Invoice, Contract, BillboardType, QuoteStatus } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
 import { canDelete } from '../utils/settingsAccess';
@@ -186,7 +186,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const subtotal = taxableSubtotal;
   const total = grossAfterDiscount;
   const receiptIsLinkedToInvoice = activeTab === 'Receipts' && !!selectedInvoiceToPay;
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
       e.preventDefault();
       if (editingInvoice) {
           // Edit mode: update existing invoice
@@ -208,7 +208,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               terms: editingInvoice.type === 'Quotation' ? (terms || undefined) : undefined,
               notes: editingInvoice.type === 'Quotation' ? (notes || undefined) : undefined,
           };
-          updateInvoice(updatedDoc);
+          try {
+              await updateInvoice(updatedDoc);
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              return;
+          }
           setInvoices(getInvoices());
           setIsModalOpen(false);
           setEditingInvoice(null);
@@ -220,7 +225,6 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       } else {
           const isQuote = activeTab === 'Quotations';
           const newDoc: Invoice = {
-            id: `${activeTab === 'Quotations' ? 'QT' : activeTab === 'Receipts' ? 'RCT' : activeTab === 'Proformas' ? 'PRO' : 'INV'}-${Date.now().toString().slice(-4)}`,
             clientId: formData.clientId!,
             date: formData.date!,
             items: formData.items || [],
@@ -234,14 +238,25 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
             contractId: formData.contractId,
             paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined,
             paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined,
-            quoteNumber: isQuote ? getNextQuoteNumber() : undefined,
             expiryDate: isQuote ? (expiryDate || undefined) : undefined,
             terms: isQuote ? (terms || undefined) : undefined,
             notes: isQuote ? (notes || undefined) : undefined,
-            quoteStatus: isQuote ? 'Draft' : undefined,
-          };
-          addInvoice(newDoc);
-          if (activeTab === 'Receipts' && selectedInvoiceToPay) { markInvoiceAsPaid(selectedInvoiceToPay); }
+            quoteStatus: isQuote ? QuoteStatus.Draft : undefined,
+          } as Invoice;
+          try {
+              await addInvoice(newDoc);
+              if (activeTab === 'Receipts' && selectedInvoiceToPay) {
+                  try {
+                      await markInvoiceAsPaid(selectedInvoiceToPay);
+                  } catch (err: any) {
+                      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                      return;
+                  }
+              }
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              return;
+          }
           setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
       }
   };
@@ -300,14 +315,18 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       setIsModalOpen(true);
   };
 
-  const handleDelete = (doc: Invoice) => {
+  const handleDelete = async (doc: Invoice) => {
       if(window.confirm(`Are you sure you want to delete ${doc.type} #${doc.id}? This action cannot be undone.`)) {
-          deleteInvoice(doc.id);
-          setInvoices(getInvoices());
+          try {
+              await deleteInvoice(doc.id);
+              setInvoices(getInvoices());
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          }
       }
   };
 
-  const handleConvertToContract = (e: React.FormEvent) => {
+  const handleConvertToContract = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!convertingQuotation || !convertForm.billboardId || !convertForm.startDate || !convertForm.endDate) return;
     const bb = getBillboards().find(b => b.id === convertForm.billboardId);
@@ -335,22 +354,22 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       createdAt: new Date().toISOString(),
     };
     try {
-      addContract(contract);
+      await addContract(contract);
       // Preserve quotation — mark as Converted instead of deleting
       const updatedQuotation: Invoice = {
         ...convertingQuotation,
-        quoteStatus: 'Converted',
+        quoteStatus: QuoteStatus.Converted,
         convertedToContractId: contract.id,
         convertedAt: new Date().toISOString(),
       };
-      updateInvoice(updatedQuotation);
+      await updateInvoice(updatedQuotation);
       setInvoices(getInvoices());
       setConvertingQuotation(null);
       setConvertForm({ billboardId: '', startDate: '', endDate: '' });
       alert(`Contract ${contract.id} created from Quotation #${convertingQuotation.id}. The quotation has been preserved.`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to convert quotation to contract:', err);
-      alert('Failed to create contract. The quotation has been kept. Please try again.');
+      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
@@ -532,7 +551,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                     )}
                     {activeTab === 'Quotations' && (
                       <>
-                        <button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg" title="Convert to Invoice"><ArrowRight size={16} /></button>
+                        <button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg" title="Convert to Invoice"><ArrowRight size={16} /></button>
                         <button onClick={() => setConvertingQuotation(doc)} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg" title="Convert to Contract"><FileText size={16} /></button>
                       </>
                     )}
@@ -566,7 +585,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                       }`}>{doc.quoteStatus}</span>
                     ) : (
                       <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-900'}`}>{doc.status}</span>
-                    )}</td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={() => { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; addInvoice({ id: receiptId, clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` }); markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{activeTab === 'Quotations' && (<><button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{activeTab === 'Proformas' && (<button onClick={() => { convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className={`p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors ${!canDelete(getCurrentUser()) ? 'hidden' : ''}`} title="Delete"><Trash2 size={16} /></button></td></tr>
+                    )}</td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={async () => { try { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; await addInvoice({ clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` } as any); await markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{activeTab === 'Quotations' && (<><button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{activeTab === 'Proformas' && (<button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className={`p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors ${!canDelete(getCurrentUser()) ? 'hidden' : ''}`} title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-900 italic">No documents found.</td></tr>)}
               </tbody>
             </table>

@@ -23,11 +23,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Authenticate: localhost (internal scheduler) or matching CRON_SECRET
+  // Authenticate: always require a matching CRON_SECRET header — no localhost bypass
   const secret = req.headers['x-cron-secret'] as string;
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req as any).socket?.remoteAddress || '';
-  const isLocalhost = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
-  if (!isLocalhost && (!CRON_SECRET || secret !== CRON_SECRET)) {
+  if (!CRON_SECRET) {
+    log.error('[cron/expense-report] CRON_SECRET env var is not set — refusing request');
+    return res.status(503).json({ error: 'Cron endpoint not configured' });
+  }
+  if (secret !== CRON_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

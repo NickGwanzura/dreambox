@@ -2,7 +2,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard, BillboardType, CompanyProfile } from '../types';
-import { getCompanyProfile, getCompanyLogo, getContracts, getEffectiveVatRate } from './mockData';
+import { getCompanyProfile, getCompanyLogo, getContracts, getEffectiveVatRate, getUsers } from './mockData';
 import { formatVatPercent } from './constants';
 import { buildTemplateData, resolveContractTemplate, substituteTemplate, TemplateData } from '../utils/contractTemplate';
 
@@ -357,56 +357,84 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.text(`Total:`, totalsX, finalY + 31);
     doc.text(`$${(invoice.total || 0).toFixed(2)}`, 195, finalY + 31, { align: 'right' });
 
+    // Running Y tracker for the bottom blocks — starts after totals
+    const PAGE_H = doc.internal.pageSize.height;
+    const SAFE_BOTTOM = PAGE_H - 20; // leave 20mm for footer
+    let runY = finalY + 35;
+
+    const ensureSpace = (needed: number) => {
+      if (runY + needed > SAFE_BOTTOM) {
+        doc.addPage();
+        runY = 20;
+      }
+    };
+
     // Terms & Conditions for quotations
     if (isQuotation && invoice.terms) {
-      let termsY = finalY + 40;
+      const termsLines = doc.splitTextToSize(invoice.terms, 180);
+      const termsHeight = 14 + termsLines.length * 5;
+      ensureSpace(termsHeight + 8);
+      runY += 5;
       doc.setDrawColor(226, 232, 240);
-      doc.line(14, termsY - 4, 195, termsY - 4);
+      doc.line(14, runY, 195, runY);
+      runY += 6;
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(100);
-      doc.text('TERMS & CONDITIONS', 14, termsY + 2);
+      doc.text('TERMS & CONDITIONS', 14, runY);
+      runY += 8;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(50);
-      const termsLines = doc.splitTextToSize(invoice.terms, 180);
-      doc.text(termsLines, 14, termsY + 10);
+      doc.text(termsLines, 14, runY);
+      runY += termsLines.length * 5 + 4;
     }
 
     // Notes for quotations
     if (isQuotation && invoice.notes) {
-      let notesY = finalY + 40 + (invoice.terms ? 25 : 0);
+      const noteLines = doc.splitTextToSize(invoice.notes, 180);
+      const notesHeight = 14 + noteLines.length * 5;
+      ensureSpace(notesHeight + 8);
+      runY += 2;
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(100);
-      doc.text('INTERNAL NOTES', 14, notesY + 2);
+      doc.text('INTERNAL NOTES', 14, runY);
+      runY += 8;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(50);
-      const noteLines = doc.splitTextToSize(invoice.notes, 180);
-      doc.text(noteLines, 14, notesY + 10);
+      doc.text(noteLines, 14, runY);
+      runY += noteLines.length * 5 + 4;
     }
 
-    // Bank / Payment Details — shown on invoices, quotations, proformas, and receipts
+    // Payment Terms — from company profile (quotations + invoices)
     const profile = getCompanyProfile();
-    if (profile.bankName && profile.bankAccountNumber) {
-        const bankY = finalY + 45 + (invoice.terms ? 25 : 0) + (invoice.notes ? 20 : 0);
+    if (profile.paymentTerms) {
+        const ptLines = profile.paymentTerms.split('\n').map(l => l.trim()).filter(Boolean);
+        const ptHeight = 16 + ptLines.length * 5.5;
+        ensureSpace(ptHeight + 8);
+        runY += 5;
         doc.setDrawColor(226, 232, 240);
-        doc.line(14, bankY - 4, 195, bankY - 4);
-
-        doc.setFontSize(9);
+        doc.line(14, runY, 195, runY);
+        runY += 6;
+        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(100);
-        if (isQuotation) {
-          doc.text('NOSTRO / USD BANK DETAILS', 14, bankY + 2);
-        } else {
-          doc.text('PAYMENT DETAILS', 14, bankY + 2);
-        }
-
+        doc.setTextColor(15, 23, 42);
+        doc.text('Payment Terms', 14, runY);
+        runY += 7;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(50);
+        ptLines.forEach(line => {
+            const bullet = line.startsWith('•') || line.startsWith('-') ? line : `• ${line}`;
+            doc.text(bullet, 14, runY);
+            runY += 5.5;
+        });
+    }
 
+    // Bank / Payment Details — shown on invoices, quotations, proformas, and receipts
+    if (profile.bankName && profile.bankAccountNumber) {
         const bankLines: string[] = [];
         if (profile.bankName) bankLines.push(`Bank: ${profile.bankName}`);
         if (profile.bankBranch) bankLines.push(`Branch: ${profile.bankBranch}`);
@@ -414,9 +442,101 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
         if (profile.bankAccountNumber) bankLines.push(`Account Number: ${profile.bankAccountNumber}`);
         if (profile.bankSwift) bankLines.push(`SWIFT: ${profile.bankSwift}`);
 
-        bankLines.forEach((line, idx) => {
-            doc.text(line, 14, bankY + 10 + idx * 5);
+        const bankBlockHeight = 16 + bankLines.length * 5;
+        ensureSpace(bankBlockHeight + 8);
+        runY += 5;
+        doc.setDrawColor(226, 232, 240);
+        doc.line(14, runY, 195, runY);
+        runY += 6;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text(isQuotation ? 'Banking Details' : 'Payment Details', 14, runY);
+        runY += 8;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(50);
+        bankLines.forEach((line) => {
+            doc.text(line, 14, runY);
+            runY += 5;
         });
+    }
+
+    // Prepared By + Client Acceptance — quotations and proformas only
+    if (isQuotation) {
+        // Resolve preparer name from createdBy / assignedTo fields
+        const users = getUsers();
+        const preparerRef = invoice.createdBy || invoice.assignedTo || '';
+        const preparerUser = users.find(u =>
+            `${u.firstName} ${u.lastName}`.toLowerCase() === preparerRef.toLowerCase() ||
+            u.email.toLowerCase() === preparerRef.toLowerCase()
+        );
+        const preparerName = preparerUser
+            ? `${preparerUser.firstName} ${preparerUser.lastName}`
+            : preparerRef || profile.name;
+        const preparerRole = preparerUser ? preparerUser.role : '';
+
+        // Two-column block: Prepared By (left) | Client Acceptance (right)
+        ensureSpace(60);
+        runY += 8;
+        doc.setDrawColor(226, 232, 240);
+        doc.line(14, runY, 195, runY);
+        runY += 8;
+
+        const colMid = 110; // left col 14–105, right col 110–195
+
+        // ── LEFT: Prepared By ──
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text('Prepared By', 14, runY);
+
+        // ── RIGHT: Client Acceptance header ──
+        doc.text('Client Acceptance', colMid, runY);
+        runY += 7;
+
+        // Preparer details
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(50);
+        doc.text(preparerName, 14, runY);
+        runY += 5;
+        if (preparerRole) {
+            doc.text(preparerRole, 14, runY);
+            runY += 5;
+        }
+        doc.text(profile.name, 14, runY);
+
+        // Client Acceptance box — right column, draw from colMid
+        const boxX = colMid;
+        const boxW = 195 - colMid;
+        const rowH = 9;
+        const acceptRows = ['Client Name:', 'Signature:', 'Date:'];
+        const boxStartY = runY - (preparerRole ? 10 : 5) - 7; // align top of box with "Client Acceptance" label
+        doc.setDrawColor(200, 200, 210);
+        doc.setFillColor(248, 250, 252);
+        // Header row
+        doc.rect(boxX, boxStartY, boxW, rowH, 'FD');
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(80);
+        doc.text('Client Acceptance', boxX + boxW / 2, boxStartY + 6, { align: 'center' });
+        // Data rows
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100);
+        acceptRows.forEach((label, i) => {
+            const ry = boxStartY + rowH + i * rowH;
+            doc.rect(boxX, ry, boxW, rowH);
+            doc.text(label, boxX + 2, ry + 6);
+            // Underline for input
+            doc.setDrawColor(180);
+            doc.line(boxX + 26, ry + 6.5, boxX + boxW - 2, ry + 6.5);
+            doc.setDrawColor(200, 200, 210);
+        });
+
+        runY += 18; // ensure we're past the acceptance box
     }
 
     addContactFooter(doc);

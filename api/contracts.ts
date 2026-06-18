@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
+import { log } from '../lib/serverLogger.js';
 
 // Schema for POST (create)
 const contractSchema = z.object({
@@ -36,7 +37,7 @@ const contractUpdateSchema = z.object({
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   const payload = requireAuth(req, res);
   if (!payload) return;
@@ -49,7 +50,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const rows = await prisma.contract.findMany({ orderBy: { dbCreatedAt: 'asc' } });
+      const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
+      const skip = Math.max(0, Number(req.query.skip) || 0);
+      const rows = await prisma.contract.findMany({ orderBy: { dbCreatedAt: 'asc' }, take: limit, skip });
       return res.status(200).json(rows);
     }
 
@@ -142,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tableName: 'contracts',
           recordId: id as string,
         },
-      }).catch((e: any) => console.warn('[contracts] audit log write failed:', e?.message));
+      }).catch((e: any) => log.warn('[contracts] audit log write failed:', e?.message));
 
       return res.status(200).json({
         success: true,
@@ -153,7 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
-    console.error('[contracts]', e);
+    log.error('[contracts]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

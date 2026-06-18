@@ -7,11 +7,11 @@ import { signToken, cors } from '../../lib/auth';
 import { checkRateLimit } from '../../lib/rateLimiter.js';
 import { log } from '../../lib/serverLogger.js';
 
-// Watched-user login notification: when Panashe signs in, email Brian.
-// Configured via env so it can be changed without a code deploy.
-const WATCHED_EMAIL = (process.env.WATCHED_LOGIN_EMAIL || 'panamuze@gmail.com').toLowerCase();
-const WATCHER_EMAIL = process.env.WATCHER_LOGIN_EMAIL || 'chiduroobc@gmail.com';
-const NOTIFY_FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
+// Watched-user login notification: configured entirely via env vars.
+// Set WATCHED_LOGIN_EMAIL and WATCHER_LOGIN_EMAIL to enable; feature is disabled if either is missing.
+const WATCHED_EMAIL = (process.env.WATCHED_LOGIN_EMAIL || '').toLowerCase();
+const WATCHER_EMAIL = process.env.WATCHER_LOGIN_EMAIL || '';
+const NOTIFY_FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 
 function notifyWatchedLogin(
   watchedUser: { email: string; firstName: string | null; lastName: string | null },
@@ -19,6 +19,7 @@ function notifyWatchedLogin(
   userAgent: string | null,
 ) {
   if (!process.env.RESEND_API_KEY) return;
+  if (!WATCHED_EMAIL || !WATCHER_EMAIL) return;
   if (watchedUser.email.toLowerCase() !== WATCHED_EMAIL) return;
 
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -102,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   async function recordHistory(userId: string, success: boolean, reason?: string) {
     await prisma.loginHistory.create({
       data: { userId, ip, userAgent: ua, success, reason: reason ?? null },
-    }).catch(() => {});
+    }).catch((err: any) => log.warn(`[signin] Failed to record login history: ${err?.message}`));
   }
 
   try {

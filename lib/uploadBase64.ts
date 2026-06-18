@@ -2,6 +2,16 @@ import { uploadFile, deleteFile } from './storage';
 
 const DATA_URL_RE = /^data:(.+?);base64,(.+)$/;
 
+const ALLOWED_MIME_TYPES: readonly string[] = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
+];
+
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+
 export function isBase64DataUrl(value: string): boolean {
   return typeof value === 'string' && DATA_URL_RE.test(value);
 }
@@ -10,9 +20,19 @@ export function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; mimetype: st
   const match = dataUrl.match(DATA_URL_RE);
   if (!match) throw new Error('Invalid data URL');
   const mimetype = match[1];
+
+  if (!ALLOWED_MIME_TYPES.includes(mimetype)) {
+    throw new Error(`Unsupported file type: ${mimetype}. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`);
+  }
+
   const base64 = match[2];
   const buffer = Buffer.from(base64, 'base64');
-  const ext = mimetype.split('/')[1] || 'bin';
+
+  if (buffer.length > MAX_UPLOAD_BYTES) {
+    throw new Error(`File too large: ${(buffer.length / 1024 / 1024).toFixed(1)} MB. Maximum allowed is 5 MB.`);
+  }
+
+  const ext = mimetype.split('/')[1].replace('svg+xml', 'svg') || 'bin';
   return { buffer, mimetype, ext };
 }
 
@@ -23,7 +43,7 @@ export async function uploadBase64Image(
 ): Promise<string | undefined> {
   if (!dataUrl) return undefined;
   if (!isBase64DataUrl(dataUrl)) {
-    // Already a remote URL
+    // Already a remote URL — return as-is
     return dataUrl;
   }
 

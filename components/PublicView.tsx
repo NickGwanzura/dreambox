@@ -4,6 +4,7 @@ import { Billboard, Contract } from '../types';
 import { estimateDailyViews } from '../services/aiService';
 import { hasValidCoordinates } from '../utils/coordinates';
 import L from 'leaflet';
+import { createGooglePin, createDotPin, googlePopup, PIN_RED, PIN_GREEN, PIN_INDIGO, PIN_GRAY, STREET_TILE } from '../lib/mapIcons';
 import { MapPin, Maximize2, Car, Layers, Zap, X, DollarSign, CheckCircle, Clock, Phone, Mail, AlertTriangle, Search, ImageIcon, Menu, ArrowRight } from 'lucide-react';
 
 const toSlug = (name: string): string =>
@@ -213,10 +214,11 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             
             mapRef.current = map;
             
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
-                attribution: 'OpenStreetMap',
+            L.tileLayer(STREET_TILE, {
+                attribution: '© CartoDB © OpenStreetMap',
                 noWrap: true,
                 bounds: ZIM_BOUNDS,
+                maxZoom: 19,
             }).addTo(map);
 
             // Add Zimbabwe outline overlay hint
@@ -230,44 +232,15 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
         }
 
         const map = mapRef.current;
-        const DefaultIcon = L.icon({
-            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34]
-        });
-        const FeaturedIcon = L.divIcon({
-            className: 'dreambox-featured-marker',
-            html: `<div style="width:22px;height:22px;border-radius:50%;background:#4f46e5;border:3px solid #fff;box-shadow:0 0 0 3px rgba(79,70,229,0.35),0 4px 10px rgba(15,23,42,0.35);"></div>`,
-            iconSize: [22, 22],
-            iconAnchor: [11, 11],
-            popupAnchor: [0, -12]
-        });
-        const OtherIcon = L.divIcon({
-            className: 'dreambox-other-marker',
-            html: `<div style="width:12px;height:12px;border-radius:50%;background:#94a3b8;border:2px solid #fff;box-shadow:0 2px 4px rgba(15,23,42,0.25);"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
-            popupAnchor: [0, -8]
-        });
-        const SelectedIcon = L.divIcon({
-            className: 'dreambox-selected-marker',
-            html: `<div style="width:28px;height:28px;border-radius:50%;background:#059669;border:3px solid #fff;box-shadow:0 0 0 4px rgba(5,150,105,0.35),0 4px 14px rgba(15,23,42,0.4);"></div>`,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
-            popupAnchor: [0, -16]
-        });
+        const FeaturedIcon = createGooglePin(PIN_INDIGO);
+        const OtherIcon    = createDotPin(PIN_GRAY, 12);
+        const SelectedIcon = createGooglePin(PIN_GREEN);
 
-        const renderOtherPopup = (b: Billboard) => `
-            <div style="min-width:170px;">
-                <strong>${b.name}</strong><br/>
-                <span style="font-size:10px; color:#666;">${b.type} • ${b.width}x${b.height}m</span><br/>
-                <span style="font-size:10px; color:#666;">${b.location}, ${b.town}</span><br/>
-                <span style="font-size:10px; color:#666;">Views: ${formatCompactNumber(getEffectiveViews(b))}/day</span><br/>
-                <a href="${billboardLink(b)}" style="color:#6366f1; font-size:10px; text-decoration:none; font-weight:bold;">View Details &rarr;</a>
-            </div>
-        `;
+        const renderOtherPopup = (b: Billboard) => googlePopup(
+            b.name,
+            `${b.location}, ${b.town}`,
+            `${b.type} · ${b.width}×${b.height}m &nbsp;·&nbsp; ${formatCompactNumber(getEffectiveViews(b))} views/day<br/><a href="${billboardLink(b)}" style="color:#1a73e8;text-decoration:none;font-weight:600;">View details →</a>`
+        );
 
         // Clear existing layers to prevent duplicates on re-render
         map.eachLayer((layer) => {
@@ -292,7 +265,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
             L.marker([lat, lng], { icon: FeaturedIcon, zIndexOffset: 1000 })
                 .addTo(map)
-                .bindPopup(`<b>${billboard.name}</b><br>${billboard.location}`)
+                .bindPopup(googlePopup(billboard.name, `${billboard.location}, ${billboard.town}`, `${billboard.type} · ${billboard.width}×${billboard.height}m`), { maxWidth: 280 })
                 .openPopup();
         } else if (type === 'map') {
             if (boards.length > 0) {
@@ -310,7 +283,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             boards.forEach(b => {
                 if (hasValidCoords(b)) {
                     const isSelected = b.id === selectedBoardId;
-                    const icon = isSelected ? SelectedIcon : DefaultIcon;
+                    const icon = isSelected ? SelectedIcon : OtherIcon;
                     const zIndex = isSelected ? 1000 : 0;
                     L.marker([b.coordinates.lat, b.coordinates.lng], { icon, zIndexOffset: zIndex })
                         .addTo(map)

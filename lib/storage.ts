@@ -1,13 +1,20 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
-const endpoint = process.env.R2_ENDPOINT || '';
 const bucket = process.env.R2_BUCKET_NAME || '';
 const publicUrl = process.env.R2_PUBLIC_URL || '';
+
+// R2_ENDPOINT may include the bucket name (e.g. .../dreambox). Strip it so the
+// SDK doesn't double-prefix when forcePathStyle appends /{bucket} to the path.
+const rawEndpoint = (process.env.R2_ENDPOINT || '').replace(/\/$/, '');
+const endpoint = rawEndpoint.endsWith(`/${bucket}`)
+  ? rawEndpoint.slice(0, -(bucket.length + 1))
+  : rawEndpoint;
 
 export const s3 = endpoint
   ? new S3Client({
       region: 'auto',
       endpoint,
+      forcePathStyle: true, // Required for Cloudflare R2 compatibility
       credentials: {
         accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
@@ -50,8 +57,8 @@ export async function uploadFile(
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
-      // Make images publicly readable via R2 public URL
-      ACL: 'public-read',
+      // No ACL: R2 public access is configured at the bucket level via R2_PUBLIC_URL,
+      // not per-object. Sending ACL causes "bucket does not allow ACLs" errors on R2.
     })
   );
 

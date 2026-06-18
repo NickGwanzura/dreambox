@@ -33,10 +33,14 @@ export const ContractTemplatePage: React.FC = () => {
   const isDefault = !template.trim();
   const charCount = template.length;
 
-  const handleSave = () => {
-    updateCompanyProfile(profile);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const handleSave = async () => {
+    try {
+      await updateCompanyProfile(profile);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err: any) {
+      alert(`Failed to save template: ${err?.message || 'Server error. Please try again.'}`);
+    }
   };
 
   const handleLoadDefault = () => {

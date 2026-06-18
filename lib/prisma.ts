@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaNeon } from '@prisma/adapter-neon';
 import { log } from './serverLogger.js';
 
 declare global {
@@ -26,7 +26,7 @@ function createPrismaClient(): PrismaClient {
   }
 
   try {
-    const adapter = new PrismaPg({ connectionString: databaseUrl });
+    const adapter = new PrismaNeon({ connectionString: databaseUrl });
     return new PrismaClient({ adapter });
   } catch (e: any) {
     log.error(`[prisma] Failed to create Prisma client: ${e?.message}`);

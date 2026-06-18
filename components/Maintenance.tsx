@@ -74,7 +74,7 @@ export const Maintenance: React.FC = () => {
       setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!selectedBillboardId) { alert("Please select a billboard."); return; }
 
@@ -95,7 +95,12 @@ export const Maintenance: React.FC = () => {
           notes: newLog.notes
       };
 
-      addMaintenanceLog(logEntry);
+      try {
+          await addMaintenanceLog(logEntry);
+      } catch (err: any) {
+          alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          return;
+      }
 
       if (createExpense && logEntry.cost > 0) {
           const expense: Expense = {
@@ -106,7 +111,11 @@ export const Maintenance: React.FC = () => {
               date: logEntry.date,
               reference: logEntry.id
           };
-          addExpense(expense);
+          try {
+              await addExpense(expense);
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          }
       }
 
       setIsModalOpen(false);

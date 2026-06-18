@@ -101,7 +101,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
   const gross = newDoc.items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
   const { subtotal, vat } = newDoc.hasVat ? splitInclusiveVat(gross, vatRate) : { subtotal: gross, vat: 0 };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     const validItems = newDoc.items.filter(i => i.description.trim() && i.amount > 0);
     if (validItems.length === 0) {
@@ -109,9 +109,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
       return;
     }
 
-    const prefix = docType === 'Quotation' ? 'QT' : 'INV';
     const doc: Invoice = {
-      id: `${prefix}-${Date.now().toString().slice(-5)}`,
       clientId: client.id,
       contractId: newDoc.contractId || undefined,
       date: newDoc.date,
@@ -121,8 +119,13 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
       total: gross,
       status: 'Pending',
       type: docType,
-    };
-    addInvoice(doc);
+    } as Invoice;
+    try {
+      await addInvoice(doc);
+    } catch (err: any) {
+      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+      return;
+    }
     setIsCreateOpen(false);
     setTab(docType);
   };
@@ -268,12 +271,12 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
                           <Download size={14} />
                         </button>
                         {doc.type === 'Invoice' && doc.status !== 'Paid' && (
-                          <button onClick={() => { markInvoiceAsPaid(doc.id); }} title="Mark as paid" className="p-2 text-slate-900 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors">
+                          <button onClick={async () => { try { await markInvoiceAsPaid(doc.id); } catch (e: any) { alert(`Failed: ${e?.message || 'Server error. Please try again.'}`); } }} title="Mark as paid" className="p-2 text-slate-900 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors">
                             <CheckCircle size={14} />
                           </button>
                         )}
                         {canUserDelete && (
-                          <button onClick={() => { if (confirm(`Delete ${doc.type} ${doc.id}?`)) deleteInvoice(doc.id); }} title="Delete" className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
+                          <button onClick={async () => { if (confirm(`Delete ${doc.type} ${doc.id}?`)) { try { await deleteInvoice(doc.id); } catch (e: any) { alert(`Failed: ${e?.message || 'Server error. Please try again.'}`); } } }} title="Delete" className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
                             <Trash2 size={14} />
                           </button>
                         )}

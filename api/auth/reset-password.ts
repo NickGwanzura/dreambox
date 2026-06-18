@@ -3,10 +3,11 @@ import crypto from 'crypto';
 import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
+import { log } from '../../lib/serverLogger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
-const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
+const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
+const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -79,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ message: 'If that email exists, a reset link has been sent' });
   } catch (e: any) {
-    console.error('[auth/reset-password]', e);
+    log.error('[auth/reset-password]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

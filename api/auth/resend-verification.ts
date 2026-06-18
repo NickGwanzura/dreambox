@@ -2,13 +2,14 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
+import { log } from '../../lib/serverLogger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
 const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -66,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ message: 'If your account is pending approval, a reminder has been sent' });
   } catch (e: any) {
-    console.error('[auth/resend-verification]', e);
+    log.error('[auth/resend-verification]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

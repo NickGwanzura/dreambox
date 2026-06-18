@@ -4,9 +4,10 @@
  */
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { readFileSync, readdirSync } from 'fs';
+import { execSync } from 'child_process';
 import type { Request, Response } from 'express';
 import { log, requestLogger, errorHandler, logStartupInfo } from './lib/serverLogger.js';
 import { prisma } from './lib/prisma.js';
@@ -33,6 +34,8 @@ const PORT = process.env.PORT || 3000;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
+// Security headers — CSP and COEP disabled to allow SPA import maps and CDN-loaded ES modules
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(express.json({ limit: '10mb' }));
 app.use(requestLogger);
 
@@ -50,34 +53,24 @@ function adapt(handlerModule: { default: Function }, routeName: string) {
   };
 }
 
-// ─── Apply pending SQL migrations on startup ──────────────────────────────────
-
-const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'prisma', 'migrations');
+// ─── Apply pending migrations on startup via Prisma Migrate ──────────────────
 
 async function runMigrations() {
+  if (!process.env.DATABASE_URL) {
+    log.boot('  Migrations         —  skipped (DATABASE_URL not set)');
+    return;
+  }
   try {
-    const files = readdirSync(MIGRATIONS_DIR)
-      .filter(f => f.endsWith('.sql'))
-      .sort();
-
-    if (files.length === 0) {
-      log.boot('  Migrations         —  no .sql files found');
-      return;
-    }
-
-    for (const file of files) {
-      const sql = readFileSync(path.join(MIGRATIONS_DIR, file), 'utf-8');
-      log.boot(`  Migration          →  ${file}`);
-      try {
-        await prisma.$executeRawUnsafe(sql);
-        log.boot(`  Migration          ✓  ${file}`);
-      } catch (e: any) {
-        // Log but don't crash — some migrations may have been applied manually
-        log.boot(`  Migration          ⚠  ${file}: ${e?.message ?? e}`);
-      }
-    }
+    log.boot('  Migrations         →  running prisma migrate deploy...');
+    execSync('npx prisma migrate deploy', {
+      stdio: 'pipe',
+      env: { ...process.env },
+    });
+    log.boot('  Migrations         ✓  all pending migrations applied');
   } catch (e: any) {
-    log.boot(`  Migrations         ⚠  cannot read directory: ${e?.message ?? e}`);
+    // Non-fatal: log and continue; the DB may already be up-to-date
+    const msg = e?.stderr?.toString?.() || e?.stdout?.toString?.() || e?.message || String(e);
+    log.boot(`  Migrations         ⚠  ${msg.slice(0, 200)}`);
   }
 }
 
@@ -218,8 +211,9 @@ function serveStatic() {
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
 
 function registerShutdownHandlers() {
-  const shutdown = (signal: string) => {
+  const shutdown = async (signal: string) => {
     log.warn(`Received ${signal} — shutting down gracefully...`);
+    await prisma.$disconnect().catch(() => {});
     process.exit(0);
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));

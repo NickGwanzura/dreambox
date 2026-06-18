@@ -303,7 +303,7 @@ export const Rentals: React.FC = () => {
     }
   }, [newRental.billboardId, newRental.startDate, newRental.endDate, newRental.side, selectedBillboard]);
 
-  const handleCreateRental = (e: React.FormEvent) => {
+  const handleCreateRental = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedBillboard?.type === BillboardType.Static) {
         if (!checkAvailability(newRental.billboardId, newRental.side, newRental.startDate, newRental.endDate).ok) {
@@ -355,14 +355,18 @@ export const Rentals: React.FC = () => {
         createdAt: new Date().toISOString()
     };
 
-    addContract(rental);
+    try {
+        await addContract(rental);
+    } catch (err: any) {
+        alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+        return;
+    }
 
     const invoiceGross = newRental.monthlyRate + newRental.installationCost + newRental.printingCost + newRental.productionCost;
     const { subtotal: invoiceSubtotal, vat: invoiceVat } = newRental.hasVat
       ? splitInclusiveVat(invoiceGross, vatRate)
       : { subtotal: invoiceGross, vat: 0 };
     const initialInvoice: Invoice = {
-        id: `INV-${Date.now().toString().slice(-5)}`,
         contractId: rentalId,
         clientId: newRental.clientId,
         date: new Date().toISOString().split('T')[0],
@@ -377,8 +381,13 @@ export const Rentals: React.FC = () => {
         total: invoiceGross,
         status: 'Pending',
         type: 'Invoice'
-    };
-    addInvoice(initialInvoice);
+    } as Invoice;
+    try {
+        await addInvoice(initialInvoice);
+    } catch (err: any) {
+        alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+        return;
+    }
     
     setIsCreateModalOpen(false);
     setCreateStep(1);
@@ -386,7 +395,7 @@ export const Rentals: React.FC = () => {
     alert("Success! Rental Active & Initial Invoice Generated.");
   };
 
-  const handleEditSave = () => {
+  const handleEditSave = async () => {
       console.log('[Rentals] handleEditSave called', { editRentalId: editRental?.id, saving, extraLinesCount: editExtraLines.length, deletedLinesCount: deletedEditLineIds.length });
       if (!editRental || saving) {
           console.warn('[Rentals] handleEditSave aborted — no editRental or already saving');
@@ -482,8 +491,13 @@ export const Rentals: React.FC = () => {
           };
           
           console.log('[Rentals] Calling updateContract for primary:', updatedContract);
-          updateContract(updatedContract);
-          editExtraLines.forEach((line, idx) => {
+          try {
+              await updateContract(updatedContract);
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              return;
+          }
+          for (const [idx, line] of editExtraLines.entries()) {
               const normalized: Contract = {
                   ...line,
                   clientId: updatedContract.clientId,
@@ -495,11 +509,22 @@ export const Rentals: React.FC = () => {
               };
               const exists = getContracts().some(c => c.id === normalized.id);
               console.log('[Rentals] Processing extra line', idx, { id: normalized.id, exists });
-              if (exists) updateContract(normalized);
-              else addContract(normalized);
-          });
+              try {
+                  if (exists) await updateContract(normalized);
+                  else await addContract(normalized);
+              } catch (err: any) {
+                  alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                  return;
+              }
+          }
           console.log('[Rentals] Deleting lines:', deletedEditLineIds);
-          deletedEditLineIds.forEach(id => deleteContract(id));
+          for (const id of deletedEditLineIds) {
+              try {
+                  await deleteContract(id);
+              } catch (err: any) {
+                  alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              }
+          }
           setRentals([...getContracts()]);
           setEditRental(null);
           setEditExtraLines([]);
@@ -516,7 +541,7 @@ export const Rentals: React.FC = () => {
       }
   };
 
-  const handleRenew = () => {
+  const handleRenew = async () => {
       console.log('[Rentals] handleRenew called', { renewRentalId: renewRental?.id, saving });
       if (!renewRental || saving) {
           console.warn('[Rentals] handleRenew aborted — no renewRental or already saving');
@@ -554,7 +579,12 @@ export const Rentals: React.FC = () => {
           };
           
           console.log('[Rentals] Calling addContract for renewal:', renewedContract);
-          addContract(renewedContract);
+          try {
+              await addContract(renewedContract);
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              return;
+          }
           setRentals([...getContracts()]);
           setRenewRental(null);
           setSelectedRental(renewedContract);
@@ -579,7 +609,7 @@ export const Rentals: React.FC = () => {
     setIsGenerating(false);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
       if (rentalToDelete) {
           const paidInvoicesForContract = invoices.filter(i =>
             i.contractId === rentalToDelete.id &&
@@ -590,9 +620,13 @@ export const Rentals: React.FC = () => {
             setShowPaidInvoiceDeleteWarning(true);
             return;
           }
-          deleteContract(rentalToDelete.id);
-          setRentalToDelete(null);
-          setShowPaidInvoiceDeleteWarning(false);
+          try {
+              await deleteContract(rentalToDelete.id);
+              setRentalToDelete(null);
+              setShowPaidInvoiceDeleteWarning(false);
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          }
       }
   };
 

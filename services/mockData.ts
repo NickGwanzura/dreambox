@@ -168,39 +168,40 @@ if (isConfigured()) {
 }
 
 // --- Profile Mutations ---
-export const setCompanyLogo = (url: string) => {
+export const setCompanyLogo = async (url: string): Promise<void> => {
     companyLogo = url;
     if (isConfigured() && companyProfile) {
-        api.put('/api/company-profile', { ...companyProfile, id: 'profile_v1', logo: url }).catch(e => console.error('[setCompanyLogo] API error:', e));
+        await api.put('/api/company-profile', { ...companyProfile, id: 'profile_v1', logo: url });
     }
     notifyListeners();
 };
 
-export const updateCompanyProfile = (profile: CompanyProfile) => {
+export const updateCompanyProfile = async (profile: CompanyProfile): Promise<void> => {
     companyProfile = profile;
     if (isConfigured()) {
-        api.put('/api/company-profile', { ...profile, id: 'profile_v1', logo: companyLogo }).catch(e => console.error('[updateCompanyProfile] API error:', e));
+        await api.put('/api/company-profile', { ...profile, id: 'profile_v1', logo: companyLogo });
     }
     logAction('Settings Update', 'Updated company profile details');
     notifyListeners();
 };
 
 // --- Auto Billing ---
-export const runAutoBilling = () => {
+export const runAutoBilling = async (): Promise<number> => {
   const today = new Date();
   const yr = today.getFullYear();
   const mo = String(today.getMonth() + 1).padStart(2, '0');
   const monthPrefix = `${yr}-${mo}`;
   let generated = 0;
-  contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today).forEach(contract => {
+  const active = contracts.filter(c => c.status === 'Active' && new Date(c.endDate) >= today);
+  for (const contract of active) {
     const alreadyBilled = invoices.some(i => i.contractId === contract.id && String(i.type || '').toLowerCase() === 'invoice' && i.date.startsWith(monthPrefix));
     if (!alreadyBilled) {
       const gross = contract.monthlyRate;
       const { subtotal, vat: vatAmount, total } = contract.hasVat
         ? splitInclusiveVat(gross, getEffectiveVatRate())
         : { subtotal: gross, vat: 0, total: gross };
-      const inv: Invoice = {
-        id: `INV-AUTO-${contract.id}-${monthPrefix}`,
+      // Omit id — server generates UUID, prevents collision on re-run
+      const inv = {
         contractId: contract.id,
         clientId: contract.clientId,
         date: today.toISOString().split('T')[0],
@@ -209,12 +210,16 @@ export const runAutoBilling = () => {
         vatAmount,
         total,
         status: 'Pending',
-        type: 'Invoice'
-      };
-      addInvoice(inv);
-      generated++;
+        type: 'Invoice',
+      } as Invoice;
+      try {
+        await addInvoice(inv);
+        generated++;
+      } catch (e) {
+        console.error(`[runAutoBilling] Failed to create invoice for contract ${contract.id}:`, e);
+      }
     }
-  });
+  }
   return generated;
 };
 
@@ -272,6 +277,7 @@ export const addBillboard = async (billboard: Billboard) => {
 };
 
 export const updateBillboard = async (updated: Billboard) => {
+    const previous = billboards.find(b => b.id === updated.id);
     billboards = billboards.map(b => b.id === updated.id ? updated : b);
     notifyListeners(); // Fire immediately so image appears without waiting for API
     if (isConfigured()) {
@@ -282,37 +288,43 @@ export const updateBillboard = async (updated: Billboard) => {
                 const merged = { ...saved, imageUrl: saved.imageUrl || updated.imageUrl };
                 billboards = billboards.map(b => b.id === merged.id ? merged : b);
             }
-        } catch (e) {
+        } catch (e: any) {
+            // Roll back optimistic update so UI reflects actual saved state
+            if (previous) {
+                billboards = billboards.map(b => b.id === updated.id ? previous : b);
+                notifyListeners();
+            }
             console.error('[updateBillboard] API error:', e);
+            throw e;
         }
     }
     logAction('Update Billboard', `Updated details for ${updated.name}`);
     notifyListeners();
 };
 
-export const deleteBillboard = (id: string) => {
+export const deleteBillboard = async (id: string): Promise<void> => {
     const target = billboards.find(b => b.id === id);
-    if (target) {
-        billboards = billboards.filter(b => b.id !== id);
-        if (isConfigured()) {
-            api.delete('/api/billboards', { id }).catch(e => console.error('[deleteBillboard] API error:', e));
+    if (!target) return;
+    billboards = billboards.filter(b => b.id !== id);
+    if (isConfigured()) {
+        try {
+            await api.delete('/api/billboards', { id });
+        } catch (e) {
+            billboards = [target, ...billboards];
+            notifyListeners();
+            throw e;
         }
-        logAction('Delete Billboard', `Removed ${target.name} from inventory`);
-        notifyListeners();
     }
+    logAction('Delete Billboard', `Removed ${target.name} from inventory`);
+    notifyListeners();
 };
 
 // --- Contract CRUD ---
 export const addContract = async (contract: Contract) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<Contract>('/api/contracts', contract);
-            contracts = [...contracts, created];
-            contract = created;
-        } catch (e) {
-            console.error('[addContract] API error, using local:', e);
-            contracts = [...contracts, contract];
-        }
+        const created = await api.post<Contract>('/api/contracts', contract);
+        contracts = [...contracts, created];
+        contract = created;
     } else {
         contracts = [...contracts, contract];
     }
@@ -342,7 +354,9 @@ export const updateContract = async (updated: Contract) => {
         try {
             await api.put('/api/contracts', updated, { id: updated.id });
         } catch (e) {
-            console.error('[updateContract] API error:', e);
+            contracts = contracts.map(c => c.id === updated.id ? oldContract : c);
+            notifyListeners();
+            throw e;
         }
     }
     Array.from(new Set([oldContract.billboardId, updated.billboardId])).forEach(recalcBillboardAvailability);
@@ -355,7 +369,13 @@ export const deleteContract = async (id: string) => {
     if (contract) {
         contracts = contracts.filter(c => c.id !== id);
         if (isConfigured()) {
-            api.delete('/api/contracts', { id }).catch(e => console.error('[deleteContract] API error:', e));
+            try {
+                await api.delete('/api/contracts', { id });
+            } catch (e) {
+                contracts = [contract, ...contracts];
+                notifyListeners();
+                throw e;
+            }
         }
 
         const linkedInvoices = invoices.filter(i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice');
@@ -377,11 +397,15 @@ export const deleteContract = async (id: string) => {
 
         const linkedAmendments = contractAmendments.filter(a => a.contractId === id);
         if (linkedAmendments.length > 0) {
-            linkedAmendments.forEach(a => {
+            for (const a of linkedAmendments) {
                 if (isConfigured()) {
-                    api.delete('/api/contract-amendments', { id: a.id }).catch(e => console.error('[deleteContract] API error:', e));
+                    try {
+                        await api.delete('/api/contract-amendments', { id: a.id });
+                    } catch (e) {
+                        console.error('[deleteContract] API error deleting amendment:', a.id, e);
+                    }
                 }
-            });
+            }
             contractAmendments = contractAmendments.filter(a => a.contractId !== id);
             logAction('Delete Contract', `Cascade-deleted ${linkedAmendments.length} amendment(s) from contract ${id}`);
         }
@@ -419,8 +443,13 @@ export const endContract = async (id: string) => {
 
     contracts = contracts.map(c => c.id === endedContract.id ? endedContract : c);
     if (isConfigured()) {
-        try { await api.put('/api/contracts', endedContract, { id: endedContract.id }); }
-        catch (e) { console.error('[endContract] API error:', e); }
+        try {
+            await api.put('/api/contracts', endedContract, { id: endedContract.id });
+        } catch (e) {
+            contracts = contracts.map(c => c.id === endedContract.id ? contract : c);
+            notifyListeners();
+            throw e;
+        }
     }
 
     // Cancel any pending invoices tied to this contract
@@ -550,7 +579,9 @@ export const convertInvoiceType = async (id: string, newType: Invoice['type']) =
         try {
             await api.put('/api/invoices', updated, { id: updated.id });
         } catch (e) {
-            console.error('[convertInvoiceType] API error:', e);
+            invoices = invoices.map(i => i.id === id ? invoice : i);
+            notifyListeners();
+            throw e;
         }
     }
     logAction('Convert Invoice Type', `Converted Invoice #${id} to ${newType}`);
@@ -599,50 +630,46 @@ export const logQuotationEvent = async (invoiceId: string, type: string, details
 export const duplicateQuotation = async (id: string): Promise<Invoice | null> => {
     const original = invoices.find(i => i.id === id && String(i.type).toLowerCase() === 'quotation');
     if (!original) return null;
-    const duplicated: Invoice = {
-        ...original,
-        id: `QT-${Date.now().toString().slice(-6)}`,
-        quoteNumber: getNextQuoteNumber(),
+    // Omit id and quoteNumber — server generates both to prevent collisions
+    const { id: _origId, quoteNumber: _origQN, sentAt, sentTo, convertedToInvoiceId, convertedToContractId, convertedAt, ...rest } = original;
+    const duplicated: Omit<Invoice, 'id' | 'quoteNumber'> = {
+        ...rest,
         date: new Date().toISOString().split('T')[0],
         quoteStatus: QuoteStatus.Draft,
         expiryDate: undefined,
-        sentAt: undefined,
-        sentTo: undefined,
-        convertedToInvoiceId: undefined,
-        convertedToContractId: undefined,
-        convertedAt: undefined,
         notes: `Duplicated from ${original.quoteNumber || original.id}`,
     };
-    await addInvoice(duplicated);
-    logQuotationEvent(duplicated.id, 'created', `Duplicated from ${original.quoteNumber || original.id}`);
-    logAction('Duplicate Quotation', `Duplicated quotation #${original.id} to #${duplicated.id}`);
-    return duplicated;
+    const created = await addInvoice(duplicated as Invoice);
+    logQuotationEvent(created.id, 'created', `Duplicated from ${original.quoteNumber || original.id}`);
+    logAction('Duplicate Quotation', `Duplicated quotation #${original.id} to #${created.id}`);
+    return created;
 };
 
 export const convertQuotationToInvoice = async (id: string): Promise<Invoice | null> => {
     const quotation = invoices.find(i => i.id === id && String(i.type).toLowerCase() === 'quotation');
     if (!quotation) return null;
-    const invoice: Invoice = {
-        ...quotation,
-        id: `INV-${Date.now().toString().slice(-6)}`,
+    // Omit id — server generates UUID to prevent collisions
+    const { id: _origId, quoteNumber: _origQN, ...quotationRest } = quotation;
+    const invoicePayload: Omit<Invoice, 'id'> = {
+        ...quotationRest,
         type: 'Invoice',
         status: 'Pending',
         quoteStatus: QuoteStatus.Converted,
         convertedToInvoiceId: undefined,
         convertedAt: new Date().toISOString(),
     };
-    await addInvoice(invoice);
-    // Update original quotation to mark as converted
+    const created = await addInvoice(invoicePayload as Invoice);
+    // Update original quotation to mark as converted, referencing server-assigned ID
     const updatedQuotation: Invoice = {
         ...quotation,
         quoteStatus: QuoteStatus.Converted,
-        convertedToInvoiceId: invoice.id,
+        convertedToInvoiceId: created.id,
         convertedAt: new Date().toISOString(),
     };
     await updateInvoice(updatedQuotation);
-    logQuotationEvent(quotation.id, 'converted', `Converted to Invoice #${invoice.id}`);
-    logAction('Convert Quotation', `Converted quotation #${quotation.id} to invoice #${invoice.id}`);
-    return invoice;
+    logQuotationEvent(quotation.id, 'converted', `Converted to Invoice #${created.id}`);
+    logAction('Convert Quotation', `Converted quotation #${quotation.id} to invoice #${created.id}`);
+    return created;
 };
 
 export const markQuotationSent = async (id: string, sentTo?: string) => {
@@ -726,16 +753,13 @@ const recalcBillboardAvailability = (billboardId: string) => {
 };
 
 // --- Invoice CRUD ---
-export const addInvoice = async (invoice: Invoice) => {
+export const addInvoice = async (invoice: Invoice): Promise<Invoice> => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<Invoice>('/api/invoices', invoice);
-            invoices = [created, ...invoices];
-            invoice = created;
-        } catch (e) {
-            console.error('[addInvoice] API error, using local:', e);
-            invoices = [invoice, ...invoices];
-        }
+        // Let API errors propagate — callers must handle them and surface feedback to the user.
+        // Silently falling back to local-only storage creates phantom records that vanish on refresh.
+        const created = await api.post<Invoice>('/api/invoices', invoice);
+        invoices = [created, ...invoices];
+        invoice = created;
     } else {
         invoices = [invoice, ...invoices];
     }
@@ -749,33 +773,38 @@ export const addInvoice = async (invoice: Invoice) => {
     }
     logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`);
     notifyListeners();
+    return invoice;
 };
 
 export const markInvoiceAsPaid = async (id: string) => {
+    const previous = invoices.find(i => i.id === id);
     invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i);
     const updated = invoices.find(i => i.id === id);
     if (updated && isConfigured()) {
         try {
             await api.put('/api/invoices', updated, { id: updated.id });
         } catch (e) {
-            console.error('[markInvoiceAsPaid] API error:', e);
+            if (previous) invoices = invoices.map(i => i.id === id ? previous : i);
+            notifyListeners();
+            throw e;
         }
     }
     logAction('Payment', `Marked Invoice #${id} as Paid`);
     notifyListeners();
 };
 
-export const updateInvoice = async (updated: Invoice) => {
-    const old = invoices.find(i => i.id === updated.id);
-    if (!old) {
+export const updateInvoice = async (updated: Invoice): Promise<void> => {
+    const previous = invoices.find(i => i.id === updated.id);
+    if (!previous) {
         console.error('Invoice not found for update:', updated.id);
         return;
     }
+    // Optimistic local update
     invoices = invoices.map(i => i.id === updated.id ? updated : i);
 
-    const oldBillboards = new Set((old.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
+    const oldBillboards = new Set((previous.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
     const newBillboards = new Set((updated.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
-    if (String(old.type || '').toLowerCase() === 'invoice' || String(updated.type || '').toLowerCase() === 'invoice') {
+    if (String(previous.type || '').toLowerCase() === 'invoice' || String(updated.type || '').toLowerCase() === 'invoice') {
         const allBillboards = new Set([...oldBillboards, ...newBillboards]);
         allBillboards.forEach(recalcBillboardAvailability);
     }
@@ -784,66 +813,72 @@ export const updateInvoice = async (updated: Invoice) => {
         try {
             await api.put('/api/invoices', updated, { id: updated.id });
         } catch (e) {
-            console.error('[updateInvoice] API error:', e);
+            // Roll back the optimistic update so local state stays consistent with the server
+            invoices = invoices.map(i => i.id === updated.id ? previous : i);
+            notifyListeners();
+            throw e;
         }
     }
     logAction('Update Invoice', `Updated ${updated.type} #${updated.id}`);
     notifyListeners();
 };
 
-export const deleteInvoice = async (id: string) => {
+export const deleteInvoice = async (id: string): Promise<void> => {
     const target = invoices.find(i => i.id === id);
-    if (target) {
-        const touchedBillboards = String(target.type || '').toLowerCase() === 'invoice'
-            ? Array.from(new Set((target.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid)))
-            : [];
-        invoices = invoices.filter(i => i.id !== id);
-        addToDeletedQueue(id);
+    if (!target) return;
 
-        // Try to revert invoice status if this was a receipt
-        if (target.type === 'Receipt') {
-            const desc = target.items?.[0]?.description || '';
-            const match = desc.match(/Invoice #([A-Za-z0-9-]+)/);
-            if (match && match[1]) {
-                const linkedInvoiceId = match[1];
-                const invoice = invoices.find(i => i.id === linkedInvoiceId);
-                if (invoice) {
-                    invoice.status = 'Pending';
-                    if (isConfigured()) {
-                        try { await api.put('/api/invoices', invoice, { id: invoice.id }); }
-                        catch (e) { console.error('[deleteInvoice] API error reverting linked invoice:', e); }
-                    }
+    const touchedBillboards = String(target.type || '').toLowerCase() === 'invoice'
+        ? Array.from(new Set((target.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid)))
+        : [];
+
+    // Optimistic local removal
+    invoices = invoices.filter(i => i.id !== id);
+    addToDeletedQueue(id);
+
+    // Try to revert invoice status if this was a receipt
+    if (target.type === 'Receipt') {
+        const desc = target.items?.[0]?.description || '';
+        const match = desc.match(/Invoice #([A-Za-z0-9-]+)/);
+        if (match && match[1]) {
+            const linkedInvoiceId = match[1];
+            const invoice = invoices.find(i => i.id === linkedInvoiceId);
+            if (invoice) {
+                invoice.status = 'Pending';
+                if (isConfigured()) {
+                    try { await api.put('/api/invoices', invoice, { id: invoice.id }); }
+                    catch (e) { console.error('[deleteInvoice] API error reverting linked invoice:', e); }
                 }
             }
         }
-
-        if (isConfigured()) {
-            try {
-                await api.delete('/api/invoices', { id });
-                removeFromDeletedQueue(id);
-            } catch (e) {
-                console.error('[deleteInvoice] API DELETE failed, invoice kept in deleted queue:', e);
-            }
-        }
-        if (touchedBillboards.length > 0) {
-            touchedBillboards.forEach(recalcBillboardAvailability);
-            logAction('Billboard Availability', `Recalculated ${touchedBillboards.length} billboard${touchedBillboards.length > 1 ? 's' : ''} after deleting Invoice #${id}`);
-        }
-        logAction('Delete Document', `Removed ${target.type} #${id}`);
-        notifyListeners();
     }
+
+    if (isConfigured()) {
+        try {
+            await api.delete('/api/invoices', { id });
+            removeFromDeletedQueue(id);
+        } catch (e: any) {
+            // Roll back: restore the record locally so the UI stays consistent
+            invoices = [target, ...invoices];
+            removeFromDeletedQueue(id);
+            notifyListeners();
+            throw e;
+        }
+    }
+
+    if (touchedBillboards.length > 0) {
+        touchedBillboards.forEach(recalcBillboardAvailability);
+        logAction('Billboard Availability', `Recalculated ${touchedBillboards.length} billboard${touchedBillboards.length > 1 ? 's' : ''} after deleting Invoice #${id}`);
+    }
+    logAction('Delete Document', `Removed ${target.type} #${id}`);
+    notifyListeners();
 };
 
 // --- Expense CRUD ---
 export const addExpense = async (expense: Expense) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<Expense>('/api/expenses', expense);
-            expenses = [created, ...expenses];
-        } catch (e) {
-            console.error('[addExpense] API error, using local:', e);
-            expenses = [expense, ...expenses];
-        }
+        const created = await api.post<Expense>('/api/expenses', expense);
+        expenses = [created, ...expenses];
+        expense = created;
     } else {
         expenses = [expense, ...expenses];
     }
@@ -851,28 +886,29 @@ export const addExpense = async (expense: Expense) => {
     notifyListeners();
 };
 
-export const deleteExpense = (id: string) => {
+export const deleteExpense = async (id: string): Promise<void> => {
     const target = expenses.find(e => e.id === id);
-    if (target) {
-        expenses = expenses.filter(e => e.id !== id);
-        if (isConfigured()) {
-            api.delete('/api/expenses', { id }).catch(e => console.error('[deleteExpense] API error:', e));
+    if (!target) return;
+    expenses = expenses.filter(e => e.id !== id);
+    if (isConfigured()) {
+        try {
+            await api.delete('/api/expenses', { id });
+        } catch (e) {
+            expenses = [target, ...expenses];
+            notifyListeners();
+            throw e;
         }
-        logAction('Expense Deleted', `Removed expense: ${target.description} ($${target.amount})`);
-        notifyListeners();
     }
+    logAction('Expense Deleted', `Removed expense: ${target.description} ($${target.amount})`);
+    notifyListeners();
 };
 
 // --- Client CRUD ---
 export const addClient = async (client: Client) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<Client>('/api/clients', client);
-            clients = [...clients, created];
-        } catch (e) {
-            console.error('[addClient] API error, using local:', e);
-            clients = [...clients, client];
-        }
+        const created = await api.post<Client>('/api/clients', client);
+        clients = [...clients, created];
+        client = created;
     } else {
         clients = [...clients, client];
     }
@@ -881,40 +917,44 @@ export const addClient = async (client: Client) => {
 };
 
 export const updateClient = async (updated: Client) => {
+    const previous = clients.find(c => c.id === updated.id);
     clients = clients.map(c => c.id === updated.id ? updated : c);
     if (isConfigured()) {
         try {
             await api.put('/api/clients', updated, { id: updated.id });
         } catch (e) {
-            console.error('[updateClient] API error:', e);
+            if (previous) clients = clients.map(c => c.id === updated.id ? previous : c);
+            notifyListeners();
+            throw e;
         }
     }
     logAction('Update Client', `Updated info for ${updated.companyName}`);
     notifyListeners();
 };
 
-export const deleteClient = (id: string) => {
+export const deleteClient = async (id: string): Promise<void> => {
     const target = clients.find(c => c.id === id);
-    if (target) {
-        clients = clients.filter(c => c.id !== id);
-        if (isConfigured()) {
-            api.delete('/api/clients', { id }).catch(e => console.error('[deleteClient] API error:', e));
+    if (!target) return;
+    clients = clients.filter(c => c.id !== id);
+    if (isConfigured()) {
+        try {
+            await api.delete('/api/clients', { id });
+        } catch (e) {
+            clients = [target, ...clients];
+            notifyListeners();
+            throw e;
         }
-        logAction('Delete Client', `Removed ${target.companyName}`);
-        notifyListeners();
     }
+    logAction('Delete Client', `Removed ${target.companyName}`);
+    notifyListeners();
 };
 
 // --- User CRUD ---
 export const addUser = async (user: User) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<User>('/api/users', user);
-            users = [...users, created];
-        } catch (e) {
-            console.error('[addUser] API error, using local:', e);
-            users = [...users, user];
-        }
+        const created = await api.post<User>('/api/users', user);
+        users = [...users, created];
+        user = created;
     } else {
         users = [...users, user];
     }
@@ -923,6 +963,7 @@ export const addUser = async (user: User) => {
 };
 
 export const updateUser = async (updated: User) => {
+    const previous = users.find(u => u.id === updated.id);
     // Optimistic local update — will be corrected by server response below
     users = users.map(u => u.id === updated.id ? updated : u);
     if (isConfigured()) {
@@ -946,17 +987,26 @@ export const updateUser = async (updated: User) => {
                 } catch {}
             }
         } catch (e) {
-            console.error('[updateUser] API error:', e);
+            if (previous) users = users.map(u => u.id === updated.id ? previous : u);
+            notifyListeners();
+            throw e;
         }
     }
     logAction('User Mgmt', `Updated user ${updated.email}`);
     notifyListeners();
 };
 
-export const deleteUser = (id: string) => {
+export const deleteUser = async (id: string): Promise<void> => {
+    const target = users.find(u => u.id === id);
     users = users.filter(u => u.id !== id);
     if (isConfigured()) {
-        api.delete('/api/users', { id }).catch(e => console.error('[deleteUser] API error:', e));
+        try {
+            await api.delete('/api/users', { id });
+        } catch (e) {
+            if (target) users = [target, ...users];
+            notifyListeners();
+            throw e;
+        }
     }
     logAction('User Mgmt', `Deleted user ID ${id}`);
     notifyListeners();
@@ -982,13 +1032,9 @@ export const getPrintingJobs = () => printingJobs || [];
 
 export const addPrintingJob = async (job: PrintingJob) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<PrintingJob>('/api/printing-jobs', job);
-            printingJobs = [created, ...printingJobs];
-        } catch (e) {
-            console.error('[addPrintingJob] API error, using local:', e);
-            printingJobs = [job, ...printingJobs];
-        }
+        const created = await api.post<PrintingJob>('/api/printing-jobs', job);
+        printingJobs = [created, ...printingJobs];
+        job = created;
     } else {
         printingJobs = [job, ...printingJobs];
     }
@@ -999,13 +1045,9 @@ export const addPrintingJob = async (job: PrintingJob) => {
 // --- Outsourced Billboard CRUD ---
 export const addOutsourcedBillboard = async (b: OutsourcedBillboard) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<OutsourcedBillboard>('/api/outsourced', b);
-            outsourcedBillboards = [...outsourcedBillboards, created];
-        } catch (e) {
-            console.error('[addOutsourcedBillboard] API error, using local:', e);
-            outsourcedBillboards = [...outsourcedBillboards, b];
-        }
+        const created = await api.post<OutsourcedBillboard>('/api/outsourced', b);
+        outsourcedBillboards = [...outsourcedBillboards, created];
+        b = created;
     } else {
         outsourcedBillboards = [...outsourcedBillboards, b];
     }
@@ -1014,21 +1056,31 @@ export const addOutsourcedBillboard = async (b: OutsourcedBillboard) => {
 };
 
 export const updateOutsourcedBillboard = async (updated: OutsourcedBillboard) => {
+    const previous = outsourcedBillboards.find(b => b.id === updated.id);
     outsourcedBillboards = outsourcedBillboards.map(b => b.id === updated.id ? updated : b);
     if (isConfigured()) {
         try {
             await api.put('/api/outsourced', updated, { id: updated.id });
         } catch (e) {
-            console.error('[updateOutsourcedBillboard] API error:', e);
+            if (previous) outsourcedBillboards = outsourcedBillboards.map(b => b.id === updated.id ? previous : b);
+            notifyListeners();
+            throw e;
         }
     }
     notifyListeners();
 };
 
-export const deleteOutsourcedBillboard = (id: string) => {
+export const deleteOutsourcedBillboard = async (id: string): Promise<void> => {
+    const target = outsourcedBillboards.find(b => b.id === id);
     outsourcedBillboards = outsourcedBillboards.filter(b => b.id !== id);
     if (isConfigured()) {
-        api.delete('/api/outsourced', { id }).catch(e => console.error('[deleteOutsourcedBillboard] API error:', e));
+        try {
+            await api.delete('/api/outsourced', { id });
+        } catch (e) {
+            if (target) outsourcedBillboards = [target, ...outsourcedBillboards];
+            notifyListeners();
+            throw e;
+        }
     }
     notifyListeners();
 };
@@ -1036,13 +1088,9 @@ export const deleteOutsourcedBillboard = (id: string) => {
 // --- Task CRUD ---
 export const addTask = async (task: Task) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<Task>('/api/tasks', task);
-            tasks = [created, ...tasks];
-        } catch (e) {
-            console.error('[addTask] API error, using local:', e);
-            tasks = [task, ...tasks];
-        }
+        const created = await api.post<Task>('/api/tasks', task);
+        tasks = [created, ...tasks];
+        task = created;
     } else {
         tasks = [task, ...tasks];
     }
@@ -1051,40 +1099,43 @@ export const addTask = async (task: Task) => {
 };
 
 export const updateTask = async (updated: Task) => {
+    const previous = tasks.find(t => t.id === updated.id);
     tasks = tasks.map(t => t.id === updated.id ? updated : t);
     if (isConfigured()) {
         try {
             await api.put('/api/tasks', updated, { id: updated.id });
         } catch (e) {
-            console.error('[updateTask] API error:', e);
+            if (previous) tasks = tasks.map(t => t.id === updated.id ? previous : t);
+            notifyListeners();
+            throw e;
         }
     }
     notifyListeners();
 };
 
-export const deleteTask = (id: string) => {
+export const deleteTask = async (id: string): Promise<void> => {
     const target = tasks.find(t => t.id === id);
-    if (target) {
-        tasks = tasks.filter(t => t.id !== id);
-        if (isConfigured()) {
-            api.delete('/api/tasks', { id }).catch(e => console.error('[deleteTask] API error:', e));
+    if (!target) return;
+    tasks = tasks.filter(t => t.id !== id);
+    if (isConfigured()) {
+        try {
+            await api.delete('/api/tasks', { id });
+        } catch (e) {
+            tasks = [target, ...tasks];
+            notifyListeners();
+            throw e;
         }
-        logAction('Task Deleted', `Removed task: ${target.title}`);
-        notifyListeners();
     }
+    logAction('Task Deleted', `Removed task: ${target.title}`);
+    notifyListeners();
 };
 
 // --- Maintenance Log CRUD ---
 export const addMaintenanceLog = async (log: MaintenanceLog) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<MaintenanceLog>('/api/maintenance', log);
-            maintenanceLogs = [created, ...maintenanceLogs];
-            log = created;
-        } catch (e) {
-            console.error('[addMaintenanceLog] API error, using local:', e);
-            maintenanceLogs = [log, ...maintenanceLogs];
-        }
+        const created = await api.post<MaintenanceLog>('/api/maintenance', log);
+        maintenanceLogs = [created, ...maintenanceLogs];
+        log = created;
     } else {
         maintenanceLogs = [log, ...maintenanceLogs];
     }
@@ -1102,13 +1153,9 @@ export const getContractAmendmentsForContract = (contractId: string) => contract
 
 export const addContractAmendment = async (amendment: ContractAmendment) => {
     if (isConfigured()) {
-        try {
-            const created = await api.post<ContractAmendment>('/api/contract-amendments', amendment);
-            contractAmendments = [created, ...contractAmendments];
-        } catch (e) {
-            console.error('[addContractAmendment] API error, using local:', e);
-            contractAmendments = [amendment, ...contractAmendments];
-        }
+        const created = await api.post<ContractAmendment>('/api/contract-amendments', amendment);
+        contractAmendments = [created, ...contractAmendments];
+        amendment = created;
     } else {
         contractAmendments = [amendment, ...contractAmendments];
     }
@@ -1116,16 +1163,21 @@ export const addContractAmendment = async (amendment: ContractAmendment) => {
     notifyListeners();
 };
 
-export const deleteContractAmendment = (id: string) => {
+export const deleteContractAmendment = async (id: string): Promise<void> => {
     const target = contractAmendments.find(a => a.id === id);
-    if (target) {
-        contractAmendments = contractAmendments.filter(a => a.id !== id);
-        if (isConfigured()) {
-            api.delete('/api/contract-amendments', { id }).catch(e => console.error('[deleteContractAmendment] API error:', e));
+    if (!target) return;
+    contractAmendments = contractAmendments.filter(a => a.id !== id);
+    if (isConfigured()) {
+        try {
+            await api.delete('/api/contract-amendments', { id });
+        } catch (e) {
+            contractAmendments = [target, ...contractAmendments];
+            notifyListeners();
+            throw e;
         }
-        logAction('Delete Amendment', `Removed amendment ${id} from contract ${target.contractId}`);
-        notifyListeners();
     }
+    logAction('Delete Amendment', `Removed amendment ${id} from contract ${target.contractId}`);
+    notifyListeners();
 };
 
 export const RELEASE_NOTES = [

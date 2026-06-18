@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
+import { createGooglePin, createDotPin, googlePopup, PIN_RED, PIN_GREEN, STREET_TILE } from '../../lib/mapIcons';
 import { MapPin, AlertTriangle, RefreshCw, CheckCircle, XCircle, Edit2, Search, Save, Plus, Trash2, Loader2 } from 'lucide-react';
 import { getBillboards, updateBillboard, ZIM_TOWNS, subscribe } from '../../services/mockData';
 import { bulkGeocodeBillboards, GeocodeMatch } from '../../services/geocodingService';
@@ -62,10 +63,7 @@ export const LocationSettings: React.FC = () => {
     if (!mapRef.current) {
       const map = L.map(mapContainerRef.current).setView([-19.0, 29.9], 7);
       mapRef.current = map;
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: 'OpenStreetMap',
-        maxZoom: 18,
-      }).addTo(map);
+      L.tileLayer(STREET_TILE, { attribution: '© CartoDB © OpenStreetMap', maxZoom: 19 }).addTo(map);
     }
 
     const map = mapRef.current;
@@ -76,30 +74,14 @@ export const LocationSettings: React.FC = () => {
 
     if (validBoards.length === 0) return;
 
-    const DefaultIcon = L.icon({
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-    });
-
-    const SelectedIcon = L.divIcon({
-      className: 'dreambox-selected-marker',
-      html: `<div style="width:28px;height:28px;border-radius:50%;background:#059669;border:3px solid #fff;box-shadow:0 0 0 4px rgba(5,150,105,0.35),0 4px 14px rgba(15,23,42,0.4);"></div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
-      popupAnchor: [0, -16],
-    });
-
     validBoards.forEach((b) => {
       const isSelected = b.id === selectedBoardId;
       L.marker([b.coordinates.lat, b.coordinates.lng], {
-        icon: isSelected ? SelectedIcon : DefaultIcon,
+        icon: isSelected ? createGooglePin(PIN_GREEN) : createDotPin(PIN_RED, 14),
         zIndexOffset: isSelected ? 1000 : 0,
       })
         .addTo(map)
-        .bindPopup(`<strong>${b.name}</strong><br/>${b.location}, ${b.town}`)
+        .bindPopup(googlePopup(b.name, `${b.location}, ${b.town}`), { maxWidth: 260 })
         .on('click', () => setSelectedBoardId(b.id));
     });
 

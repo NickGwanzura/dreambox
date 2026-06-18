@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getClients, getInvoices, getClientFinancials, getTransactions, getContracts, getBillboards, addInvoice, markInvoiceAsPaid, getUpcomingBillings, deleteInvoice } from '../services/mockData';
+import { getClients, getInvoices, getClientFinancials, getTransactions, getContracts, getBillboards, addInvoice, markInvoiceAsPaid, getUpcomingBillings, deleteInvoice, logAction } from '../services/mockData';
 import { generateStatementPDF, generatePaymentSchedulePDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
@@ -106,12 +106,13 @@ export const Payments: React.FC = () => {
         setMonthlyContract(contract);
     };
 
-    const confirmMonthlyPayment = () => {
+    const confirmMonthlyPayment = async () => {
         if (!monthlyContract) return;
         const { month, year, amount, date, method, reference } = monthlyForm;
         const monthStr = String(month + 1).padStart(2, '0');
         const datePrefix = `${year}-${monthStr}`;
         const monthLabel = `${MONTH_NAMES[month]} ${year}`;
+        const clientName = getClientName(monthlyContract.clientId);
 
         // Create invoice (billed) + receipt (paid) in one step
         const invoiceId = `INV-${monthlyContract.id}-${datePrefix}`;
@@ -136,7 +137,12 @@ export const Payments: React.FC = () => {
                 status: 'Paid',
                 type: 'Invoice',
             };
-            addInvoice(invoice);
+            try {
+                await addInvoice(invoice);
+            } catch (err: any) {
+                alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                return;
+            }
         }
 
         const receipt: Invoice = {
@@ -144,7 +150,7 @@ export const Payments: React.FC = () => {
             contractId: monthlyContract.id,
             clientId: monthlyContract.clientId,
             date,
-            items: [{ description: `Payment — ${monthLabel} (${getClientName(monthlyContract.clientId)})`, amount }],
+            items: [{ description: `Payment — ${monthLabel} (${clientName})`, amount }],
             subtotal: amount,
             vatAmount: 0,
             total: amount,
@@ -153,34 +159,60 @@ export const Payments: React.FC = () => {
             paymentMethod: method as any,
             paymentReference: reference || undefined,
         };
-        addInvoice(receipt);
+        try {
+            await addInvoice(receipt);
+        } catch (err: any) {
+            alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+            return;
+        }
+        logAction('Payment', `Monthly payment of $${amount.toLocaleString()} received from ${clientName} for ${monthLabel} — ${reference ? `Ref: ${reference}` : method}`);
         setMonthlyContract(null);
         refreshInvoices();
     };
 
     const handleOpenPaymentModal = (invoice: Invoice) => { setSelectedInvoice(invoice); setPaymentDetails({ method: 'Bank Transfer', reference: '', date: new Date().toISOString().split('T')[0] }); };
-    const confirmPayment = () => {
+    const confirmPayment = async () => {
         if (selectedInvoice) {
+            const clientName = getClientName(selectedInvoice.clientId);
             const receipt: Invoice = { id: `RCT-${Date.now()}`, clientId: selectedInvoice.clientId, date: paymentDetails.date, items: [{ description: `Payment for Invoice #${selectedInvoice.id}`, amount: selectedInvoice.total }], subtotal: selectedInvoice.total, vatAmount: 0, total: selectedInvoice.total, status: 'Paid', type: 'Receipt', contractId: selectedInvoice.contractId, paymentMethod: paymentDetails.method as any, paymentReference: paymentDetails.reference };
-            addInvoice(receipt);
-            markInvoiceAsPaid(selectedInvoice.id);
+            try {
+                await addInvoice(receipt);
+            } catch (err: any) {
+                alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                return;
+            }
+            try {
+                await markInvoiceAsPaid(selectedInvoice.id);
+            } catch (err: any) {
+                alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                return;
+            }
+            logAction('Payment', `Invoice #${selectedInvoice.id} paid — $${selectedInvoice.total.toLocaleString()} from ${clientName} via ${paymentDetails.method}${paymentDetails.reference ? ` (Ref: ${paymentDetails.reference})` : ''}`);
             refreshInvoices();
             setSelectedInvoice(null);
             setPaymentDetails({ method: 'Bank Transfer', reference: '', date: new Date().toISOString().split('T')[0] });
         }
     };
 
-    const handleDeleteInvoice = (invoice: Invoice) => {
+    const handleDeleteInvoice = async (invoice: Invoice) => {
         if (window.confirm(`Delete Invoice #${invoice.id}? This cannot be undone.`)) {
-            deleteInvoice(invoice.id);
-            refreshInvoices();
+            try {
+                await deleteInvoice(invoice.id);
+                refreshInvoices();
+            } catch (err: any) {
+                alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+            }
         }
     };
 
-    const handleDeleteReceipt = (receiptId: string) => {
+    const handleDeleteReceipt = async (receiptId: string) => {
         if (window.confirm("Are you sure you want to delete this payment record? This may affect the balance.")) {
-            deleteInvoice(receiptId);
-            refreshInvoices();
+            try {
+                await deleteInvoice(receiptId);
+                refreshInvoices();
+            } catch (err: any) {
+                alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+            }
         }
     };
 

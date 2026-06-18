@@ -4,11 +4,14 @@ import { getBillboards, addBillboard, updateBillboard, deleteBillboard, clients,
 import { analyzeBillboardLocation } from '../services/aiService';
 import { geocodeLocation, GeocodeMatch } from '../services/geocodingService';
 import { hasValidCoordinates, hasMissingCoordinates, isFallbackCoordinate, getTownCenter, formatCoordinate, getConfiguredTowns } from '../utils/coordinates';
-import { MapPin, X, Edit2, Save, Plus, Image as ImageIcon, Map as MapIcon, Grid as GridIcon, Trash2, AlertTriangle, Share2, Eye, List as ListIcon, Search, Link2, Upload, Download, Layers, Users, Sparkles, RefreshCw, Car, ZoomIn, Maximize2, Hash, Zap, MousePointer2, FileText, Globe, FileDown } from 'lucide-react';
+import { MapPin, X, Edit2, Save, Plus, Image as ImageIcon, Map as MapIcon, Trash2, AlertTriangle, Share2, Eye, List as ListIcon, Search, Link2, Upload, Download, Layers, Users, Sparkles, RefreshCw, Car, ZoomIn, Maximize2, Hash, Zap, MousePointer2, FileText, Globe, FileDown } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
+import { useToast } from './ToastProvider';
+import { api } from '../services/apiClient';
 import { canDelete } from '../utils/settingsAccess';
 import { generateAvailabilitySheetPDF } from '../services/pdfGenerator';
 import L from 'leaflet';
+import { createGooglePin, createDotPin, googlePopup, PIN_RED, PIN_INDIGO, STREET_TILE, SATELLITE_TILE, SATELLITE_LABELS } from '../lib/mapIcons';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
   <div className="group relative pt-5">
@@ -114,166 +117,12 @@ const getBillboardAvailabilityDetails = (billboard: Billboard) => {
     };
 }
 
-interface BillboardCardProps {
-  billboard: Billboard;
-  index: number;
-  onEdit: (b: Billboard) => void;
-  onDelete: (b: Billboard) => void;
-  getClientName: (id?: string) => string;
-  onShare: (b: Billboard) => void;
-  onViewImage: (url: string) => void;
-  canUserDelete: boolean;
-}
-
-const BillboardCard: React.FC<BillboardCardProps> = ({ billboard, index, onEdit, onDelete, getClientName, onShare, onViewImage, canUserDelete }) => {
-    const availability = getBillboardAvailabilityDetails(billboard);
-    const status = availability.status;
-    const isAvailable = status === 'Open';
-    const isPartial = status === 'Partial';
-
-    const gradientClass = getPlaceholderGradient(billboard.id);
-    const hasImage = hasValidImage(billboard.imageUrl);
-    const currentClientNames = billboard.type === 'Static' ? [
-        !availability.sideAOpen ? getClientName(billboard.sideAClientId) : '',
-        !availability.sideBOpen ? getClientName(billboard.sideBClientId) : ''
-    ].filter(name => name && name !== 'Available' && name !== 'Unknown') : [];
-
-    return (
-        <div className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-100 transition-all duration-300 flex flex-col h-full overflow-hidden">
-            {/* Image Header - Reduced height for better proportions */}
-            <div className={`h-48 relative overflow-hidden ${!hasImage ? gradientClass : 'bg-slate-100'}`}>
-                <div className={`absolute inset-0 ${gradientClass} flex flex-col items-center justify-center text-white/40 p-6 text-center`}>
-                    <ImageIcon size={40} strokeWidth={1} className="mb-2 opacity-50"/>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">No Image</span>
-                </div>
-                {hasImage ? (
-                    <img 
-                        src={billboard.imageUrl} 
-                        alt={billboard.name} 
-                        className="relative z-[1] w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-zoom-in"
-                        onClick={() => onViewImage(billboard.imageUrl!)}
-                        onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            (e.target as HTMLImageElement).parentElement?.classList.add(...gradientClass.split(' '));
-                        }}
-                    />
-                ) : null}
-                
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/20 to-transparent"></div>
-
-                {/* Top Badges */}
-                <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
-                    <div className="flex gap-2">
-                        <span className="flex items-center justify-center w-7 h-7 bg-white/20 backdrop-blur-md text-white font-bold text-xs rounded-full border border-white/30">
-                            {index}
-                        </span>
-                        {billboard.type === 'LED' && (
-                             <span className="flex items-center justify-center w-7 h-7 bg-indigo-500/90 backdrop-blur-md text-white rounded-full border border-white/30" title="Digital LED">
-                                <Zap size={12} fill="currentColor"/>
-                             </span>
-                        )}
-                    </div>
-                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full shadow-md border flex items-center gap-1.5 ${isAvailable ? 'bg-emerald-500 text-white border-emerald-400' : isPartial ? 'bg-amber-500 text-white border-amber-400' : 'bg-rose-500 text-white border-rose-400'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-white animate-pulse' : 'bg-white'}`}></span>
-                        {availability.label}
-                    </span>
-                </div>
-                
-                {/* Bottom Info Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
-                    <h3 className="font-bold text-lg text-white leading-tight mb-1 truncate" title={billboard.name}>
-                        {billboard.name}
-                    </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-white/80">
-                        <MapPin size={12} className="shrink-0"/> 
-                        <span className="truncate">{billboard.location}, {billboard.town}</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Content Body */}
-            <div className="p-4 flex-1 flex flex-col bg-white">
-                {/* Rate & Type Row */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${billboard.type === 'LED' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-orange-50 text-orange-700 border border-orange-100'}`}>
-                            {billboard.type}
-                        </span>
-                        <span className="text-[10px] text-slate-900 font-mono">ID: {billboard.id.slice(-4)}</span>
-                    </div>
-                    {availability.priceLabel && (
-                        <span className="text-sm font-bold text-slate-900">
-                            {availability.priceLabel}
-                            {billboard.type === BillboardType.Static && <span className="text-[10px] font-medium text-slate-900">/mo</span>}
-                        </span>
-                    )}
-                </div>
-
-                {/* Stats Grid - Compact */}
-                <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 mb-4">
-                    <div className="flex flex-col items-center text-center">
-                        <span className="text-slate-900 mb-1"><Car size={16}/></span>
-                        <span className="text-xs font-bold text-slate-700">{formatTraffic(billboard.dailyTraffic)}</span>
-                        <span className="text-[9px] text-slate-900">Views</span>
-                    </div>
-                    <div className="flex flex-col items-center text-center border-x border-slate-100">
-                        <span className="text-slate-900 mb-1"><Maximize2 size={16}/></span>
-                        <span className="text-xs font-bold text-slate-700">{billboard.width}×{billboard.height}</span>
-                        <span className="text-[9px] text-slate-900">Meters</span>
-                    </div>
-                    <div className="flex flex-col items-center text-center">
-                        <span className="text-slate-900 mb-1"><Layers size={16}/></span>
-                        <span className="text-xs font-bold text-slate-700">{billboard.type === 'Static' ? `${availability.openSlots}/2 Open` : `${availability.openSlots}/${availability.totalSlots}`}</span>
-                        <span className="text-[9px] text-slate-900">Format</span>
-                    </div>
-                </div>
-
-                <div className="mb-4 flex flex-wrap gap-2">
-                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide ${isAvailable ? 'bg-emerald-50 text-emerald-700' : isPartial ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
-                        {availability.sublabel}
-                    </span>
-                    {currentClientNames.length > 0 && (
-                        <span className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-700 truncate max-w-full">
-                            {currentClientNames.join(', ')}
-                        </span>
-                    )}
-                </div>
-
-                {/* AI Insight - Compact */}
-                {billboard.visibility && (
-                    <div className="mb-4 bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                        <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-                            <Sparkles size={9} fill="currentColor"/> AI Insight
-                        </p>
-                        <p className="text-xs text-slate-900 leading-relaxed overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                            {billboard.visibility}
-                        </p>
-                    </div>
-                )}
-
-                {/* Action Bar - Always visible */}
-                <div className="mt-auto flex items-center justify-end gap-1 pt-2">
-                    <button onClick={(e) => { e.stopPropagation(); onEdit(billboard); }} className="p-2 text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit">
-                        <Edit2 size={16} strokeWidth={2}/>
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); onShare(billboard); }} className="p-2 text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Share">
-                        <Share2 size={16} strokeWidth={2}/>
-                    </button>
-                    {canUserDelete && (<button onClick={(e) => { e.stopPropagation(); onDelete(billboard); }} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                        <Trash2 size={16} strokeWidth={2}/>
-                    </button>)}
-                </div>
-            </div>
-        </div>
-    );
-};
-
 export const BillboardList: React.FC = () => {
+  const { showToast } = useToast();
   const canUserDelete = canDelete(getCurrentUser());
   const [billboards, setBillboards] = useState<Billboard[]>(getBillboards());
   const [filter, setFilter] = useState<'All' | 'Static' | 'LED'>('All');
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [isClientView, setIsClientView] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -287,11 +136,15 @@ export const BillboardList: React.FC = () => {
   const [billboardToDelete, setBillboardToDelete] = useState<Billboard | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [pickingLocation, setPickingLocation] = useState(false);
   const [geocodeResult, setGeocodeResult] = useState<GeocodeMatch | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
+  const [isSatellite, setIsSatellite] = useState(false);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const labelsLayerRef = useRef<L.TileLayer | null>(null);
   const [townOptions, setTownOptions] = useState<string[]>(getConfiguredTowns(ZIM_TOWNS));
   
   const [newBillboard, setNewBillboard] = useState<Partial<Billboard>>({
@@ -324,15 +177,19 @@ export const BillboardList: React.FC = () => {
     if (viewMode !== 'map' || !mapContainerRef.current) return;
     if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     try {
-        const map = L.map(mapContainerRef.current).setView([-17.824858, 31.053028], 13);
+        const map = L.map(mapContainerRef.current, { zoomControl: true }).setView([-17.824858, 31.053028], 13);
         mapRef.current = map;
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: 'OpenStreetMap', maxZoom: 19 }).addTo(map);
-        const DefaultIcon = L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
-        
+        const tile = L.tileLayer(STREET_TILE, { attribution: '© CartoDB © OpenStreetMap', maxZoom: 19 }).addTo(map);
+        tileLayerRef.current = tile;
+
         const validBoards = filteredBillboards.filter(b => hasValidCoordinates(b));
         validBoards.forEach(b => {
-            const popupContent = isClientView ? `<div><strong>${b.name}</strong></div>` : `<div><strong>${b.name}</strong><div>${b.location}</div></div>`;
-            L.marker([b.coordinates.lat, b.coordinates.lng], { icon: DefaultIcon }).addTo(map).bindPopup(popupContent);
+            const popup = isClientView
+                ? googlePopup(b.name, `${b.location}, ${b.town}`)
+                : googlePopup(b.name, `${b.location}, ${b.town}`, `${b.type} · ${b.width}×${b.height}m`);
+            L.marker([b.coordinates.lat, b.coordinates.lng], { icon: createGooglePin(PIN_RED) })
+                .addTo(map)
+                .bindPopup(popup, { maxWidth: 280 });
         });
 
         if (validBoards.length > 0) {
@@ -375,14 +232,32 @@ export const BillboardList: React.FC = () => {
           const initialLat = hasValid ? target.coordinates!.lat : townCenter.lat;
           const initialLng = hasValid ? target.coordinates!.lng : townCenter.lng;
 
-          const map = L.map(pickerContainerRef.current).setView([initialLat, initialLng], hasValid ? 16 : 13);
+          const map = L.map(pickerContainerRef.current, { zoomControl: true }).setView([initialLat, initialLng], hasValid ? 17 : 14);
           pickerMapRef.current = map;
-          
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
-          
-          const DefaultIcon = L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
-          
-          let marker = L.marker([initialLat, initialLng], { icon: DefaultIcon, draggable: true }).addTo(map);
+
+          const streetLayer = L.tileLayer(STREET_TILE, { attribution: '© CartoDB', maxZoom: 19 });
+          const satLayer    = L.tileLayer(SATELLITE_TILE, { attribution: '© Esri', maxZoom: 19 });
+          const lblLayer    = L.tileLayer(SATELLITE_LABELS, { attribution: '', maxZoom: 19, opacity: 0.85 });
+          streetLayer.addTo(map);
+
+          // Satellite toggle button
+          let sat = false;
+          const toggleBtn = L.control({ position: 'topright' });
+          toggleBtn.onAdd = () => {
+              const btn = L.DomUtil.create('button');
+              btn.innerHTML = '🛰 Satellite';
+              btn.style.cssText = 'background:#fff;border:none;padding:5px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.3);color:#5f6368;font-family:Arial,sans-serif;';
+              L.DomEvent.on(btn, 'click', () => {
+                  sat = !sat;
+                  if (sat) { map.removeLayer(streetLayer); satLayer.addTo(map); lblLayer.addTo(map); btn.innerHTML = '🗺 Street'; btn.style.color = '#1a73e8'; }
+                  else { map.removeLayer(satLayer); map.removeLayer(lblLayer); streetLayer.addTo(map); btn.innerHTML = '🛰 Satellite'; btn.style.color = '#5f6368'; }
+              });
+              L.DomEvent.disableClickPropagation(btn);
+              return btn;
+          };
+          toggleBtn.addTo(map);
+
+          let marker = L.marker([initialLat, initialLng], { icon: createGooglePin(PIN_INDIGO), draggable: true }).addTo(map);
 
           map.on('click', (e) => {
               const { lat, lng } = e.latlng;
@@ -408,16 +283,31 @@ export const BillboardList: React.FC = () => {
       }
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingBillboard) { updateBillboard(editingBillboard); setEditingBillboard(null); setPickingLocation(false); }
+    if (!editingBillboard) return;
+    try {
+      await updateBillboard(editingBillboard);
+      setEditingBillboard(null);
+      setPickingLocation(false);
+      showToast('Billboard saved', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save billboard', 'error', 8000);
+    }
   };
-  const handleConfirmDelete = () => {
-      if (billboardToDelete) { deleteBillboard(billboardToDelete.id); setBillboardToDelete(null); }
+  const handleConfirmDelete = async () => {
+      if (billboardToDelete) {
+          try {
+              await deleteBillboard(billboardToDelete.id);
+              setBillboardToDelete(null);
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          }
+      }
   };
   
   // ... (Other handlers unchanged)
-  const handleAddBillboard = (e: React.FormEvent) => {
+  const handleAddBillboard = async (e: React.FormEvent) => {
     e.preventDefault();
     const billboard: Billboard = {
       id: (Date.now()).toString(), name: newBillboard.name!, location: newBillboard.location!, town: newBillboard.town || 'Harare', type: newBillboard.type!, width: newBillboard.width!, height: newBillboard.height!,
@@ -425,19 +315,50 @@ export const BillboardList: React.FC = () => {
       sideAStatus: 'Available', sideBStatus: 'Available', imageUrl: newBillboard.imageUrl || '', visibility: newBillboard.visibility, dailyTraffic: newBillboard.dailyTraffic, coordinates: newBillboard.coordinates || { lat: 0, lng: 0 },
       notes: newBillboard.notes
     };
-    addBillboard(billboard); setIsAddModalOpen(false); setPickingLocation(false); setGeocodeResult(null); setGeocodeError(null);
+    try {
+      await addBillboard(billboard);
+    } catch (err: any) {
+      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+      return;
+    }
+    setIsAddModalOpen(false); setPickingLocation(false); setGeocodeResult(null); setGeocodeError(null);
     setNewBillboard({ name: '', location: '', town: 'Harare', type: BillboardType.Static, width: 0, height: 0, sideARate: 0, sideBRate: 0, ratePerSlot: 0, totalSlots: 10, rentedSlots: 0, imageUrl: '', visibility: '', dailyTraffic: 0, coordinates: { lat: 0, lng: 0 }, sideAStatus: 'Available', sideBStatus: 'Available', notes: '' });
   };
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
     const file = e.target.files?.[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64 = reader.result as string;
-            if (isEdit && editingBillboard) { setEditingBillboard({...editingBillboard, imageUrl: base64}); } else { setNewBillboard({...newBillboard, imageUrl: base64}); }
-        };
-        reader.readAsDataURL(file);
+    if (!file) return;
+    const MAX_MB = 10;
+    if (file.size > MAX_MB * 1024 * 1024) {
+        alert(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please use an image under ${MAX_MB} MB.`);
+        e.target.value = '';
+        return;
     }
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        // Show base64 preview immediately while upload is in progress
+        if (isEdit) {
+            setEditingBillboard(prev => prev ? { ...prev, imageUrl: base64 } : null);
+        } else {
+            setNewBillboard(prev => ({ ...prev, imageUrl: base64 }));
+        }
+        // Upload to R2 now — replace base64 preview with stable URL
+        setIsUploadingImage(true);
+        try {
+            const result = await api.post<{ url: string }>('/api/upload-image', { dataUrl: base64, folder: 'billboards' });
+            if (isEdit) {
+                setEditingBillboard(prev => prev ? { ...prev, imageUrl: result.url } : null);
+            } else {
+                setNewBillboard(prev => ({ ...prev, imageUrl: result.url }));
+            }
+        } catch (err) {
+            console.error('[handleImageUpload] R2 upload failed, using base64 fallback:', err);
+            // Base64 preview stays in state; billboard handler will attempt upload as fallback
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+    reader.readAsDataURL(file);
   };
   const handleAutoAnalyze = async (isEdit: boolean) => {
       const target = isEdit ? editingBillboard : newBillboard;
@@ -553,19 +474,19 @@ export const BillboardList: React.FC = () => {
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
           const text = event.target?.result as string;
           const lines = text.split('\n').slice(1);
           let importedCount = 0;
           let contractsCreated = 0;
 
-          lines.forEach(line => {
-              if (!line.trim()) return;
+          for (const line of lines) {
+              if (!line.trim()) continue;
               const cols = line.split(',').map(c => c.trim());
-              if (cols.length < 4) return;
+              if (cols.length < 4) continue;
 
               const [name, location, town, typeStr, width, height, rateA, rateB, lat, lng, clientName, startDate, endDate, sideOrSlot, agreedRate, billingDay] = cols;
-              
+
               const newBoard: Billboard = {
                   id: `IMP-${Date.now()}-${Math.floor(Math.random()*1000)}`,
                   name: name || 'Imported Billboard',
@@ -583,10 +504,15 @@ export const BillboardList: React.FC = () => {
                   sideAStatus: 'Available',
                   sideBStatus: 'Available',
                   visibility: 'Imported Data',
-                  imageUrl: '' 
+                  imageUrl: ''
               };
-              addBillboard(newBoard);
-              importedCount++;
+              try {
+                  await addBillboard(newBoard);
+                  importedCount++;
+              } catch (err: any) {
+                  alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                  continue;
+              }
 
               if (clientName && startDate && endDate) {
                   const currentClients = getClients();
@@ -603,16 +529,25 @@ export const BillboardList: React.FC = () => {
                           status: 'Active',
                           billingDay: preferredBillingDay
                       };
-                      addClient(newClient);
-                      client = newClient;
+                      try {
+                          await addClient(newClient);
+                          client = newClient;
+                      } catch (err: any) {
+                          alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                          continue;
+                      }
                   } else if (preferredBillingDay && client.billingDay !== preferredBillingDay) {
-                      updateClient({ ...client, billingDay: preferredBillingDay });
+                      try {
+                          await updateClient({ ...client, billingDay: preferredBillingDay });
+                      } catch (err: any) {
+                          alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                      }
                   }
 
                   const isSideA = sideOrSlot?.toUpperCase() === 'A';
                   const isSideB = sideOrSlot?.toUpperCase() === 'B';
                   const isBoth = sideOrSlot?.toUpperCase() === 'BOTH';
-                  
+
                   let contractDetails = sideOrSlot || 'Standard';
                   let monthlyRate = 0;
 
@@ -630,7 +565,7 @@ export const BillboardList: React.FC = () => {
 
                   const newContract: Contract = {
                       id: `CNT-${Date.now()}-${Math.floor(Math.random()*1000)}`,
-                      clientId: client.id,
+                      clientId: client!.id,
                       billboardId: newBoard.id,
                       startDate: startDate,
                       endDate: endDate,
@@ -643,11 +578,15 @@ export const BillboardList: React.FC = () => {
                       details: contractDetails,
                       side: isSideA ? 'A' : isSideB ? 'B' : isBoth ? 'Both' : undefined
                   };
-                  
-                  addContract(newContract);
-                  contractsCreated++;
+
+                  try {
+                      await addContract(newContract);
+                      contractsCreated++;
+                  } catch (err: any) {
+                      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                  }
               }
-          });
+          }
           alert(`Import Successful!\n• ${importedCount} Billboards added.\n• ${contractsCreated} Contracts created & linked.`);
           if (importInputRef.current) importInputRef.current.value = '';
       };
@@ -667,7 +606,6 @@ export const BillboardList: React.FC = () => {
              </div>
              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                 <div className="flex bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 p-1 shadow-sm">
-                    <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-full transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`} title="Grid View"><GridIcon size={18} /></button>
                     <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-full transition-all ${viewMode === 'list' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`} title="List View"><ListIcon size={18} /></button>
                     <button onClick={() => setViewMode('map')} className={`p-2.5 rounded-full transition-all ${viewMode === 'map' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-900 hover:text-slate-900'}`} title="Map View"><MapIcon size={18} /></button>
                 </div>
@@ -709,7 +647,7 @@ export const BillboardList: React.FC = () => {
                  </div>
              </div>
         ) : (
-            <div className={`flex-1 overflow-y-auto pr-2 pb-20 ${viewMode === 'list' ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'}`}>
+            <div className="flex-1 overflow-y-auto pr-2 pb-20 space-y-4">
                 {filteredBillboards.map((b, idx) => {
                     const availability = getBillboardAvailabilityDetails(b);
                     const status = availability.status;
@@ -718,57 +656,55 @@ export const BillboardList: React.FC = () => {
                     const gradientClass = getPlaceholderGradient(b.id);
                     const hasImage = hasValidImage(b.imageUrl);
 
-                    return viewMode === 'list' ? (
-                         <div key={b.id} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-xl transition-all group hover:-translate-y-1">
-                             <div className="relative shrink-0">
-                                 <div className="absolute -top-2 -left-2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md z-10 border border-white/20">#{idx + 1}</div>
-                                 <div
-                                     className={`w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 shadow-sm relative group-hover:scale-105 transition-transform cursor-zoom-in ${!hasImage ? gradientClass : ''}`}
-                                     onClick={() => hasImage && setViewImage(b.imageUrl!)}
-                                 >
-                                     <div className={`absolute inset-0 ${gradientClass} flex items-center justify-center text-white/30`}><ImageIcon size={28}/></div>
-                                     {hasImage ? (
-                                         <img
-                                            src={b.imageUrl}
-                                            alt={b.name}
-                                            className="relative z-[1] w-full h-full object-cover"
-                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement?.classList.add(...gradientClass.split(' ')); }}
-                                         />
-                                     ) : null}
-                                 </div>
-                             </div>
-                             <div className="flex-1 min-w-0">
-                                 <div className="flex items-center gap-3 mb-1">
-                                     <h4 className="font-bold text-slate-900 truncate text-lg tracking-tight" title={b.name}>{b.name}</h4>
-                                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border shrink-0 ${isAvailable ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isPartial ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                                         {availability.label}
-                                     </span>
-                                 </div>
-                                 <p className="text-xs text-slate-900 font-medium flex items-center gap-1 truncate mb-2">
-                                     <MapPin size={12} className="shrink-0 text-indigo-500"/> <span className="truncate">{b.location}, {b.town}</span>
-                                 </p>
-                                 <div className="flex flex-wrap gap-4 text-[10px] text-slate-900 font-bold uppercase tracking-wide">
-                                     <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
-                                     <span className="flex items-center gap-1"><Car size={10}/> {formatTraffic(b.dailyTraffic)} Views</span>
-                                     <span className="flex items-center gap-1"><Layers size={10}/> {b.type === BillboardType.LED ? `${availability.openSlots}/${availability.totalSlots} Slots Open` : `${availability.openSlots}/2 Sides Open`}</span>
-                                 </div>
-                             </div>
-                             <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-50 sm:border-t-0 mt-2 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
-                                 <div className="flex flex-col items-end mr-2">
-                                     <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-1 ${b.type === BillboardType.LED ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>{b.type}</span>
-                                     {availability.priceLabel && <span className="text-sm font-bold text-slate-900">{availability.priceLabel}{b.type === BillboardType.Static && <span className="text-[10px] font-medium text-slate-900">/mo</span>}</span>}
-                                     <span className="text-[10px] text-slate-900 font-mono">ID: {b.id.slice(-4)}</span>
-                                 </div>
-                                 <div className="flex gap-2">
-                                     <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-900 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Edit"><Edit2 size={16}/></button>
-                                     <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-900 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Share"><Share2 size={16}/></button>
-                                     {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors" title="Delete"><Trash2 size={16}/></button>)}
-                                 </div>
-                             </div>
-                         </div>
-                    ) : (
-                        <BillboardCard key={b.id} billboard={b} index={idx + 1} onEdit={setEditingBillboard} onDelete={setBillboardToDelete} getClientName={getClientName} onShare={shareBillboard} onViewImage={(url) => setViewImage(url)} canUserDelete={canUserDelete} />
-                    )
+                    return (
+                        <div key={b.id} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-xl transition-all group hover:-translate-y-1">
+                            <div className="relative shrink-0">
+                                <div className="absolute -top-2 -left-2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md z-10 border border-white/20">#{idx + 1}</div>
+                                <div
+                                    className={`w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 shadow-sm relative group-hover:scale-105 transition-transform cursor-zoom-in ${!hasImage ? gradientClass : ''}`}
+                                    onClick={() => hasImage && setViewImage(b.imageUrl!)}
+                                >
+                                    <div className={`absolute inset-0 ${gradientClass} flex items-center justify-center text-white/30`}><ImageIcon size={28}/></div>
+                                    {hasImage ? (
+                                        <img
+                                           src={b.imageUrl}
+                                           alt={b.name}
+                                           className="relative z-[1] w-full h-full object-cover"
+                                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement?.classList.add(...gradientClass.split(' ')); }}
+                                        />
+                                    ) : null}
+                                </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <h4 className="font-bold text-slate-900 truncate text-lg tracking-tight" title={b.name}>{b.name}</h4>
+                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border shrink-0 ${isAvailable ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isPartial ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                        {availability.label}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-900 font-medium flex items-center gap-1 truncate mb-2">
+                                    <MapPin size={12} className="shrink-0 text-indigo-500"/> <span className="truncate">{b.location}, {b.town}</span>
+                                </p>
+                                <div className="flex flex-wrap gap-4 text-[10px] text-slate-900 font-bold uppercase tracking-wide">
+                                    <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
+                                    <span className="flex items-center gap-1"><Car size={10}/> {formatTraffic(b.dailyTraffic)} Views</span>
+                                    <span className="flex items-center gap-1"><Layers size={10}/> {b.type === BillboardType.LED ? `${availability.openSlots}/${availability.totalSlots} Slots Open` : `${availability.openSlots}/2 Sides Open`}</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-50 sm:border-t-0 mt-2 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
+                                <div className="flex flex-col items-end mr-2">
+                                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-1 ${b.type === BillboardType.LED ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>{b.type}</span>
+                                    {availability.priceLabel && <span className="text-sm font-bold text-slate-900">{availability.priceLabel}{b.type === BillboardType.Static && <span className="text-[10px] font-medium text-slate-900">/mo</span>}</span>}
+                                    <span className="text-[10px] text-slate-900 font-mono">ID: {b.id.slice(-4)}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-900 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Edit"><Edit2 size={16}/></button>
+                                    <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-900 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Share"><Share2 size={16}/></button>
+                                    {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors" title="Delete"><Trash2 size={16}/></button>)}
+                                </div>
+                            </div>
+                        </div>
+                    );
                 })}
             </div>
         )}
@@ -794,7 +730,7 @@ export const BillboardList: React.FC = () => {
       {/* Add Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-4xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Add New Billboard</h3>
@@ -818,8 +754,8 @@ export const BillboardList: React.FC = () => {
                                             <MinimalInput label="Lng" type="number" value={newBillboard.coordinates?.lng} onChange={(e: any) => setNewBillboard({...newBillboard, coordinates: {...newBillboard.coordinates!, lng: Number(e.target.value)}})} />
                                         </div>
                                     </div>
-                                    <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
-                                        <MousePointer2 size={18}/>
+                                    <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider border ${pickingLocation ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:shadow-sm'}`} title="Set location on map">
+                                        <MapIcon size={13}/> {pickingLocation ? 'Close Map' : 'Set on Map'}
                                     </button>
                                     <button type="button" onClick={() => handleGeocode(false)} disabled={isGeocoding || !newBillboard.location || !newBillboard.town} className="mb-2 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1" title="Geocode Address">
                                         {isGeocoding ? <RefreshCw size={14} className="animate-spin"/> : <MapPin size={14}/>} {isGeocoding ? 'Finding...' : 'Find'}
@@ -840,9 +776,9 @@ export const BillboardList: React.FC = () => {
                             </div>
                         </div>
                         {pickingLocation && (
-                            <div className="h-64 w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative animate-fade-in">
+                            <div className="h-80 w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative animate-fade-in">
                                 <div ref={pickerContainerRef} className="w-full h-full z-0"></div>
-                                <div className="absolute bottom-2 left-2 z-[400] bg-white/90 px-3 py-1 text-[10px] rounded-lg shadow font-bold text-slate-900">Drag marker to set position</div>
+                                <div className="absolute bottom-2 left-2 z-[400] bg-white/95 px-3 py-1.5 text-[10px] rounded-full shadow-md font-semibold text-slate-700 flex items-center gap-1.5 border border-slate-100"><MapPin size={10} className="text-red-500"/> Click map or drag pin to set location</div>
                             </div>
                         )}
                         <div className="grid grid-cols-2 gap-6">
@@ -879,8 +815,15 @@ export const BillboardList: React.FC = () => {
                         <div className="space-y-4">
                             <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide">Billboard Image</label>
                             <div className="flex items-center gap-4">
-                                {newBillboard.imageUrl && <img src={newBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />}
-                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="block w-full text-sm text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"/>
+                                {isUploadingImage ? (
+                                    <div className="w-16 h-16 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
+                                        <RefreshCw size={18} className="animate-spin text-indigo-500" />
+                                    </div>
+                                ) : newBillboard.imageUrl ? (
+                                    <img src={newBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" />
+                                ) : null}
+                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} disabled={isUploadingImage} className="block w-full text-sm text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all disabled:opacity-50"/>
+                                {isUploadingImage && <span className="text-xs text-indigo-500 font-medium whitespace-nowrap">Uploading…</span>}
                             </div>
                         </div>
 
@@ -914,7 +857,7 @@ export const BillboardList: React.FC = () => {
       {/* Edit Modal */}
       {editingBillboard && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-4xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Billboard</h3>
@@ -974,9 +917,9 @@ export const BillboardList: React.FC = () => {
                         </div>
 
                         {pickingLocation && (
-                            <div className="h-64 w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative animate-fade-in">
+                            <div className="h-80 w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 relative animate-fade-in">
                                 <div ref={pickerContainerRef} className="w-full h-full z-0"></div>
-                                <div className="absolute bottom-2 left-2 z-[400] bg-white/90 px-3 py-1 text-[10px] rounded-lg shadow font-bold text-slate-900">Drag marker to set position</div>
+                                <div className="absolute bottom-2 left-2 z-[400] bg-white/95 px-3 py-1.5 text-[10px] rounded-full shadow-md font-semibold text-slate-700 flex items-center gap-1.5 border border-slate-100"><MapPin size={10} className="text-red-500"/> Click map or drag pin to set location</div>
                             </div>
                         )}
 
@@ -1014,8 +957,15 @@ export const BillboardList: React.FC = () => {
                         <div className="space-y-4">
                             <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide">Billboard Image</label>
                             <div className="flex items-center gap-4">
-                                {editingBillboard.imageUrl && <img src={editingBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />}
-                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="block w-full text-sm text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all"/>
+                                {isUploadingImage ? (
+                                    <div className="w-16 h-16 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
+                                        <RefreshCw size={18} className="animate-spin text-indigo-500" />
+                                    </div>
+                                ) : editingBillboard.imageUrl ? (
+                                    <img src={editingBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" />
+                                ) : null}
+                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} disabled={isUploadingImage} className="block w-full text-sm text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all disabled:opacity-50"/>
+                                {isUploadingImage && <span className="text-xs text-indigo-500 font-medium whitespace-nowrap">Uploading…</span>}
                             </div>
                         </div>
 

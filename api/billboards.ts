@@ -5,6 +5,7 @@ import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { validateBillboard, ValidationError } from '../utils/validation';
 import { hasValidCoordinates, isFallbackCoordinate } from '../utils/coordinates';
 import { uploadBase64Image } from '../lib/uploadBase64';
+import { log } from '../lib/serverLogger.js';
 
 const coordinateSchema = z.object({
   lat: z.number(),
@@ -22,7 +23,7 @@ const billboardSchema = z.object({
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   const payload = requireAuth(req, res);
   if (!payload) return;
@@ -35,7 +36,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(toClient(row));
       }
-      const rows = await prisma.billboard.findMany({ orderBy: { createdAt: 'asc' } });
+      const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
+      const skip = Math.max(0, Number(req.query.skip) || 0);
+      const rows = await prisma.billboard.findMany({ orderBy: { createdAt: 'asc' }, take: limit, skip });
       return res.status(200).json(rows.map(toClient));
     }
 
@@ -45,9 +48,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       validateBillboard(req.body);
+      // imageUrl is normally a pre-uploaded R2 URL; uploadBase64Image handles legacy base64 as fallback
       const imageUrl = await uploadBase64Image('billboards', req.body.imageUrl);
       const data = fromClient({ ...req.body, imageUrl });
-      const row = await prisma.billboard.create({ data });
+      const { id: clientId, ...createData } = data;
+      const row = await prisma.billboard.create({ data: clientId ? { ...createData, id: clientId } : createData });
       return res.status(201).json(toClient(row));
     }
 
@@ -56,12 +61,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!id) return res.status(400).json({ error: 'id required' });
       validateBillboard(req.body);
       const existing = await prisma.billboard.findUnique({ where: { id: id as string } });
+      // imageUrl is normally a pre-uploaded R2 URL; uploadBase64Image handles legacy base64 as fallback
       const imageUrl = await uploadBase64Image('billboards', req.body.imageUrl, existing?.imageUrl);
-      const data = fromClient({ ...req.body, imageUrl });
+      const { id: _stripId, ...updateData } = fromClient({ ...req.body, imageUrl });
       // Upsert: update if exists, create if not (handles client-side generated IDs)
       const row = existing
-        ? await prisma.billboard.update({ where: { id: id as string }, data })
-        : await prisma.billboard.create({ data: { ...data, id: id as string } });
+        ? await prisma.billboard.update({ where: { id: id as string }, data: updateData })
+        : await prisma.billboard.create({ data: { ...updateData, id: id as string } });
       return res.status(200).json(toClient(row));
     }
 
@@ -75,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
-    console.error('[billboards]', e);
+    log.error('[billboards]', e);
     if (e instanceof ValidationError) {
       return res.status(400).json({ error: e.message, field: e.field });
     }

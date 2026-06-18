@@ -29,7 +29,7 @@ export const Tasks: React.FC = () => {
     title: '', description: '', assignedTo: 'Unassigned', priority: 'Medium', status: 'Todo', dueDate: new Date().toISOString().split('T')[0]
   });
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     const task: Task = {
         id: `T-${Date.now()}`,
@@ -41,32 +41,49 @@ export const Tasks: React.FC = () => {
         dueDate: newTask.dueDate || new Date().toISOString().split('T')[0],
         createdAt: new Date().toISOString()
     };
-    addTask(task);
-    setTasks(getTasks());
-    setIsModalOpen(false);
-    setNewTask({ title: '', description: '', assignedTo: 'Unassigned', priority: 'Medium', status: 'Todo', dueDate: new Date().toISOString().split('T')[0] });
+    try {
+      await addTask(task);
+      setTasks(getTasks());
+      setIsModalOpen(false);
+      setNewTask({ title: '', description: '', assignedTo: 'Unassigned', priority: 'Medium', status: 'Todo', dueDate: new Date().toISOString().split('T')[0] });
+    } catch (err: any) {
+      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+    }
   };
 
-  const handleStatusChange = (task: Task, newStatus: 'Todo' | 'In Progress' | 'Done') => {
+  const handleStatusChange = async (task: Task, newStatus: 'Todo' | 'In Progress' | 'Done') => {
       // Logic for Maintenance Tasks
       if (newStatus === 'Done' && task.relatedBillboardId) {
           const billboard = getBillboards().find(b => b.id === task.relatedBillboardId);
           if (billboard) {
               const today = new Date().toISOString().split('T')[0];
-              updateBillboard({ ...billboard, lastMaintenanceDate: today });
-              alert(`Maintenance recorded for ${billboard.name}. Next check due in 3 months.`);
+              try {
+                  await updateBillboard({ ...billboard, lastMaintenanceDate: today });
+                  alert(`Maintenance recorded for ${billboard.name}. Next check due in 3 months.`);
+              } catch (err: any) {
+                  alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                  return;
+              }
           }
       }
 
-      updateTask({ ...task, status: newStatus });
-      setTasks(getTasks());
+      try {
+          await updateTask({ ...task, status: newStatus });
+          setTasks(getTasks());
+      } catch (err: any) {
+          alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+      }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
       if (taskToDelete) {
-          deleteTask(taskToDelete.id);
-          setTasks(getTasks());
-          setTaskToDelete(null);
+          try {
+              await deleteTask(taskToDelete.id);
+              setTasks(getTasks());
+              setTaskToDelete(null);
+          } catch (err: any) {
+              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          }
       }
   };
 

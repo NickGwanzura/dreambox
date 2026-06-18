@@ -215,7 +215,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                         </div>
                         <div>
                             <span className="text-xl font-bold tracking-tight text-white">Dreambox</span>
-                            <span className="block text-[10px] uppercase tracking-[0.25em] text-slate-900 font-semibold -mt-0.5">Advertising Platform</span>
+                            <span className="block text-[10px] uppercase tracking-[0.25em] text-slate-400 font-semibold -mt-0.5">Advertising Platform</span>
                         </div>
                     </div>
 
@@ -228,7 +228,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                 billboard empire
                             </span>
                         </h1>
-                        <p className="text-lg text-slate-900 max-w-md leading-relaxed mb-10">
+                        <p className="text-lg text-slate-400 max-w-md leading-relaxed mb-10">
                             The all-in-one platform for modern outdoor advertising. Track inventory, automate billing, and scale your revenue.
                         </p>
 
@@ -244,7 +244,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                     </div>
                                     <div>
                                         <p className="text-sm font-semibold text-white">{feat.label}</p>
-                                        <p className="text-xs text-slate-900">{feat.desc}</p>
+                                        <p className="text-xs text-slate-400">{feat.desc}</p>
                                     </div>
                                 </div>
                             ))}
@@ -255,9 +255,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     <div className="flex items-center gap-3 mt-auto">
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
                             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                            <span className="text-xs font-medium text-slate-900">v{RELEASE_NOTES[0].version}</span>
+                            <span className="text-xs font-medium text-slate-400">v{RELEASE_NOTES[0].version}</span>
                         </div>
-                        <span className="text-xs text-slate-900">{RELEASE_NOTES[0].title}</span>
+                        <span className="text-xs text-slate-400">{RELEASE_NOTES[0].title}</span>
                     </div>
                 </div>
             </div>
@@ -292,9 +292,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                  mode === 'verify-pending' ? 'Verify your email' :
                                  'Reset password'}
                             </h2>
-                            <p className="text-sm text-slate-900">
-                                {mode === 'login' ? 'Sign in to access your dashboard' : 
-                                 mode === 'register' ? 'Get started with your free account' : 
+                            <p className="text-sm text-slate-400">
+                                {mode === 'login' ? 'Sign in to access your dashboard' :
+                                 mode === 'register' ? 'Get started with your free account' :
                                  mode === 'verify-pending' ? 'Check your inbox for the verification link' :
                                  'Enter your email to receive reset instructions'}
                             </p>
@@ -327,7 +327,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                     <h3 className="text-lg font-bold text-white mb-2">
                                         Check your email
                                     </h3>
-                                    <p className="text-sm text-slate-900 mb-6">
+                                    <p className="text-sm text-slate-400 mb-6">
                                         We've sent a verification link to<br />
                                         <span className="text-indigo-400">{pendingEmail}</span>
                                     </p>
@@ -341,12 +341,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                         </button>
                                         <button
                                             onClick={() => toggleMode('login')}
-                                            className="w-full py-3 text-slate-900 hover:text-white text-sm font-medium transition-colors"
+                                            className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
                                         >
                                             Back to login
                                         </button>
                                     </div>
-                                    <p className="text-xs text-slate-900 mt-6">
+                                    <p className="text-xs text-slate-500 mt-6">
                                         After verifying, your account will still need admin approval
                                     </p>
                                 </div>
@@ -356,7 +356,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                 {mode === 'register' && (
                                     <div className="grid grid-cols-2 gap-4 animate-fade-in">
                                         <div className="space-y-2">
-                                            <label className="text-xs font-medium text-slate-900 uppercase tracking-wider">
+                                            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                                                 First Name
                                             </label>
                                             <input 
@@ -368,7 +368,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-xs font-medium text-slate-900 uppercase tracking-wider">
+                                            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                                                 Last Name
                                             </label>
                                             <input 
@@ -384,11 +384,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
                                 {/* Email Field */}
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-slate-900 uppercase tracking-wider">
+                                    <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                                         {mode === 'login' ? 'Email or Username' : 'Email Address'}
                                     </label>
                                     <div className="relative">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-900 w-5 h-5" />
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
                                         <input 
                                             type="text" 
                                             value={email}
@@ -403,7 +403,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                 {(mode === 'login' || mode === 'register') && (
                                     <div className="space-y-2 animate-fade-in">
                                         <div className="flex justify-between items-center">
-                                            <label className="text-xs font-medium text-slate-900 uppercase tracking-wider">
+                                            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                                                 Password
                                             </label>
                                             {mode === 'login' && (
@@ -417,7 +417,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                             )}
                                         </div>
                                         <div className="relative">
-                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-900 w-5 h-5" />
+                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
                                             <input 
                                                 type={showPassword ? "text" : "password"}
                                                 value={password}
@@ -428,13 +428,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                             <button
                                                 type="button"
                                                 onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-900 hover:text-slate-900 transition-colors"
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                                             >
                                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                             </button>
                                         </div>
                                         {mode === 'register' && (
-                                            <p className="text-xs text-slate-900">Must be at least 6 characters</p>
+                                            <p className="text-xs text-slate-500">Must be at least 6 characters</p>
                                         )}
                                     </div>
                                 )}
@@ -460,7 +460,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                             {mode !== 'verify-pending' && (
                             <div className="mt-6 flex items-center gap-4">
                                 <div className="flex-1 h-px bg-white/10"></div>
-                                <span className="text-xs font-medium text-slate-900 uppercase tracking-wider">
+                                <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                                     {mode === 'login' ? "New to Dreambox?" : "Already have an account?"}
                                 </span>
                                 <div className="flex-1 h-px bg-white/10"></div>
@@ -471,9 +471,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                             {mode !== 'verify-pending' && (
                             <div className="mt-6">
                                 {mode === 'forgot' ? (
-                                    <button 
+                                    <button
                                         onClick={() => toggleMode('login')}
-                                        className="w-full flex items-center justify-center gap-2 py-3 text-slate-900 hover:text-white text-sm font-medium transition-colors"
+                                        className="w-full flex items-center justify-center gap-2 py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
                                     >
                                         <ArrowLeft className="w-4 h-4" />
                                         Back to sign in
@@ -503,12 +503,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
                     {/* Footer */}
                     <div className="mt-8 text-center space-y-4">
-                        <p className="text-xs text-slate-900">
-                            &copy; 2026 Dreambox Advertising. 
+                        <p className="text-xs text-slate-500">
+                            &copy; 2026 Dreambox Advertising.
                             <span className="mx-2">•</span>
-                            <a href="#" className="hover:text-slate-900 transition-colors">Privacy</a>
+                            <a href="#" className="hover:text-slate-300 transition-colors">Privacy</a>
                             <span className="mx-2">•</span>
-                            <a href="#" className="hover:text-slate-900 transition-colors">Terms</a>
+                            <a href="#" className="hover:text-slate-300 transition-colors">Terms</a>
                         </p>
                         <button 
                             onClick={handleEmergencyReset} 

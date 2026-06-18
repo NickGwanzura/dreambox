@@ -2,7 +2,10 @@ import jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { log } from './serverLogger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not set. Cannot start the application.');
+}
 
 export interface JWTPayload {
   userId: string;
@@ -12,12 +15,12 @@ export interface JWTPayload {
 }
 
 export function signToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, JWT_SECRET as string, { expiresIn: '24h' });
 }
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    return jwt.verify(token, JWT_SECRET as string) as JWTPayload;
   } catch {
     return null;
   }
@@ -58,6 +61,11 @@ export function requireAuth(
     res.status(403).json({ error: 'Account access has been restricted' });
     return null;
   }
+  if (payload.status === 'Inactive') {
+    log.warn(`Auth rejected — account inactive  user=${payload.email}`);
+    res.status(403).json({ error: 'Account has been deactivated. Contact your administrator.' });
+    return null;
+  }
   log.debug(`Auth OK  user=${payload.email}  role=${payload.role}`);
   return payload;
 }
@@ -76,7 +84,7 @@ export function requireAdmin(
 }
 
 const ALLOWED_ORIGINS = [
-  process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw',
+  process.env.APP_URL || 'https://dreamboxadvertising.co.zw',
   'http://localhost:3000',
   'http://localhost:3003',
   'http://localhost:5173',
@@ -104,17 +112,11 @@ export function requireManagerOrAdmin(
   return payload;
 }
 
-export const SYSTEM_ADMIN_EMAIL = 'rufarod@gmail.com';
+export const SYSTEM_ADMIN_EMAIL = (process.env.SYSTEM_ADMIN_EMAIL || '').toLowerCase();
 
 export function isSystemAdmin(email: string | null | undefined): boolean {
-  return email?.trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
+  return !!SYSTEM_ADMIN_EMAIL && email?.trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
 }
-
-const DELETE_ALLOWED_EMAILS: readonly string[] = [
-  SYSTEM_ADMIN_EMAIL,
-  'chiduroobc@gmail.com',
-  'nicholas.gwanzura@outlook.com',
-];
 
 export function requireDeletePermission(
   req: VercelRequest,
@@ -123,14 +125,7 @@ export function requireDeletePermission(
   const payload = requireAuth(req, res);
   if (!payload) return null;
 
-  // Role-based: Admin and Manager can delete
   if (payload.role === 'Admin' || payload.role === 'Manager') {
-    return payload;
-  }
-
-  // Email allowlist fallback for Staff with special access
-  const email = payload.email?.trim().toLowerCase();
-  if (email && DELETE_ALLOWED_EMAILS.includes(email)) {
     return payload;
   }
 

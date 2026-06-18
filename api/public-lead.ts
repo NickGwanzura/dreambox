@@ -1,15 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma';
 import { cors } from '../lib/auth';
+import { checkRateLimit } from '../lib/rateLimiter.js';
 import { notifyAdminWebsiteLead } from '../lib/notifyAdmin';
+import { log } from '../lib/serverLogger.js';
 
 const clean = (value: unknown): string =>
   String(value || '').trim().slice(0, 1000);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res);
+  cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req as any).socket?.remoteAddress || 'unknown';
+  const rateCheck = await checkRateLimit(`public-lead:ip:${ip}`, { maxAttempts: 5, windowMs: 60 * 60 * 1000 });
+  if (!rateCheck.allowed) {
+    return res.status(429).json({ error: 'Too many submissions. Please try again later.' });
+  }
 
   try {
     const name = clean(req.body?.name);
@@ -114,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(201).json({ company, contact, opportunity });
   } catch (e: any) {
-    console.error('[public-lead]', e);
+    log.error('[public-lead]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
