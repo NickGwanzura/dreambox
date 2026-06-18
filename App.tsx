@@ -1,44 +1,118 @@
 
 // ─── Maintenance / Migration Mode ────────────────────────────────────────────
-// Set to true to show the migration notice to all visitors.
-const MAINTENANCE_MODE = false;
+// Set to true to show the maintenance screen to all visitors.
+const MAINTENANCE_MODE = true;
+
+// Back online: 2026-06-19 12:00:00 CAT (UTC+2)
+const MAINTENANCE_END = new Date('2026-06-19T10:00:00Z');
 
 function MaintenanceScreen() {
+  const [now, setNow] = React.useState(() => new Date());
+
+  React.useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const totalSecs = Math.max(0, Math.floor((MAINTENANCE_END.getTime() - now.getTime()) / 1000));
+  const hrs  = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  const pad  = (n: number) => String(n).padStart(2, '0');
+
+  const liveLogo = 'https://static.wixstatic.com/media/33e2c5_fa30ae7289ea444186df47e4189fca0d~mv2.png/v1/crop/x_0,y_194,w_526,h_100/fill/w_678,h_136,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/IMG_9520__1_-removebg-preview.png';
+
   return (
-    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
-         className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-      <div className="bg-slate-800 rounded-2xl p-10 max-w-lg w-full text-center shadow-2xl border border-slate-700">
-        {/* Icon */}
-        <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-indigo-500/20">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
+    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" }}
+         className="relative min-h-screen overflow-hidden bg-slate-950 text-white flex flex-col items-center justify-center px-4">
+
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 right-[15%] h-[560px] w-[560px] rounded-full bg-indigo-500/[0.13] blur-[140px]" />
+        <div className="absolute bottom-[-60px] left-[8%] h-[400px] w-[400px] rounded-full bg-violet-600/[0.10] blur-[110px]" />
+        {/* Perspective depth grid */}
+        <div className="absolute inset-0 opacity-[0.13]" style={{
+          backgroundImage: 'linear-gradient(rgba(148,163,184,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.3) 1px, transparent 1px)',
+          backgroundSize: '64px 64px',
+          transform: 'perspective(700px) rotateX(52deg) scale(2.4)',
+          transformOrigin: '50% 92%',
+        }} />
+        {/* Edge vignette */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_78%_at_50%_42%,transparent_28%,rgba(2,6,23,0.72)_100%)]" />
+        {/* Top haze */}
+        <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/60 to-transparent" />
+        {/* Bottom fade */}
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950 to-transparent" />
+      </div>
+
+      {/* Indigo accent line top */}
+      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
+
+      <div className="relative z-10 mx-auto w-full max-w-2xl text-center">
+
+        {/* Logo */}
+        <div className="mb-10 flex justify-center">
+          <img src={liveLogo} alt="Dreambox Advertising" className="h-10 w-auto object-contain" />
+        </div>
+
+        {/* Status pill */}
+        <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-amber-400/30 bg-amber-400/[0.08] px-5 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-amber-300 backdrop-blur-sm">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+          Scheduled Maintenance
         </div>
 
         {/* Heading */}
-        <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">System Migration in Progress</h1>
-        <p className="text-indigo-400 text-sm font-medium mb-6 uppercase tracking-widest">Scheduled Maintenance</p>
+        <h1 className="text-4xl font-black leading-[1.06] tracking-tight text-white sm:text-5xl">
+          Back online at{' '}
+          <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent">
+            12:00 midday
+          </span>
+        </h1>
+        <p className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-white/60">
+          We&apos;re performing a scheduled system upgrade. Your data is safe — all records, contracts, and media are being transferred securely.
+        </p>
 
-        {/* Body */}
-        <p className="text-slate-300 text-sm leading-relaxed mb-4">
-          We're migrating Dreambox CRM to a new, faster infrastructure. Your data is safe —
-          all records, contracts, and media are being transferred securely.
-        </p>
-        <p className="text-slate-400 text-sm leading-relaxed mb-8">
-          We expect to be back online shortly. Thank you for your patience.
-        </p>
+        {/* Countdown */}
+        <div className="mx-auto mt-10 flex items-center justify-center gap-3">
+          {[
+            { value: pad(hrs),  label: 'Hours' },
+            { value: pad(mins), label: 'Minutes' },
+            { value: pad(secs), label: 'Seconds' },
+          ].map((unit, i) => (
+            <React.Fragment key={unit.label}>
+              {i > 0 && <span className="mb-5 text-3xl font-black text-white/25">:</span>}
+              <div className="flex flex-col items-center gap-2">
+                <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-white/[0.1] bg-white/[0.06] backdrop-blur-sm shadow-xl shadow-slate-950/40">
+                  {/* Shimmer top line */}
+                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent" />
+                  <span className="text-3xl font-black tabular-nums text-white">{unit.value}</span>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">{unit.label}</span>
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
 
         {/* Divider */}
-        <div className="border-t border-slate-700 mb-6" />
+        <div className="mx-auto mt-12 h-px max-w-sm bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
         {/* Contact */}
-        <p className="text-slate-500 text-xs">
-          Urgent? Reach us at{' '}
-          <a href="mailto:info@dreamboxadvertising.com" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+        <p className="mt-6 text-sm text-white/40">
+          Need to reach us?{' '}
+          <a href="mailto:info@dreamboxadvertising.com" className="font-semibold text-indigo-300 transition hover:text-white">
             info@dreamboxadvertising.com
+          </a>
+          {' '}·{' '}
+          <a href="https://wa.me/263778018909" className="font-semibold text-indigo-300 transition hover:text-white">
+            WhatsApp
           </a>
         </p>
       </div>
+
+      {/* Footer */}
+      <p className="absolute bottom-5 text-[11px] font-semibold text-white/20">
+        © 2026 Dreambox Advertising (Pvt) Ltd · Harare, Zimbabwe
+      </p>
     </div>
   );
 }
