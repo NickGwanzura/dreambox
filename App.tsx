@@ -1,7 +1,7 @@
 
 // ─── Maintenance / Migration Mode ────────────────────────────────────────────
 // Set to true to show the migration notice to all visitors.
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 function MaintenanceScreen() {
   return (
