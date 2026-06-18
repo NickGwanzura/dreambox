@@ -72,7 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       const body = req.body ?? {};
-      const { createdAt, updatedAt, id: _clientId, ...data } = body;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { createdAt, updatedAt, id: _clientId, hasVat: _hasVat, ...data } = body;
 
       // Permission check for quotations
       if (String(body.type).toLowerCase() === 'quotation') {
@@ -111,7 +112,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
       const body = req.body ?? {};
-      const { id: _id, createdAt, updatedAt, ...data } = body;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id: _id, createdAt, updatedAt, hasVat: _hasVat, ...data } = body;
 
       // Only update if the invoice exists — NEVER silently create (prevents deleted invoices from reappearing)
       const existing = await prisma.invoice.findUnique({ where: { id: id as string } });

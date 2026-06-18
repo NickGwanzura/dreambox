@@ -562,7 +562,7 @@ export const Quotations: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-fade-in">
           <div className="bg-white rounded-2xl border border-slate-100 p-5">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-4">Quote Pipeline</h4>
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={220} minWidth={0}>
               <BarChart data={pipelineData} layout="vertical" margin={{ left: 20, right: 20, top: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} />
@@ -578,7 +578,7 @@ export const Quotations: React.FC = () => {
           </div>
           <div className="bg-white rounded-2xl border border-slate-100 p-5">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-4">Monthly Trend</h4>
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={220} minWidth={0}>
               <LineChart data={monthlyTrendData} margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#64748b' }} />
@@ -592,7 +592,7 @@ export const Quotations: React.FC = () => {
           </div>
           <div className="bg-white rounded-2xl border border-slate-100 p-5">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-4">Value by Status</h4>
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={220} minWidth={0}>
               <PieChart>
                 <Pie
                   data={valueByStatusData}
