@@ -74,8 +74,23 @@ async function runMigrations() {
   }
 }
 
-// Health check (no auth required)
-app.get('/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));
+// Health check — tests both process liveness and DB connectivity
+app.get('/health', async (_req, res) => {
+  const ts = Date.now();
+  if (!process.env.DATABASE_URL) {
+    return res.status(503).json({ status: 'degraded', db: 'not_configured', ts });
+  }
+  try {
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DB health timeout')), 5000)),
+    ]);
+    return res.json({ status: 'ok', db: 'connected', ts });
+  } catch (e: any) {
+    log.error(`[health] DB check failed: ${e?.message}`);
+    return res.status(503).json({ status: 'degraded', db: 'unreachable', error: e?.message?.slice(0, 100), ts });
+  }
+});
 
 // ─── Dynamic API route registration ──────────────────────────────────────────
 

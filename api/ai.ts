@@ -55,6 +55,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const groq = new Groq({ apiKey });
 
+  // Hard ceiling per request — prevents Railway worker timeout (30s) from
+  // being reached before we can return a clean error to the client.
+  const AI_TIMEOUT_MS = 12_000;
+
   try {
     const params: Parameters<typeof groq.chat.completions.create>[0] = {
       messages,
@@ -67,29 +71,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       params.response_format = response_format;
     }
 
-    const completion = await groq.chat.completions.create({ ...params, stream: false });
+    const completion = await groq.chat.completions.create(
+      { ...params, stream: false },
+      { timeout: AI_TIMEOUT_MS }
+    );
     const content = completion.choices[0]?.message?.content || '';
     return res.status(200).json({ content });
   } catch (e: any) {
+    const isTimeout = e?.name === 'APIConnectionTimeoutError' || e?.code === 'ETIMEDOUT' || e?.message?.includes('timeout');
     const upstreamStatus =
       typeof e?.status === 'number'
         ? e.status
         : typeof e?.response?.status === 'number'
           ? e.response.status
-          : 502;
+          : isTimeout ? 504 : 502;
 
-    log.error('[api/ai] GROQ error', {
+    log.warn('[api/ai] GROQ error', {
       status: upstreamStatus,
       message: e?.error?.message || e?.message,
       name: e?.name,
+      timeout: isTimeout,
     });
 
-    // Return a generic message — never leak upstream error details to the client
-    const clientStatus = upstreamStatus === 429 ? 429 : 502;
-    const clientMessage = upstreamStatus === 429
-      ? 'AI service is temporarily busy. Please try again shortly.'
-      : 'AI service unavailable. Please try again later.';
-
-    return res.status(clientStatus).json({ error: clientMessage });
+    if (upstreamStatus === 429) {
+      return res.status(429).json({ error: 'AI service is temporarily busy. Please try again shortly.' });
+    }
+    if (isTimeout || upstreamStatus === 504) {
+      return res.status(504).json({ error: 'AI request timed out. Dashboard will use fallback content.' });
+    }
+    return res.status(502).json({ error: 'AI service unavailable. Please try again later.' });
   }
 }

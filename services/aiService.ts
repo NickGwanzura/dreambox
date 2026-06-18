@@ -48,11 +48,22 @@ async function callAI(
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch('/api/ai', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
+  // Abort if the server takes longer than 15s — prevents UI from hanging when
+  // Groq is slow or Railway cold-starting.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+
+  let res: Response;
+  try {
+    res = await fetch('/api/ai', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const responseText = await res.text();

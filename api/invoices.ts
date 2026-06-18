@@ -1,12 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireDeletePermission, requireQuotationWritePermission, requireQuotationApprovePermission, cors } from '../lib/auth';
+import { requireAuth, requireDeletePermission, requireQuotationWritePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+
+// ─── Validation schemas ───────────────────────────────────────────────────────
 
 const invoiceItemSchema = z.object({
   description: z.string().min(1, 'Item description is required').max(500, 'Item description too long'),
-  quantity: z.number().positive('Quantity must be positive'),
+  quantity: z.number().nonnegative('Quantity must be non-negative'),
   unitPrice: z.number().nonnegative('Unit price must be non-negative'),
   amount: z.number().nonnegative('Amount must be non-negative'),
   billboardId: z.string().optional(),
@@ -17,34 +19,101 @@ const invoiceSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
   date: z.string().min(1, 'Date is required'),
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required').max(100, 'Too many line items'),
-  subtotal: z.number({ error: 'Subtotal is required' }),
-  total: z.number({ error: 'Total is required' }),
+  subtotal: z.number({ error: 'Subtotal must be a number' }),
+  total: z.number({ error: 'Total must be a number' }),
   type: z.enum(['Invoice', 'Quotation', 'Proforma', 'Receipt']).optional(),
   terms: z.string().max(2000, 'Terms too long').optional(),
   notes: z.string().max(2000, 'Notes too long').optional(),
 });
 
+// ─── Field whitelist ──────────────────────────────────────────────────────────
+// Explicitly picks only the fields present in the Prisma Invoice model.
+// This is the single safest guard against unknown-field Prisma errors —
+// no matter what the client sends, Prisma only sees what the schema expects.
+
+function toDate(v: unknown): Date | undefined {
+  if (v == null || v === '') return undefined;
+  const d = new Date(v as string);
+  return isNaN(d.getTime()) ? undefined : d;
+}
+
+function pickInvoiceData(body: any) {
+  return {
+    clientId:              body.clientId,
+    contractId:            body.contractId            ?? undefined,
+    date:                  body.date,
+    items:                 body.items,
+    subtotal:              Number(body.subtotal),
+    discountAmount:        body.discountAmount != null ? Number(body.discountAmount) : undefined,
+    discountDescription:   body.discountDescription   ?? undefined,
+    vatAmount:             Number(body.vatAmount ?? 0),
+    total:                 Number(body.total),
+    status:                body.status                ?? 'Pending',
+    type:                  body.type                  ?? 'Invoice',
+    paymentMethod:         body.paymentMethod         ?? undefined,
+    paymentReference:      body.paymentReference      ?? undefined,
+    quoteNumber:           body.quoteNumber           ?? undefined,
+    expiryDate:            body.expiryDate            ?? undefined,
+    terms:                 body.terms                 ?? undefined,
+    notes:                 body.notes                 ?? undefined,
+    sentAt:                toDate(body.sentAt),
+    sentTo:                body.sentTo                ?? undefined,
+    quoteStatus:           body.quoteStatus           ?? undefined,
+    convertedToInvoiceId:  body.convertedToInvoiceId  ?? undefined,
+    convertedToContractId: body.convertedToContractId ?? undefined,
+    convertedAt:           toDate(body.convertedAt),
+    createdBy:             body.createdBy             ?? undefined,
+    assignedTo:            body.assignedTo            ?? undefined,
+  };
+}
+
+// ─── Total validation ─────────────────────────────────────────────────────────
+
 function validateTotals(data: any): string | null {
   const items: any[] = Array.isArray(data.items) ? data.items : [];
-  const grossItems = items.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
-  const discountAmount = Math.min(grossItems, Math.max(0, Number(data.discountAmount) || 0));
-  const grossAfterDiscount = Math.max(0, grossItems - discountAmount);
+  const gross = items.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+  const discount = Math.min(gross, Math.max(0, Number(data.discountAmount) || 0));
+  const afterDiscount = Math.max(0, gross - discount);
   const vatAmount = Number(data.vatAmount) || 0;
-  const expectedSubtotal = Number((data.subtotal || 0).toFixed(2));
-  const expectedTotal = Number((data.total || 0).toFixed(2));
-  const calcSubtotal = Number(grossAfterDiscount.toFixed(2));
-  const calcTotal = Number((grossAfterDiscount + vatAmount).toFixed(2));
 
-  // Allow small floating point tolerance
+  const expSub   = Number((data.subtotal || 0).toFixed(2));
+  const expTotal = Number((data.total    || 0).toFixed(2));
+  const calcSub  = Number(afterDiscount.toFixed(2));
+  const calcTot  = Number((afterDiscount + vatAmount).toFixed(2));
+
   const tolerance = 1;
-  if (Math.abs(expectedSubtotal - calcSubtotal) > tolerance) {
-    return `Subtotal mismatch: expected ~${calcSubtotal}, got ${expectedSubtotal}`;
-  }
-  if (Math.abs(expectedTotal - calcTotal) > tolerance) {
-    return `Total mismatch: expected ~${calcTotal}, got ${expectedTotal}`;
-  }
+  if (Math.abs(expSub - calcSub) > tolerance)
+    return `Subtotal mismatch: expected ~${calcSub}, got ${expSub}`;
+  if (Math.abs(expTotal - calcTot) > tolerance)
+    return `Total mismatch: expected ~${calcTot}, got ${expTotal}`;
   return null;
 }
+
+// ─── Error helper ─────────────────────────────────────────────────────────────
+
+function handlePrismaError(e: any, res: VercelResponse, context: string): void {
+  const code    = e?.code ?? 'UNKNOWN';
+  const meta    = e?.meta  ? JSON.stringify(e.meta) : '';
+  const message = e?.message ?? String(e);
+
+  log.error(`[invoices] ${context}  prisma_code=${code}  ${meta}  ${message.slice(0, 300)}`);
+
+  if (code === 'P2002') {
+    res.status(409).json({ error: 'A record with that unique value already exists.', code });
+    return;
+  }
+  if (code === 'P2025') {
+    res.status(404).json({ error: 'Record not found.', code });
+    return;
+  }
+  if (code?.startsWith('P1') || message.includes('ECONNREFUSED') || message.includes('timeout') || message.includes('database')) {
+    res.status(503).json({ error: 'Database is temporarily unavailable. Please retry in a moment.', code });
+    return;
+  }
+  res.status(500).json({ error: 'Internal server error', code });
+}
+
+// ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -52,8 +121,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const payload = requireAuth(req, res);
   if (!payload) return;
 
-  try {
-    if (req.method === 'GET') {
+  // ── GET ────────────────────────────────────────────────────────────────────
+  if (req.method === 'GET') {
+    try {
       const { id } = req.query;
       if (id) {
         const row = await prisma.invoice.findUnique({ where: { id: id as string } });
@@ -61,40 +131,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(row);
       }
       const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
-      const skip = Math.max(0, Number(req.query.skip) || 0);
-      const rows = await prisma.invoice.findMany({ orderBy: { createdAt: 'asc' }, take: limit, skip });
+      const skip  = Math.max(0, Number(req.query.skip) || 0);
+      const rows  = await prisma.invoice.findMany({ orderBy: { createdAt: 'asc' }, take: limit, skip });
       return res.status(200).json(rows);
+    } catch (e: any) {
+      handlePrismaError(e, res, 'GET');
+    }
+    return;
+  }
+
+  // ── POST ───────────────────────────────────────────────────────────────────
+  if (req.method === 'POST') {
+    const body = req.body ?? {};
+
+    const parsed = invoiceSchema.safeParse(body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: parsed.error.issues.map(e => e.message),
+      });
     }
 
-    if (req.method === 'POST') {
-      const parsed = invoiceSchema.safeParse(req.body ?? {});
-      if (!parsed.success) {
-        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
-      }
-      const body = req.body ?? {};
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { createdAt, updatedAt, id: _clientId, hasVat: _hasVat, ...data } = body;
+    if (String(body.type).toLowerCase() === 'quotation') {
+      if (!requireQuotationWritePermission(req, res)) return;
+    }
 
-      // Permission check for quotations
-      if (String(body.type).toLowerCase() === 'quotation') {
-        if (!requireQuotationWritePermission(req, res)) return;
-      }
+    const totalError = validateTotals(body);
+    if (totalError) {
+      return res.status(400).json({ error: 'Validation failed', details: [totalError] });
+    }
 
-      // Server-side total validation
-      const totalError = validateTotals(body);
-      if (totalError) {
-        return res.status(400).json({ error: 'Validation failed', details: [totalError] });
-      }
+    try {
+      const data: any = pickInvoiceData(body);
 
-      // Server-side quoteNumber generation for Quotations — prevents client-side counter collisions
-      // across concurrent sessions and page reloads.
+      // Server-side quoteNumber generation — prevents client-side counter collisions
       if (String(body.type).toLowerCase() === 'quotation' && !data.quoteNumber) {
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const count = await prisma.invoice.count({ where: { quoteNumber: { startsWith: `QT-${today}` } } });
         data.quoteNumber = `QT-${today}-${String(count + 1).padStart(3, '0')}`;
       }
 
-      // Duplicate quote number protection (for manually supplied numbers or races on same counter)
       if (data.quoteNumber) {
         const conflict = await prisma.invoice.findUnique({ where: { quoteNumber: data.quoteNumber } });
         if (conflict) {
@@ -102,37 +178,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // Always let Prisma generate the UUID — never trust client-supplied IDs
       const row = await prisma.invoice.create({ data });
       log.info(`[invoices] POST created ${row.type} ${row.id} for client ${row.clientId}`);
       return res.status(201).json(row);
+    } catch (e: any) {
+      handlePrismaError(e, res, 'POST');
     }
+    return;
+  }
 
-    if (req.method === 'PUT') {
-      const { id } = req.query;
-      if (!id) return res.status(400).json({ error: 'id required' });
-      const body = req.body ?? {};
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id: _id, createdAt, updatedAt, hasVat: _hasVat, ...data } = body;
+  // ── PUT ────────────────────────────────────────────────────────────────────
+  if (req.method === 'PUT') {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'id required' });
 
-      // Only update if the invoice exists — NEVER silently create (prevents deleted invoices from reappearing)
+    const body = req.body ?? {};
+
+    try {
       const existing = await prisma.invoice.findUnique({ where: { id: id as string } });
       if (!existing) {
         return res.status(404).json({ error: 'Invoice not found on server. It may have been deleted.' });
       }
 
-      // Permission check for quotations
       if (String(existing.type).toLowerCase() === 'quotation') {
         if (!requireQuotationWritePermission(req, res)) return;
       }
 
-      // Server-side total validation
       const totalError = validateTotals(body);
       if (totalError) {
         return res.status(400).json({ error: 'Validation failed', details: [totalError] });
       }
 
-      // Duplicate quote number protection on update
       if (body.quoteNumber && body.quoteNumber !== existing.quoteNumber) {
         const conflict = await prisma.invoice.findUnique({ where: { quoteNumber: body.quoteNumber } });
         if (conflict) {
@@ -140,15 +216,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
+      const data = pickInvoiceData(body);
       const row = await prisma.invoice.update({ where: { id: id as string }, data });
       return res.status(200).json(row);
+    } catch (e: any) {
+      handlePrismaError(e, res, 'PUT');
     }
+    return;
+  }
 
-    if (req.method === 'DELETE') {
-      const { id } = req.query;
-      if (!id) return res.status(400).json({ error: 'id required' });
+  // ── DELETE ─────────────────────────────────────────────────────────────────
+  if (req.method === 'DELETE') {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'id required' });
 
-      // Verify invoice exists before checking permissions
+    try {
       const target = await prisma.invoice.findUnique({ where: { id: id as string } });
       if (!target) {
         log.warn(`[invoices] DELETE requested for non-existent invoice ${id}`);
@@ -158,13 +240,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!requireDeletePermission(req, res)) return;
 
       await prisma.invoice.delete({ where: { id: id as string } });
-      log.info(`[invoices] DELETE removed invoice ${id} (type=${target.type}, status=${target.status}, total=${target.total})`);
+      log.info(`[invoices] DELETE removed ${id} type=${target.type} status=${target.status} total=${target.total}`);
       return res.status(200).json({ success: true });
+    } catch (e: any) {
+      handlePrismaError(e, res, 'DELETE');
     }
-
-    return res.status(405).json({ error: 'Method not allowed' });
-  } catch (e: any) {
-    log.error('[invoices]', e);
-    return res.status(500).json({ error: 'Internal server error' });
+    return;
   }
+
+  return res.status(405).json({ error: 'Method not allowed' });
 }
