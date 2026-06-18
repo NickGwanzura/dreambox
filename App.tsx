@@ -59,7 +59,6 @@ const Quotations = lazyWithRetry(() => import('./components/Quotations').then(m 
 const Expenses = lazyWithRetry(() => import('./components/Expenses').then(m => ({ default: m.Expenses })));
 const Settings = lazyWithRetry(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const ContractTemplatePage = lazyWithRetry(() => import('./components/ContractTemplatePage').then(m => ({ default: m.ContractTemplatePage })));
-const OutsourcedList = lazyWithRetry(() => import('./components/OutsourcedList').then(m => ({ default: m.OutsourcedList })));
 const Analytics = lazyWithRetry(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
 const BusinessIntelligence = lazyWithRetry(() => import('./components/BusinessIntelligence').then(m => ({ default: m.BusinessIntelligence })));
 const Payments = lazyWithRetry(() => import('./components/Payments').then(m => ({ default: m.Payments })));
@@ -257,12 +256,6 @@ const App: React.FC = () => {
               <BillboardList />
             </FeatureErrorBoundary>
           );
-        case 'outsourced': 
-          return (
-            <FeatureErrorBoundary featureName="Outsourced" onReset={() => setPageError(null)}>
-              <OutsourcedList />
-            </FeatureErrorBoundary>
-          );
         case 'payments': 
           return (
             <FeatureErrorBoundary featureName="Payments" onReset={() => setPageError(null)}>
@@ -412,7 +405,7 @@ const App: React.FC = () => {
   }
 
   // Public Website Routing (No Auth Required)
-  const publicWebsitePaths = new Set(['/', '/services', '/pricing', '/contact', '/site-availability', '/available-sites', '/faq']);
+  const publicWebsitePaths = new Set(['/', '/services', '/pricing', '/contact', '/site-availability', '/available-sites', '/faq', '/privacy', '/privacy-policy', '/terms', '/terms-of-use']);
   if (publicWebsitePaths.has(normalizedPath)) {
       return (
           <ErrorBoundary>

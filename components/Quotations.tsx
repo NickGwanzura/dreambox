@@ -69,6 +69,7 @@ export const Quotations: React.FC = () => {
   const [viewingQuotation, setViewingQuotation] = useState<Invoice | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [docTypeFilter, setDocTypeFilter] = useState<'Quotation' | 'Proforma'>('Quotation');
 
   const [formData, setFormData] = useState<Partial<Invoice>>({
     clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: ''
@@ -101,8 +102,8 @@ export const Quotations: React.FC = () => {
   }, []);
 
   const quotations = useMemo(() =>
-    invoices.filter(i => String(i.type).toLowerCase() === 'quotation'),
-    [invoices]
+    invoices.filter(i => String(i.type).toLowerCase() === docTypeFilter.toLowerCase()),
+    [invoices, docTypeFilter]
   );
 
   const filteredQuotations = useMemo(() => {
@@ -502,14 +503,36 @@ export const Quotations: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Quotations</h2>
-          <p className="text-slate-900 font-medium">Create, send, and track quotations. Convert accepted quotes to invoices or contracts.</p>
+          <h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">
+            {docTypeFilter === 'Proforma' ? 'Proforma Invoices' : 'Quotations'}
+          </h2>
+          <p className="text-slate-900 font-medium">
+            {docTypeFilter === 'Proforma'
+              ? 'Preliminary invoices — convert to final invoices when ready.'
+              : 'Create, send, and track quotations. Convert accepted quotes to invoices or contracts.'}
+          </p>
         </div>
-        {canCreateQuotations(currentUser) && (
-          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105">
-            <Plus size={16} /> <span className="hidden sm:inline">New Quotation</span><span className="sm:hidden">New</span>
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {/* Type toggle */}
+          <div className="flex items-center bg-slate-100 rounded-full p-1 gap-0.5">
+            {(['Quotation', 'Proforma'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setDocTypeFilter(t)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  docTypeFilter === t ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {t === 'Quotation' ? 'Quotations' : 'Proformas'}
+              </button>
+            ))}
+          </div>
+          {canCreateQuotations(currentUser) && (
+            <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105">
+              <Plus size={16} /> <span className="hidden sm:inline">New {docTypeFilter}</span><span className="sm:hidden">New</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats Dashboard */}

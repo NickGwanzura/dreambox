@@ -5,9 +5,10 @@ import {
   BarChart, Bar, Cell, ComposedChart, Line
 } from 'recharts';
 import {
-  DollarSign, FileText, Activity, Building2, Sparkles, TrendingUp, Bell,
+  DollarSign, FileText, TrendingUp, Bell,
   AlertTriangle, Newspaper, X,
-  Zap, TrendingDown, CheckCircle2, Clock, CreditCard, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet
+  Zap, TrendingDown, CheckCircle2, Clock, CreditCard, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet,
+  Plus, Receipt
 } from 'lucide-react';
 import { getContracts, getInvoices, getBillboards, getClients, getExpenses, getExpiringContracts, getOverdueInvoices, getUpcomingBillings, getFinancialTrends, subscribe } from '../services/mockData';
 import { BillboardType } from '../types';
@@ -279,6 +280,10 @@ export const Dashboard: React.FC = () => {
     'Technology':   'bg-blue-50 text-blue-700',
   };
 
+  const dispatchQuickCreate = (type: 'Quotation' | 'Invoice' | 'Receipt' | 'Expense') => {
+    window.dispatchEvent(new CustomEvent('quick-create', { detail: { type } }));
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
 
@@ -286,11 +291,80 @@ export const Dashboard: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{greeting || `Welcome back${currentUser?.firstName ? `, ${currentUser.firstName}` : ''}`}</h1>
-          <p className="text-slate-900 mt-0.5 text-sm">Here's what's happening with your billboard business today.</p>
+          <p className="text-slate-500 mt-0.5 text-sm">Here's what's happening with your billboard business today.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-900">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
           <RefreshCw size={12} />
           <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <button
+          onClick={() => dispatchQuickCreate('Quotation')}
+          className="flex items-center gap-3 px-4 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+        >
+          <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+            <FileText size={16} />
+          </div>
+          <div className="text-left">
+            <p className="text-xs opacity-75 font-medium leading-none mb-0.5">New</p>
+            <p className="font-bold leading-none">Quotation</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => dispatchQuickCreate('Invoice')}
+          className="flex items-center gap-3 px-4 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+        >
+          <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+            <CreditCard size={16} />
+          </div>
+          <div className="text-left">
+            <p className="text-xs opacity-75 font-medium leading-none mb-0.5">New</p>
+            <p className="font-bold leading-none">Invoice</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => dispatchQuickCreate('Receipt')}
+          className="flex items-center gap-3 px-4 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+        >
+          <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+            <Receipt size={16} />
+          </div>
+          <div className="text-left">
+            <p className="text-xs opacity-75 font-medium leading-none mb-0.5">New</p>
+            <p className="font-bold leading-none">Receipt</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => dispatchQuickCreate('Expense')}
+          className="flex items-center gap-3 px-4 py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-rose-500/20 active:scale-95"
+        >
+          <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+            <TrendingDown size={16} />
+          </div>
+          <div className="text-left">
+            <p className="text-xs opacity-75 font-medium leading-none mb-0.5">Add</p>
+            <p className="font-bold leading-none">Expense</p>
+          </div>
+        </button>
+
+        <div className="flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm shadow-sm">
+          <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center shrink-0">
+            <Bell size={16} className="text-amber-600" />
+          </div>
+          <div className="text-left min-w-0">
+            <p className="text-xs text-slate-400 font-medium leading-none mb-0.5">Alerts</p>
+            <p className="font-black text-slate-900 leading-none">
+              {(expiringContracts.length + overdueInvoices.length) > 0
+                ? `${expiringContracts.length + overdueInvoices.length} items`
+                : 'All clear'}
+            </p>
+          </div>
         </div>
       </div>
 

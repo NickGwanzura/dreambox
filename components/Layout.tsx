@@ -1,31 +1,31 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  LayoutDashboard, Map, MapPin, Users, FileText, CreditCard, Receipt, Settings as SettingsIcon,
-  Menu, X, Bell, LogOut, Printer, Globe, PieChart, Wallet, ChevronRight, CheckSquare, Wrench, Database, RefreshCw,
-  Building2, Target, FileSignature, BarChart2
+import {
+  LayoutDashboard, Map, Users, FileText, CreditCard, Receipt, Settings as SettingsIcon,
+  Menu, X, Bell, LogOut, Printer, PieChart, Wallet, ChevronRight, CheckSquare, Wrench,
+  Database, RefreshCw, Target, FileSignature, BarChart2, Plus, Zap
 } from 'lucide-react';
 import { getCurrentUser, signOut } from '../services/authService';
 import { isConfigured as isNeonConfigured, checkConnection as checkNeonConnection } from '../services/apiClient';
 import { useToast } from './ToastProvider';
-import { 
-  getSystemAlertCount, 
-  triggerAutoBackup, 
-  runAutoBilling, 
-  runMaintenanceCheck, 
+import {
+  getSystemAlertCount,
+  triggerAutoBackup,
+  runAutoBilling,
+  runMaintenanceCheck,
   subscribe
 } from '../services/mockData';
-// Realtime subscriptions removed — sync is handled by neonSyncManager polling
 import { logger } from '../utils/logger';
 import { canAccessSettings } from '../utils/settingsAccess';
 import { startAutoSync, useSync, forceSyncNow } from '../services/neonSyncManager';
-import { 
+import {
   ALERT_CHECK_INTERVAL_MS,
   BACKUP_INTERVAL_MS,
   BILLING_INTERVAL_MS,
   MAINTENANCE_INTERVAL_MS,
   APP_VERSION
 } from '../services/constants';
+import { QuickCreate } from './QuickCreate';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -34,10 +34,75 @@ interface LayoutProps {
   onLogout: () => void;
 }
 
+type DocType = 'Quotation' | 'Invoice' | 'Receipt';
+
+interface SectionItem {
+  id: string;
+  label: string;
+  icon: any;
+  roles: string[] | null;
+}
+
+interface Section {
+  label: string | null;
+  items: SectionItem[];
+}
+
+const ALL_SECTIONS: Section[] = [
+  {
+    label: null,
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      { id: 'crm',        label: 'CRM & Outreach', icon: Target,       roles: null },
+      { id: 'quotations', label: 'Quotations',      icon: FileText,     roles: null },
+      { id: 'clients',    label: 'Clients',         icon: Users,        roles: ['Admin', 'Manager', 'Staff'] },
+      { id: 'contracts',  label: 'Contracts',       icon: FileSignature, roles: null },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { id: 'financials', label: 'Invoices',  icon: CreditCard, roles: null },
+      { id: 'payments',   label: 'Payments',  icon: Wallet,     roles: ['Admin', 'Manager', 'Staff'] },
+      { id: 'receipts',   label: 'Receipts',  icon: Receipt,    roles: ['Admin', 'Manager', 'Staff'] },
+      { id: 'expenses',   label: 'Expenses',  icon: Printer,    roles: ['Admin', 'Manager', 'Staff'] },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { id: 'billboards',  label: 'Billboards',  icon: Map,         roles: null },
+      { id: 'maintenance', label: 'Maintenance', icon: Wrench,      roles: ['Admin', 'Manager', 'Staff'] },
+      { id: 'tasks',       label: 'Tasks',        icon: CheckSquare, roles: ['Admin', 'Manager', 'Staff'] },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { id: 'analytics',    label: 'Profit & Analytics',    icon: PieChart,  roles: ['Admin', 'Manager'] },
+      { id: 'intelligence', label: 'Business Intelligence', icon: BarChart2, roles: ['Admin', 'Manager'] },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      { id: 'contract-template', label: 'Contract Template', icon: FileSignature, roles: ['Admin'] },
+      { id: 'settings',          label: 'Settings',          icon: SettingsIcon,  roles: ['Admin'] },
+    ],
+  },
+];
+
 export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
   const [dbConnected, setDbConnected] = useState(false);
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickCreateType, setQuickCreateType] = useState<DocType>('Quotation');
   const syncStatus = useSync();
 
   const [user, setUser] = useState<Awaited<ReturnType<typeof getCurrentUser>>>(
@@ -64,6 +129,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     return () => window.removeEventListener('profile-updated', onProfileUpdated);
   }, []);
 
+  // Listen for quick-create events dispatched from Dashboard or anywhere
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { type } = (e as CustomEvent).detail as { type: DocType };
+      setQuickCreateType(type || 'Quotation');
+      setQuickCreateOpen(true);
+    };
+    window.addEventListener('quick-create', handler);
+    return () => window.removeEventListener('quick-create', handler);
+  }, []);
+
   // Body scroll lock when sidebar is open on mobile
   useEffect(() => {
     if (sidebarOpen) {
@@ -82,16 +158,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   // Focus trap when sidebar is open
   useEffect(() => {
     if (!sidebarOpen || !sidebarRef.current) return;
-
     const sidebar = sidebarRef.current;
     const focusableEls = sidebar.querySelectorAll<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
     const firstEl = focusableEls[0];
     const lastEl = focusableEls[focusableEls.length - 1];
-
     firstEl?.focus();
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setSidebarOpen(false); return; }
       if (e.key !== 'Tab') return;
@@ -101,21 +174,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         if (document.activeElement === lastEl) { e.preventDefault(); firstEl?.focus(); }
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [sidebarOpen]);
 
-  // Swipe-to-close gesture
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchCurrentX.current = e.touches[0].clientX;
   }, []);
-
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     touchCurrentX.current = e.touches[0].clientX;
   }, []);
-
   const handleTouchEnd = useCallback(() => {
     if (touchStartX.current !== null && touchCurrentX.current !== null) {
       const diff = touchStartX.current - touchCurrentX.current;
@@ -125,14 +194,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     touchCurrentX.current = null;
   }, []);
 
-  // Use refs for intervals to properly clean up
   const intervalsRef = useRef<NodeJS.Timeout[]>([]);
 
-  // Initialize and setup intervals
   useEffect(() => {
     let isMounted = true;
-
-    // Initial checks
     setAlertCount(getSystemAlertCount());
     triggerAutoBackup();
     runAutoBilling();
@@ -143,46 +208,26 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         if (isMounted) setDbConnected(false);
         return;
       }
-
       const connected = await checkNeonConnection();
       if (!isMounted) return;
-
       setDbConnected(connected);
-      if (!connected) {
-        logger.warn('Neon is configured but not reachable; running in offline mode');
-      }
+      if (!connected) logger.warn('Neon is configured but not reachable; running in offline mode');
     };
 
     initializeDatabaseState();
 
-    // Setup intervals - store in ref for cleanup
-    const alertInterval = setInterval(() => setAlertCount(getSystemAlertCount()), ALERT_CHECK_INTERVAL_MS);
-    const backupInterval = setInterval(() => triggerAutoBackup(), BACKUP_INTERVAL_MS);
-    const billingInterval = setInterval(() => runAutoBilling(), BILLING_INTERVAL_MS);
+    const alertInterval     = setInterval(() => setAlertCount(getSystemAlertCount()), ALERT_CHECK_INTERVAL_MS);
+    const backupInterval    = setInterval(() => triggerAutoBackup(), BACKUP_INTERVAL_MS);
+    const billingInterval   = setInterval(() => runAutoBilling(), BILLING_INTERVAL_MS);
     const maintenanceInterval = setInterval(() => runMaintenanceCheck(), MAINTENANCE_INTERVAL_MS);
-    
-    intervalsRef.current = [
-      alertInterval,
-      backupInterval,
-      billingInterval,
-      maintenanceInterval,
-    ];
+    intervalsRef.current = [alertInterval, backupInterval, billingInterval, maintenanceInterval];
 
-    // Window focus handler for sync — uses neonSyncManager
-    const handleFocus = () => {
-      logger.debug('Window focused - triggering sync');
-      forceSyncNow();
-    };
+    const handleFocus = () => { logger.debug('Window focused - triggering sync'); forceSyncNow(); };
     window.addEventListener('focus', handleFocus);
-
-    // Subscribe to data changes for real-time updates
-    const unsubscribe = subscribe(() => {
-      setAlertCount(getSystemAlertCount());
-    });
+    const unsubscribe = subscribe(() => setAlertCount(getSystemAlertCount()));
 
     return () => {
       isMounted = false;
-      // Clean up all intervals
       intervalsRef.current.forEach(clearInterval);
       intervalsRef.current = [];
       window.removeEventListener('focus', handleFocus);
@@ -190,54 +235,29 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     };
   }, []);
 
-  // Start neonSyncManager auto-sync whenever the database connection is established
   useEffect(() => {
-    if (dbConnected) {
-      startAutoSync();
-    }
+    if (dbConnected) startAutoSync();
   }, [dbConnected]);
-
-  // Realtime subscriptions removed — sync is handled by neonSyncManager auto-sync polling
-
-  const allMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
-    { id: 'analytics', label: 'Profit & Analytics', icon: PieChart, roles: ['Admin', 'Manager'] },
-    { id: 'intelligence', label: 'Business Intelligence', icon: BarChart2, roles: ['Admin', 'Manager'] },
-    { id: 'crm', label: 'CRM & Outreach', icon: Target, roles: null },
-    { id: 'billboards', label: 'Billboards', icon: Map, roles: null },
-    { id: 'locations', label: 'Billboard Locations', icon: MapPin, roles: null, external: true },
-    { id: 'contracts', label: 'Contracts', icon: FileText, roles: null },
-    { id: 'maintenance', label: 'Maintenance', icon: Wrench, roles: ['Admin', 'Manager', 'Staff'] },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare, roles: ['Admin', 'Manager', 'Staff'] },
-    { id: 'outsourced', label: 'Outsourced', icon: Globe, roles: ['Admin', 'Manager', 'Staff'] },
-    { id: 'payments', label: 'Payments', icon: Wallet, roles: ['Admin', 'Manager', 'Staff'] },
-    { id: 'clients', label: 'Clients', icon: Users, roles: ['Admin', 'Manager', 'Staff'] },
-    { id: 'financials', label: 'Invoices & Quotes', icon: CreditCard, roles: null },
-    { id: 'quotations', label: 'Quotations', icon: FileText, roles: null },
-    { id: 'receipts', label: 'Receipts', icon: Receipt, roles: ['Admin', 'Manager', 'Staff'] },
-    { id: 'expenses', label: 'Expenses', icon: Printer, roles: ['Admin', 'Manager', 'Staff'] },
-    { id: 'contract-template', label: 'Contract Template', icon: FileSignature, roles: ['Admin'] },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['Admin'] },
-  ];
 
   const userRole = user?.role || 'Staff';
   const settingsVisible = canAccessSettings(user);
-  const menuItems = allMenuItems.filter(item => {
-    if (item.id === 'settings' || item.id === 'contract-template') return settingsVisible;
-    return !item.roles || item.roles.includes(userRole);
-  });
 
-  const handleLogout = async () => { 
-    await signOut(); 
-    onLogout(); 
-  };
+  const visibleSections = ALL_SECTIONS.map(section => ({
+    ...section,
+    items: section.items.filter(item => {
+      if (item.id === 'settings' || item.id === 'contract-template') return settingsVisible;
+      return !item.roles || item.roles.includes(userRole);
+    }),
+  })).filter(s => s.items.length > 0);
+
+  const handleLogout = async () => { await signOut(); onLogout(); };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#0f172a] text-slate-200 supports-[height:100dvh]:h-[100dvh]">
       {/* Mobile Sidebar Backdrop */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[90] lg:hidden transition-opacity"
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[90] lg:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
@@ -249,199 +269,215 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`fixed inset-y-0 left-0 z-[100] w-[85vw] max-w-72 transform transition-transform duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] lg:translate-x-0 lg:w-72 lg:max-w-none lg:relative flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-[100] w-[85vw] max-w-72 transform transition-transform duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] lg:translate-x-0 lg:w-64 lg:max-w-none lg:relative flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } bg-[#1e293b] shadow-2xl border-r border-slate-700/50 overflow-hidden`}
+        } bg-[#0f1219] shadow-2xl border-r border-slate-800/60 overflow-hidden`}
         aria-label="Main navigation"
         role="dialog"
         aria-modal={sidebarOpen ? 'true' : undefined}
       >
-        {/* Background Gradients */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-[#1e293b] to-slate-950 z-0"></div>
-        <div className="absolute top-0 left-0 w-full h-96 bg-indigo-600/5 blur-[120px] rounded-full z-0 pointer-events-none"></div>
-
         {/* Sidebar Header */}
-        <div className="relative z-10 flex items-center justify-between p-6 shrink-0 border-b border-slate-700/50">
-          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => onNavigate('dashboard')}>
-             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300 border border-white/10">
-               D
-             </div>
-             <div>
-                <span className="font-bold text-xl tracking-tight text-white block leading-none">Dreambox</span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">Advertising</span>
-             </div>
-          </div>
+        <div className="flex items-center justify-between px-5 py-5 shrink-0 border-b border-slate-800/60">
+          <button
+            className="flex items-center gap-3 group"
+            onClick={() => { onNavigate('dashboard'); setSidebarOpen(false); }}
+          >
+            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center font-black text-lg text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-200">
+              D
+            </div>
+            <div className="text-left">
+              <span className="font-bold text-base tracking-tight text-white block leading-none">Dreambox</span>
+              <span className="text-[9px] uppercase tracking-[0.25em] text-slate-500 font-bold">Advertising</span>
+            </div>
+          </button>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-slate-400 hover:text-white transition-colors p-2.5 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="lg:hidden text-slate-500 hover:text-white transition-colors p-2 -mr-1 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg hover:bg-white/5"
             aria-label="Close menu"
           >
-            <X size={24} />
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Quick Create Button */}
+        <div className="px-4 pt-4 pb-2 shrink-0">
+          <button
+            onClick={() => { setQuickCreateType('Quotation'); setQuickCreateOpen(true); setSidebarOpen(false); }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-indigo-900/30 active:scale-95"
+          >
+            <Plus size={15} />
+            Quick Create
+            <Zap size={12} className="opacity-70 ml-auto" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="relative z-10 flex-1 overflow-y-auto px-4 py-4 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentPage === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if ((item as any).external) {
-                    window.open('/locations', '_blank');
-                  } else {
-                    onNavigate(item.id);
-                  }
-                  setSidebarOpen(false);
-                }}
-                className={`group flex items-center w-full px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 relative overflow-hidden ${
-                  isActive 
-                    ? 'text-white shadow-md shadow-indigo-900/20' 
-                    : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50'
-                }`}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/90 to-violet-600/90 rounded-xl z-0"></div>
-                )}
-                <div className="relative z-10 flex items-center w-full">
-                    <Icon size={20} className={`mr-3 shrink-0 transition-transform duration-300 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400 group-hover:scale-110'}`} />
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {isActive && <ChevronRight size={16} className="text-white/70" />}
-                </div>
-              </button>
-            );
-          })}
+        <nav className="relative flex-1 overflow-y-auto px-3 py-2 space-y-0.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+          {visibleSections.map((section, si) => (
+            <div key={si} className={si > 0 ? 'mt-4' : ''}>
+              {section.label && (
+                <p className="px-3 mb-1 text-[9px] font-black uppercase tracking-[0.2em] text-slate-600">
+                  {section.label}
+                </p>
+              )}
+              {section.items.map(item => {
+                const Icon = item.icon;
+                const isActive = currentPage === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => { onNavigate(item.id); setSidebarOpen(false); }}
+                    className={`group flex items-center w-full px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 relative overflow-hidden ${
+                      isActive
+                        ? 'text-white bg-gradient-to-r from-indigo-600/90 to-violet-600/90 shadow-md shadow-indigo-900/20'
+                        : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.04]'
+                    }`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <Icon
+                      size={16}
+                      className={`mr-3 shrink-0 transition-colors duration-200 ${isActive ? 'text-white' : 'text-slate-600 group-hover:text-indigo-400'}`}
+                    />
+                    <span className="flex-1 text-left leading-none">{item.label}</span>
+                    {isActive && <ChevronRight size={13} className="text-white/60 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="relative z-10 p-4 bg-[#0f1219]/80 backdrop-blur-md border-t border-white/[0.06] shrink-0">
-           <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/10 transition-colors cursor-pointer group">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center text-sm font-bold border border-indigo-500/30 text-indigo-300 shrink-0">
-                  {user?.firstName?.charAt(0) || 'U'}
+        <div className="shrink-0 px-4 py-4 border-t border-slate-800/60 bg-[#0a0e16]/60 backdrop-blur-md">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:border-white/10 transition-colors">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center text-sm font-bold border border-indigo-500/30 text-indigo-300 shrink-0">
+              {user?.firstName?.charAt(0) || 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-slate-200 truncate">{user?.firstName || 'User'}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-[9px] text-slate-600 uppercase tracking-wider truncate">{user?.role || 'Guest'}</p>
+                <span className="text-slate-700">·</span>
+                <button
+                  onClick={async () => {
+                    const ok = await forceSyncNow();
+                    showToast(ok ? 'Cloud sync complete' : 'Cloud sync failed', ok ? 'success' : 'error');
+                  }}
+                  disabled={syncStatus.isSyncing || !dbConnected}
+                  className={`flex items-center gap-1 text-[9px] font-medium transition-colors ${
+                    dbConnected ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-slate-600'
+                  } ${syncStatus.isSyncing ? 'cursor-wait' : 'cursor-pointer'}`}
+                  title={syncStatus.lastSyncTime ? `Last sync: ${new Date(syncStatus.lastSyncTime).toLocaleTimeString()}` : 'Click to sync'}
+                >
+                  {dbConnected
+                    ? syncStatus.isSyncing
+                      ? <RefreshCw size={9} className="animate-spin text-emerald-400" />
+                      : <Database size={9} />
+                    : <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                  }
+                  {dbConnected ? (syncStatus.isSyncing ? 'Syncing…' : 'Synced') : 'Local'}
+                </button>
+                <span className="text-[9px] font-mono text-slate-700 ml-auto">v{APP_VERSION}</span>
               </div>
-              <div className="flex-1 min-w-0">
-                 <p className="text-sm font-semibold text-slate-200 truncate group-hover:text-indigo-400 transition-colors">{user?.firstName || 'User'}</p>
-                 <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-[10px] text-slate-500 truncate uppercase tracking-wider">{user?.role || 'Guest'}</p>
-                    <span className="text-[10px] text-slate-700">·</span>
-                    <button
-                      onClick={async () => {
-                        const ok = await forceSyncNow();
-                        showToast(ok ? 'Cloud sync complete' : 'Cloud sync failed', ok ? 'success' : 'error');
-                      }}
-                      disabled={syncStatus.isSyncing || !dbConnected}
-                      className={`flex items-center gap-1 text-[10px] font-medium transition-colors ${
-                        dbConnected ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-slate-500'
-                      } ${syncStatus.isSyncing ? 'cursor-wait' : 'cursor-pointer'}`}
-                      title={syncStatus.lastSyncTime ? `Last sync: ${new Date(syncStatus.lastSyncTime).toLocaleTimeString()}` : 'Click to sync'}
-                    >
-                        {dbConnected ? (
-                            syncStatus.isSyncing ? (
-                                <RefreshCw size={9} className="animate-spin text-emerald-400" />
-                            ) : (
-                                <Database size={9} />
-                            )
-                        ) : (
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
-                        )}
-                        {dbConnected ? (syncStatus.isSyncing ? 'Syncing...' : 'Connected') : 'Local'}
-                    </button>
-                    <span className="text-[10px] font-mono text-slate-700 ml-auto">v{APP_VERSION}</span>
-                 </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="text-slate-500 hover:text-red-400 transition-colors p-2.5 hover:bg-white/5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-                title="Logout"
-                aria-label="Logout"
-              >
-                 <LogOut size={18} />
-              </button>
-           </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-slate-600 hover:text-red-400 transition-colors p-2 hover:bg-white/5 rounded-lg min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
+              title="Logout"
+              aria-label="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-full relative bg-[#f8fafc]">
-        {/* Background pattern */}
-        <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#475569 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+        <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.025]" style={{ backgroundImage: 'radial-gradient(#475569 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
         {/* Header */}
-        <header className="sticky top-0 z-40 h-auto min-h-[4rem] sm:min-h-[4.5rem] flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 shrink-0 transition-all duration-300 border-b border-slate-200/50 bg-white/80 backdrop-blur-md">
-          <div className="flex items-center gap-3 sm:gap-4">
-             <button
-               onClick={() => setSidebarOpen(true)}
-               className="lg:hidden p-2 text-slate-900 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
-               aria-label="Open menu"
-             >
-               <Menu size={24} />
-             </button>
-             <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight capitalize truncate flex-1 min-w-0 sm:flex-none">
-               {currentPage.replace('-', ' ')}
-             </h1>
+        <header className="sticky top-0 z-40 h-auto min-h-[4rem] flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 shrink-0 border-b border-slate-200/50 bg-white/80 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu size={22} />
+            </button>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight capitalize truncate">
+              {currentPage.replace(/-/g, ' ')}
+            </h1>
           </div>
-          
-          <div className="flex items-center gap-2 sm:gap-4">
-             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-bold text-slate-900 shadow-sm">
-                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                <span>Harare, ZW</span>
-             </div>
 
-             {/* Sync Status Indicator */}
-             <div
-               className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-[11px] font-medium transition-all shadow-sm"
-               title={`Last sync: ${syncStatus.lastSyncTime ? new Date(syncStatus.lastSyncTime).toLocaleTimeString() : 'Never'} | Pending: ${syncStatus.pendingCount}`}
-             >
-               {syncStatus.isSyncing ? (
-                 <RefreshCw size={11} className="animate-spin text-indigo-500" />
-               ) : syncStatus.isAutoSyncRunning ? (
-                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-               ) : (
-                 <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-               )}
-               <span className="text-slate-900">
-                 {syncStatus.lastSyncTime
-                   ? (seconds =>
-                       seconds < 5 ? 'now' :
-                       seconds < 60 ? `${seconds}s` :
-                       `${Math.floor(seconds / 60)}m`
-                     )(Math.floor((Date.now() - syncStatus.lastSyncTime) / 1000))
-                   : '--'
-                 }
-               </span>
-               {syncStatus.pendingCount > 0 && (
-                 <span className="flex items-center justify-center min-w-[16px] h-4 px-1 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold leading-none">
-                   {syncStatus.pendingCount > 9 ? '9+' : syncStatus.pendingCount}
-                 </span>
-               )}
-             </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Sync indicator */}
+            <div
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-[11px] font-medium transition-all shadow-sm"
+              title={`Last sync: ${syncStatus.lastSyncTime ? new Date(syncStatus.lastSyncTime).toLocaleTimeString() : 'Never'}`}
+            >
+              {syncStatus.isSyncing
+                ? <RefreshCw size={10} className="animate-spin text-indigo-500" />
+                : syncStatus.isAutoSyncRunning
+                  ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  : <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+              }
+              <span className="text-slate-600">
+                {syncStatus.lastSyncTime
+                  ? (s => s < 5 ? 'now' : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m`)(
+                      Math.floor((Date.now() - syncStatus.lastSyncTime) / 1000)
+                    )
+                  : '--'}
+              </span>
+              {syncStatus.pendingCount > 0 && (
+                <span className="flex items-center justify-center min-w-[16px] h-4 px-1 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold">
+                  {syncStatus.pendingCount > 9 ? '9+' : syncStatus.pendingCount}
+                </span>
+              )}
+            </div>
 
-             <button
-               onClick={() => onNavigate('dashboard')}
-               className="relative p-2 text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300"
-               title={`${alertCount} System Alerts`}
-               aria-label={`${alertCount} notifications`}
-             >
-                <Bell size={22} />
-                {alertCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-600 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white shadow-sm animate-pulse">
-                        {alertCount > 9 ? '9+' : alertCount}
-                    </span>
-                )}
-             </button>
+            {/* Quick Create shortcut (header) */}
+            <button
+              onClick={() => { setQuickCreateType('Quotation'); setQuickCreateOpen(true); }}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-xs font-bold transition-colors shadow-sm"
+              title="Quick Create Quote/Invoice"
+            >
+              <Plus size={13} />
+              New
+            </button>
+
+            {/* Alerts Bell */}
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="relative p-2 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
+              title={`${alertCount} System Alerts`}
+              aria-label={`${alertCount} notifications`}
+            >
+              <Bell size={20} />
+              {alertCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white animate-pulse">
+                  {alertCount > 9 ? '9+' : alertCount}
+                </span>
+              )}
+            </button>
           </div>
         </header>
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 relative z-10 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
-           <div className="max-w-7xl mx-auto pb-20">
-             {children}
-           </div>
+          <div className="max-w-7xl mx-auto pb-20">
+            {children}
+          </div>
         </div>
       </main>
+
+      {/* Quick Create Panel */}
+      <QuickCreate
+        open={quickCreateOpen}
+        initialType={quickCreateType}
+        onClose={() => setQuickCreateOpen(false)}
+      />
     </div>
   );
 };

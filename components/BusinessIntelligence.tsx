@@ -8,7 +8,7 @@ import {
   Lightbulb, PhoneCall, RefreshCw, TrendingDown, Star, Package
 } from 'lucide-react';
 import {
-  getContracts, getInvoices, getClients, getBillboards,
+  getContracts, getInvoices, getClients, getBillboards, getExpenses,
 } from '../services/mockData';
 import { BillboardType } from '../types';
 import { formatCurrency } from '../services/profitAnalytics';
@@ -61,6 +61,7 @@ export const BusinessIntelligence: React.FC = () => {
   const invoices = useMemo(() => getInvoices(), []);
   const clients = useMemo(() => getClients(), []);
   const billboards = useMemo(() => getBillboards(), []);
+  const expenses = useMemo(() => getExpenses(), []);
 
   const today = useMemo(() => new Date(), []);
   const activeContracts = useMemo(() =>
@@ -77,6 +78,31 @@ export const BusinessIntelligence: React.FC = () => {
   const totalMRR = activeContracts.reduce((s, c) => s + c.monthlyRate, 0);
   const paidInvoiceTotal = invoices.filter(i => i.status === 'Paid' && i.type === 'Invoice').reduce((s, i) => s + i.total, 0);
   const pendingInvoiceTotal = invoices.filter(i => i.status === 'Pending' && i.type === 'Invoice').reduce((s, i) => s + i.total, 0);
+
+  // ── Expense metrics ───────────────────────────────────────────────────────
+
+  const thisMonth = today.toISOString().slice(0, 7); // 'YYYY-MM'
+  const monthlyExpenses = useMemo(
+    () => expenses.filter(e => e.date.startsWith(thisMonth)),
+    [expenses, thisMonth]
+  );
+  const totalMonthlyExpenses = monthlyExpenses.reduce((s, e) => s + e.amount, 0);
+  const totalAllExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+
+  const expenseByCategory = useMemo(() => {
+    const cats: Record<string, number> = {};
+    for (const e of expenses) {
+      cats[e.category] = (cats[e.category] || 0) + e.amount;
+    }
+    return Object.entries(cats).sort((a, b) => b[1] - a[1]);
+  }, [expenses]);
+
+  const estNetProfit = totalMRR - totalMonthlyExpenses;
+  const expenseRatio = totalMRR > 0 ? Math.round((totalMonthlyExpenses / totalMRR) * 100) : 0;
+  const topExpenseCategory = expenseByCategory[0]?.[0] ?? null;
+  const topExpensePct = totalAllExpenses > 0 && expenseByCategory[0]
+    ? Math.round((expenseByCategory[0][1] / totalAllExpenses) * 100)
+    : 0;
 
   const totalStaticSides = billboards.filter(b => b.type === BillboardType.Static).length * 2;
   const rentedStaticSides = activeContracts.filter(c => c.side === 'A' || c.side === 'B' || c.side === 'Both')
@@ -329,10 +355,51 @@ export const BusinessIntelligence: React.FC = () => {
       });
     }
 
+    // 10. High expense-to-revenue ratio
+    if (totalMRR > 0 && totalMonthlyExpenses > 0 && expenseRatio >= 60) {
+      recs.push({
+        id: 'high-costs',
+        priority: expenseRatio >= 80 ? 'critical' : 'high',
+        category: 'Cost Control',
+        title: `Operating costs are ${expenseRatio}% of monthly revenue`,
+        detail: `Monthly expenses (${formatCurrency(totalMonthlyExpenses)}) are consuming ${expenseRatio}% of your MRR (${formatCurrency(totalMRR)}), leaving only ${formatCurrency(Math.max(0, estNetProfit))} net.`,
+        impact: `Est. net profit: ${formatCurrency(estNetProfit)}`,
+        action: expenseRatio >= 80
+          ? 'Conduct an urgent cost audit. Identify and eliminate non-essential spend before it exceeds revenue.'
+          : 'Review top spending categories and negotiate supplier rates. A 10% cost reduction could meaningfully improve margins.',
+      });
+    }
+
+    // 11. Single expense category dominates (>50%)
+    if (topExpenseCategory && topExpensePct >= 50 && totalAllExpenses > 0) {
+      recs.push({
+        id: 'expense-concentration',
+        priority: 'medium',
+        category: 'Cost Control',
+        title: `${topExpenseCategory} is ${topExpensePct}% of all recorded costs`,
+        detail: `Over half your operating expenses come from a single category. This concentration creates risk if ${topExpenseCategory.toLowerCase()} costs spike.`,
+        impact: `${formatCurrency(expenseByCategory[0][1])} in ${topExpenseCategory}`,
+        action: `Get competitive quotes for ${topExpenseCategory.toLowerCase()} services. Bulk contracts or supplier consolidation can reduce this category significantly.`,
+      });
+    }
+
+    // 12. No expenses tracked yet
+    if (expenses.length === 0) {
+      recs.push({
+        id: 'track-expenses',
+        priority: 'medium',
+        category: 'Financial Visibility',
+        title: 'No expenses recorded — profit picture is incomplete',
+        detail: 'Without expense data, net profit calculations and cost-to-revenue analysis are unavailable. This limits financial decision-making.',
+        impact: 'Blind spot in P&L reporting',
+        action: 'Start logging expenses using the Add Expense quick-action on the dashboard. Even rough figures enable meaningful margin analysis.',
+      });
+    }
+
     // Sort: critical → high → medium → growth
     const order: RecPriority[] = ['critical', 'high', 'medium', 'growth'];
     return recs.sort((a, b) => order.indexOf(a.priority) - order.indexOf(b.priority));
-  }, [overdueInvoices, expiring30, atRiskClients, coldQuotes, vacantBoards, clientData, totalMRR, activeContracts, quotationCount, proformaCount, conversionRate, assetData, billboards, clients, invoices]);
+  }, [overdueInvoices, expiring30, atRiskClients, coldQuotes, vacantBoards, clientData, totalMRR, activeContracts, quotationCount, proformaCount, conversionRate, assetData, billboards, clients, invoices, expenses, totalMonthlyExpenses, expenseRatio, estNetProfit, topExpenseCategory, topExpensePct, expenseByCategory]);
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -397,6 +464,83 @@ export const BusinessIntelligence: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {/* Expense + Profit KPIs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              {
+                label: 'Expenses This Month',
+                value: formatCurrency(totalMonthlyExpenses),
+                sub: `${monthlyExpenses.length} recorded`,
+                icon: TrendingDown,
+                color: totalMonthlyExpenses > 0 ? 'text-rose-600' : 'text-slate-500',
+                bg: totalMonthlyExpenses > 0 ? 'bg-rose-50' : 'bg-slate-50',
+              },
+              {
+                label: 'Est. Net Profit',
+                value: formatCurrency(estNetProfit),
+                sub: `MRR minus monthly costs`,
+                icon: DollarSign,
+                color: estNetProfit >= 0 ? 'text-emerald-600' : 'text-red-600',
+                bg: estNetProfit >= 0 ? 'bg-emerald-50' : 'bg-red-50',
+              },
+              {
+                label: 'Expense-to-Revenue',
+                value: `${expenseRatio}%`,
+                sub: expenseRatio < 40 ? 'Healthy margin' : expenseRatio < 70 ? 'Watch costs' : 'High cost ratio',
+                icon: BarChart2,
+                color: expenseRatio < 40 ? 'text-emerald-600' : expenseRatio < 70 ? 'text-amber-600' : 'text-red-600',
+                bg: expenseRatio < 40 ? 'bg-emerald-50' : expenseRatio < 70 ? 'bg-amber-50' : 'bg-red-50',
+              },
+              {
+                label: 'Top Expense Category',
+                value: topExpenseCategory || 'None',
+                sub: topExpenseCategory ? `${topExpensePct}% of all costs` : 'No expenses recorded',
+                icon: Package,
+                color: 'text-slate-600',
+                bg: 'bg-slate-100',
+              },
+            ].map(kpi => (
+              <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                <div className={`w-8 h-8 rounded-lg ${kpi.bg} flex items-center justify-center mb-3`}>
+                  <kpi.icon size={16} className={kpi.color} />
+                </div>
+                <div className="text-xl font-black text-slate-900">{kpi.value}</div>
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{kpi.label}</div>
+                <div className="text-[11px] text-slate-400 mt-1">{kpi.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Expense category breakdown */}
+          {expenseByCategory.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingDown size={14} className="text-rose-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Expense Breakdown by Category</h3>
+                <span className="ml-auto text-[11px] text-slate-400">All time · {formatCurrency(totalAllExpenses)} total</span>
+              </div>
+              <div className="space-y-2.5">
+                {expenseByCategory.map(([cat, amt]) => {
+                  const pct = totalAllExpenses > 0 ? Math.round((amt / totalAllExpenses) * 100) : 0;
+                  return (
+                    <div key={cat}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-semibold text-slate-700">{cat}</span>
+                        <span className="text-slate-500">{formatCurrency(amt)} <span className="text-slate-400">({pct}%)</span></span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-rose-400 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Alerts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1,0 +1,567 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, FileText, CreditCard, Receipt, Plus, Trash2, Zap, ChevronDown, Download, Loader, TrendingDown } from 'lucide-react';
+import { addInvoice, addExpense, getClients } from '../services/mockData';
+import { generateInvoicePDF } from '../services/pdfGenerator';
+import { getCurrentUser } from '../services/authServiceSecure';
+import { getEffectiveVatRate } from '../services/mockData';
+import type { Invoice, Client, Expense } from '../types';
+
+type DocType = 'Quotation' | 'Invoice' | 'Receipt' | 'Expense';
+
+const EXPENSE_CATEGORIES = ['Maintenance', 'Printing', 'Electricity', 'Labor', 'Other'] as const;
+
+interface LineItem {
+  description: string;
+  amount: number;
+}
+
+const PRESETS: { label: string; description: string }[] = [
+  { label: 'Billboard Rental', description: 'Billboard Rental — Monthly' },
+  { label: 'Printing', description: 'Printing & Production' },
+  { label: 'Installation', description: 'Site Installation & Setup' },
+  { label: 'Design Fee', description: 'Creative Design Fee' },
+  { label: 'LED Slot', description: 'LED Screen Slot — Monthly' },
+  { label: 'Activation Fee', description: 'Campaign Activation Fee' },
+];
+
+interface QuickCreateProps {
+  open: boolean;
+  initialType?: DocType;
+  onClose: () => void;
+}
+
+export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Quotation', onClose }) => {
+  const [docType, setDocType] = useState<DocType>(initialType);
+  const [clientSearch, setClientSearch] = useState('');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showClientList, setShowClientList] = useState(false);
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [items, setItems] = useState<LineItem[]>([{ description: '', amount: 0 }]);
+  const [hasVat, setHasVat] = useState(true);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [notes, setNotes] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [expiryDate, setExpiryDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 14);
+    return d.toISOString().split('T')[0];
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Expense-specific state
+  const [expenseCategory, setExpenseCategory] = useState<typeof EXPENSE_CATEGORIES[number]>('Other');
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState(0);
+  const [expenseReference, setExpenseReference] = useState('');
+  const panelRef = useRef<HTMLDivElement>(null);
+  const currentUser = getCurrentUser();
+
+  useEffect(() => {
+    setAllClients(getClients());
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setDocType(initialType);
+      setError(null);
+    }
+  }, [open, initialType]);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    if (open) document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+
+  const filteredClients = allClients.filter(c =>
+    c.companyName.toLowerCase().includes(clientSearch.toLowerCase()) ||
+    c.contactPerson.toLowerCase().includes(clientSearch.toLowerCase())
+  ).slice(0, 8);
+
+  const gross = items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  const vatRate = getEffectiveVatRate();
+  const afterDiscount = Math.max(0, gross - (Number(discountAmount) || 0));
+  const vatAmount = hasVat ? afterDiscount * vatRate : 0;
+  const total = afterDiscount + vatAmount;
+
+  const addItem = () => setItems(prev => [...prev, { description: '', amount: 0 }]);
+  const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
+  const updateItem = (i: number, field: keyof LineItem, value: string | number) => {
+    setItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
+  };
+  const addPreset = (preset: typeof PRESETS[number]) => {
+    setItems(prev => {
+      const empty = prev.findIndex(i => !i.description && !i.amount);
+      if (empty >= 0) {
+        return prev.map((item, idx) => idx === empty ? { ...item, description: preset.description } : item);
+      }
+      return [...prev, { description: preset.description, amount: 0 }];
+    });
+  };
+
+  const handleSave = useCallback(async (asDraft = false) => {
+    setError(null);
+    setSaving(true);
+    try {
+      if (docType === 'Expense') {
+        if (!expenseDescription.trim()) { setError('Description is required'); setSaving(false); return; }
+        if (!expenseAmount || expenseAmount <= 0) { setError('Enter a valid amount'); setSaving(false); return; }
+        await addExpense({
+          id: '',
+          category: expenseCategory,
+          description: expenseDescription.trim(),
+          amount: expenseAmount,
+          date,
+          reference: expenseReference.trim() || undefined,
+        } as Expense);
+        onClose();
+        setExpenseDescription('');
+        setExpenseAmount(0);
+        setExpenseReference('');
+        return;
+      }
+
+      if (!selectedClient) { setError('Select a client first'); setSaving(false); return; }
+      const validItems = items.filter(i => i.description.trim());
+      if (!validItems.length) { setError('Add at least one line item'); setSaving(false); return; }
+
+      const payload: Omit<Invoice, 'id'> = {
+        clientId: selectedClient.id,
+        date,
+        items: validItems.map(i => ({
+          description: i.description,
+          quantity: 1,
+          unitPrice: Number(i.amount) || 0,
+          amount: Number(i.amount) || 0,
+        })),
+        subtotal: afterDiscount,
+        discountAmount: discountAmount > 0 ? discountAmount : undefined,
+        vatAmount,
+        total,
+        hasVat,
+        type: docType,
+        status: 'Pending',
+        notes: notes || undefined,
+        ...(docType === 'Quotation' && {
+          quoteStatus: 'Draft',
+          expiryDate,
+          createdBy: currentUser?.email,
+        }),
+      } as any;
+
+      const created = await addInvoice(payload as Invoice);
+
+      // Auto-download PDF
+      try {
+        await generateInvoicePDF(created, selectedClient);
+      } catch (pdfErr) {
+        console.warn('PDF generation failed after save:', pdfErr);
+      }
+
+      onClose();
+      setSelectedClient(null);
+      setClientSearch('');
+      setItems([{ description: '', amount: 0 }]);
+      setDiscountAmount(0);
+      setNotes('');
+    } catch (err: any) {
+      setError(err?.message || 'Save failed. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [docType, expenseCategory, expenseDescription, expenseAmount, expenseReference, selectedClient, items, date, expiryDate, afterDiscount, discountAmount, vatAmount, total, hasVat, notes, currentUser, onClose]);
+
+  if (!open) return null;
+
+  const typeConfig: Record<DocType, { icon: any; label: string }> = {
+    Quotation: { icon: FileText,     label: 'Quote'   },
+    Invoice:   { icon: CreditCard,   label: 'Invoice' },
+    Receipt:   { icon: Receipt,      label: 'Receipt' },
+    Expense:   { icon: TrendingDown, label: 'Expense' },
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div
+        ref={panelRef}
+        className="fixed right-0 top-0 bottom-0 z-[201] w-full max-w-md bg-white shadow-2xl flex flex-col animate-slide-in-right overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Quick Create"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0 bg-slate-900">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+              <Zap size={16} className="text-indigo-300" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white">Quick Create</h2>
+              <p className="text-xs text-slate-400">PDF auto-downloads on save</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Type Selector */}
+        <div className="flex gap-1.5 px-6 py-4 border-b border-slate-100 shrink-0 bg-slate-50">
+          {(['Quotation', 'Invoice', 'Receipt', 'Expense'] as DocType[]).map(t => {
+            const cfg = typeConfig[t];
+            const Icon = cfg.icon;
+            const active = docType === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setDocType(t)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-bold transition-all border ${
+                  active
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <Icon size={13} />
+                {t}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+          {/* Expense Form */}
+          {docType === 'Expense' && (
+            <>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Category *</label>
+                <select
+                  value={expenseCategory}
+                  onChange={e => setExpenseCategory(e.target.value as typeof EXPENSE_CATEGORIES[number])}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                >
+                  {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description *</label>
+                <input
+                  type="text"
+                  placeholder="What was the expense for?"
+                  value={expenseDescription}
+                  onChange={e => setExpenseDescription(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={expenseAmount || ''}
+                      onChange={e => setExpenseAmount(parseFloat(e.target.value) || 0)}
+                      className="w-full pl-6 pr-3 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Date</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Reference (optional)</label>
+                <input
+                  type="text"
+                  placeholder="Receipt #, invoice ref..."
+                  value={expenseReference}
+                  onChange={e => setExpenseReference(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Invoice / Quote / Receipt fields */}
+          {docType !== 'Expense' && (
+            <>
+              {/* Client */}
+              <div className="relative">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Client *</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowClientList(v => !v)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-medium text-left transition-colors ${
+                      selectedClient ? 'border-slate-900 text-slate-900 bg-slate-50' : 'border-slate-200 text-slate-400 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="truncate">{selectedClient ? `${selectedClient.companyName} — ${selectedClient.contactPerson}` : 'Select client...'}</span>
+                    <ChevronDown size={14} className="text-slate-400 shrink-0 ml-2" />
+                  </button>
+                  {showClientList && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-10 overflow-hidden">
+                      <div className="p-2 border-b border-slate-100">
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Search clients..."
+                          value={clientSearch}
+                          onChange={e => setClientSearch(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {filteredClients.length > 0 ? filteredClients.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => { setSelectedClient(c); setShowClientList(false); setClientSearch(''); }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-indigo-50 transition-colors"
+                          >
+                            <p className="text-sm font-semibold text-slate-900">{c.companyName}</p>
+                            <p className="text-xs text-slate-500">{c.contactPerson}</p>
+                          </button>
+                        )) : (
+                          <p className="text-xs text-slate-400 px-4 py-3 text-center">No clients found</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className={`grid gap-4 ${docType === 'Quotation' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Date</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                  />
+                </div>
+                {docType === 'Quotation' && (
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Valid Until</label>
+                    <input
+                      type="date"
+                      value={expiryDate}
+                      onChange={e => setExpiryDate(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Presets */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quick Add</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESETS.map(p => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => addPreset(p)}
+                      className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full transition-colors border border-transparent hover:border-indigo-200"
+                    >
+                      + {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Line Items */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Line Items</label>
+                <div className="space-y-2">
+                  {items.map((item, i) => (
+                    <div key={i} className="flex gap-2 items-start">
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          placeholder="Description"
+                          value={item.description}
+                          onChange={e => updateItem(i, 'description', e.target.value)}
+                          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                        />
+                      </div>
+                      <div className="w-28 shrink-0">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">$</span>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            value={item.amount || ''}
+                            onChange={e => updateItem(i, 'amount', parseFloat(e.target.value) || 0)}
+                            className="w-full pl-6 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                          />
+                        </div>
+                      </div>
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItem(i)}
+                          className="p-2.5 text-slate-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-colors shrink-0"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="mt-2 flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors py-1"
+                >
+                  <Plus size={13} /> Add item
+                </button>
+              </div>
+
+              {/* VAT + Discount */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Discount ($)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0"
+                      value={discountAmount || ''}
+                      onChange={e => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                      className="w-full pl-6 pr-3 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:border-indigo-400 focus:outline-none bg-white"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col justify-end pb-0.5">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">VAT ({(vatRate * 100).toFixed(0)}%)</label>
+                  <button
+                    type="button"
+                    onClick={() => setHasVat(v => !v)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${hasVat ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${hasVat ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Notes (optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Payment terms, special conditions..."
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 font-medium focus:border-indigo-400 focus:outline-none resize-none bg-white"
+                />
+              </div>
+            </>
+          )}
+
+          {error && (
+            <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Totals + Footer */}
+        <div className="shrink-0 border-t border-slate-100 bg-white">
+          {/* Totals — hidden for Expense */}
+          {docType !== 'Expense' && (
+            <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 space-y-1">
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Subtotal</span>
+                <span className="font-medium text-slate-900">${gross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-xs text-red-500">
+                  <span>Discount</span>
+                  <span>-${discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              {hasVat && (
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>VAT ({(vatRate * 100).toFixed(0)}%)</span>
+                  <span className="font-medium text-slate-900">${vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-slate-900 text-base pt-1 border-t border-slate-200">
+                <span>Total</span>
+                <span>${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="px-6 py-4 flex gap-3">
+            {docType === 'Expense' ? (
+              <button
+                type="button"
+                onClick={() => handleSave(false)}
+                disabled={saving}
+                className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-colors disabled:opacity-50 shadow-lg"
+              >
+                {saving ? <Loader size={14} className="animate-spin" /> : <TrendingDown size={14} />}
+                {saving ? 'Saving...' : 'Save Expense'}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleSave(true)}
+                  disabled={saving}
+                  className="flex-1 py-3 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  Save Draft
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave(false)}
+                  disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50 shadow-lg"
+                >
+                  {saving ? (
+                    <Loader size={14} className="animate-spin" />
+                  ) : (
+                    <Download size={14} />
+                  )}
+                  {saving ? 'Saving...' : 'Save & Download PDF'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
