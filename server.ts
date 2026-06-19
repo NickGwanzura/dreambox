@@ -77,25 +77,34 @@ async function runMigrations() {
   // Prisma schema declares it as an enum type, but the production DB
   // used a TEXT+CHECK approach. Without this, prisma.invoice.create()
   // fails with "type 'public.QuoteStatus' does not exist".
+  // This block is idempotent — safe to run on every boot.
   try {
     log.boot('  Bootstrap           →  ensuring QuoteStatus enum...');
 
-    // Use $queryRawUnsafe for DO blocks — $executeRawUnsafe doesn't handle $ quoting
+    // 1. Create the PG enum type (safe: IF NOT EXISTS via DO block)
     await prisma.$queryRawUnsafe(
       "DO $block$ BEGIN CREATE TYPE \"QuoteStatus\" AS ENUM ('Draft','Sent','Accepted','Rejected','Expired','Converted'); EXCEPTION WHEN duplicate_object THEN NULL; END $block$;"
     );
 
-    await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" DROP CONSTRAINT IF EXISTS "invoices_quoteStatus_check"`);
-
-    await prisma.$queryRawUnsafe(
-      `ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" TYPE "QuoteStatus" USING ("quoteStatus"::text)::"QuoteStatus"`
+    // 2. Check if the column still uses TEXT — if so, convert it
+    const [{ exists }] = await prisma.$queryRawUnsafe<[{ exists: boolean }]>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+         WHERE table_name = 'invoices' AND column_name = 'quoteStatus'
+         AND udt_name = 'text'
+       ) AS "exists"`
     );
 
-    // Drop old default first, convert, then set new default with explicit cast
-    await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" DROP DEFAULT`);
-    await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" SET DEFAULT 'Draft'::"QuoteStatus"`);
-
-    log.boot('  Bootstrap           ✓  QuoteStatus enum ready');
+    if (exists) {
+      await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" DROP CONSTRAINT IF EXISTS "invoices_quoteStatus_check"`);
+      await prisma.$queryRawUnsafe(
+        `ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" TYPE "QuoteStatus" USING ("quoteStatus"::text)::"QuoteStatus"`
+      );
+      await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" SET DEFAULT 'Draft'::"QuoteStatus"`);
+      log.boot('  Bootstrap           ✓  QuoteStatus column converted');
+    } else {
+      log.boot('  Bootstrap           ✓  QuoteStatus enum already ready');
+    }
   } catch (e: any) {
     log.boot(`  Bootstrap           ⚠  ${e?.message?.slice(0, 200) || String(e)}`);
   }
