@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
+import { pickCRMTouchpointData } from '../../lib/whitelist';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -25,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      const { id, createdAt, ...data } = req.body ?? {};
+      const data = pickCRMTouchpointData(req.body ?? {});
       const row = await prisma.cRMTouchpoint.create({ data });
       return res.status(201).json(row);
     }
@@ -33,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
-      const { id: _id, createdAt, ...data } = req.body ?? {};
+      const data = pickCRMTouchpointData(req.body ?? {});
       const existing = await prisma.cRMTouchpoint.findUnique({ where: { id: id as string } });
       const row = existing
         ? await prisma.cRMTouchpoint.update({ where: { id: id as string }, data })

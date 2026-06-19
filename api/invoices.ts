@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, requireQuotationWritePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { pickInvoiceData } from '../lib/whitelist';
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -26,46 +27,7 @@ const invoiceSchema = z.object({
   notes: z.string().max(2000, 'Notes too long').optional(),
 });
 
-// ─── Field whitelist ──────────────────────────────────────────────────────────
-// Explicitly picks only the fields present in the Prisma Invoice model.
-// This is the single safest guard against unknown-field Prisma errors —
-// no matter what the client sends, Prisma only sees what the schema expects.
-
-function toDate(v: unknown): Date | undefined {
-  if (v == null || v === '') return undefined;
-  const d = new Date(v as string);
-  return isNaN(d.getTime()) ? undefined : d;
-}
-
-function pickInvoiceData(body: any) {
-  return {
-    clientId:              body.clientId,
-    contractId:            body.contractId            ?? undefined,
-    date:                  body.date,
-    items:                 body.items,
-    subtotal:              Number(body.subtotal),
-    discountAmount:        body.discountAmount != null ? Number(body.discountAmount) : undefined,
-    discountDescription:   body.discountDescription   ?? undefined,
-    vatAmount:             Number(body.vatAmount ?? 0),
-    total:                 Number(body.total),
-    status:                body.status                ?? 'Pending',
-    type:                  body.type                  ?? 'Invoice',
-    paymentMethod:         body.paymentMethod         ?? undefined,
-    paymentReference:      body.paymentReference      ?? undefined,
-    quoteNumber:           body.quoteNumber           ?? undefined,
-    expiryDate:            body.expiryDate            ?? undefined,
-    terms:                 body.terms                 ?? undefined,
-    notes:                 body.notes                 ?? undefined,
-    sentAt:                toDate(body.sentAt),
-    sentTo:                body.sentTo                ?? undefined,
-    quoteStatus:           body.quoteStatus           ?? undefined,
-    convertedToInvoiceId:  body.convertedToInvoiceId  ?? undefined,
-    convertedToContractId: body.convertedToContractId ?? undefined,
-    convertedAt:           toDate(body.convertedAt),
-    createdBy:             body.createdBy             ?? undefined,
-    assignedTo:            body.assignedTo            ?? undefined,
-  };
-}
+// pickInvoiceData moved to lib/whitelist.ts
 
 // ─── Total validation ─────────────────────────────────────────────────────────
 

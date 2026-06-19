@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
+import { pickCRMTaskData } from '../../lib/whitelist';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -25,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      const { id, createdAt, updatedAt, ...data } = req.body ?? {};
+      const data = pickCRMTaskData(req.body ?? {});
       const row = await prisma.cRMTask.create({ data });
       return res.status(201).json(row);
     }
@@ -33,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
-      const { id: _id, createdAt, updatedAt, ...data } = req.body ?? {};
+      const data = pickCRMTaskData(req.body ?? {});
       const existing = await prisma.cRMTask.findUnique({ where: { id: id as string } });
       const row = existing
         ? await prisma.cRMTask.update({ where: { id: id as string }, data })

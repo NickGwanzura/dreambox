@@ -4,6 +4,36 @@ import { requireAuth, requireAdmin, cors } from '../lib/auth';
 import { uploadBase64Image } from '../lib/uploadBase64';
 import { log } from '../lib/serverLogger.js';
 
+// pickCompanyProfileData — whitelist for the CompanyProfile model
+function pickCompanyProfileData(body: any) {
+  return {
+    name:                body.name,
+    vatNumber:           body.vatNumber           ?? undefined,
+    regNumber:           body.regNumber           ?? undefined,
+    email:               body.email               ?? undefined,
+    supportEmail:        body.supportEmail        ?? undefined,
+    phone:               body.phone               ?? undefined,
+    website:             body.website             ?? undefined,
+    address:             body.address             ?? undefined,
+    city:                body.city                ?? undefined,
+    country:             body.country             ?? undefined,
+    logo:                body.logo                ?? undefined,
+    bankName:            body.bankName            ?? undefined,
+    bankAccountName:     body.bankAccountName     ?? undefined,
+    bankAccountNumber:   body.bankAccountNumber   ?? undefined,
+    bankBranch:          body.bankBranch          ?? undefined,
+    bankSwift:           body.bankSwift           ?? undefined,
+    paymentTerms:        body.paymentTerms        ?? undefined,
+    senderEmail:         body.senderEmail         ?? undefined,
+    senderName:          body.senderName          ?? undefined,
+    emailSignature:      body.emailSignature      ?? undefined,
+    contractTemplate:    body.contractTemplate    ?? undefined,
+    vatRate:             body.vatRate != null     ? Number(body.vatRate) : undefined,
+    heroImageUrl:        body.heroImageUrl        ?? undefined,
+    partnerLogos:        body.partnerLogos        ?? undefined,
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -19,7 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT' || req.method === 'POST') {
       const adminPayload = requireAdmin(req, res);
       if (!adminPayload) return;
-      const { id, ...data } = req.body ?? {};
+      const raw = req.body ?? {};
+      const data = pickCompanyProfileData(raw);
       const existing = await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } });
       const logo = await uploadBase64Image('logos', data.logo, existing?.logo);
       const heroImageUrl = await uploadBase64Image('logos', data.heroImageUrl, (existing as any)?.heroImageUrl ?? null);

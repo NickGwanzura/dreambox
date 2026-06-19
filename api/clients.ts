@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { pickClientData } from '../lib/whitelist';
 
 const clientSchema = z.object({
   companyName: z.string().min(1, 'Company name is required'),
@@ -36,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const { createdAt, updatedAt, ...data } = req.body ?? {};
+      const data = pickClientData(req.body ?? {});
       const row = await prisma.client.create({ data });
       return res.status(201).json(row);
     }
@@ -48,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const { id: _id, createdAt, updatedAt, ...data } = req.body ?? {};
+      const data = pickClientData(req.body ?? {});
       // Upsert: update if exists, create if not (handles client-side generated IDs)
       const existing = await prisma.client.findUnique({ where: { id: id as string } });
       const row = existing

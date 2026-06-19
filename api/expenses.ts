@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { pickExpenseData } from '../lib/whitelist';
 
 const expenseSchema = z.object({
   category: z.enum(['Maintenance', 'Printing', 'Electricity', 'Labor', 'Other']),
@@ -34,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const { createdAt, updatedAt, ...data } = req.body ?? {};
+      const data = pickExpenseData(req.body ?? {});
       const row = await prisma.expense.create({ data });
       return res.status(201).json(row);
     }
@@ -42,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
-      const { id: _id, createdAt, updatedAt, ...data } = req.body ?? {};
+      const data = pickExpenseData(req.body ?? {});
       // Upsert: update if exists, create if not (handles client-side generated IDs)
       const existing = await prisma.expense.findUnique({ where: { id: id as string } });
       const row = existing
