@@ -91,6 +91,8 @@ async function runMigrations() {
       `ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" TYPE "QuoteStatus" USING ("quoteStatus"::text)::"QuoteStatus"`
     );
 
+    // Drop old default first, convert, then set new default with explicit cast
+    await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" DROP DEFAULT`);
     await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" SET DEFAULT 'Draft'::"QuoteStatus"`);
 
     log.boot('  Bootstrap           ✓  QuoteStatus enum ready');
