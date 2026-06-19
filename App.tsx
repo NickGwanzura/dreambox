@@ -26,23 +26,34 @@ function MaintenanceScreen() {
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" }}
          className="relative min-h-screen overflow-hidden bg-slate-950 text-white flex flex-col items-center justify-center px-4">
 
-      {/* Background glows */}
+      {/* Animated moving grid */}
+      <style>{`
+        @keyframes gridScroll {
+          from { background-position: 0 0; }
+          to   { background-position: 48px 48px; }
+        }
+        .maint-grid {
+          animation: gridScroll 6s linear infinite;
+          background-image:
+            linear-gradient(rgba(99,102,241,0.18) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99,102,241,0.18) 1px, transparent 1px);
+          background-size: 48px 48px;
+        }
+      `}</style>
+
+      {/* Background layers */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-32 right-[15%] h-[560px] w-[560px] rounded-full bg-indigo-500/[0.13] blur-[140px]" />
-        <div className="absolute bottom-[-60px] left-[8%] h-[400px] w-[400px] rounded-full bg-violet-600/[0.10] blur-[110px]" />
-        {/* Perspective depth grid */}
-        <div className="absolute inset-0 opacity-[0.13]" style={{
-          backgroundImage: 'linear-gradient(rgba(148,163,184,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.3) 1px, transparent 1px)',
-          backgroundSize: '64px 64px',
-          transform: 'perspective(700px) rotateX(52deg) scale(2.4)',
-          transformOrigin: '50% 92%',
-        }} />
-        {/* Edge vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_78%_at_50%_42%,transparent_28%,rgba(2,6,23,0.72)_100%)]" />
+        {/* Live scrolling grid */}
+        <div className="maint-grid absolute inset-0 opacity-[0.22]" />
+        {/* Glow orbs */}
+        <div className="absolute -top-32 right-[15%] h-[560px] w-[560px] rounded-full bg-indigo-500/[0.18] blur-[140px]" />
+        <div className="absolute bottom-[-60px] left-[8%] h-[400px] w-[400px] rounded-full bg-violet-600/[0.14] blur-[110px]" />
+        {/* Radial vignette to push grid to background */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_50%_44%,transparent_20%,rgba(2,6,23,0.65)_100%)]" />
         {/* Top haze */}
-        <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/60 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/70 to-transparent" />
         {/* Bottom fade */}
-        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-slate-950 to-transparent" />
       </div>
 
       {/* Indigo accent line top */}
@@ -69,7 +80,10 @@ function MaintenanceScreen() {
           </span>
         </h1>
         <p className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-white/60">
-          We&apos;re performing a scheduled system upgrade. Your data is safe — all records, contracts, and media are being transferred securely.
+          The Dreambox platform is briefly offline for a scheduled upgrade. We&apos;ll be back today at noon — all campaign data, contracts, and records are safe and will be ready when we return.
+        </p>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/40">
+          Looking to book a site or request a quote? Reach us directly below and we&apos;ll respond straight away.
         </p>
 
         {/* Countdown */}
@@ -96,17 +110,23 @@ function MaintenanceScreen() {
         {/* Divider */}
         <div className="mx-auto mt-12 h-px max-w-sm bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-        {/* Contact */}
-        <p className="mt-6 text-sm text-white/40">
-          Need to reach us?{' '}
-          <a href="mailto:info@dreamboxadvertising.com" className="font-semibold text-indigo-300 transition hover:text-white">
+        {/* Contact buttons */}
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <a
+            href="https://wa.me/263778018909?text=Hi%20Dreambox%2C%20I%27d%20like%20to%20enquire%20about%20a%20campaign."
+            className="inline-flex items-center gap-2.5 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.08] px-6 py-3 text-sm font-bold text-emerald-300 backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-emerald-300/40 hover:text-white"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.998 0C5.373 0 0 5.373 0 12c0 2.115.554 4.1 1.523 5.823L.057 23.986l6.324-1.438A11.945 11.945 0 0011.998 24C18.625 24 24 18.627 24 12S18.625 0 11.998 0zm0 21.818a9.814 9.814 0 01-5.007-1.375l-.36-.214-3.732.849.866-3.638-.235-.373A9.787 9.787 0 012.18 12c0-5.414 4.406-9.818 9.818-9.818 5.414 0 9.82 4.404 9.82 9.818 0 5.412-4.406 9.818-9.82 9.818z"/></svg>
+            WhatsApp Us
+          </a>
+          <a
+            href="mailto:info@dreamboxadvertising.com"
+            className="inline-flex items-center gap-2.5 rounded-xl border border-white/[0.1] bg-white/[0.05] px-6 py-3 text-sm font-bold text-white/60 backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-white/20 hover:text-white"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
             info@dreamboxadvertising.com
           </a>
-          {' '}·{' '}
-          <a href="https://wa.me/263778018909" className="font-semibold text-indigo-300 transition hover:text-white">
-            WhatsApp
-          </a>
-        </p>
+        </div>
       </div>
 
       {/* Footer */}
