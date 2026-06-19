@@ -86,12 +86,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? e.response.status
           : isTimeout ? 504 : 502;
 
+    const errorMessage = e?.error?.message || e?.message || String(e);
     log.warn('[api/ai] GROQ error', {
       status: upstreamStatus,
-      message: e?.error?.message || e?.message,
+      message: errorMessage,
       name: e?.name,
       timeout: isTimeout,
     });
+
+    // Set Cache-Control to prevent proxies from caching/replacing error responses
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
     if (upstreamStatus === 429) {
       return res.status(429).json({ error: 'AI service is temporarily busy. Please try again shortly.' });
@@ -99,6 +103,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isTimeout || upstreamStatus === 504) {
       return res.status(504).json({ error: 'AI request timed out. Dashboard will use fallback content.' });
     }
-    return res.status(502).json({ error: 'AI service unavailable. Please try again later.' });
+    return res.status(502).json({
+      error: 'AI service unavailable. Please try again later.',
+      detail: errorMessage.slice(0, 200),
+      code: upstreamStatus,
+    });
   }
 }
