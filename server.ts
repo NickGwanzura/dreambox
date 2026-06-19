@@ -79,23 +79,20 @@ async function runMigrations() {
   // fails with "type 'public.QuoteStatus' does not exist".
   try {
     log.boot('  Bootstrap           →  ensuring QuoteStatus enum...');
-    await prisma.$executeRawUnsafe(`
-      DO $ BEGIN
-        CREATE TYPE "QuoteStatus" AS ENUM ('Draft', 'Sent', 'Accepted', 'Rejected', 'Expired', 'Converted');
-      EXCEPTION
-        WHEN duplicate_object THEN NULL;
-      END $;
-    `);
-    await prisma.$executeRawUnsafe(`ALTER TABLE "invoices" DROP CONSTRAINT IF EXISTS "invoices_quoteStatus_check"`);
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE "invoices"
-        ALTER COLUMN "quoteStatus" TYPE "QuoteStatus"
-        USING ("quoteStatus"::text)::"QuoteStatus"
-    `);
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE "invoices"
-        ALTER COLUMN "quoteStatus" SET DEFAULT 'Draft'
-    `);
+
+    // Use $queryRawUnsafe for DO blocks — $executeRawUnsafe doesn't handle $ quoting
+    await prisma.$queryRawUnsafe(
+      "DO $block$ BEGIN CREATE TYPE \"QuoteStatus\" AS ENUM ('Draft','Sent','Accepted','Rejected','Expired','Converted'); EXCEPTION WHEN duplicate_object THEN NULL; END $block$;"
+    );
+
+    await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" DROP CONSTRAINT IF EXISTS "invoices_quoteStatus_check"`);
+
+    await prisma.$queryRawUnsafe(
+      `ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" TYPE "QuoteStatus" USING ("quoteStatus"::text)::"QuoteStatus"`
+    );
+
+    await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" SET DEFAULT 'Draft'`);
+
     log.boot('  Bootstrap           ✓  QuoteStatus enum ready');
   } catch (e: any) {
     log.boot(`  Bootstrap           ⚠  ${e?.message?.slice(0, 200) || String(e)}`);
