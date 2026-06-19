@@ -96,6 +96,9 @@ async function runMigrations() {
     );
 
     if (exists) {
+      // Drop old default BEFORE converting the column type — otherwise PG
+      // will reject the ALTER TYPE because the TEXT default can't auto-cast
+      await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" DROP DEFAULT`);
       await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" DROP CONSTRAINT IF EXISTS "invoices_quoteStatus_check"`);
       await prisma.$queryRawUnsafe(
         `ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" TYPE "QuoteStatus" USING ("quoteStatus"::text)::"QuoteStatus"`
