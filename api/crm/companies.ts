@@ -1,8 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMCompanyData } from '../../lib/whitelist';
+
+const companySchema = z.object({
+  name: z.string().min(1, 'Company name is required'),
+  industry: z.string().optional(),
+  website: z.string().optional(),
+  streetAddress: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -23,6 +33,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      const parsed = companySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMCompanyData(req.body ?? {});
       const row = await prisma.cRMCompany.create({ data });
       return res.status(201).json(row);
@@ -31,6 +45,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const parsed = companySchema.partial().safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMCompanyData(req.body ?? {});
       const existing = await prisma.cRMCompany.findUnique({ where: { id: id as string } });
       const row = existing

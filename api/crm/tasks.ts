@@ -3,6 +3,22 @@ import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMTaskData } from '../../lib/whitelist';
+import { z } from 'zod';
+
+const crmTaskSchema = z.object({
+  opportunityId: z.string().min(1, 'Opportunity ID is required'),
+  type: z.string().min(1, 'Type is required'),
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional().nullable(),
+  dueDate: z.string().min(1, 'Due date is required'),
+  status: z.string().min(1, 'Status is required'),
+  priority: z.string().min(1, 'Priority is required'),
+  assignedTo: z.string().min(1, 'Assigned user is required'),
+  completedBy: z.string().optional().nullable(),
+  completedAt: z.string().optional().nullable(),
+  completionNotes: z.string().optional().nullable(),
+  createdBy: z.string().min(1, 'Created by is required'),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -26,6 +42,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      const parsed = crmTaskSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMTaskData(req.body ?? {});
       const row = await prisma.cRMTask.create({ data });
       return res.status(201).json(row);
@@ -34,6 +54,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const parsed = crmTaskSchema.partial().safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMTaskData(req.body ?? {});
       const existing = await prisma.cRMTask.findUnique({ where: { id: id as string } });
       const row = existing

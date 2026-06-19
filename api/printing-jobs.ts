@@ -1,8 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 import { pickPrintingJobData } from '../lib/whitelist';
+
+const printingJobSchema = z.object({
+  clientId: z.string().min(1, 'Client ID is required'),
+  billboardId: z.string().optional().nullable(),
+  date: z.string().min(1, 'Date is required'),
+  description: z.string().min(1, 'Description is required'),
+  dimensions: z.string().min(1, 'Dimensions are required'),
+  pvcCost: z.number().nonnegative(),
+  inkCost: z.number().nonnegative(),
+  electricityCost: z.number().nonnegative(),
+  operatorCost: z.number().nonnegative(),
+  weldingCost: z.number().nonnegative(),
+  totalCost: z.number().nonnegative(),
+  chargedAmount: z.number().nonnegative(),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -23,6 +39,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      const parsed = printingJobSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickPrintingJobData(req.body ?? {});
       const row = await prisma.printingJob.create({ data });
       return res.status(201).json(row);
@@ -31,6 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const parsed = printingJobSchema.partial().safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickPrintingJobData(req.body ?? {});
       // Upsert: update if exists, create if not (handles client-side generated IDs)
       const existing = await prisma.printingJob.findUnique({ where: { id: id as string } });

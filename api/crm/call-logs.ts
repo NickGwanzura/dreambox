@@ -3,6 +3,21 @@ import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMCallLogData } from '../../lib/whitelist';
+import { z } from 'zod';
+
+const callLogSchema = z.object({
+  opportunityId: z.string().min(1, 'Opportunity ID is required'),
+  contactId: z.string().min(1, 'Contact ID is required'),
+  phoneNumber: z.string().min(1, 'Phone number is required'),
+  direction: z.enum(['Inbound', 'Outbound']).optional(),
+  startedAt: z.string().min(1, 'Started at is required'),
+  endedAt: z.string().optional().nullable(),
+  durationSeconds: z.number().int().nonnegative(),
+  outcome: z.string().min(1, 'Outcome is required'),
+  notes: z.string().optional().nullable(),
+  recordingUrl: z.string().optional().nullable(),
+  createdBy: z.string().min(1, 'Created by is required'),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -26,6 +41,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      const parsed = callLogSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMCallLogData(req.body ?? {});
       const row = await prisma.cRMCallLog.create({ data });
       return res.status(201).json(row);
@@ -34,6 +53,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const parsed = callLogSchema.partial().safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMCallLogData(req.body ?? {});
       const existing = await prisma.cRMCallLog.findUnique({ where: { id: id as string } });
       const row = existing

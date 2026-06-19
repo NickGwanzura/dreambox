@@ -73,47 +73,9 @@ async function runMigrations() {
     log.boot(`  Migrations         ⚠  ${msg.slice(0, 200)}`);
   }
 
-  // Bootstrap: create native QuoteStatus enum if it doesn't exist
-  // Prisma schema declares it as an enum type, but the production DB
-  // used a TEXT+CHECK approach. Without this, prisma.invoice.create()
-  // fails with "type 'public.QuoteStatus' does not exist".
-  // This block is idempotent — safe to run on every boot.
-  try {
-    log.boot('  Bootstrap           →  ensuring QuoteStatus enum...');
-
-    // 1. Create the PG enum type (safe: IF NOT EXISTS via DO block)
-    await prisma.$queryRawUnsafe(
-      "DO $block$ BEGIN CREATE TYPE \"QuoteStatus\" AS ENUM ('Draft','Sent','Accepted','Rejected','Expired','Converted'); EXCEPTION WHEN duplicate_object THEN NULL; END $block$;"
-    );
-
-    // 2. Check if the column still uses TEXT — if so, convert it
-    const [{ exists }] = await prisma.$queryRawUnsafe<[{ exists: boolean }]>(
-      `SELECT EXISTS (
-         SELECT 1 FROM information_schema.columns
-         WHERE table_name = 'invoices' AND column_name = 'quoteStatus'
-         AND udt_name = 'text'
-       ) AS "exists"`
-    );
-
-    if (exists) {
-      // Drop old default BEFORE converting the column type — otherwise PG
-      // will reject the ALTER TYPE because the TEXT default can't auto-cast
-      await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" DROP DEFAULT`);
-      await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" DROP CONSTRAINT IF EXISTS "invoices_quoteStatus_check"`);
-      await prisma.$queryRawUnsafe(
-        `ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" TYPE "QuoteStatus" USING ("quoteStatus"::text)::"QuoteStatus"`
-      );
-      await prisma.$queryRawUnsafe(`ALTER TABLE "invoices" ALTER COLUMN "quoteStatus" SET DEFAULT 'Draft'::"QuoteStatus"`);
-      log.boot('  Bootstrap           ✓  QuoteStatus column converted');
-    } else {
-      log.boot('  Bootstrap           ✓  QuoteStatus enum already ready');
-    }
-  } catch (e: any) {
-    log.boot(`  Bootstrap           ⚠  ${e?.message?.slice(0, 200) || String(e)}`);
-  }
-
   // Bootstrap: ensure InvoiceType enum includes all values from Prisma schema.
   // The production DB enum may be missing newer values (e.g. 'Proforma').
+  // The QuoteStatus enum is now handled by prisma/migrations/20260619043336_add_quotestatus_enum
   try {
     await prisma.$queryRawUnsafe(`ALTER TYPE "InvoiceType" ADD VALUE IF NOT EXISTS 'Proforma'`);
   } catch (_e) {

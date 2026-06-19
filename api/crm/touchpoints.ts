@@ -3,6 +3,20 @@ import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMTouchpointData } from '../../lib/whitelist';
+import { z } from 'zod';
+
+const touchpointSchema = z.object({
+  opportunityId: z.string().min(1, 'Opportunity ID is required'),
+  type: z.string().min(1, 'Type is required'),
+  direction: z.enum(['Inbound', 'Outbound']).optional(),
+  subject: z.string().optional().nullable(),
+  content: z.string().optional().nullable(),
+  clientResponse: z.string().optional().nullable(),
+  outcome: z.string().optional().nullable(),
+  sentiment: z.string().optional().nullable(),
+  durationSeconds: z.number().int().optional().nullable(),
+  createdBy: z.string().min(1, 'Created by is required'),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -26,6 +40,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      const parsed = touchpointSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMTouchpointData(req.body ?? {});
       const row = await prisma.cRMTouchpoint.create({ data });
       return res.status(201).json(row);
@@ -34,6 +52,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const parsed = touchpointSchema.partial().safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMTouchpointData(req.body ?? {});
       const existing = await prisma.cRMTouchpoint.findUnique({ where: { id: id as string } });
       const row = existing

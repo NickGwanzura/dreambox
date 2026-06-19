@@ -3,6 +3,31 @@ import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMOpportunityData } from '../../lib/whitelist';
+import { z } from 'zod';
+
+const opportunitySchema = z.object({
+  companyId: z.string().min(1, 'Company ID is required'),
+  primaryContactId: z.string().min(1, 'Primary contact ID is required'),
+  secondaryContactId: z.string().optional().nullable(),
+  locationInterest: z.string().optional().nullable(),
+  billboardType: z.string().optional().nullable(),
+  campaignDuration: z.string().optional().nullable(),
+  estimatedValue: z.number().optional().nullable(),
+  actualValue: z.number().optional().nullable(),
+  status: z.string().min(1, 'Status is required'),
+  stage: z.string().min(1, 'Stage is required'),
+  leadSource: z.string().optional().nullable(),
+  lastContactDate: z.string().optional().nullable(),
+  nextFollowUpDate: z.string().optional().nullable(),
+  callOutcomeNotes: z.string().optional().nullable(),
+  numberOfAttempts: z.number().int().optional(),
+  assignedTo: z.string().optional().nullable(),
+  createdBy: z.string().min(1, 'Created by is required'),
+  closedAt: z.string().optional().nullable(),
+  closedReason: z.string().optional().nullable(),
+  daysInCurrentStage: z.number().int().optional(),
+  stageHistory: z.any().optional(),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -26,6 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      const parsed = opportunitySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMOpportunityData(req.body ?? {});
       const row = await prisma.cRMOpportunity.create({ data });
       return res.status(201).json(row);
@@ -34,6 +63,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const parsed = opportunitySchema.partial().safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMOpportunityData(req.body ?? {});
       const existing = await prisma.cRMOpportunity.findUnique({ where: { id: id as string } });
       const row = existing

@@ -1,8 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 import { pickTaskData } from '../lib/whitelist';
+
+const taskSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
+  assignedTo: z.string().min(1, 'Assigned user is required'),
+  priority: z.enum(['High', 'Medium', 'Low']).optional(),
+  status: z.enum(['Todo', 'InProgress', 'Done']).optional(),
+  dueDate: z.string().min(1, 'Due date is required'),
+  createdAt: z.string().optional(),
+  relatedBillboardId: z.string().optional().nullable(),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -23,6 +35,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      const parsed = taskSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickTaskData(req.body ?? {});
       const row = await prisma.task.create({ data });
       return res.status(201).json(row);
@@ -31,6 +47,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const parsed = taskSchema.partial().safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickTaskData(req.body ?? {});
       // Upsert: update if exists, create if not (handles client-side generated IDs)
       const existing = await prisma.task.findUnique({ where: { id: id as string } });

@@ -3,6 +3,17 @@ import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMContactData } from '../../lib/whitelist';
+import { z } from 'zod';
+
+const contactSchema = z.object({
+  companyId: z.string().min(1, 'Company ID is required'),
+  fullName: z.string().min(1, 'Full name is required'),
+  jobTitle: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  linkedinUrl: z.string().optional(),
+  isPrimary: z.boolean().optional(),
+});
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -26,6 +37,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      const parsed = contactSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMContactData(req.body ?? {});
       const row = await prisma.cRMContact.create({ data });
       return res.status(201).json(row);
@@ -34,6 +49,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const parsed = contactSchema.partial().safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
+      }
       const data = pickCRMContactData(req.body ?? {});
       const existing = await prisma.cRMContact.findUnique({ where: { id: id as string } });
       const row = existing
