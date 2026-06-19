@@ -196,9 +196,11 @@ async function registerRoutes() {
   // Cron
   const expenseReport = await import('./api/cron/expense-report.js');
   const backupCron    = await import('./api/cron/backup.js');
+  const backOnlineCron = await import('./api/cron/back-online.js');
   app.all('/api/cron/expense-report', adapt(expenseReport, 'cron/expense-report'));
   app.all('/api/cron/backup',         adapt(backupCron,    'cron/backup'));
-  log.boot('  Cron routes        ✓  (expense-report, backup)');
+  app.all('/api/cron/back-online',    adapt(backOnlineCron, 'cron/back-online'));
+  log.boot('  Cron routes        ✓  (expense-report, backup, back-online)');
 
   // 404 handler for unknown /api/* routes
   app.use('/api/{*splat}', (req, res) => {
@@ -252,9 +254,10 @@ function registerShutdownHandlers() {
   });
 }
 
-// ─── Cron Scheduler (runs inside the server process) ─────────────────────────
+	// ─── Cron Scheduler (runs inside the server process) ─────────────────────────
 
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+const MAINTENANCE_END = new Date('2026-06-19T10:00:00Z'); // 12:00 CAT
 
 function startCronScheduler() {
   // Fire expense report email to Brian every 3 days
@@ -277,9 +280,37 @@ function startCronScheduler() {
     }
   };
 
-  // Run once on startup after a short delay, then every 3 days
+  // Run expense report once on startup after a short delay, then every 3 days
   setTimeout(fireExpenseReport, 30_000);
   setInterval(fireExpenseReport, THREE_DAYS_MS);
+
+  // ─── Back-online notification at maintenance end time ──────────────────────
+  const now = Date.now();
+  const targetMs = MAINTENANCE_END.getTime();
+  const delayMs = Math.max(0, targetMs - now) + 5_000; // 5s grace after target
+
+  if (delayMs > 0 && delayMs < 86_400_000) {
+    // Only schedule if the target is within the next 24 hours
+    const timeoutId = setTimeout(async () => {
+      log.boot(`  Back-online        →  scheduled after maintenance end, notifying users...`);
+      try {
+        const res = await fetch(`http://localhost:${PORT}/api/cron/back-online`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-cron-secret': process.env.CRON_SECRET || '',
+          },
+        });
+        const data = await res.json();
+        log.boot(`  Back-online        ✓  notified ${data.sent}/${data.total} users`);
+      } catch (e: any) {
+        log.boot(`  Back-online        ⚠  ${e?.message?.slice(0, 120) || 'failed'}`);
+      }
+    }, delayMs);
+    log.boot(`  Back-online        ✓  scheduled for ${MAINTENANCE_END.toISOString()} (in ${Math.round(delayMs / 1000 / 60)} min)`);
+  } else {
+    log.boot(`  Back-online        —  target already passed or too far away`);
+  }
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────

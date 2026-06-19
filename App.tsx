@@ -1,10 +1,9 @@
 
 // ─── Maintenance / Migration Mode ────────────────────────────────────────────
-// Set to true to show the maintenance screen to all visitors.
-const MAINTENANCE_MODE = true;
-
+// Maintenance mode disables automatically at the target end time.
 // Back online: 2026-06-19 12:00:00 CAT (UTC+2)
 const MAINTENANCE_END = new Date('2026-06-19T10:00:00Z');
+const MAINTENANCE_MODE = Date.now() < MAINTENANCE_END.getTime();
 
 function MaintenanceScreen() {
   const [now, setNow] = React.useState(() => new Date());
