@@ -72,6 +72,34 @@ async function runMigrations() {
     const msg = e?.stderr?.toString?.() || e?.stdout?.toString?.() || e?.message || String(e);
     log.boot(`  Migrations         ⚠  ${msg.slice(0, 200)}`);
   }
+
+  // Bootstrap: create native QuoteStatus enum if it doesn't exist
+  // Prisma schema declares it as an enum type, but the production DB
+  // used a TEXT+CHECK approach. Without this, prisma.invoice.create()
+  // fails with "type 'public.QuoteStatus' does not exist".
+  try {
+    log.boot('  Bootstrap           →  ensuring QuoteStatus enum...');
+    await prisma.$executeRawUnsafe(`
+      DO $ BEGIN
+        CREATE TYPE "QuoteStatus" AS ENUM ('Draft', 'Sent', 'Accepted', 'Rejected', 'Expired', 'Converted');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $;
+    `);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "invoices" DROP CONSTRAINT IF EXISTS "invoices_quoteStatus_check"`);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "invoices"
+        ALTER COLUMN "quoteStatus" TYPE "QuoteStatus"
+        USING ("quoteStatus"::text)::"QuoteStatus"
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "invoices"
+        ALTER COLUMN "quoteStatus" SET DEFAULT 'Draft'
+    `);
+    log.boot('  Bootstrap           ✓  QuoteStatus enum ready');
+  } catch (e: any) {
+    log.boot(`  Bootstrap           ⚠  ${e?.message?.slice(0, 200) || String(e)}`);
+  }
 }
 
 // Health check — tests both process liveness and DB connectivity
