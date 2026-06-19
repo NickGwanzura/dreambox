@@ -303,7 +303,10 @@ function startCronScheduler() {
       log.info('[cron] Triggering expense-report...');
       const res = await fetch(`http://localhost:${PORT}/api/cron/expense-report`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-cron-secret': process.env.CRON_SECRET || '',
+        },
       });
       const data = await res.json();
       log.info(`[cron] expense-report result: ${JSON.stringify(data)}`);
