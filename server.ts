@@ -111,6 +111,14 @@ async function runMigrations() {
   } catch (e: any) {
     log.boot(`  Bootstrap           ⚠  ${e?.message?.slice(0, 200) || String(e)}`);
   }
+
+  // Bootstrap: ensure InvoiceType enum includes all values from Prisma schema.
+  // The production DB enum may be missing newer values (e.g. 'Proforma').
+  try {
+    await prisma.$queryRawUnsafe(`ALTER TYPE "InvoiceType" ADD VALUE IF NOT EXISTS 'Proforma'`);
+  } catch (_e) {
+    // Ignore — the type may not exist yet or this is a replica
+  }
 }
 
 // Health check — tests both process liveness and DB connectivity
