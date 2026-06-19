@@ -144,13 +144,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
     const body = req.body ?? {};
 
-    console.log("STEP 0 — Invoice payload (raw body)");
-    console.log(JSON.stringify(body, null, 2));
-
     const parsed = invoiceSchema.safeParse(body);
-    console.log("STEP 1 — Zod validation", parsed.success);
     if (!parsed.success) {
-      console.log("Validation errors:", parsed.error.issues);
       return res.status(400).json({
         error: 'Validation failed',
         details: parsed.error.issues.map(e => e.message),
@@ -158,53 +153,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (String(body.type).toLowerCase() === 'quotation') {
-      console.log("STEP 1b — Checking quotation write permission");
       if (!requireQuotationWritePermission(req, res)) return;
     }
 
-    console.log("STEP 2 — Validating totals");
     const totalError = validateTotals(body);
     if (totalError) {
-      console.log("Total validation failed:", totalError);
       return res.status(400).json({ error: 'Validation failed', details: [totalError] });
     }
 
     try {
-      console.log("STEP 3 — Picking invoice data via whitelist");
       const data: any = pickInvoiceData(body);
-      console.log("pickInvoiceData output:", JSON.stringify(data, null, 2));
 
       // Server-side quoteNumber generation — prevents client-side counter collisions
       if (String(body.type).toLowerCase() === 'quotation' && !data.quoteNumber) {
-        console.log("STEP 4a — Generating quote number");
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const count = await prisma.invoice.count({ where: { quoteNumber: { startsWith: `QT-${today}` } } });
         data.quoteNumber = `QT-${today}-${String(count + 1).padStart(3, '0')}`;
-        console.log("Generated quoteNumber:", data.quoteNumber);
       }
 
       if (data.quoteNumber) {
-        console.log("STEP 4b — Checking quote number uniqueness");
         const conflict = await prisma.invoice.findUnique({ where: { quoteNumber: data.quoteNumber } });
         if (conflict) {
-          console.log("Quote number conflict:", data.quoteNumber);
           return res.status(409).json({ error: 'Quotation number already exists', quoteNumber: data.quoteNumber });
         }
       }
 
-      console.log("STEP 5 — Creating invoice via Prisma");
-      console.log("Final data object:", JSON.stringify(data, null, 2));
       const row = await prisma.invoice.create({ data });
-      console.log("STEP 6 — Invoice created successfully:", row.id);
       log.info(`[invoices] POST created ${row.type} ${row.id} for client ${row.clientId}`);
       return res.status(201).json(row);
     } catch (e: any) {
-      console.log("STEP 7 — CATCH BLOCK REACHED");
-      console.log("Exception type:", e?.constructor?.name);
-      console.log("Exception code:", e?.code);
-      console.log("Exception meta:", JSON.stringify(e?.meta ?? {}));
-      console.log("Exception message:", e?.message);
-      console.log("Stack trace:", e?.stack);
       handlePrismaError(e, res, 'POST');
     }
     return;
