@@ -146,7 +146,10 @@ export const WebsiteSettings: React.FC = () => {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ ...current, heroImageUrl: heroPreview || null }),
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Save failed (${res.status})`);
+      }
       const saved = await res.json();
       const savedUrl = saved.heroImageUrl || '';
       setHeroUrl(savedUrl);
@@ -240,7 +243,10 @@ export const WebsiteSettings: React.FC = () => {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ ...current, partnerLogos: JSON.stringify(logos) }),
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Save failed (${res.status})`);
+      }
       setLogosStatus('saved');
       // Sync back to mockData so PublicWebsite and other components see the update immediately
       updateLocalCompanyProfile({ partnerLogos: JSON.stringify(logos) });
