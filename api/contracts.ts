@@ -68,6 +68,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         totalContractValue, status, details, slotNumber, side,
         createdAt, lastModifiedDate, lastModifiedBy, assignedTo, masterContractId,
       } = req.body ?? {};
+
+      // Server-side availability guard — prevents duplicate slot/side bookings even via direct API calls
+      const incomingStatus = status ?? 'Pending';
+      if (incomingStatus === 'Active' && billboardId && startDate && endDate) {
+        if (slotNumber != null) {
+          const conflict = await prisma.contract.findFirst({
+            where: {
+              billboardId,
+              slotNumber: Number(slotNumber),
+              status: 'Active',
+              startDate: { lte: endDate },
+              endDate: { gte: startDate },
+            },
+          });
+          if (conflict) {
+            return res.status(409).json({
+              error: `Slot ${slotNumber} is already booked for these dates`,
+              conflictingContract: conflict.id,
+            });
+          }
+        } else if (side) {
+          const sideFilter = side === 'Both'
+            ? [{ side: 'A' }, { side: 'B' }, { side: 'Both' }]
+            : [{ side: side as string }, { side: 'Both' }];
+          const conflict = await prisma.contract.findFirst({
+            where: {
+              billboardId,
+              status: 'Active',
+              startDate: { lte: endDate },
+              endDate: { gte: startDate },
+              OR: sideFilter,
+            },
+          });
+          if (conflict) {
+            return res.status(409).json({
+              error: `Side ${side} is already booked for these dates`,
+              conflictingContract: conflict.id,
+            });
+          }
+        }
+      }
+
       const data = {
         id, clientId, billboardId, startDate, endDate, monthlyRate,
         installationCost: installationCost ?? 0,
@@ -75,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         productionCost: productionCost ?? 0,
         hasVat: hasVat ?? false,
         totalContractValue: totalContractValue ?? monthlyRate,
-        status: status ?? 'Pending',
+        status: incomingStatus,
         details: details ?? '',
         slotNumber: slotNumber ?? null,
         side: side ?? null,
@@ -104,6 +146,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const existing = await prisma.contract.findUnique({ where: { id: id as string } });
       if (!existing) {
         return res.status(404).json({ error: 'Contract not found on server. Sync the contract locally first, then retry.' });
+      }
+
+      // Server-side availability guard for edits — re-check if dates/slot/side changed or status became Active
+      const updatedStatus = parsed.data.status ?? existing.status;
+      if (updatedStatus === 'Active') {
+        const { billboardId: updBillboardId, startDate: updStart, endDate: updEnd, slotNumber: updSlot, side: updSide } = parsed.data;
+        if (updBillboardId && updStart && updEnd) {
+          if (updSlot != null) {
+            const conflict = await prisma.contract.findFirst({
+              where: {
+                billboardId: updBillboardId,
+                slotNumber: updSlot,
+                status: 'Active',
+                startDate: { lte: updEnd },
+                endDate: { gte: updStart },
+                id: { not: id as string },
+              },
+            });
+            if (conflict) {
+              return res.status(409).json({
+                error: `Slot ${updSlot} is already booked for these dates`,
+                conflictingContract: conflict.id,
+              });
+            }
+          } else if (updSide) {
+            const sideFilter = updSide === 'Both'
+              ? [{ side: 'A' }, { side: 'B' }, { side: 'Both' }]
+              : [{ side: updSide }, { side: 'Both' }];
+            const conflict = await prisma.contract.findFirst({
+              where: {
+                billboardId: updBillboardId,
+                status: 'Active',
+                startDate: { lte: updEnd },
+                endDate: { gte: updStart },
+                OR: sideFilter,
+                id: { not: id as string },
+              },
+            });
+            if (conflict) {
+              return res.status(409).json({
+                error: `Side ${updSide} is already booked for these dates`,
+                conflictingContract: conflict.id,
+              });
+            }
+          }
+        }
       }
 
       const row = await prisma.contract.update({ where: { id: id as string }, data: parsed.data });
