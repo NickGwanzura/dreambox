@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -12,6 +12,7 @@ import {
 } from '../services/mockData';
 import { BillboardType } from '../types';
 import { formatCurrency } from '../services/profitAnalytics';
+import { generateBIAnalysis } from '../services/aiService';
 
 type BITab = 'overview' | 'forecast' | 'assets' | 'clients' | 'funnel' | 'recommendations';
 
@@ -56,6 +57,9 @@ function isActiveOn(startDate: string, endDate: string, month: Date): boolean {
 
 export const BusinessIntelligence: React.FC = () => {
   const [tab, setTab] = useState<BITab>('overview');
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
+  const aiAnalysisFetched = useRef(false);
 
   const contracts = useMemo(() => getContracts(), []);
   const invoices = useMemo(() => getInvoices(), []);
@@ -400,6 +404,31 @@ export const BusinessIntelligence: React.FC = () => {
     const order: RecPriority[] = ['critical', 'high', 'medium', 'growth'];
     return recs.sort((a, b) => order.indexOf(a.priority) - order.indexOf(b.priority));
   }, [overdueInvoices, expiring30, atRiskClients, coldQuotes, vacantBoards, clientData, totalMRR, activeContracts, quotationCount, proformaCount, conversionRate, assetData, billboards, clients, invoices, expenses, totalMonthlyExpenses, expenseRatio, estNetProfit, topExpenseCategory, topExpensePct, expenseByCategory]);
+
+  // ─── DeepSeek AI analysis (fires once when Recommendations tab is opened) ──
+
+  useEffect(() => {
+    if (tab !== 'recommendations' || aiAnalysisFetched.current) return;
+    aiAnalysisFetched.current = true;
+    setAiAnalysisLoading(true);
+    generateBIAnalysis({
+      totalMRR,
+      occupancyPct,
+      expiring30Count: expiring30.length,
+      atRiskClientCount: atRiskClients.length,
+      overdueInvoiceCount: overdueInvoices.length,
+      overdueAmount: overdueInvoices.reduce((s, i) => s + i.total, 0),
+      vacantBoardCount: vacantBoards.length,
+      totalBoards: billboards.length,
+      conversionRate,
+      pipelineValue,
+      topRecommendations: recommendations.slice(0, 5).map(r => ({ priority: r.priority, title: r.title })),
+      estNetProfit,
+      expenseRatio,
+    }).then(text => {
+      setAiAnalysis(text || null);
+    }).finally(() => setAiAnalysisLoading(false));
+  }, [tab]);
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -1130,6 +1159,53 @@ export const BusinessIntelligence: React.FC = () => {
 
         return (
           <div className="space-y-6">
+            {/* DeepSeek AI Strategy Analysis */}
+            {(aiAnalysisLoading || aiAnalysis) && (
+              <div className="relative bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl px-5 py-4 shadow-lg shadow-violet-500/20 overflow-hidden">
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+                <div className="relative flex items-start gap-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                    <Zap size={15} className="text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-white/60">DeepSeek AI Strategy Analysis</p>
+                      {aiAnalysisLoading && (
+                        <span className="text-[9px] font-bold text-white/40 animate-pulse">Analysing…</span>
+                      )}
+                    </div>
+                    {aiAnalysisLoading && !aiAnalysis ? (
+                      <div className="space-y-1.5">
+                        <div className="h-3 bg-white/20 rounded-full w-full animate-pulse" />
+                        <div className="h-3 bg-white/20 rounded-full w-4/5 animate-pulse" />
+                        <div className="h-3 bg-white/20 rounded-full w-3/5 animate-pulse" />
+                      </div>
+                    ) : (
+                      <p className="text-sm text-white leading-relaxed">{aiAnalysis}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => { aiAnalysisFetched.current = false; setAiAnalysis(null); setAiAnalysisLoading(true);
+                      generateBIAnalysis({
+                        totalMRR, occupancyPct,
+                        expiring30Count: expiring30.length, atRiskClientCount: atRiskClients.length,
+                        overdueInvoiceCount: overdueInvoices.length,
+                        overdueAmount: overdueInvoices.reduce((s, i) => s + i.total, 0),
+                        vacantBoardCount: vacantBoards.length, totalBoards: billboards.length,
+                        conversionRate, pipelineValue,
+                        topRecommendations: recommendations.slice(0, 5).map(r => ({ priority: r.priority, title: r.title })),
+                        estNetProfit, expenseRatio,
+                      }).then(text => setAiAnalysis(text || null)).finally(() => setAiAnalysisLoading(false));
+                    }}
+                    className="text-white/40 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10 shrink-0"
+                    title="Refresh analysis"
+                  >
+                    <RefreshCw size={13} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Summary row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {([

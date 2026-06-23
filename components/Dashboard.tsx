@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { getContracts, getInvoices, getBillboards, getClients, getExpenses, getExpiringContracts, getOverdueInvoices, getUpcomingBillings, getFinancialTrends, getTasks, subscribe } from '../services/mockData';
 import { BillboardType } from '../types';
-import { generateGreeting, fetchIndustryNews, generateDailyBriefing } from '../services/aiService';
+import { generateGreeting, fetchIndustryNews, generateDailyBriefing, DailyBriefingResult } from '../services/aiService';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { logger } from '../utils/logger';
 import { getGrossProfit, getNetProfit, getTotalMonthlyRecurringRevenue } from '../services/profitAnalytics';
@@ -25,7 +25,7 @@ export const Dashboard: React.FC = () => {
   const [selectedNews, setSelectedNews] = useState<{ title: string; summary: string; source?: string; date?: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [briefing, setBriefing] = useState<string | null>(null);
+  const [briefing, setBriefing] = useState<DailyBriefingResult | null>(null);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [briefingDismissed, setBriefingDismissed] = useState(false);
 
@@ -65,7 +65,7 @@ export const Dashboard: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     const cacheKey = `dreambox_briefing_${currentUser.email}_${today}`;
     const cached = sessionStorage.getItem(cacheKey);
-    if (cached) { setBriefing(cached); return; }
+    if (cached) { try { setBriefing(JSON.parse(cached)); } catch { } return; }
 
     let isMounted = true;
     setBriefingLoading(true);
@@ -92,7 +92,7 @@ export const Dashboard: React.FC = () => {
       const activeContracts = allContracts.filter(c => c.status === 'Active').length;
 
       try {
-        const text = await generateDailyBriefing({
+        const result = await generateDailyBriefing({
           user: { firstName: currentUser.firstName || 'there', email: currentUser.email, role: currentUser.role || 'Staff' },
           myTasks,
           expiringContracts: expiring,
@@ -101,8 +101,8 @@ export const Dashboard: React.FC = () => {
           totalActiveContracts: activeContracts,
         });
         if (isMounted) {
-          setBriefing(text);
-          sessionStorage.setItem(cacheKey, text);
+          setBriefing(result);
+          sessionStorage.setItem(cacheKey, JSON.stringify(result));
         }
       } catch (e) {
         logger.error('Briefing failed:', e);
@@ -371,9 +371,25 @@ export const Dashboard: React.FC = () => {
                 <div className="space-y-1.5">
                   <div className="h-3 bg-white/20 rounded-full w-3/4 animate-pulse" />
                   <div className="h-3 bg-white/20 rounded-full w-1/2 animate-pulse" />
+                  <div className="h-3 bg-white/20 rounded-full w-2/3 animate-pulse" />
                 </div>
               ) : (
-                <p className="text-sm text-white leading-relaxed">{briefing}</p>
+                <>
+                  <p className="text-sm text-white leading-relaxed">{briefing?.text}</p>
+                  {briefing?.actions && briefing.actions.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-white/20">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-white/50 mb-2">Action Items</p>
+                      <div className="space-y-1.5">
+                        {briefing.actions.map((action, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <span className="w-4 h-4 rounded-full bg-white/20 text-white text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                            <p className="text-xs text-white/90 leading-snug">{action}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <button

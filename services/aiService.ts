@@ -330,7 +330,12 @@ export type DailyBriefingContext = {
   totalActiveContracts: number;
 };
 
-export const generateDailyBriefing = async (ctx: DailyBriefingContext): Promise<string> => {
+export type DailyBriefingResult = {
+  text: string;
+  actions: string[];
+};
+
+export const generateDailyBriefing = async (ctx: DailyBriefingContext): Promise<DailyBriefingResult> => {
   const today = new Date().toISOString().split('T')[0];
   const todayTs = Date.now();
 
@@ -360,31 +365,103 @@ export const generateDailyBriefing = async (ctx: DailyBriefingContext): Promise<
     `System: ${ctx.overdueInvoiceCount} overdue invoice(s), ${ctx.upcomingBillingCount} billing(s) due this week, ${ctx.totalActiveContracts} active contracts total`,
   ].join('\n');
 
-  const fallback = overdueTasks.length > 0
+  const fallbackText = overdueTasks.length > 0
     ? `${ctx.user.firstName}, you have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''} and ${ctx.expiringContracts.length} contract${ctx.expiringContracts.length !== 1 ? 's' : ''} expiring soon. Review your task list and follow up on renewals today.`
     : ctx.expiringContracts.length > 0
       ? `${ctx.user.firstName}, ${ctx.expiringContracts.length} contract${ctx.expiringContracts.length !== 1 ? 's are' : ' is'} expiring within 30 days. Reach out to those clients about renewals.`
       : `${ctx.user.firstName}, everything looks on track today. Keep an eye on upcoming tasks and contract renewals.`;
 
+  const fallbackActions: string[] = [
+    ...overdueTasks.map(t => `Complete overdue task: "${t.title}"`),
+    ...dueTodayTasks.map(t => `Complete task due today: "${t.title}"`),
+    ...(ctx.expiringContracts.length > 0 ? [`Follow up on ${ctx.expiringContracts.length} expiring contract${ctx.expiringContracts.length !== 1 ? 's' : ''}`] : []),
+    ...(ctx.overdueInvoiceCount > 0 ? [`Collect ${ctx.overdueInvoiceCount} overdue invoice${ctx.overdueInvoiceCount !== 1 ? 's' : ''}`] : []),
+  ].slice(0, 4);
+
+  const fallback: DailyBriefingResult = { text: fallbackText, actions: fallbackActions };
+
   try {
-    return await callAI(
+    const raw = await callAI(
       [
         {
           role: 'system',
           content: `You are a concise daily briefing assistant for Dreambox Advertising, a billboard advertising company in Zimbabwe.
-Your job is to give each staff member a short, personal, actionable morning briefing based on their data.
-Write 2–3 sentences of natural prose. Be specific, encouraging, and direct.
-Address the user by first name. Prioritise overdue items first. Do not use bullet points or headers.`,
+Give each staff member a short, personal, actionable morning briefing based on their data.
+Return ONLY a valid JSON object with exactly this shape:
+{
+  "text": "2–3 sentences of natural prose addressing the user by first name. Prioritise overdue items. Be specific and encouraging.",
+  "actions": ["Action item 1", "Action item 2", "Action item 3"]
+}
+actions must be 2–4 specific, concrete tasks ordered by urgency. Start each with a verb. No bullet points inside the strings.`,
         },
         {
           role: 'user',
           content: `Generate my daily briefing based on this data:\n\n${contextBlock}`,
         },
       ],
-      { provider: 'deepseek', model: 'deepseek-chat', temperature: 0.6, max_tokens: 120 }
+      { provider: 'deepseek', model: 'deepseek-chat', temperature: 0.6, max_tokens: 280, response_format: { type: 'json_object' } }
     );
+    const parsed = JSON.parse(raw);
+    return {
+      text: typeof parsed.text === 'string' && parsed.text ? parsed.text : fallbackText,
+      actions: Array.isArray(parsed.actions) ? parsed.actions.filter((a: unknown) => typeof a === 'string').slice(0, 5) : fallbackActions,
+    };
   } catch (e) {
     logAIError('Daily briefing failed', e, { feature: 'generateDailyBriefing', user: ctx.user.email });
     return fallback;
+  }
+};
+
+export type BIAnalysisContext = {
+  totalMRR: number;
+  occupancyPct: number;
+  expiring30Count: number;
+  atRiskClientCount: number;
+  overdueInvoiceCount: number;
+  overdueAmount: number;
+  vacantBoardCount: number;
+  totalBoards: number;
+  conversionRate: number;
+  pipelineValue: number;
+  topRecommendations: Array<{ priority: string; title: string }>;
+  estNetProfit: number;
+  expenseRatio: number;
+};
+
+export const generateBIAnalysis = async (ctx: BIAnalysisContext): Promise<string> => {
+  const contextBlock = [
+    `Monthly Recurring Revenue: $${ctx.totalMRR.toLocaleString()}`,
+    `Estimated Net Profit: $${ctx.estNetProfit.toLocaleString()} (expense ratio ${ctx.expenseRatio}%)`,
+    `Portfolio Occupancy: ${ctx.occupancyPct}% (${ctx.vacantBoardCount} of ${ctx.totalBoards} boards vacant)`,
+    `Contracts expiring in 30 days: ${ctx.expiring30Count}`,
+    `At-risk client accounts: ${ctx.atRiskClientCount}`,
+    `Overdue invoices: ${ctx.overdueInvoiceCount} (${ctx.overdueAmount > 0 ? `$${ctx.overdueAmount.toLocaleString()} outstanding` : '$0'})`,
+    `Sales pipeline value: $${ctx.pipelineValue.toLocaleString()}`,
+    `Quote-to-payment conversion rate: ${ctx.conversionRate}%`,
+    ctx.topRecommendations.length > 0
+      ? `Top issues flagged:\n${ctx.topRecommendations.slice(0, 5).map(r => `  [${r.priority.toUpperCase()}] ${r.title}`).join('\n')}`
+      : 'No issues flagged',
+  ].join('\n');
+
+  try {
+    return await callAI(
+      [
+        {
+          role: 'system',
+          content: `You are a senior business strategist for Dreambox Advertising, a billboard advertising company in Zimbabwe.
+Analyse the provided business metrics and deliver a sharp, honest 3–4 sentence strategic assessment.
+Cover: (1) the most pressing risk, (2) the biggest revenue opportunity right now, (3) one specific action to take this week.
+Be direct, data-specific, and commercial. No fluff. No bullet points. Write as flowing prose.`,
+        },
+        {
+          role: 'user',
+          content: `Analyse these metrics and give me a strategic assessment:\n\n${contextBlock}`,
+        },
+      ],
+      { provider: 'deepseek', model: 'deepseek-chat', temperature: 0.5, max_tokens: 200 }
+    );
+  } catch (e) {
+    logAIError('BI analysis failed', e, { feature: 'generateBIAnalysis' });
+    return '';
   }
 };
