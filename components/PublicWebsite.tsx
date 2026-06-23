@@ -234,6 +234,12 @@ const toSlug = (name: string): string =>
 
 const billboardLink = (b: Billboard): string => `/billboard/${toSlug(b.name)}-${b.id.slice(-8)}`;
 
+/** Extract a YouTube video ID from an img.youtube.com thumbnail URL */
+const getYouTubeIdFromThumbnail = (url: string): string | null => {
+  const m = url.match(/img\.youtube\.com\/vi\/([a-zA-Z0-9_-]+)\//);
+  return m ? m[1] : null;
+};
+
 const compactNumber = (value: number): string => {
   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `${Math.round(value / 1000)}K`;
@@ -683,55 +689,84 @@ export const PublicWebsite: React.FC = () => {
         )}
 
         {page === 'home' && <section className="relative min-h-[94vh] overflow-hidden bg-slate-950 pt-[72px] text-white md:pt-[108px]">
-          {heroImageUrl ? (
-            <>
-              <img
-                src={heroImageUrl}
-                alt="Hero background"
-                loading="eager"
-                decoding="async"
-                className="absolute inset-0 h-full w-full object-cover animate-image-drift"
-              />
-              {/* Directional left-to-right darkening for text legibility */}
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
-              {/* Edge vignette — darkens all four corners for cinematic depth */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_38%_52%,transparent_25%,rgba(2,6,23,0.72)_100%)]" />
-              {/* Top atmospheric scrim */}
-              <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-slate-950/60 to-transparent" />
-            </>
-          ) : (
-            <>
-              {/* Depth gradient — base: rich indigo-to-violet-to-navy */}
-              <div className="absolute inset-0 bg-[linear-gradient(145deg,#020510_0%,#0a0d2a_25%,#130938_55%,#050817_100%)]" />
-              {/* Radial glow — top-right indigo (vivid) */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_65%_at_76%_6%,rgba(99,102,241,0.65)_0%,transparent_58%)]" />
-              {/* Radial glow — mid-right violet accent */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_88%_52%,rgba(139,92,246,0.42)_0%,transparent_55%)]" />
-              {/* Radial glow — bottom-left violet */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_48%_at_4%_82%,rgba(109,40,217,0.44)_0%,transparent_52%)]" />
-              {/* Diagonal vibrant accent band */}
-              <div className="absolute inset-0 opacity-[0.13]" style={{ background: 'linear-gradient(125deg, transparent 38%, rgba(99,102,241,0.9) 48%, rgba(139,92,246,0.9) 52%, transparent 62%)' }} />
-              {/* Animated orb — primary */}
-              <div className="absolute right-[10%] top-[10%] h-[580px] w-[580px] animate-glow-pulse rounded-full bg-indigo-500/[0.32] blur-[120px]" />
-              {/* Animated orb — secondary */}
-              <div className="absolute left-[3%] bottom-[20%] h-[420px] w-[420px] animate-glow-pulse rounded-full bg-violet-600/[0.28] blur-[100px]" style={{ animationDelay: '-4s' }} />
-              {/* Animated orb — tertiary cyan */}
-              <div className="absolute right-[3%] bottom-[8%] h-[300px] w-[300px] animate-glow-pulse rounded-full bg-cyan-500/[0.22] blur-[80px]" style={{ animationDelay: '-7s' }} />
-              {/* Animated orb — center warm accent */}
-              <div className="absolute left-[30%] top-[40%] h-[240px] w-[240px] animate-glow-pulse rounded-full bg-violet-400/[0.14] blur-[75px]" style={{ animationDelay: '-2s' }} />
-              {/* Perspective floor grid */}
-              <div className="hero-depth-grid absolute inset-0 opacity-[0.30]" />
-              {/* Edge vignette */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_75%_at_48%_40%,transparent_22%,rgba(2,6,23,0.68)_100%)]" />
-              {/* Top atmospheric haze */}
-              <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/60 to-transparent" />
-              {/* Light shafts */}
-              <div className="absolute right-[28%] top-0 h-3/4 w-[220px] bg-gradient-to-b from-indigo-400/[0.14] via-indigo-400/[0.05] to-transparent" style={{ clipPath: 'polygon(25% 0, 75% 0, 100% 100%, 0% 100%)' }} />
-              <div className="absolute right-[18%] top-0 h-1/2 w-[140px] bg-gradient-to-b from-violet-400/[0.10] to-transparent" style={{ clipPath: 'polygon(20% 0, 80% 0, 100% 100%, 0% 100%)' }} />
-              {/* Noise grain texture */}
-              <div className="hero-noise absolute inset-0 opacity-[0.04] mix-blend-screen" />
-            </>
-          )}
+          {(() => {
+            const ytId = heroImageUrl ? getYouTubeIdFromThumbnail(heroImageUrl) : null;
+            if (ytId) {
+              const embedUrl = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&modestbranding=1&showinfo=0&rel=0&iv_load_policy=3&playsinline=1`;
+              return (
+                <>
+                  <div className="absolute inset-0 overflow-hidden">
+                    <iframe
+                      src={embedUrl}
+                      title="Dreambox Advertising hero video"
+                      allow="autoplay; encrypted-media"
+                      className="absolute left-1/2 top-1/2 h-[130%] w-[130%] -translate-x-1/2 -translate-y-1/2"
+                      style={{ border: 0, pointerEvents: 'none' }}
+                    />
+                  </div>
+                  {/* Directional left-to-right darkening for text legibility */}
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
+                  {/* Edge vignette — darkens all four corners for cinematic depth */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_38%_52%,transparent_25%,rgba(2,6,23,0.72)_100%)]" />
+                  {/* Top atmospheric scrim */}
+                  <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-slate-950/60 to-transparent" />
+                </>
+              );
+            }
+            if (heroImageUrl) {
+              return (
+                <>
+                  <img
+                    src={heroImageUrl}
+                    alt="Hero background"
+                    loading="eager"
+                    decoding="async"
+                    className="absolute inset-0 h-full w-full object-cover animate-image-drift"
+                  />
+                  {/* Directional left-to-right darkening for text legibility */}
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
+                  {/* Edge vignette — darkens all four corners for cinematic depth */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_38%_52%,transparent_25%,rgba(2,6,23,0.72)_100%)]" />
+                  {/* Top atmospheric scrim */}
+                  <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-slate-950/60 to-transparent" />
+                </>
+              );
+            }
+            return (
+              <>
+                {/* Depth gradient — base: rich indigo-to-violet-to-navy */}
+                <div className="absolute inset-0 bg-[linear-gradient(145deg,#020510_0%,#0a0d2a_25%,#130938_55%,#050817_100%)]" />
+                {/* Radial glow — top-right indigo (vivid) */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_65%_at_76%_6%,rgba(99,102,241,0.65)_0%,transparent_58%)]" />
+                {/* Radial glow — mid-right violet accent */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_88%_52%,rgba(139,92,246,0.42)_0%,transparent_55%)]" />
+                {/* Radial glow — bottom-left violet */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_48%_at_4%_82%,rgba(109,40,217,0.44)_0%,transparent_52%)]" />
+                {/* Diagonal vibrant accent band */}
+                <div className="absolute inset-0 opacity-[0.13]" style={{ background: 'linear-gradient(125deg, transparent 38%, rgba(99,102,241,0.9) 48%, rgba(139,92,246,0.9) 52%, transparent 62%)' }} />
+                {/* Animated orb — primary */}
+                <div className="absolute right-[10%] top-[10%] h-[580px] w-[580px] animate-glow-pulse rounded-full bg-indigo-500/[0.32] blur-[120px]" />
+                {/* Animated orb — secondary */}
+                <div className="absolute left-[3%] bottom-[20%] h-[420px] w-[420px] animate-glow-pulse rounded-full bg-violet-600/[0.28] blur-[100px]" style={{ animationDelay: '-4s' }} />
+                {/* Animated orb — tertiary cyan */}
+                <div className="absolute right-[3%] bottom-[8%] h-[300px] w-[300px] animate-glow-pulse rounded-full bg-cyan-500/[0.22] blur-[80px]" style={{ animationDelay: '-7s' }} />
+                {/* Animated orb — center warm accent */}
+                <div className="absolute left-[30%] top-[40%] h-[240px] w-[240px] animate-glow-pulse rounded-full bg-violet-400/[0.14] blur-[75px]" style={{ animationDelay: '-2s' }} />
+                {/* Perspective floor grid */}
+                <div className="hero-depth-grid absolute inset-0 opacity-[0.30]" />
+                {/* Edge vignette */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_75%_at_48%_40%,transparent_22%,rgba(2,6,23,0.68)_100%)]" />
+                {/* Top atmospheric haze */}
+                <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/60 to-transparent" />
+                {/* Light shafts */}
+                <div className="absolute right-[28%] top-0 h-3/4 w-[220px] bg-gradient-to-b from-indigo-400/[0.14] via-indigo-400/[0.05] to-transparent" style={{ clipPath: 'polygon(25% 0, 75% 0, 100% 100%, 0% 100%)' }} />
+                <div className="absolute right-[18%] top-0 h-1/2 w-[140px] bg-gradient-to-b from-violet-400/[0.10] to-transparent" style={{ clipPath: 'polygon(20% 0, 80% 0, 100% 100%, 0% 100%)' }} />
+                {/* Noise grain texture */}
+                <div className="hero-noise absolute inset-0 opacity-[0.04] mix-blend-screen" />
+              </>
+            );
+          })()}
+
           {/* Location ticker strip — pulls from real billboard data */}
           {(() => {
             const locs = [...new Set(billboards.map(b => b.location).filter(Boolean))];
