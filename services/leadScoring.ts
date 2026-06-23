@@ -565,7 +565,7 @@ const calculateIntentSignals = (
   // Check for specific intent signals in touchpoints
   const proposalRequests = touchpoints.filter(t => 
     t.outcome === 'proposal_requested' || 
-    (t.content?.toLowerCase().includes('quote') || t.content?.toLowerCase().includes('proposal'))
+    ((t.content || '').toLowerCase().includes('quote') || (t.content || '').toLowerCase().includes('proposal'))
   ).length;
   
   if (proposalRequests > 0) {
@@ -592,7 +592,7 @@ const calculateIntentSignals = (
   // Urgency indicators
   const urgencyKeywords = ['urgent', 'asap', 'this week', 'immediately', 'soon', 'quick'];
   const hasUrgency = touchpoints.some(t => 
-    urgencyKeywords.some(kw => t.content?.toLowerCase().includes(kw))
+    urgencyKeywords.some(kw => (t.content || '').toLowerCase().includes(kw))
   );
   
   if (hasUrgency) {
@@ -607,9 +607,9 @@ const calculateIntentSignals = (
   
   // Budget discussion
   const budgetMentions = touchpoints.filter(t => 
-    t.content?.toLowerCase().includes('budget') ||
-    t.content?.toLowerCase().includes('price') ||
-    t.content?.toLowerCase().includes('cost')
+    (t.content || '').toLowerCase().includes('budget') ||
+    (t.content || '').toLowerCase().includes('price') ||
+    (t.content || '').toLowerCase().includes('cost')
   ).length;
   
   if (budgetMentions > 0) {

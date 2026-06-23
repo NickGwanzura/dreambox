@@ -139,7 +139,7 @@ export const login = async (identifier: string, password: string): Promise<Omit<
     
     // Find user
     const user = userList.find(u => 
-      u.email.toLowerCase() === term || 
+      (u.email || '').toLowerCase() === term || 
       (u.username && u.username.toLowerCase() === term)
     );
     

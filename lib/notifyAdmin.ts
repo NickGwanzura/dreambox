@@ -181,5 +181,5 @@ function buildWebsiteLeadEmail(lead: WebsiteLeadAlert): string {
 }
 
 export function isSystemAdmin(email: string | null | undefined): boolean {
-  return email?.trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
+  return email?.trim()?.toLowerCase() === SYSTEM_ADMIN_EMAIL;
 }

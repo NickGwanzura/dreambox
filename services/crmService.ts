@@ -218,7 +218,7 @@ export const getPrimaryContact = (companyId: string): CRMContact | undefined =>
 
 export const findContactByEmail = (email: string): CRMContact | undefined =>
   state.contacts.find(c => 
-    c.email?.toLowerCase().trim() === email.toLowerCase().trim()
+    (c.email || '').toLowerCase().trim() === email.toLowerCase().trim()
   );
 
 export const addCRMContact = (contact: Omit<CRMContact, 'id' | 'createdAt'>): CRMContact => {
@@ -745,7 +745,7 @@ export const checkForDuplicates = (row: CRMCSVRow): { isDuplicate: boolean; exis
   
   // Check by company name
   const existingCompany = state.companies.find(c => 
-    c.name.toLowerCase().trim() === row['Company Name']?.toLowerCase().trim()
+    c.name.toLowerCase().trim() === (row['Company Name'] || '').toLowerCase().trim()
   );
   if (existingCompany) {
     const opportunity = state.opportunities.find(o => o.companyId === existingCompany.id);
@@ -812,7 +812,7 @@ export const importCSVRow = (
       fullName: sanitizeString(row['Primary Contact Name']),
       jobTitle: row['Job Title'],
       phone: row['Phone Number'],
-      email: row['Email Address']?.toLowerCase().trim(),
+      email: (row['Email Address'] || '').toLowerCase().trim(),
       linkedinUrl: row['LinkedIn Profile'],
       isPrimary: true,
     });

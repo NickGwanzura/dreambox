@@ -9,7 +9,7 @@ export const PRIVILEGED_EMAILS: readonly string[] = [
 export const SETTINGS_ALLOWED_EMAILS = PRIVILEGED_EMAILS;
 
 function isPrivileged(user: { email?: string | null } | null | undefined): boolean {
-  const email = user?.email?.trim().toLowerCase();
+  const email = user?.email?.trim()?.toLowerCase();
   if (!email) return false;
   return PRIVILEGED_EMAILS.includes(email);
 }
@@ -26,7 +26,7 @@ export function canDelete(user: { email?: string | null; role?: string | null } 
 }
 
 export function isSystemAdmin(user: { email?: string | null } | null | undefined): boolean {
-  return user?.email?.trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
+  return user?.email?.trim()?.toLowerCase() === SYSTEM_ADMIN_EMAIL;
 }
 
 export function canCreateQuotations(user: { email?: string | null; role?: string | null } | null | undefined): boolean {

@@ -38,10 +38,10 @@ export const ClientList: React.FC = () => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return clients;
     return clients.filter(c =>
-      c.companyName?.toLowerCase().includes(q) ||
-      c.contactPerson?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.phone?.toLowerCase().includes(q)
+      (c.companyName || '').toLowerCase().includes(q) ||
+      (c.contactPerson || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.phone || '').toLowerCase().includes(q)
     );
   }, [clients, searchQuery]);
 

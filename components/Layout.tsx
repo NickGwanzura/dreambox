@@ -100,6 +100,14 @@ const ALL_SECTIONS: Section[] = [
   },
 ];
 
+/**
+ * Check if the layout should show a loading fallback while waiting for user data.
+ * Returns true when no cached user session exists in localStorage.
+ */
+export function shouldShowLoadingFallback(): boolean {
+  try { return !localStorage.getItem('billboard_user'); } catch { return true; }
+}
+
 export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
@@ -115,6 +123,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       try { const cached = localStorage.getItem('billboard_user'); return cached ? JSON.parse(cached) : null; } catch { return null; }
     }
   );
+  const [userLoading, setUserLoading] = useState(shouldShowLoadingFallback);
 
   const { showToast } = useToast();
   const sidebarRef = useRef<HTMLElement>(null);
@@ -122,7 +131,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const touchCurrentX = useRef<number | null>(null);
 
   useEffect(() => {
-    getCurrentUser().then(u => { if (u) setUser(u); });
+    getCurrentUser().then(u => {
+      if (u) setUser(u);
+      setUserLoading(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -267,6 +279,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   })).filter(s => s.items.length > 0);
 
   const handleLogout = async () => { await signOut(); onLogout(); };
+
+  // Loading state while user data is being fetched
+  if (userLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#0f172a]">
+        <div className="text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-2xl font-black text-white shadow-lg shadow-indigo-500/20">
+            D
+          </div>
+          <div className="mx-auto mb-3 h-3 w-40 animate-pulse rounded-full bg-slate-700" />
+          <div className="mx-auto h-2 w-24 animate-pulse rounded-full bg-slate-800" style={{ animationDelay: '150ms' }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#0f172a] text-slate-200 supports-[height:100dvh]:h-[100dvh]">

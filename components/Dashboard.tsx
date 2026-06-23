@@ -80,7 +80,7 @@ export const Dashboard: React.FC = () => {
       const userHandle = currentUser.firstName?.toLowerCase() || currentUser.email.toLowerCase();
       const myTasks = allTasks.filter(t =>
         t.status !== 'Done' &&
-        (t.assignedTo?.toLowerCase().includes(userHandle) || currentUser.role === 'Admin')
+        ((t.assignedTo || '').toLowerCase().includes(userHandle) || currentUser.role === 'Admin')
       ).map(t => ({ title: t.title, priority: t.priority, status: t.status, dueDate: t.dueDate }));
 
       const expiring = getExpiringContracts().filter(c =>

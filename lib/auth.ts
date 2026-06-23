@@ -115,7 +115,7 @@ export function requireManagerOrAdmin(
 export const SYSTEM_ADMIN_EMAIL = (process.env.SYSTEM_ADMIN_EMAIL || '').toLowerCase();
 
 export function isSystemAdmin(email: string | null | undefined): boolean {
-  return !!SYSTEM_ADMIN_EMAIL && email?.trim().toLowerCase() === SYSTEM_ADMIN_EMAIL;
+  return !!SYSTEM_ADMIN_EMAIL && email?.trim()?.toLowerCase() === SYSTEM_ADMIN_EMAIL;
 }
 
 export function requireDeletePermission(
