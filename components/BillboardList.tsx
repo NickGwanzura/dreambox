@@ -674,35 +674,45 @@ export const BillboardList: React.FC = () => {
                                            className="relative z-[1] w-full h-full object-cover"
                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement?.classList.add(...gradientClass.split(' ')); }}
                                         />
-                                    ) : null}
+                                    ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <ImageIcon size={24} className="text-white/40" />
+                                        </div>
+                                    )}
+                                    {/* Hover overlay - only on cards with images */}
+                                    {hasImage && (
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center rounded-2xl">
+                                            <ZoomIn size={20} className="text-white/0 group-hover:scale-100 group-hover:text-white transition-all duration-300" />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-1">
-                                    <h4 className="font-bold text-slate-900 truncate text-lg tracking-tight" title={b.name}>{b.name}</h4>
-                                    <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-widest border shrink-0 ${isAvailable ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isPartial ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <h4 className="font-bold text-slate-900 truncate text-lg tracking-tight group-hover:text-indigo-600 transition-colors" title={b.name}>{b.name}</h4>
+                                    <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-widest border shrink-0 shadow-sm ${isAvailable ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isPartial ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                                         {availability.label}
                                     </span>
                                 </div>
-                                <p className="text-xs text-slate-900 font-medium flex items-center gap-1 truncate mb-2">
-                                    <MapPin size={12} className="shrink-0 text-indigo-500"/> <span className="truncate">{b.location}, {b.town}</span>
+                                <p className="text-xs text-slate-500 flex items-center gap-1.5 truncate mb-3">
+                                    <MapPin size={12} className="shrink-0 text-indigo-400"/> <span className="truncate">{b.location}, {b.town}</span>
                                 </p>
-                                <div className="flex flex-wrap gap-4 text-[10px] text-slate-900 font-bold uppercase tracking-wide">
-                                    <span className="flex items-center gap-1"><Maximize2 size={10}/> {b.width}x{b.height}m</span>
-                                    <span className="flex items-center gap-1"><Car size={10}/> {formatTraffic(b.dailyTraffic)} Views</span>
-                                    <span className="flex items-center gap-1"><Layers size={10}/> {b.type === BillboardType.LED ? `${availability.openSlots}/${availability.totalSlots} Slots Open` : `${availability.openSlots}/2 Sides Open`}</span>
+                                <div className="flex flex-wrap gap-2">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Maximize2 size={11} className="text-slate-400"/> {b.width}×{b.height}m</span>
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Car size={11} className="text-slate-400"/> {formatTraffic(b.dailyTraffic)} Views</span>
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Layers size={11} className="text-slate-400"/> {b.type === BillboardType.LED ? `${availability.openSlots}/${availability.totalSlots} Slots` : `${availability.openSlots}/2 Sides`}</span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-50 sm:border-t-0 mt-2 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
-                                <div className="flex flex-col items-end mr-2">
-                                    <span className={`px-2 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider mb-1 ${b.type === BillboardType.LED ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>{b.type}</span>
-                                    {availability.priceLabel && <span className="text-sm font-bold text-slate-900">{availability.priceLabel}{b.type === BillboardType.Static && <span className="text-[10px] font-medium text-slate-900">/mo</span>}</span>}
-                                    <span className="text-[10px] text-slate-900 font-mono">ID: {b.id.slice(-4)}</span>
+                            <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-100 sm:border-t-0 mt-3 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
+                                <div className="flex flex-col items-end">
+                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-1.5 ${b.type === BillboardType.LED ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>{b.type}</span>
+                                    {availability.priceLabel && <span className="text-sm font-extrabold text-slate-900">{availability.priceLabel}{b.type === BillboardType.Static && <span className="text-[10px] font-normal text-slate-500">/mo</span>}</span>}
+                                    <span className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {b.id.slice(-4)}</span>
                                 </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-900 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Edit"><Edit2 size={16}/></button>
-                                    <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-900 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Share"><Share2 size={16}/></button>
-                                    {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors" title="Delete"><Trash2 size={16}/></button>)}
+                                <div className="flex gap-1.5">
+                                    <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-transparent hover:bg-indigo-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Edit"><Edit2 size={15}/></button>
+                                    <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-transparent hover:bg-indigo-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Share"><Share2 size={15}/></button>
+                                    {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-400 hover:text-red-600 bg-transparent hover:bg-red-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Delete"><Trash2 size={15}/></button>)}
                                 </div>
                             </div>
                         </div>
