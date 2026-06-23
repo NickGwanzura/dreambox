@@ -261,7 +261,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
                     <td className="px-6 py-3 font-mono text-xs text-slate-900">{doc.id}</td>
                     <td className="px-6 py-3 text-slate-900">{doc.date}</td>
                     <td className="px-6 py-3 text-slate-800 max-w-xs truncate">{doc.items[0]?.description || '—'}{doc.items.length > 1 ? ` +${doc.items.length - 1} more` : ''}</td>
-                    <td className="px-6 py-3 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td>
+                    <td className="px-6 py-3 text-right font-bold text-slate-900">${(doc.total ?? 0).toLocaleString()}</td>
                     <td className="px-6 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${STATUS_STYLES[doc.status]}`}>{doc.status}</span>
                     </td>

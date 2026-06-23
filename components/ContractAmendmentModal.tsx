@@ -626,7 +626,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                       <span className="font-medium text-slate-700">{inv.id}</span>
                       <span className="text-xs text-slate-900">{inv.date}</span>
                     </div>
-                    <span className="font-bold text-slate-800">${inv.total.toLocaleString()}</span>
+                    <span className="font-bold text-slate-800">${(inv.total ?? 0).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -739,7 +739,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                         'bg-amber-100 text-amber-700'
                       }`}>{inv.status}</span>
                     </div>
-                    <span className="font-bold text-slate-800">${inv.total.toLocaleString()}</span>
+                    <span className="font-bold text-slate-800">${(inv.total ?? 0).toLocaleString()}</span>
                   </div>
                 ))}
               </div>

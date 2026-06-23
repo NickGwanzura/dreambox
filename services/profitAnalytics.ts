@@ -37,7 +37,7 @@ export function classifyInvoiceRevenue(invoice: Invoice): { recurring: number; o
                               (contract.printingCost || 0) +
                               (contract.productionCost || 0);
 
-        if (Math.abs(invoice.total - expectedTotal) < 0.01) {
+        if (Math.abs((invoice.total ?? 0) - expectedTotal) < 0.01) {
             recurring = contract.monthlyRate;
             oneTime = (contract.installationCost || 0) +
                       (contract.printingCost || 0) +
@@ -48,7 +48,7 @@ export function classifyInvoiceRevenue(invoice: Invoice): { recurring: number; o
 
     // Fallback: if we can't match, assume all is recurring (conservative)
     if (recurring === 0 && oneTime === 0) {
-        recurring = invoice.total;
+        recurring = invoice.total ?? 0;
     }
 
     return { recurring, oneTime };
@@ -133,7 +133,7 @@ export function getTotalCOGS(): number {
 export function getGrossProfit(): { grossProfit: number; grossMargin: number; revenue: number } {
     const totalRevenue = getInvoices()
         .filter(i => String(i.type || '').toLowerCase() === 'invoice')
-        .reduce((sum, i) => sum + i.total, 0);
+        .reduce((sum, i) => sum + (i.total ?? 0), 0);
 
     const cogs = getTotalCOGS();
     const grossProfit = totalRevenue - cogs;
@@ -154,7 +154,7 @@ export function getGrossProfit(): { grossProfit: number; grossMargin: number; re
 export function getNetProfit(): number {
     const totalRevenue = getInvoices()
         .filter(i => String(i.type || '').toLowerCase() === 'invoice')
-        .reduce((sum, i) => sum + i.total, 0);
+        .reduce((sum, i) => sum + (i.total ?? 0), 0);
     const totalCOGS = getTotalCOGS();
     return totalRevenue - totalCOGS;
 }
@@ -183,7 +183,7 @@ export function getClientProfitability(): ClientProfitability[] {
         const clientInvoices = invoices.filter(i => i.clientId === client.id);
 
         // Revenue from invoices for this client
-        const revenue = clientInvoices.reduce((sum, inv) => sum + inv.total, 0);
+        const revenue = clientInvoices.reduce((sum, inv) => sum + (inv.total ?? 0), 0);
 
         // COGS from client's contracts (installation, printing, production, outsourced share)
         const cogs = clientContracts.reduce((sum, c) => {

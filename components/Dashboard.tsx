@@ -222,7 +222,7 @@ export const Dashboard: React.FC = () => {
 
     // Top clients
     const topClientsData = clients
-      .map(c => ({ name: c.companyName, value: invoices.filter(i => i.clientId === c.id && typeIs(i.type, 'Invoice')).reduce((s, i) => s + i.total, 0) }))
+      .map(c => ({ name: c.companyName, value: invoices.filter(i => i.clientId === c.id && typeIs(i.type, 'Invoice')).reduce((s, i) => s + (i.total ?? 0), 0) }))
       .sort((a, b) => b.value - a.value).slice(0, 5);
 
     // Revenue by location

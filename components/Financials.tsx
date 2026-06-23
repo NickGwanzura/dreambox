@@ -271,7 +271,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const buildDocSendDefaults = (doc: Invoice) => {
     const typeLabel = doc.type || 'Invoice';
     const brand = 'Dreambox Advertising';
-    const subject = `${typeLabel} #${doc.id.slice(0, 8)} — $${doc.total.toLocaleString()} | ${brand}`;
+    const subject = `${typeLabel} #${doc.id.slice(0, 8)} — $${(doc.total ?? 0).toLocaleString()} | ${brand}`;
     const t = String(typeLabel).toLowerCase();
     const message = t === 'quotation'
       ? `Please find your quotation from ${brand} below. This quote is valid for 30 days. A PDF copy is attached.`
@@ -541,7 +541,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                   )}
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-900">Total</span>
-                    <span className="font-bold">${doc.total.toLocaleString()}</span>
+                    <span className="font-bold">${(doc.total ?? 0).toLocaleString()}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2">
                     <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg" title="Download PDF"><Download size={16} /></button>
@@ -574,7 +574,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               <thead className="bg-slate-50/50 border-b border-slate-100"><tr><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">ID</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Date</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client / Info</th>{activeTab === 'Receipts' && (<><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Method</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Ref #</th></>)}<th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Total</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">Status</th><th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-center">Actions</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDocs.length > 0 ? filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.quoteNumber || doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}{(activeTab as string) === 'Quotations' && doc.expiryDate && <span className="text-[10px] text-amber-600 font-medium">Valid until {doc.expiryDate}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td><td className="px-6 py-4 text-center">{(activeTab as string) === 'Quotations' && doc.quoteStatus ? (
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors"><td className="px-6 py-4 font-bold text-slate-900">{doc.quoteNumber || doc.id}</td><td className="px-6 py-4">{doc.date}</td><td className="px-6 py-4"><div className="flex flex-col"><span className="text-xs font-bold text-slate-700">{allClients.find(c => c.id === doc.clientId)?.companyName || 'Unknown Client'}</span>{doc.contractId && <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><Link2 size={10}/> Contract {doc.contractId}</span>}{(activeTab as string) === 'Quotations' && doc.expiryDate && <span className="text-[10px] text-amber-600 font-medium">Valid until {doc.expiryDate}</span>}</div></td>{activeTab === 'Receipts' && (<><td className="px-6 py-4 text-xs">{doc.paymentMethod || '-'}</td><td className="px-6 py-4 text-xs font-mono">{doc.paymentReference || '-'}</td></>)}<td className="px-6 py-4 text-right font-bold text-slate-900">${(doc.total ?? 0).toLocaleString()}</td><td className="px-6 py-4 text-center">{(activeTab as string) === 'Quotations' && doc.quoteStatus ? (
                       <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
                         doc.quoteStatus === 'Draft' ? 'bg-slate-100 text-slate-700' :
                         doc.quoteStatus === 'Sent' ? 'bg-indigo-100 text-indigo-700' :
@@ -775,7 +775,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                   {convertingQuotation.items.map((item, i) => (
                     <div key={i} className="flex justify-between text-sm"><span className="text-slate-900">{item.description}</span><span className="font-bold">${item.amount.toLocaleString()}</span></div>
                   ))}
-                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200 mt-2"><span>Total</span><span>${convertingQuotation.total.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200 mt-2"><span>Total</span><span>${(convertingQuotation.total ?? 0).toLocaleString()}</span></div>
                 </div>
                 <MinimalSelect label="Billboard" value={convertForm.billboardId} onChange={(e: any) => setConvertForm({...convertForm, billboardId: e.target.value})} options={[{value: '', label: 'Select Billboard...'}, ...getBillboards().map(b => ({value: b.id, label: `${b.name} (${b.town})`}))]} />
                 <div className="grid grid-cols-2 gap-4">

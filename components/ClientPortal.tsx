@@ -103,7 +103,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ clientId }) => {
                             <span className="text-xs font-bold text-slate-900">{lastPayment?.date || 'N/A'}</span>
                         </div>
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Last Payment</p>
-                        <h3 className="text-3xl font-black text-slate-900 tracking-tight">{lastPayment ? `$${lastPayment.total.toLocaleString()}` : '-'}</h3>
+                        <h3 className="text-3xl font-black text-slate-900 tracking-tight">{lastPayment ? `$${(lastPayment.total ?? 0).toLocaleString()}` : '-'}</h3>
                     </div>
                 </div>
 
@@ -222,7 +222,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ clientId }) => {
                                             <td className="px-8 py-5 font-mono text-xs font-medium text-slate-900">{inv.date}</td>
                                             <td className="px-8 py-5 font-bold text-slate-900">{inv.id}</td>
                                             <td className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-slate-900">{inv.type}</td>
-                                            <td className="px-8 py-5 text-right font-bold text-slate-900">${inv.total.toLocaleString()}</td>
+                                            <td className="px-8 py-5 text-right font-bold text-slate-900">${(inv.total ?? 0).toLocaleString()}</td>
                                             <td className="px-8 py-5 text-center">
                                                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${inv.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>{inv.status}</span>
                                             </td>

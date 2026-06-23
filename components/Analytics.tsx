@@ -12,7 +12,7 @@ export const Analytics: React.FC = () => {
     // 1. Calculate Revenue with proper classification
     const totalRevenue = getInvoices()
         .filter(i => String(i.type || '').toLowerCase() === 'invoice')
-        .reduce((acc, curr) => acc + curr.total, 0);
+        .reduce((acc, curr) => acc + (curr.total ?? 0), 0);
 
     const recurringRevenue = getTotalMonthlyRecurringRevenue() * 6; // Approximate 6-month MRR total for comparison
     const oneTimeRevenue = getTotalOneTimeRevenue();

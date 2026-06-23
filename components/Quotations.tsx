@@ -451,7 +451,7 @@ export const Quotations: React.FC = () => {
     }
     const client = allClients.find(c => c.id === doc.clientId);
     if (!client?.phone) { alert('Client phone number not found'); return; }
-    const message = `Hi ${client.contactPerson}, please find your quotation from Dreambox Advertising: ${doc.quoteNumber || doc.id} — $${doc.total.toLocaleString()}. Valid until ${doc.expiryDate || '30 days from now'}.`;
+    const message = `Hi ${client.contactPerson}, please find your quotation from Dreambox Advertising: ${doc.quoteNumber || doc.id} — $${(doc.total ?? 0).toLocaleString()}. Valid until ${doc.expiryDate || '30 days from now'}.`;
     const url = `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
     try {
@@ -481,7 +481,7 @@ export const Quotations: React.FC = () => {
 
   const buildDocSendDefaults = (doc: Invoice) => {
     const brand = 'Dreambox Advertising';
-    const subject = `Quotation #${doc.quoteNumber || doc.id.slice(0, 8)} — $${doc.total.toLocaleString()} | ${brand}`;
+    const subject = `Quotation #${doc.quoteNumber || doc.id.slice(0, 8)} — $${(doc.total ?? 0).toLocaleString()} | ${brand}`;
     const message = `Please find your quotation from ${brand} below.${doc.expiryDate ? ` This quote is valid until ${doc.expiryDate}.` : ' This quote is valid for 30 days.'} A PDF copy is attached.`;
     return { subject, message };
   };
@@ -670,7 +670,7 @@ export const Quotations: React.FC = () => {
               )}
               <div className="flex justify-between text-sm">
                 <span className="text-slate-900">Total</span>
-                <span className="font-bold">${doc.total.toLocaleString()}</span>
+                <span className="font-bold">${(doc.total ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex flex-wrap gap-2 pt-2">
                 <button onClick={() => handleView(doc)} className="p-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg" title="View Details"><Eye size={16} /></button>
@@ -724,7 +724,7 @@ export const Quotations: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-xs">{doc.expiryDate || '-'}</td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-900">${doc.total.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right font-bold text-slate-900">${(doc.total ?? 0).toLocaleString()}</td>
                     <td className="px-6 py-4 text-center">
                       <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 ${statusCfg.bg} ${statusCfg.text}`}>
                         <StatusIcon size={10} /> {doc.quoteStatus}
@@ -916,7 +916,7 @@ export const Quotations: React.FC = () => {
                           <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-3">Details</h4>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between"><span className="text-slate-900">Date</span><span className="font-medium">{viewingQuotation.date}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-900">Total</span><span className="font-bold">${viewingQuotation.total.toLocaleString()}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-900">Total</span><span className="font-bold">${(viewingQuotation.total ?? 0).toLocaleString()}</span></div>
                             {viewingQuotation.convertedToInvoiceId && (
                               <div className="flex justify-between"><span className="text-slate-900">Converted to Invoice</span><span className="font-medium text-purple-600">{viewingQuotation.convertedToInvoiceId}</span></div>
                             )}
@@ -937,7 +937,7 @@ export const Quotations: React.FC = () => {
                           ))}
                           <div className="flex justify-between text-sm font-bold pt-2">
                             <span>Total</span>
-                            <span>${viewingQuotation.total.toLocaleString()}</span>
+                            <span>${(viewingQuotation.total ?? 0).toLocaleString()}</span>
                           </div>
                         </div>
                       </div>
@@ -973,7 +973,7 @@ export const Quotations: React.FC = () => {
                   {convertingQuotation.items.map((item, i) => (
                     <div key={i} className="flex justify-between text-sm"><span className="text-slate-900">{item.description}</span><span className="font-bold">${item.amount.toLocaleString()}</span></div>
                   ))}
-                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200 mt-2"><span>Total</span><span>${convertingQuotation.total.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200 mt-2"><span>Total</span><span>${(convertingQuotation.total ?? 0).toLocaleString()}</span></div>
                 </div>
                 <MinimalSelect label="Billboard" value={convertForm.billboardId} onChange={(e: any) => setConvertForm({...convertForm, billboardId: e.target.value})} options={[{value: '', label: 'Select Billboard...'}, ...getBillboards().map(b => ({value: b.id, label: `${b.name} (${b.town})`}))]} />
                 <div className="grid grid-cols-2 gap-4">
