@@ -1,8 +1,8 @@
 
 // ─── Maintenance / Migration Mode ────────────────────────────────────────────
 // Maintenance mode disables automatically at the target end time.
-// Back online: 2026-06-19 12:00:00 CAT (UTC+2)
-const MAINTENANCE_END = new Date('2026-06-19T10:00:00Z');
+// Back online: 2026-06-23 16:00:00 CAT (UTC+2)
+const MAINTENANCE_END = new Date('2026-06-23T14:00:00Z');
 const MAINTENANCE_MODE = Date.now() < MAINTENANCE_END.getTime();
 
 function MaintenanceScreen() {
@@ -75,11 +75,11 @@ function MaintenanceScreen() {
         <h1 className="text-4xl font-black leading-[1.06] tracking-tight text-white sm:text-5xl">
           Back online at{' '}
           <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent">
-            12:00 midday
+            4:00 PM
           </span>
         </h1>
         <p className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-white/60">
-          The Dreambox platform is briefly offline for a scheduled upgrade. We&apos;ll be back today at noon — all campaign data, contracts, and records are safe and will be ready when we return.
+          The Dreambox platform is briefly offline for a scheduled fix. We&apos;ll be back today at 4:00 PM — all campaign data, contracts, and records are safe and will be ready when we return.
         </p>
         <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/40">
           Looking to book a site or request a quote? Reach us directly below and we&apos;ll respond straight away.
@@ -448,16 +448,6 @@ const App: React.FC = () => {
     }
   };
 
-  // ─── Maintenance gate ────────────────────────────────────────────────────────
-  if (MAINTENANCE_MODE) {
-    return (
-      <ErrorBoundary>
-        <MaintenanceScreen />
-      </ErrorBoundary>
-    );
-  }
-  // ─────────────────────────────────────────────────────────────────────────────
-
   // Public View Routing (No Auth Required)
   if (publicMode.active) {
       return (
@@ -510,6 +500,16 @@ const App: React.FC = () => {
           </ErrorBoundary>
       );
   }
+
+  // ─── Maintenance gate (public website bypasses above) ────────────────────────
+  if (MAINTENANCE_MODE) {
+    return (
+      <ErrorBoundary>
+        <MaintenanceScreen />
+      </ErrorBoundary>
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Forced Password Reset
   if (isAuthenticated && mustResetPassword) {
