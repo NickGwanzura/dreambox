@@ -348,8 +348,15 @@ export const PublicWebsite: React.FC = () => {
     window.history.pushState(null, '', path);
     setPage(nextPage);
     setMobileNavOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Scroll to top AFTER React renders the new page content, not before.
+  // The old approach called scrollTo before the DOM changed, which caused the
+  // browser to clamp scroll position to the (shorter) new page height first,
+  // making it appear to snap from the bottom before scrolling up.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [page]);
 
   const availableSites = useMemo(
     () => getAvailableSites(billboards, contracts),
@@ -675,28 +682,38 @@ export const PublicWebsite: React.FC = () => {
             </>
           ) : (
             <>
-              {/* Depth gradient — base */}
-              <div className="absolute inset-0 bg-[linear-gradient(155deg,#020617_0%,#0d1224_28%,#14103a_60%,#080c1e_100%)]" />
-              {/* Radial glow — top-right indigo */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_85%_70%_at_74%_8%,rgba(99,102,241,0.30)_0%,transparent_62%)]" />
-              {/* Radial glow — bottom-left violet */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_58%_52%_at_6%_84%,rgba(109,40,217,0.20)_0%,transparent_58%)]" />
-              {/* Animated orb — primary */}
-              <div className="absolute right-[11%] top-[13%] h-[520px] w-[520px] animate-glow-pulse rounded-full bg-indigo-500/[0.11] blur-[140px]" />
-              {/* Animated orb — secondary, offset phase */}
-              <div className="absolute left-[4%] bottom-[22%] h-[380px] w-[380px] animate-glow-pulse rounded-full bg-violet-600/[0.09] blur-[110px]" style={{ animationDelay: '-4s' }} />
-              {/* Animated orb — tertiary accent, far right bottom */}
-              <div className="absolute right-[2%] bottom-[10%] h-[260px] w-[260px] animate-glow-pulse rounded-full bg-cyan-600/[0.07] blur-[90px]" style={{ animationDelay: '-7s' }} />
+              {/* Depth gradient — base: richer indigo-to-violet-to-navy */}
+              <div className="absolute inset-0 bg-[linear-gradient(145deg,#030712_0%,#0c0f2e_25%,#160c3a_55%,#06091a_100%)]" />
+              {/* Radial glow — top-right indigo (brighter) */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_65%_at_76%_6%,rgba(99,102,241,0.48)_0%,transparent_58%)]" />
+              {/* Radial glow — mid-right violet accent */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_88%_52%,rgba(139,92,246,0.28)_0%,transparent_55%)]" />
+              {/* Radial glow — bottom-left violet (brighter) */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_48%_at_4%_82%,rgba(109,40,217,0.30)_0%,transparent_52%)]" />
+              {/* Diagonal vibrant accent band — slashes across the right half */}
+              <div className="absolute inset-0 opacity-[0.07]" style={{ background: 'linear-gradient(125deg, transparent 38%, rgba(99,102,241,0.9) 48%, rgba(139,92,246,0.9) 52%, transparent 62%)' }} />
+              {/* Animated orb — primary (brighter) */}
+              <div className="absolute right-[10%] top-[10%] h-[560px] w-[560px] animate-glow-pulse rounded-full bg-indigo-500/[0.18] blur-[130px]" />
+              {/* Animated orb — secondary (brighter, offset phase) */}
+              <div className="absolute left-[3%] bottom-[20%] h-[400px] w-[400px] animate-glow-pulse rounded-full bg-violet-600/[0.16] blur-[105px]" style={{ animationDelay: '-4s' }} />
+              {/* Animated orb — tertiary cyan accent (brighter) */}
+              <div className="absolute right-[3%] bottom-[8%] h-[280px] w-[280px] animate-glow-pulse rounded-full bg-cyan-500/[0.12] blur-[85px]" style={{ animationDelay: '-7s' }} />
+              {/* Animated orb — center-left warm accent */}
+              <div className="absolute left-[30%] top-[40%] h-[220px] w-[220px] animate-glow-pulse rounded-full bg-violet-400/[0.08] blur-[80px]" style={{ animationDelay: '-2s' }} />
               {/* Perspective floor grid — recedes to horizon */}
-              <div className="hero-depth-grid absolute inset-0 opacity-[0.16]" />
+              <div className="hero-depth-grid absolute inset-0 opacity-[0.22]" />
+              {/* Billboard silhouette shapes — decorative geometric outlines */}
+              <div className="absolute right-[8%] top-[18%] hidden h-36 w-64 rounded-sm border border-indigo-400/[0.07] xl:block" />
+              <div className="absolute right-[12%] top-[22%] hidden h-28 w-52 rounded-sm border border-violet-400/[0.05] xl:block" style={{ transform: 'translateX(8px) translateY(8px)' }} />
               {/* Edge vignette — darkens corners to push depth inward */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_78%_at_50%_42%,transparent_28%,rgba(2,6,23,0.68)_100%)]" />
-              {/* Top atmospheric haze — horizon fog */}
-              <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/55 to-transparent" />
-              {/* Light shaft — subtle vertical beam from top right */}
-              <div className="absolute right-[30%] top-0 h-3/4 w-[180px] bg-gradient-to-b from-indigo-400/[0.06] via-indigo-400/[0.02] to-transparent" style={{ clipPath: 'polygon(30% 0, 70% 0, 100% 100%, 0% 100%)' }} />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_75%_at_48%_40%,transparent_22%,rgba(2,6,23,0.72)_100%)]" />
+              {/* Top atmospheric haze */}
+              <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/60 to-transparent" />
+              {/* Light shafts — two diagonal beams */}
+              <div className="absolute right-[28%] top-0 h-3/4 w-[200px] bg-gradient-to-b from-indigo-400/[0.08] via-indigo-400/[0.03] to-transparent" style={{ clipPath: 'polygon(25% 0, 75% 0, 100% 100%, 0% 100%)' }} />
+              <div className="absolute right-[18%] top-0 h-1/2 w-[120px] bg-gradient-to-b from-violet-400/[0.05] to-transparent" style={{ clipPath: 'polygon(20% 0, 80% 0, 100% 100%, 0% 100%)' }} />
               {/* Noise grain texture */}
-              <div className="hero-noise absolute inset-0 opacity-[0.03] mix-blend-screen" />
+              <div className="hero-noise absolute inset-0 opacity-[0.04] mix-blend-screen" />
             </>
           )}
           {/* Bottom fade to merge with next section */}
@@ -761,7 +778,25 @@ export const PublicWebsite: React.FC = () => {
             </div>
 
             <div className="hidden lg:block">
-              <div className="ml-auto max-w-[380px] animate-soft-scale animation-delay-300 overflow-hidden rounded-2xl border border-white/[0.1] bg-white/[0.05] backdrop-blur-xl">
+              <div className="relative ml-auto max-w-[380px]">
+              {/* Depth cards — stacked behind the main card */}
+              <div className="absolute inset-0 rounded-2xl border border-indigo-400/[0.08] bg-white/[0.03]" style={{ transform: 'rotate(3deg) translate(10px, -6px)' }} />
+              <div className="absolute inset-0 rounded-2xl border border-violet-400/[0.05] bg-white/[0.015]" style={{ transform: 'rotate(-2deg) translate(-5px, 10px)' }} />
+              {/* Floating badge — daily reach */}
+              <div className="absolute -left-14 top-1/3 z-20 flex animate-soft-scale items-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 shadow-lg backdrop-blur-md" style={{ animationDelay: '600ms' }}>
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-white/40">Daily Reach</p>
+                  <p className="text-sm font-black text-white">{stats[3].value}</p>
+                </div>
+              </div>
+              {/* Floating badge — available sites */}
+              <div className="absolute -right-10 bottom-28 z-20 animate-soft-scale rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-md" style={{ animationDelay: '800ms' }}>
+                <p className="text-lg font-black text-white">{stats[2].value}</p>
+                <p className="text-[9px] font-black uppercase tracking-wider text-indigo-200/70">Open Sites</p>
+              </div>
+              {/* Main card */}
+              <div className="relative animate-soft-scale animation-delay-300 overflow-hidden rounded-2xl border border-white/[0.1] bg-white/[0.05] backdrop-blur-xl">
                 {/* Shimmer line */}
                 <div className="relative h-px overflow-hidden bg-white/10">
                   <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-indigo-300/60 to-transparent animate-line-sweep" />
@@ -827,6 +862,7 @@ export const PublicWebsite: React.FC = () => {
                   </a>
                 </div>
               </div>
+              </div>{/* end relative wrapper */}
             </div>
           </div>
         </section>}
