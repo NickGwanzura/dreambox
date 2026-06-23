@@ -4,21 +4,30 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 
+const contractDateSchema = z
+  .string()
+  .min(1, 'Date is required')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+  .refine(val => {
+    const year = parseInt(val.slice(0, 4), 10);
+    return year >= 2000 && year <= 2099;
+  }, 'Year must be between 2000 and 2099');
+
 // Schema for POST (create)
 const contractSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
   billboardId: z.string().min(1, 'Billboard ID is required'),
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().min(1, 'End date is required'),
+  startDate: contractDateSchema,
+  endDate: contractDateSchema,
   monthlyRate: z.number({ error: 'Monthly rate is required' }),
-});
+}).refine(d => d.startDate <= d.endDate, { message: 'End date must be on or after start date', path: ['endDate'] });
 
 // Full schema for PUT (update) — validates ALL fields that come through syncToNeon
 const contractUpdateSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
   billboardId: z.string().min(1, 'Billboard ID is required'),
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().min(1, 'End date is required'),
+  startDate: contractDateSchema,
+  endDate: contractDateSchema,
   monthlyRate: z.number({ error: 'Monthly rate is required' }),
   installationCost: z.number().optional().default(0),
   printingCost: z.number().optional().default(0),
@@ -34,7 +43,7 @@ const contractUpdateSchema = z.object({
   lastModifiedBy: z.string().optional().nullable(),
   assignedTo: z.string().optional().nullable(),
   masterContractId: z.string().optional().nullable(),
-});
+}).refine(d => d.startDate <= d.endDate, { message: 'End date must be on or after start date', path: ['endDate'] });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
@@ -50,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
+      const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 1000));
       const skip = Math.max(0, Number(req.query.skip) || 0);
       const rows = await prisma.contract.findMany({ orderBy: { dbCreatedAt: 'asc' }, take: limit, skip });
       return res.status(200).json(rows);

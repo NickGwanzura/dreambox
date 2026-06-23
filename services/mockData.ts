@@ -122,7 +122,7 @@ export const reloadAllFromApi = async (): Promise<void> => {
         const results = await Promise.allSettled([
             api.get<any[]>('/api/billboards').then(d => { if (d) billboards = d; }),
             api.get<any[]>('/api/clients').then(d => { if (d) clients = d; }),
-            api.get<any[]>('/api/contracts').then(d => { if (d) contracts = d; }),
+            api.get<any[]>('/api/contracts?limit=1000').then(d => { if (d) contracts = d; }),
             api.get<any[]>('/api/contract-amendments').then(d => { if (d) contractAmendments = d; }),
             api.get<any[]>('/api/invoices').then(d => {
                 if (d) {
@@ -726,9 +726,14 @@ export const fetchQuotationEvents = async (invoiceId: string): Promise<Quotation
 const recalcBillboardAvailability = (billboardId: string) => {
     const b = billboards.find(x => x.id === billboardId);
     if (!b) return;
+    const today = new Date().toISOString().split('T')[0];
+    const isCurrentlyActive = (c: { status?: string; startDate: string; endDate: string }) =>
+        String(c.status || '').toLowerCase() === 'active' &&
+        c.startDate <= today &&
+        c.endDate >= today;
     if (b.type === BillboardType.Static) {
-        const sideAContract = contracts.find(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active' && (c.side === 'A' || c.side === 'Both' || (c.details || '').includes('Side A')));
-        const sideBContract = contracts.find(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active' && (c.side === 'B' || c.side === 'Both' || (c.details || '').includes('Side B')));
+        const sideAContract = contracts.find(c => c.billboardId === billboardId && isCurrentlyActive(c) && (c.side === 'A' || c.side === 'Both' || (c.details || '').includes('Side A')));
+        const sideBContract = contracts.find(c => c.billboardId === billboardId && isCurrentlyActive(c) && (c.side === 'B' || c.side === 'Both' || (c.details || '').includes('Side B')));
         const sideAInvoiceHolder = invoices.find(i => String(i.type || '').toLowerCase() === 'invoice' && (i.items || []).some(it => it.billboardId === billboardId && it.side === 'A'));
         const sideBInvoiceHolder = invoices.find(i => String(i.type || '').toLowerCase() === 'invoice' && (i.items || []).some(it => it.billboardId === billboardId && it.side === 'B'));
         if (b.sideAStatus !== 'Maintenance') {
@@ -745,7 +750,7 @@ const recalcBillboardAvailability = (billboardId: string) => {
         // Count unique occupied slot numbers — summing slot numbers was incorrectly reporting full boards
         const occupiedSlotNumbers = new Set(
             contracts
-                .filter(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active' && typeof c.slotNumber === 'number')
+                .filter(c => c.billboardId === billboardId && isCurrentlyActive(c) && typeof c.slotNumber === 'number')
                 .map(c => c.slotNumber!)
         );
         const contractSlots = occupiedSlotNumbers.size;
