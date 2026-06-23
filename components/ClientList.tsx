@@ -45,7 +45,7 @@ export const ClientList: React.FC = () => {
     );
   }, [clients, searchQuery]);
 
-  const [newClient, setNewClient] = useState<Partial<Client>>({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined });
+  const [newClient, setNewClient] = useState<Partial<Client>>({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined, streetAddress: '', city: '', country: '' });
 
   // Real-time Subscription
   useEffect(() => {
@@ -65,12 +65,15 @@ export const ClientList: React.FC = () => {
         email: newClient.email || '',
         phone: newClient.phone || '',
         status: 'Active',
-        billingDay: newClient.billingDay
+        billingDay: newClient.billingDay,
+        streetAddress: newClient.streetAddress || '',
+        city: newClient.city || '',
+        country: newClient.country || '',
     };
     try {
         await addClient(client);
         setIsAddModalOpen(false);
-        setNewClient({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined });
+        setNewClient({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined, streetAddress: '', city: '', country: '' });
     } catch (err: any) {
         alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
     }
@@ -121,10 +124,10 @@ export const ClientList: React.FC = () => {
   };
 
   const downloadClientsTemplate = () => {
-    const header = ['Company Name', 'Contact Person', 'Email', 'Phone', 'Billing Day', 'Status'];
+    const header = ['Company Name', 'Contact Person', 'Email', 'Phone', 'Billing Day', 'Status', 'Street Address', 'City', 'Country'];
     const lines = [header.join(',')];
     for (const c of clients) {
-      const row = [c.companyName, c.contactPerson, c.email, c.phone, String(c.billingDay ?? ''), c.status]
+      const row = [c.companyName, c.contactPerson, c.email, c.phone, String(c.billingDay ?? ''), c.status, c.streetAddress ?? '', c.city ?? '', c.country ?? '']
         .map(v => {
           const s = (v ?? '').toString();
           return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -161,6 +164,9 @@ export const ClientList: React.FC = () => {
       const iPhone = idx('phone');
       const iBilling = idx('billing day');
       const iStatus = idx('status');
+      const iStreet = idx('street address');
+      const iCity = idx('city');
+      const iCountry = idx('country');
 
       if (iCompany === -1) {
         setImportResult({ updated: 0, created: 0, skipped: 0, details: ['Required header "Company Name" not found.'] });
@@ -183,6 +189,9 @@ export const ClientList: React.FC = () => {
         const billingRaw = iBilling >= 0 ? (cols[iBilling] || '').trim() : '';
         const billingDay = billingRaw ? Math.min(31, Math.max(1, parseInt(billingRaw, 10) || 0)) || undefined : undefined;
         const status = iStatus >= 0 ? (cols[iStatus] || '').trim() : '';
+        const streetAddress = iStreet >= 0 ? (cols[iStreet] || '').trim() : '';
+        const city = iCity >= 0 ? (cols[iCity] || '').trim() : '';
+        const country = iCountry >= 0 ? (cols[iCountry] || '').trim() : '';
 
         const existing = byName.get(companyName.toLowerCase().trim());
         if (existing) {
@@ -193,13 +202,19 @@ export const ClientList: React.FC = () => {
             phone: phone || existing.phone,
             billingDay: billingDay !== undefined ? billingDay : existing.billingDay,
             status: (status === 'Active' || status === 'Inactive') ? status : existing.status,
+            streetAddress: streetAddress || existing.streetAddress,
+            city: city || existing.city,
+            country: country || existing.country,
           };
           const changed =
             merged.contactPerson !== existing.contactPerson ||
             merged.email !== existing.email ||
             merged.phone !== existing.phone ||
             merged.billingDay !== existing.billingDay ||
-            merged.status !== existing.status;
+            merged.status !== existing.status ||
+            merged.streetAddress !== existing.streetAddress ||
+            merged.city !== existing.city ||
+            merged.country !== existing.country;
           if (changed) {
             try { await updateClient(merged); updated++; } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
           } else { skipped++; }
@@ -212,6 +227,9 @@ export const ClientList: React.FC = () => {
             phone,
             status: (status === 'Inactive') ? 'Inactive' : 'Active',
             billingDay,
+            streetAddress,
+            city,
+            country,
           };
           try { await addClient(newClient); byName.set(companyName.toLowerCase().trim(), newClient); created++; } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
         }
@@ -268,6 +286,16 @@ export const ClientList: React.FC = () => {
                   <div className="grid grid-cols-2 gap-6">
                     <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} />
                     <MinimalInput label="Phone Number" type="tel" value={editingClient.phone} onChange={(e: any) => setEditingClient({...editingClient, phone: e.target.value})} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-400 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
+                  <div className="space-y-6">
+                    <MinimalInput label="Street Address" value={editingClient.streetAddress || ''} onChange={(e: any) => setEditingClient({...editingClient, streetAddress: e.target.value})} />
+                    <div className="grid grid-cols-2 gap-6">
+                      <MinimalInput label="City" value={editingClient.city || ''} onChange={(e: any) => setEditingClient({...editingClient, city: e.target.value})} />
+                      <MinimalInput label="Country" value={editingClient.country || ''} onChange={(e: any) => setEditingClient({...editingClient, country: e.target.value})} />
+                    </div>
                   </div>
                 </div>
                 <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5">
@@ -434,6 +462,18 @@ export const ClientList: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Address */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-400 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
+                        <div className="space-y-6">
+                            <MinimalInput label="Street Address" value={newClient.streetAddress || ''} onChange={(e: any) => setNewClient({...newClient, streetAddress: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-6">
+                                <MinimalInput label="City" value={newClient.city || ''} onChange={(e: any) => setNewClient({...newClient, city: e.target.value})} />
+                                <MinimalInput label="Country" value={newClient.country || ''} onChange={(e: any) => setNewClient({...newClient, country: e.target.value})} />
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Billing Preferences */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5">
                         <div className="flex items-center gap-2 mb-4">
@@ -510,6 +550,18 @@ export const ClientList: React.FC = () => {
                         <div className="grid grid-cols-2 gap-6">
                             <MinimalInput label="Email Address" type="email" value={editingClient.email} onChange={(e: any) => setEditingClient({...editingClient, email: e.target.value})} />
                             <MinimalInput label="Phone Number" type="tel" value={editingClient.phone} onChange={(e: any) => setEditingClient({...editingClient, phone: e.target.value})} />
+                        </div>
+                    </div>
+
+                    {/* Address */}
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-400 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
+                        <div className="space-y-6">
+                            <MinimalInput label="Street Address" value={editingClient.streetAddress || ''} onChange={(e: any) => setEditingClient({...editingClient, streetAddress: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-6">
+                                <MinimalInput label="City" value={editingClient.city || ''} onChange={(e: any) => setEditingClient({...editingClient, city: e.target.value})} />
+                                <MinimalInput label="Country" value={editingClient.country || ''} onChange={(e: any) => setEditingClient({...editingClient, country: e.target.value})} />
+                            </div>
                         </div>
                     </div>
 

@@ -81,6 +81,9 @@ export interface Client {
   phone: string;
   status: 'Active' | 'Inactive';
   billingDay?: number; // Preferred day of month for payment
+  streetAddress?: string;
+  city?: string;
+  country?: string;
 }
 
 export interface Contract {

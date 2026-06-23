@@ -168,8 +168,10 @@ export function buildTemplateData(
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const months = monthsBetween(contract.startDate, contract.endDate);
   const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || '[address]';
-  const crmCompany = getCRMCompanies().find(c => c.name.toLowerCase() === client.companyName.toLowerCase());
-  const advertiserAddress = [crmCompany?.streetAddress, crmCompany?.city, crmCompany?.country].filter(Boolean).join(', ') || '[address on file]';
+  // Prefer address from the client record; fall back to CRM if not set
+  const clientAddress = [client.streetAddress, client.city, client.country].filter(Boolean).join(', ');
+  const crmCompany = clientAddress ? null : getCRMCompanies().find(c => c.name.toLowerCase() === client.companyName.toLowerCase());
+  const advertiserAddress = clientAddress || [crmCompany?.streetAddress, crmCompany?.city, crmCompany?.country].filter(Boolean).join(', ') || '[address on file]';
 
   const base: TemplateData = {
     contract_number: contract.id,
