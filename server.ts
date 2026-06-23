@@ -124,11 +124,13 @@ async function registerRoutes() {
 
   // Public resources
   const publicBillboards = await import('./api/public-billboards.js');
+  const publicProfile    = await import('./api/public-profile.js');
   const geocode          = await import('./api/geocode.js');
 
   app.all('/api/public-billboards', adapt(publicBillboards, 'public-billboards'));
+  app.all('/api/public-profile',    adapt(publicProfile,    'public-profile'));
   app.all('/api/geocode',           adapt(geocode,          'geocode'));
-  log.boot('  Public routes      ✓  (public-billboards, geocode)');
+  log.boot('  Public routes      ✓  (public-billboards, public-profile, geocode)');
 
   // Core resources
   const auditLogs    = await import('./api/audit-logs.js');
