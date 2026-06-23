@@ -340,6 +340,12 @@ export const PublicWebsite: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [cookieDismissed, setCookieDismissed] = useState(() => localStorage.getItem('db_cookie_ok') === '1');
+  const [heroSlide, setHeroSlide] = useState(0);
+  useEffect(() => {
+    if (billboards.length <= 1) return;
+    const t = setInterval(() => setHeroSlide(s => (s + 1) % billboards.length), 4500);
+    return () => clearInterval(t);
+  }, [billboards.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -726,16 +732,23 @@ export const PublicWebsite: React.FC = () => {
               <div className="hero-noise absolute inset-0 opacity-[0.04] mix-blend-screen" />
             </>
           )}
-          {/* City ticker strip */}
-          <div className="absolute inset-x-0 bottom-14 z-10 overflow-hidden border-y border-white/[0.05] py-2.5">
-            <div className="flex animate-marquee whitespace-nowrap">
-              {['HARARE', 'BULAWAYO', 'MUTARE', 'GWERU', 'MASVINGO', 'VICTORIA FALLS', 'KWEKWE', 'KADOMA', 'BINDURA', 'CHINHOYI', 'HARARE', 'BULAWAYO', 'MUTARE', 'GWERU', 'MASVINGO', 'VICTORIA FALLS', 'KWEKWE', 'KADOMA', 'BINDURA', 'CHINHOYI'].map((city, i) => (
-                <span key={i} className="mx-5 text-[9px] font-black uppercase tracking-[0.32em] text-white/[0.18]">
-                  <span className="mr-5 text-indigo-400/30">◆</span>{city}
-                </span>
-              ))}
-            </div>
-          </div>
+          {/* Location ticker strip — pulls from real billboard data */}
+          {(() => {
+            const locs = [...new Set(billboards.map(b => b.location).filter(Boolean))];
+            if (!locs.length) return null;
+            const items = [...locs, ...locs, ...locs];
+            return (
+              <div className="absolute inset-x-0 bottom-14 z-10 overflow-hidden border-y border-white/[0.05] py-2.5">
+                <div className="flex animate-marquee whitespace-nowrap">
+                  {items.map((loc, i) => (
+                    <span key={i} className="mx-5 text-[9px] font-black uppercase tracking-[0.32em] text-white/[0.18]">
+                      <span className="mr-5 text-indigo-400/30">◆</span>{loc}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           {/* Bottom fade to merge with next section */}
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950 to-transparent" />
           <div className="relative mx-auto grid min-h-[calc(94vh-72px)] max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 md:min-h-[calc(94vh-108px)] lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
@@ -813,68 +826,49 @@ export const PublicWebsite: React.FC = () => {
                       <div className="absolute inset-0 bg-slate-950 rounded-t-2xl" />
                       {/* LED top bar */}
                       <div className="absolute inset-x-0 top-0 z-10 h-[3px] bg-gradient-to-r from-indigo-600 via-violet-400 to-cyan-400" />
-                      {/* Slides */}
+                      {/* Slides — one per billboard, driven by heroSlide state */}
                       <div className="absolute inset-[3px] overflow-hidden rounded-t-xl">
-                        {/* Slide 1 — Indigo / Harare */}
-                        <div
-                          className="billboard-ad-slide absolute inset-0 flex items-center justify-between px-8"
-                          style={{ animationDelay: '0s', background: 'linear-gradient(145deg,#0a0820 0%,#1e1b4b 45%,#1c1645 100%)' }}
-                        >
-                          <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,0.7) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.7) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
-                          <div className="absolute right-4 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full bg-indigo-500/25 blur-2xl" />
-                          <div className="relative z-10">
-                            <div className="text-[8px] font-black uppercase tracking-[0.3em] text-indigo-300/60">Harare CBD · Samora Machel Ave</div>
-                            <div className="mt-2 text-[1.55rem] font-black leading-none text-white">YOUR BRAND<br /><span className="text-indigo-300">IN MOTION.</span></div>
-                            <div className="mt-2 text-[8px] text-white/30">12 × 4m · Est. 200K daily impressions</div>
-                          </div>
-                          <div className="relative z-10 ml-6 shrink-0">
-                            <div className="flex flex-col items-center gap-1 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-2.5">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-indigo-200/50">Size</span>
-                              <span className="text-xl font-black text-white">12×4</span>
-                              <span className="text-[8px] text-indigo-200/40">metres</span>
-                            </div>
-                          </div>
-                        </div>
-                        {/* Slide 2 — Emerald / Bulawayo */}
-                        <div
-                          className="billboard-ad-slide absolute inset-0 flex items-center justify-between px-8"
-                          style={{ animationDelay: '4s', background: 'linear-gradient(145deg,#022c22 0%,#064e3b 45%,#065f46 100%)' }}
-                        >
-                          <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle,rgba(52,211,153,0.7) 1px,transparent 1px)', backgroundSize: '28px 28px' }} />
-                          <div className="absolute left-4 bottom-0 h-44 w-44 rounded-full bg-emerald-500/20 blur-2xl" />
-                          <div className="relative z-10">
-                            <div className="text-[8px] font-black uppercase tracking-[0.3em] text-emerald-300/60">Bulawayo · Main Street</div>
-                            <div className="mt-2 text-[1.55rem] font-black leading-none text-white">PRIME<br /><span className="text-emerald-300">VISIBILITY.</span></div>
-                            <div className="mt-2 text-[8px] text-white/30">10 × 3m · High foot-traffic corridor</div>
-                          </div>
-                          <div className="relative z-10 ml-6 shrink-0">
-                            <div className="flex flex-col items-center gap-1 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-200/50">Open</span>
-                              <span className="text-xl font-black text-white">{stats[2].value}</span>
-                              <span className="text-[8px] text-emerald-200/40">sites</span>
-                            </div>
-                          </div>
-                        </div>
-                        {/* Slide 3 — Amber / Mutare */}
-                        <div
-                          className="billboard-ad-slide absolute inset-0 flex items-center justify-between px-8"
-                          style={{ animationDelay: '8s', background: 'linear-gradient(145deg,#1c0a00 0%,#431407 45%,#7c2d12 100%)' }}
-                        >
-                          <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(45deg,rgba(251,146,60,0.6) 1px,transparent 1px),linear-gradient(-45deg,rgba(251,146,60,0.6) 1px,transparent 1px)', backgroundSize: '36px 36px' }} />
-                          <div className="absolute right-4 top-0 h-44 w-44 rounded-full bg-orange-500/20 blur-2xl" />
-                          <div className="relative z-10">
-                            <div className="text-[8px] font-black uppercase tracking-[0.3em] text-orange-300/60">Mutare · A3 Highway Corridor</div>
-                            <div className="mt-2 text-[1.55rem] font-black leading-none text-white">HIGHWAY<br /><span className="text-orange-300">DOMINANCE.</span></div>
-                            <div className="mt-2 text-[8px] text-white/30">12 × 4m · High-speed intercept</div>
-                          </div>
-                          <div className="relative z-10 ml-6 shrink-0">
-                            <div className="flex flex-col items-center gap-1 rounded-xl border border-orange-400/20 bg-orange-500/10 px-4 py-2.5">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-orange-200/50">Reach</span>
-                              <span className="text-xl font-black text-white">{stats[3].value}</span>
-                              <span className="text-[8px] text-orange-200/40">daily</span>
-                            </div>
-                          </div>
-                        </div>
+                        {(() => {
+                          const themes = [
+                            { bg: 'linear-gradient(145deg,#0a0820 0%,#1e1b4b 45%,#1c1645 100%)', glowCls: 'bg-indigo-500/25', accentCls: 'text-indigo-300', borderCls: 'border-indigo-400/20', badgeBg: 'bg-indigo-500/10', labelCls: 'text-indigo-200/50', subCls: 'text-indigo-200/40', pattern: 'linear-gradient(rgba(99,102,241,0.7) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.7) 1px,transparent 1px)' },
+                            { bg: 'linear-gradient(145deg,#022c22 0%,#064e3b 45%,#065f46 100%)', glowCls: 'bg-emerald-500/20', accentCls: 'text-emerald-300', borderCls: 'border-emerald-400/20', badgeBg: 'bg-emerald-500/10', labelCls: 'text-emerald-200/50', subCls: 'text-emerald-200/40', pattern: 'radial-gradient(circle,rgba(52,211,153,0.7) 1px,transparent 1px)' },
+                            { bg: 'linear-gradient(145deg,#1c0a00 0%,#431407 45%,#7c2d12 100%)', glowCls: 'bg-orange-500/20', accentCls: 'text-orange-300', borderCls: 'border-orange-400/20', badgeBg: 'bg-orange-500/10', labelCls: 'text-orange-200/50', subCls: 'text-orange-200/40', pattern: 'linear-gradient(45deg,rgba(251,146,60,0.6) 1px,transparent 1px),linear-gradient(-45deg,rgba(251,146,60,0.6) 1px,transparent 1px)' },
+                            { bg: 'linear-gradient(145deg,#0a1628 0%,#0f2660 45%,#0c1a4e 100%)', glowCls: 'bg-blue-500/20', accentCls: 'text-blue-300', borderCls: 'border-blue-400/20', badgeBg: 'bg-blue-500/10', labelCls: 'text-blue-200/50', subCls: 'text-blue-200/40', pattern: 'linear-gradient(rgba(59,130,246,0.7) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.7) 1px,transparent 1px)' },
+                          ];
+                          const headlines = ['YOUR BRAND\nIN MOTION.', 'PRIME\nVISIBILITY.', 'MAXIMUM\nIMPACT.', 'STAND OUT\nEVERY DAY.'];
+                          return billboards.map((board, i) => {
+                            const t = themes[i % themes.length];
+                            const headline = headlines[i % headlines.length].split('\n');
+                            return (
+                              <div
+                                key={board.id}
+                                className="absolute inset-0 flex items-center justify-between px-8 transition-opacity duration-700"
+                                style={{ opacity: i === heroSlide ? 1 : 0, background: t.bg }}
+                              >
+                                <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: t.pattern, backgroundSize: '30px 30px' }} />
+                                <div className={`absolute right-4 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full ${t.glowCls} blur-2xl`} />
+                                <div className="relative z-10 min-w-0">
+                                  {board.location && <div className={`text-[8px] font-black uppercase tracking-[0.3em] ${t.accentCls} opacity-60 truncate`}>{board.location}</div>}
+                                  <div className="mt-2 text-[1.55rem] font-black leading-none text-white">
+                                    {headline[0]}<br /><span className={t.accentCls}>{headline[1]}</span>
+                                  </div>
+                                  {board.width && board.height && (
+                                    <div className="mt-2 text-[8px] text-white/30">
+                                      {board.width} × {board.height}m{board.dailyTraffic ? ` · Est. ${board.dailyTraffic.toLocaleString()} daily` : ''}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="relative z-10 ml-6 shrink-0">
+                                  <div className={`flex flex-col items-center gap-1 rounded-xl border ${t.borderCls} ${t.badgeBg} px-4 py-2.5`}>
+                                    <span className={`text-[8px] font-black uppercase tracking-widest ${t.labelCls}`}>Size</span>
+                                    <span className="text-xl font-black text-white">{board.width}×{board.height}</span>
+                                    <span className={`text-[8px] ${t.subCls}`}>metres</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
                         {/* Corner vignette */}
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_100%_at_50%_50%,transparent_55%,rgba(2,6,23,0.45)_100%)]" />
                       </div>
@@ -883,18 +877,20 @@ export const PublicWebsite: React.FC = () => {
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
                         <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300/80">Live</span>
                       </div>
-                      {/* Slide dots */}
+                      {/* Slide counter */}
                       <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5">
-                        <div className="h-[3px] w-8 rounded-full bg-white/60" />
-                        <div className="h-[3px] w-3 rounded-full bg-white/20" />
-                        <div className="h-[3px] w-3 rounded-full bg-white/20" />
+                        {billboards.map((_, i) => (
+                          <button key={i} onClick={() => setHeroSlide(i)} className={`h-[3px] rounded-full transition-all duration-300 ${i === heroSlide ? 'w-8 bg-white/70' : 'w-2 bg-white/20'}`} />
+                        ))}
                       </div>
                     </div>
                     {/* Bottom status bar */}
                     <div className="flex items-center justify-between border-t border-white/[0.07] bg-slate-950/95 px-5 py-2.5">
                       <div className="flex items-center gap-2">
                         <MapPin size={10} className="text-indigo-300/70" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">Harare · Bulawayo · Mutare</span>
+                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">
+                          {[...new Set(billboards.map(b => b.town).filter(Boolean))].slice(0, 3).join(' · ') || 'Zimbabwe'}
+                        </span>
                       </div>
                       <a
                         href="/site-availability"
@@ -949,7 +945,7 @@ export const PublicWebsite: React.FC = () => {
             {partnerLogos.map((partner, index) => (
               <div
                 key={partner.name}
-                className="group flex h-28 animate-reveal-up items-center justify-center bg-white p-6 transition duration-300 hover:bg-slate-50"
+                className="group flex h-28 animate-reveal-up items-center justify-center bg-white p-6 transition duration-300 hover:bg-indigo-50/60"
                 style={{ animationDelay: `${index * 60}ms` }}
               >
                 <img
@@ -957,7 +953,7 @@ export const PublicWebsite: React.FC = () => {
                   alt={`${partner.name} logo`}
                   loading="lazy"
                   decoding="async"
-                  className="max-h-12 max-w-full object-contain transition duration-300"
+                  className="max-h-12 max-w-full object-contain transition duration-300 group-hover:scale-110 group-hover:drop-shadow-md"
                 />
               </div>
             ))}
