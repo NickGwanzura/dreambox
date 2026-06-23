@@ -308,7 +308,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-slate-500 hover:text-white transition-colors p-2 -mr-1 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg hover:bg-white/5"
+            className="lg:hidden text-slate-500 hover:text-white transition-colors p-2 -mr-1 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-white/5"
             aria-label="Close menu"
           >
             <X size={20} />
@@ -319,7 +319,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         <div className="px-4 pt-4 pb-2 shrink-0">
           <button
             onClick={() => { setQuickCreateType('Quotation'); setQuickCreateOpen(true); setSidebarOpen(false); }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-indigo-900/30 active:scale-95"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-sm font-bold transition-all duration-200 shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/20 hover:-translate-y-0.5 active:scale-95"
           >
             <Plus size={15} />
             Quick Create
@@ -398,7 +398,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             </div>
             <button
               onClick={handleLogout}
-              className="text-slate-600 hover:text-red-400 transition-colors p-2 hover:bg-white/5 rounded-lg min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
+              className="text-slate-600 hover:text-red-400 transition-colors p-2 hover:bg-white/5 rounded-xl min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
               title="Logout"
               aria-label="Logout"
             >

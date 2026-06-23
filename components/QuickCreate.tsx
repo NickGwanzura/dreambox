@@ -234,7 +234,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
       {/* Panel */}
       <div
         ref={panelRef}
-        className="fixed right-0 top-0 bottom-0 z-[201] w-full max-w-md bg-white shadow-2xl flex flex-col animate-slide-in-right overflow-hidden"
+        className="fixed right-0 top-0 bottom-0 z-[201] w-full max-w-lg bg-white shadow-2xl flex flex-col animate-slide-in-right overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-label="Quick Create"
@@ -242,7 +242,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0 bg-slate-900">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-indigo-500/20 rounded-xl flex items-center justify-center">
               <Zap size={16} className="text-indigo-300" />
             </div>
             <div>
@@ -250,7 +250,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
               <p className="text-xs text-slate-400">PDF auto-downloads on save</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-2xl transition-all">
             <X size={18} />
           </button>
         </div>
@@ -372,7 +372,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                             <button
                               type="button"
                               onClick={() => setClientMode('list')}
-                              className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
+                              className="p-1 text-slate-400 hover:text-slate-700 rounded-xl transition-all"
                             >
                               <ArrowLeft size={14} />
                             </button>
@@ -384,14 +384,14 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                             placeholder="Company name *"
                             value={newClientName}
                             onChange={e => setNewClientName(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                           />
                           <input
                             type="text"
                             placeholder="Contact person *"
                             value={newClientContact}
                             onChange={e => setNewClientContact(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                           />
                           <div className="grid grid-cols-2 gap-2">
                             <input
@@ -399,21 +399,21 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                               placeholder="Phone *"
                               value={newClientPhone}
                               onChange={e => setNewClientPhone(e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                             />
                             <input
                               type="email"
                               placeholder="Email (optional)"
                               value={newClientEmail}
                               onChange={e => setNewClientEmail(e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                             />
                           </div>
                           <button
                             type="button"
                             onClick={handleCreateClient}
                             disabled={creatingClient || !newClientName.trim() || !newClientContact.trim() || !newClientPhone.trim()}
-                            className="w-full py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                            className="w-full py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-2xl transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg disabled:opacity-40 flex items-center justify-center gap-2"
                           >
                             {creatingClient ? <Loader size={13} className="animate-spin" /> : <UserPlus size={13} />}
                             {creatingClient ? 'Creating...' : 'Create & Select'}
@@ -429,7 +429,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                               placeholder={`Search ${allClients.length} client${allClients.length !== 1 ? 's' : ''}...`}
                               value={clientSearch}
                               onChange={e => setClientSearch(e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400"
+                              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                             />
                           </div>
                           <div className="max-h-64 overflow-y-auto">
@@ -451,7 +451,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                             <button
                               type="button"
                               onClick={() => setClientMode('create')}
-                              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all hover:-translate-y-0.5"
                             >
                               <UserPlus size={13} /> New Client
                             </button>
@@ -514,7 +514,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                         placeholder={`Search ${allBillboards.length} billboards...`}
                         value={billboardSearch}
                         onChange={e => setBillboardSearch(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-400 bg-white"
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-indigo-400 bg-white"
                       />
                     </div>
                     <div className="max-h-52 overflow-y-auto divide-y divide-slate-50">
@@ -723,7 +723,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                 type="button"
                 onClick={() => handleSave(false)}
                 disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-colors disabled:opacity-50 shadow-lg"
+                className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-2xl transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg disabled:opacity-50"
               >
                 {saving ? <Loader size={14} className="animate-spin" /> : <TrendingDown size={14} />}
                 {saving ? 'Saving...' : 'Save Expense'}
@@ -734,7 +734,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                   type="button"
                   onClick={() => handleSave(true)}
                   disabled={saving}
-                  className="flex-1 py-3 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all hover:-translate-y-0.5 disabled:opacity-50"
                 >
                   Save Draft
                 </button>
@@ -742,7 +742,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                   type="button"
                   onClick={() => handleSave(false)}
                   disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50 shadow-lg"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-2xl transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg disabled:opacity-50"
                 >
                   {saving ? (
                     <Loader size={14} className="animate-spin" />

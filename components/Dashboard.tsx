@@ -394,7 +394,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <button
               onClick={() => setBriefingDismissed(true)}
-              className="text-white/50 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10 shrink-0"
+              className="text-white/50 hover:text-white transition-colors p-1 rounded-xl hover:bg-white/10 shrink-0"
               aria-label="Dismiss briefing"
             >
               <X size={14} />
@@ -622,7 +622,7 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-3">
               {metrics.topClientsData.map((client, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">
+                  <div className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -813,7 +813,7 @@ export const Dashboard: React.FC = () => {
               {news.length > 0 ? news.map((item, idx) => {
                 const catStyle = catColors[(item as any).category] || 'bg-slate-100 text-slate-900';
                 return (
-                  <div key={idx} className="cursor-pointer group p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100" onClick={() => setSelectedNews(item)}>
+                  <div key={idx} className="cursor-pointer group p-3 rounded-xl hover:bg-slate-50 transition-colors  border border-transparent hover:border-slate-100" onClick={() => setSelectedNews(item)}>
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${catStyle}`}>{(item as any).category || item.source || 'News'}</span>
                       <span className="text-[10px] text-slate-900">{item.date}</span>
@@ -896,7 +896,7 @@ export const Dashboard: React.FC = () => {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setSelectedNews(null)}
-                  className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                  className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5"
                 >
                   Close
                 </button>

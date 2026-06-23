@@ -515,32 +515,32 @@ export const ContractList: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-2 w-full md:w-auto border-t md:border-t-0 border-slate-100 pt-4 md:pt-0 flex-wrap">
-                <button onClick={() => setSelectedContract(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                <button onClick={() => setSelectedContract(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-1">
                   <Eye size={14} /> <span className="sm:hidden">View</span><span className="hidden sm:inline">View</span>
                 </button>
-                <button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1">
+                <button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-1">
                   <Edit size={14} /> <span className="sm:hidden">Edit</span><span className="hidden sm:inline">Edit</span>
                 </button>
-                <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1">
+                <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl transition-colors flex items-center gap-1">
                   <Calendar size={14} /> <span className="hidden sm:inline">Adjust Term</span><span className="sm:hidden">Term</span>
                 </button>
                 {!isContractExpired(contract) && (
-                  <button onClick={() => { if (window.confirm(`End contract ${contract.id}? This will mark it as Expired, free billboard availability, and stop all future billing.`)) { endContract(contract.id); } }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                  <button onClick={() => { if (window.confirm(`End contract ${contract.id}? This will mark it as Expired, free billboard availability, and stop all future billing.`)) { endContract(contract.id); } }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors flex items-center gap-1">
                     <XCircle size={14} /> <span className="hidden sm:inline">End Contract</span><span className="sm:hidden">End</span>
                   </button>
                 )}
-                {isContractExpired(contract) && <button onClick={() => { setRenewContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1">
+                {isContractExpired(contract) && <button onClick={() => { setRenewContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors flex items-center gap-1">
                   <RotateCcw size={14} /> <span className="sm:hidden">Renew</span><span className="hidden sm:inline">Renew</span>
                 </button>}
                 {isContractExpired(contract) && (
-                  <button onClick={() => setContractToPermanentDelete(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                  <button onClick={() => setContractToPermanentDelete(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors flex items-center gap-1">
                     <Trash2 size={14} /> <span className="sm:hidden">Delete</span><span className="hidden sm:inline">Delete Contract</span>
                   </button>
                 )}
-                <button onClick={() => handleDownload(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
+                <button onClick={() => handleDownload(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
                   <Download size={14} /> <span className="sm:hidden">PDF</span><span className="hidden sm:inline">PDF</span>
                 </button>
-                <button onClick={() => handleSendEmail(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 rounded-lg transition-colors flex items-center gap-1">
+                <button onClick={() => handleSendEmail(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 rounded-xl transition-colors flex items-center gap-1">
                   <Send size={14} /> <span className="hidden sm:inline">Email</span>
                 </button>
               </div>
@@ -561,7 +561,7 @@ export const ContractList: React.FC = () => {
       {/* View Modal */}
       {selectedContract && !editContract && !renewContract && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget) setSelectedContract(null); }}>
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-3xl lg:max-w-4xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Contract Details</h3>
@@ -579,7 +579,7 @@ export const ContractList: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Billing Day</p>
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-slate-800 border border-slate-700 rounded-lg text-sm font-bold text-white">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white">
                       <Clock size={13} className="text-emerald-400"/> {getBillingDayDisplay(selectedContract)}
                     </span>
                   </div>
@@ -648,13 +648,13 @@ export const ContractList: React.FC = () => {
               )}
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setSelectedContract(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Close</button>
-                <button onClick={() => openTermAdjustment(selectedContract)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Calendar size={14} /> Adjust Term</button>
+                <button onClick={() => setSelectedContract(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Close</button>
+                <button onClick={() => openTermAdjustment(selectedContract)} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"><Calendar size={14} /> Adjust Term</button>
                 {isContractExpired(selectedContract) && (
-                  <button onClick={() => { setSelectedContract(null); setRenewContract({...selectedContract}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>
+                  <button onClick={() => { setSelectedContract(null); setRenewContract({...selectedContract}); setEditError(null); }} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2"><RotateCcw size={14} /> Renew</button>
                 )}
                 {isContractExpired(selectedContract) && (
-                  <button onClick={() => { setSelectedContract(null); setContractToPermanentDelete(selectedContract); }} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2">
+                  <button onClick={() => { setSelectedContract(null); setContractToPermanentDelete(selectedContract); }} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2">
                     <Trash2 size={14} /> Delete
                   </button>
                 )}
@@ -667,7 +667,7 @@ export const ContractList: React.FC = () => {
       {/* Edit Modal */}
       {editContract && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setEditContract(null); }}>
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-3xl lg:max-w-4xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                <div>
                  <h3 className="text-xl font-bold text-slate-900">Edit Contract</h3>
@@ -723,7 +723,7 @@ export const ContractList: React.FC = () => {
                               const next = { ...editContract, side, slotNumber: undefined, monthlyRate: getDefaultRate(editContract.billboardId, side) };
                               setEditContract({ ...next, details: getLineDetails(next) });
                             }}
-                            className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${editContract.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
+                            className={`px-3 py-2 text-xs font-bold rounded-xl border transition-colors ${editContract.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
                           >
                             {side === 'Both' ? 'Both A&B' : `Side ${side}`}
                           </button>
@@ -771,10 +771,10 @@ export const ContractList: React.FC = () => {
                    </div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <button type="button" onClick={() => setEditContract({...editContract, endDate: new Date().toISOString().split('T')[0]})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">End Today</button>
-                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 1)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+1 Month</button>
-                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 3)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+3 Months</button>
-                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 12)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+12 Months</button>
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: new Date().toISOString().split('T')[0]})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">End Today</button>
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 1)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">+1 Month</button>
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 3)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">+3 Months</button>
+                  <button type="button" onClick={() => setEditContract({...editContract, endDate: addMonths(editContract.endDate, 12)})} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">+12 Months</button>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
                   <span className="text-slate-900 font-medium">Updated term length</span>
@@ -814,8 +814,8 @@ export const ContractList: React.FC = () => {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => { if (!saving) setEditContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
-                <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                <button onClick={() => { if (!saving) setEditContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 disabled:opacity-40">Cancel</button>
+                <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-60">
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
@@ -827,7 +827,7 @@ export const ContractList: React.FC = () => {
       {/* New Contract Modal */}
       {newContract && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setNewContract(null); }}>
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-3xl lg:max-w-4xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">New Contract</h3>
@@ -880,7 +880,7 @@ export const ContractList: React.FC = () => {
                               const next = { ...newContract, side, slotNumber: undefined, monthlyRate: getDefaultRate(newContract.billboardId, side) };
                               setNewContract({ ...next, details: getLineDetails(next) });
                             }}
-                            className={`px-3 py-2 text-xs font-bold rounded-lg border transition-colors ${newContract.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
+                            className={`px-3 py-2 text-xs font-bold rounded-xl border transition-colors ${newContract.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
                           >
                             {side === 'Both' ? 'Both A&B' : `Side ${side}`}
                           </button>
@@ -929,10 +929,10 @@ export const ContractList: React.FC = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 1) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+1 Month</button>
-                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 3) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+3 Months</button>
-                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 6) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+6 Months</button>
-                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 12) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">+12 Months</button>
+                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 1) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">+1 Month</button>
+                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 3) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">+3 Months</button>
+                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 6) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">+6 Months</button>
+                  <button type="button" onClick={() => setNewContract({ ...newContract, endDate: addMonths(newContract.endDate, 12) })} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">+12 Months</button>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
                   <span className="text-slate-500 font-medium">Term length</span>
@@ -973,8 +973,8 @@ export const ContractList: React.FC = () => {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => { if (!saving) setNewContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
-                <button onClick={handleCreateSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                <button onClick={() => { if (!saving) setNewContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 disabled:opacity-40">Cancel</button>
+                <button onClick={handleCreateSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-60">
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Creating…' : 'Create Contract'}
                 </button>
               </div>
@@ -986,7 +986,7 @@ export const ContractList: React.FC = () => {
       {/* Renew Modal */}
       {renewContract && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) setRenewContract(null); }}>
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-3xl lg:max-w-4xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Renew Contract</h3>
@@ -1071,8 +1071,8 @@ export const ContractList: React.FC = () => {
               })()}
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => { if (!saving) setRenewContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">Cancel</button>
-                <button onClick={handleRenew} disabled={saving} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                <button onClick={() => { if (!saving) setRenewContract(null); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 disabled:opacity-40">Cancel</button>
+                <button onClick={handleRenew} disabled={saving} className="flex-1 py-3 text-white bg-emerald-600 hover:bg-emerald-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-60">
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} {saving ? 'Renewing…' : 'Renew Contract'}
                 </button>
               </div>
@@ -1151,7 +1151,7 @@ export const ContractList: React.FC = () => {
                   <div className="flex gap-3 pt-1">
                     <button
                       onClick={() => setContractToPermanentDelete(null)}
-                      className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                      className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5"
                     >
                       Cancel
                     </button>
@@ -1167,7 +1167,7 @@ export const ContractList: React.FC = () => {
                           alert(result.error || 'Failed to delete contract.');
                         }
                       }}
-                      className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                      className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
                     >
                       <Trash2 size={14} /> Delete Permanently
                     </button>

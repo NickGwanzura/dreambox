@@ -373,8 +373,8 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setIsCreateOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider">Cancel</button>
-                <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider flex items-center justify-center gap-2">
+                <button type="button" onClick={() => setIsCreateOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Cancel</button>
+                <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg flex items-center justify-center gap-2">
                   <CheckCircle size={14} /> Create {docType}
                 </button>
               </div>
@@ -396,7 +396,7 @@ const MetricCard: React.FC<{ icon: React.ReactNode; label: string; value: string
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center gap-2 mb-2">
-        <div className={`w-8 h-8 rounded-lg border flex items-center justify-center ${tones[tone]}`}>{icon}</div>
+        <div className={`w-8 h-8 rounded-xl border flex items-center justify-center ${tones[tone]}`}>{icon}</div>
         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">{label}</span>
       </div>
       <p className="text-2xl font-extrabold text-slate-900">{value}</p>

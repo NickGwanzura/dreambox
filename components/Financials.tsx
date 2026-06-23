@@ -473,7 +473,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                           <p className="text-xs text-slate-900 mt-0.5">{client.contactPerson} &bull; {client.email}</p>
                         </div>
                         {overdueCount > 0 && (
-                          <span className="shrink-0 px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-wider rounded-lg animate-pulse">{overdueCount} Overdue</span>
+                          <span className="shrink-0 px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-wider rounded-xl animate-pulse">{overdueCount} Overdue</span>
                         )}
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
@@ -544,20 +544,20 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                     <span className="font-bold">${(doc.total ?? 0).toLocaleString()}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2">
-                    <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg" title="Download PDF"><Download size={16} /></button>
-                    <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-lg" title="Send Email"><Send size={16} /></button>
-                    <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-lg" title="Edit"><Edit size={16} /></button>
+                    <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl" title="Download PDF"><Download size={16} /></button>
+                    <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-xl" title="Send Email"><Send size={16} /></button>
+                    <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-xl" title="Edit"><Edit size={16} /></button>
                     {activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (
-                      <button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg" title="Record Payment"><CreditCard size={16} /></button>
+                      <button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-xl" title="Record Payment"><CreditCard size={16} /></button>
                     )}
                     {(activeTab as string) === 'Quotations' && (
                       <>
-                        <button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg" title="Convert to Invoice"><ArrowRight size={16} /></button>
-                        <button onClick={() => setConvertingQuotation(doc)} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg" title="Convert to Contract"><FileText size={16} /></button>
+                        <button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl" title="Convert to Invoice"><ArrowRight size={16} /></button>
+                        <button onClick={() => setConvertingQuotation(doc)} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl" title="Convert to Contract"><FileText size={16} /></button>
                       </>
                     )}
                     {canDelete(getCurrentUser()) && (
-                      <button onClick={() => handleDelete(doc)} className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg" title="Delete"><Trash2 size={16} /></button>
+                      <button onClick={() => handleDelete(doc)} className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl" title="Delete"><Trash2 size={16} /></button>
                     )}
                   </div>
                 </div>
@@ -586,7 +586,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                       }`}>{doc.quoteStatus}</span>
                     ) : (
                       <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-900'}`}>{doc.status}</span>
-                    )}</td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={async () => { try { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; await addInvoice({ clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` } as any); await markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{(activeTab as string) === 'Quotations' && (<><button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{(activeTab as string) === 'Proformas' && (<button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className={`p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors ${!canDelete(getCurrentUser()) ? 'hidden' : ''}`} title="Delete"><Trash2 size={16} /></button></td></tr>
+                    )}</td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-xl transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={async () => { try { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; await addInvoice({ clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` } as any); await markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{(activeTab as string) === 'Quotations' && (<><button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{(activeTab as string) === 'Proformas' && (<button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className={`p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors ${!canDelete(getCurrentUser()) ? 'hidden' : ''}`} title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-900 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
@@ -624,7 +624,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                     </div>
                                     <div className="relative">
                                         <Search className="absolute left-3 top-2.5 text-slate-900" size={14} />
-                                        <input type="text" placeholder="Search by name, location, or town..." value={billboardSearch} onChange={(e) => setBillboardSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:border-slate-800 focus:ring-1 focus:ring-slate-800 outline-none" />
+                                        <input type="text" placeholder="Search by name, location, or town..." value={billboardSearch} onChange={(e) => setBillboardSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:border-slate-800 focus:ring-1 focus:ring-slate-800 outline-none" />
                                     </div>
                                     <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
                                         {filteredBillboards.length === 0 ? (
@@ -634,7 +634,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                             const isLED = b.type === BillboardType.LED;
                                             const availSlots = Math.max(0, (b.totalSlots || 0) - (b.rentedSlots || 0));
                                             return (
-                                                <div key={b.id} className="bg-slate-50 rounded-lg p-2 border border-slate-200">
+                                                <div key={b.id} className="bg-slate-50 rounded-xl p-2 border border-slate-200">
                                                     <div className="flex items-start justify-between gap-2 mb-2">
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-bold text-slate-800 truncate">{b.name}</p>
@@ -643,16 +643,16 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                                         <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold uppercase tracking-wider">{b.type}</span>
                                                     </div>
                                                     {isLED ? (
-                                                        <div className="flex items-center justify-between gap-3 bg-white rounded-lg p-1.5 border border-slate-200">
+                                                        <div className="flex items-center justify-between gap-3 bg-white rounded-xl p-1.5 border border-slate-200">
                                                             <div className="min-w-0">
                                                                 <p className="text-[10px] text-slate-900 font-bold uppercase tracking-wider">Slots</p>
                                                                 <p className="text-[11px] text-slate-900">Rate: <span className="font-bold text-slate-800">${(b.ratePerSlot || 0).toLocaleString()}</span>/slot · {availSlots} of {b.totalSlots || 0} available</p>
                                                             </div>
-                                                            <input type="number" min={0} value={sel.slots || 0} onChange={(e) => setBillboardSlots(b.id, Number(e.target.value))} className="w-20 px-2 py-1.5 text-center text-sm font-bold border border-slate-200 rounded-lg focus:border-slate-800 outline-none" />
+                                                            <input type="number" min={0} value={sel.slots || 0} onChange={(e) => setBillboardSlots(b.id, Number(e.target.value))} className="w-20 px-2 py-1.5 text-center text-sm font-bold border border-slate-200 rounded-xl focus:border-slate-800 outline-none" />
                                                         </div>
                                                     ) : (
                                                         <div className="grid grid-cols-2 gap-2">
-                                                            <label className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${sel.sideA ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                                            <label className={`flex items-center gap-2 p-1.5 rounded-xl cursor-pointer transition-all border ${sel.sideA ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                                                                 <input type="checkbox" checked={!!sel.sideA} onChange={() => toggleBillboardSide(b.id, 'A')} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-[10px] font-bold uppercase text-slate-900 tracking-wider">Side A</p>
@@ -660,7 +660,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                                                 </div>
                                                                 {b.sideAStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${b.sideAStatus === 'Available' ? 'bg-green-100 text-green-700' : b.sideAStatus === 'Rented' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-900'}`}>{b.sideAStatus}</span>}
                                                             </label>
-                                                            <label className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${sel.sideB ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                                            <label className={`flex items-center gap-2 p-1.5 rounded-xl cursor-pointer transition-all border ${sel.sideB ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                                                                 <input type="checkbox" checked={!!sel.sideB} onChange={() => toggleBillboardSide(b.id, 'B')} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-[10px] font-bold uppercase text-slate-900 tracking-wider">Side B</p>
@@ -696,7 +696,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                   <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
                                     <div className="flex items-center justify-between">
                                       <span className="text-[11px] font-bold uppercase tracking-wider text-slate-900">Line Item {idx + 1}</span>
-                                      <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove line item">
+                                      <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Remove line item">
                                         <Trash2 size={16} />
                                       </button>
                                     </div>
@@ -782,7 +782,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                   <MinimalInput label="Start Date" type="date" value={convertForm.startDate} onChange={(e: any) => setConvertForm({...convertForm, startDate: e.target.value})} required />
                   <MinimalInput label="End Date" type="date" value={convertForm.endDate} onChange={(e: any) => setConvertForm({...convertForm, endDate: e.target.value})} required />
                 </div>
-                <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl"><FileText size={18} /> Create Contract & Archive Quotation</button>
+                <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-wider hover:bg-slate-800 transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg flex items-center justify-center gap-2"><FileText size={18} /> Create Contract & Archive Quotation</button>
               </form>
             </div>
           </div>

@@ -16,6 +16,7 @@ import {
   MoveDown,
 } from 'lucide-react';
 import { getToken } from '../../services/apiClient';
+import { updateLocalCompanyProfile } from '../../services/mockData';
 
 export type PartnerLogo = { name: string; src: string };
 
@@ -151,6 +152,8 @@ export const WebsiteSettings: React.FC = () => {
       setHeroUrl(savedUrl);
       setHeroPreview(savedUrl);
       setHeroStatus('saved');
+      // Sync back to mockData so PublicWebsite and other components see the update immediately
+      updateLocalCompanyProfile({ heroImageUrl: savedUrl || null });
       setTimeout(() => setHeroStatus('idle'), 3000);
     } catch (e: any) {
       setHeroError(e.message || 'Save failed');
@@ -239,6 +242,8 @@ export const WebsiteSettings: React.FC = () => {
       });
       if (!res.ok) throw new Error('Save failed');
       setLogosStatus('saved');
+      // Sync back to mockData so PublicWebsite and other components see the update immediately
+      updateLocalCompanyProfile({ partnerLogos: JSON.stringify(logos) });
       setTimeout(() => setLogosStatus('idle'), 3000);
     } catch (e: any) {
       setLogosError(e.message || 'Save failed');

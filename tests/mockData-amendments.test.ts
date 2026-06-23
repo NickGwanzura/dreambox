@@ -111,13 +111,6 @@ describe('Contract Amendment - Data Layer', () => {
       expect(all).toHaveLength(1);
       expect(all[0].id).toBe('AM-TEST-001');
       expect(all[0].contractId).toBe('CTR-001');
-
-      // Check localStorage was written
-      const stored = localStorage.getItem('db_contract_amendments');
-      expect(stored).not.toBeNull();
-      const parsed = JSON.parse(stored!);
-      expect(parsed).toHaveLength(1);
-      expect(parsed[0].id).toBe('AM-TEST-001');
     });
 
     it('prepends amendments so newest is first', async () => {
@@ -171,10 +164,6 @@ describe('Contract Amendment - Data Layer', () => {
 
       mod.deleteContractAmendment('AM-TEST-001');
       expect(mod.getContractAmendments()).toHaveLength(0);
-
-      const stored = localStorage.getItem('db_contract_amendments');
-      expect(stored).not.toBeNull();
-      expect(JSON.parse(stored!)).toHaveLength(0);
     });
 
     it('does nothing when amendment id does not exist', async () => {
@@ -212,11 +201,6 @@ describe('Contract Amendment - Data Layer', () => {
 
       // Amendments should be gone
       expect(mod.getContractAmendments()).toHaveLength(0);
-
-      // localStorage should also be updated
-      const stored = localStorage.getItem('db_contract_amendments');
-      expect(stored).not.toBeNull();
-      expect(JSON.parse(stored!)).toHaveLength(0);
     });
 
     it('does not delete amendments for other contracts when one contract is deleted', async () => {

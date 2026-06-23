@@ -422,4 +422,108 @@
       animation: none !important;
     }
   }
+
+  /* ── Polished button system ─────────────────────────────────────────────── */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    font-weight: 700;
+    font-size: 0.7rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 0.75rem;
+    padding: 0.6rem 1rem;
+    white-space: nowrap;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.14s ease;
+  }
+
+  .btn:active:not(:disabled) { transform: scale(0.96); }
+  .btn:disabled { opacity: 0.42; cursor: not-allowed; pointer-events: none; }
+
+  /* Primary — slate-900 */
+  .btn-primary {
+    background: #0f172a;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.22), 0 2px 8px rgba(15,23,42,0.14);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #1e293b;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.28), 0 6px 20px rgba(15,23,42,0.18);
+    transform: translateY(-1.5px);
+  }
+
+  /* Indigo accent */
+  .btn-indigo {
+    background: #4f46e5;
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(79,70,229,0.30), 0 4px 14px rgba(79,70,229,0.20);
+  }
+  .btn-indigo:hover:not(:disabled) {
+    background: #4338ca;
+    box-shadow: 0 2px 6px rgba(79,70,229,0.38), 0 8px 24px rgba(79,70,229,0.28);
+    transform: translateY(-1.5px);
+  }
+
+  /* Secondary */
+  .btn-secondary {
+    background: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.06);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.10);
+    transform: translateY(-1px);
+  }
+
+  /* Ghost */
+  .btn-ghost {
+    background: transparent;
+    color: #475569;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+
+  /* Danger */
+  .btn-danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+    transform: translateY(-1px);
+  }
+
+  /* Emerald */
+  .btn-emerald {
+    background: #f0fdf4;
+    color: #059669;
+    border: 1px solid #bbf7d0;
+  }
+  .btn-emerald:hover:not(:disabled) {
+    background: #dcfce7;
+    color: #047857;
+    border-color: #86efac;
+    transform: translateY(-1px);
+  }
+
+  /* Size variants */
+  .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.65rem; border-radius: 0.625rem; }
+  .btn-lg { padding: 0.8rem 1.5rem; font-size: 0.8rem; border-radius: 1rem; border-radius: 0.875rem; }
+  .btn-icon { padding: 0.5rem; border-radius: 0.625rem; aspect-ratio: 1; }
+  .btn-icon-lg { padding: 0.625rem; border-radius: 0.75rem; aspect-ratio: 1; }
 }

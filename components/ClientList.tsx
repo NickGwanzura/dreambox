@@ -278,8 +278,8 @@ export const ClientList: React.FC = () => {
                   <MinimalInput label="Preferred Billing Day (1–31)" type="number" min={1} max={31} value={editingClient.billingDay || ''} onChange={(e: any) => setEditingClient({...editingClient, billingDay: e.target.value ? Number(e.target.value) : undefined})} placeholder="Default: Contract Start Date" />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                  <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Update Client</button>
+                  <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Cancel</button>
+                  <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"><CheckCircle size={14} /> Update Client</button>
                 </div>
               </form>
             </div>
@@ -402,7 +402,7 @@ export const ClientList: React.FC = () => {
       {/* Add Client Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Add New Client</h3>
@@ -454,8 +454,8 @@ export const ClientList: React.FC = () => {
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                        <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Save size={14} /> Save Client</button>
+                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Cancel</button>
+                        <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"><Save size={14} /> Save Client</button>
                     </div>
                 </form>
             </div>
@@ -465,7 +465,7 @@ export const ClientList: React.FC = () => {
       {/* Edit Client Modal */}
       {editingClient && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Client</h3>
@@ -534,8 +534,8 @@ export const ClientList: React.FC = () => {
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                        <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><CheckCircle size={14} /> Update Client</button>
+                        <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Cancel</button>
+                        <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"><CheckCircle size={14} /> Update Client</button>
                     </div>
                 </form>
             </div>
@@ -571,8 +571,8 @@ export const ClientList: React.FC = () => {
                         <p className="text-xs text-amber-700 font-medium">Any contracts, invoices, and billing records linked to this client will be orphaned. This cannot be reversed.</p>
                     </div>
                     <div className="flex gap-3 pt-1">
-                        <button onClick={() => setClientToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Keep Client</button>
-                        <button onClick={handleConfirmDelete} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20">Delete Permanently</button>
+                        <button onClick={() => setClientToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Keep Client</button>
+                        <button onClick={handleConfirmDelete} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 shadow-lg shadow-red-600/20">Delete Permanently</button>
                     </div>
                 </div>
             </div>
@@ -616,7 +616,7 @@ export const ClientList: React.FC = () => {
                             ))}
                         </div>
                     )}
-                    <button onClick={() => setImportResult(null)} className="w-full py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Done</button>
+                    <button onClick={() => setImportResult(null)} className="w-full py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg">Done</button>
                 </div>
             </div>
         </div>

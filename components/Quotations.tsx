@@ -673,17 +673,17 @@ export const Quotations: React.FC = () => {
                 <span className="font-bold">${(doc.total ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex flex-wrap gap-2 pt-2">
-                <button onClick={() => handleView(doc)} className="p-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg" title="View Details"><Eye size={16} /></button>
-                <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg" title="Download PDF"><Download size={16} /></button>
-                <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-lg" title="Send Email"><Send size={16} /></button>
-                <button onClick={() => handleWhatsAppShare(doc)} className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg" title="WhatsApp"><MessageCircle size={16} /></button>
-                <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-lg" title="Edit"><Edit size={16} /></button>
-                <button onClick={() => handleDuplicate(doc)} className="p-2 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg" title="Duplicate"><Copy size={16} /></button>
+                <button onClick={() => handleView(doc)} className="p-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl" title="View Details"><Eye size={16} /></button>
+                <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl" title="Download PDF"><Download size={16} /></button>
+                <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-xl" title="Send Email"><Send size={16} /></button>
+                <button onClick={() => handleWhatsAppShare(doc)} className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-xl" title="WhatsApp"><MessageCircle size={16} /></button>
+                <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-xl" title="Edit"><Edit size={16} /></button>
+                <button onClick={() => handleDuplicate(doc)} className="p-2 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-xl" title="Duplicate"><Copy size={16} /></button>
                 {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
-                  <button onClick={() => handleConvertToInvoice(doc)} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg" title="Convert to Invoice"><DollarSign size={16} /></button>
+                  <button onClick={() => handleConvertToInvoice(doc)} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl" title="Convert to Invoice"><DollarSign size={16} /></button>
                 )}
                 {canDelete(currentUser) && (
-                  <button onClick={() => handleDelete(doc)} className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg" title="Delete"><Trash2 size={16} /></button>
+                  <button onClick={() => handleDelete(doc)} className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl" title="Delete"><Trash2 size={16} /></button>
                 )}
               </div>
             </div>
@@ -732,23 +732,23 @@ export const Quotations: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-1 flex-wrap">
-                        <button onClick={() => handleView(doc)} className="p-2 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors" title="View Details"><Eye size={16} /></button>
-                        <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors" title="Download PDF"><Download size={16} /></button>
-                        <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Send via Email"><Send size={16} /></button>
-                        <button onClick={() => handleWhatsAppShare(doc)} className="p-2 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Share via WhatsApp"><MessageCircle size={16} /></button>
-                        <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors" title="Edit"><Edit size={16} /></button>
-                        <button onClick={() => handleDuplicate(doc)} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors" title="Duplicate"><Copy size={16} /></button>
+                        <button onClick={() => handleView(doc)} className="p-2 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors" title="View Details"><Eye size={16} /></button>
+                        <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl transition-colors" title="Download PDF"><Download size={16} /></button>
+                        <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Send via Email"><Send size={16} /></button>
+                        <button onClick={() => handleWhatsAppShare(doc)} className="p-2 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-xl transition-colors" title="Share via WhatsApp"><MessageCircle size={16} /></button>
+                        <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors" title="Edit"><Edit size={16} /></button>
+                        <button onClick={() => handleDuplicate(doc)} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors" title="Duplicate"><Copy size={16} /></button>
                         {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
-                          <button onClick={() => handleConvertToInvoice(doc)} className="p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Convert to Invoice"><DollarSign size={16} /></button>
+                          <button onClick={() => handleConvertToInvoice(doc)} className="p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><DollarSign size={16} /></button>
                         )}
                         {canApproveQuotations(currentUser) && doc.quoteStatus !== 'Converted' && (
                           <>
-                            <button onClick={() => handleMarkStatus(doc, QuoteStatus.Accepted)} className="p-2 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors" title="Mark Accepted"><CheckCircle size={16} /></button>
-                            <button onClick={() => handleMarkStatus(doc, QuoteStatus.Rejected)} className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" title="Mark Rejected"><XCircle size={16} /></button>
+                            <button onClick={() => handleMarkStatus(doc, QuoteStatus.Accepted)} className="p-2 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-xl transition-colors" title="Mark Accepted"><CheckCircle size={16} /></button>
+                            <button onClick={() => handleMarkStatus(doc, QuoteStatus.Rejected)} className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition-colors" title="Mark Rejected"><XCircle size={16} /></button>
                           </>
                         )}
                         {canDelete(currentUser) && (
-                          <button onClick={() => handleDelete(doc)} className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button>
+                          <button onClick={() => handleDelete(doc)} className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition-colors" title="Delete"><Trash2 size={16} /></button>
                         )}
                       </div>
                     </td>
@@ -816,7 +816,7 @@ export const Quotations: React.FC = () => {
                         <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-900">Line Item {idx + 1}</span>
-                            <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove line item">
+                            <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Remove line item">
                               <Trash2 size={16} />
                             </button>
                           </div>
@@ -895,11 +895,11 @@ export const Quotations: React.FC = () => {
                   return (
                     <div className="space-y-4">
                       <div className="flex flex-wrap items-center gap-3">
-                        <span className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${statusCfg.bg} ${statusCfg.text}`}>
+                        <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${statusCfg.bg} ${statusCfg.text}`}>
                           <StatusIcon size={14} /> {viewingQuotation.quoteStatus}
                         </span>
                         {viewingQuotation.expiryDate && (
-                          <span className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-700">
+                          <span className="px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-700">
                             Valid until {viewingQuotation.expiryDate}
                           </span>
                         )}
@@ -980,7 +980,7 @@ export const Quotations: React.FC = () => {
                   <MinimalInput label="Start Date" type="date" value={convertForm.startDate} onChange={(e: any) => setConvertForm({...convertForm, startDate: e.target.value})} required />
                   <MinimalInput label="End Date" type="date" value={convertForm.endDate} onChange={(e: any) => setConvertForm({...convertForm, endDate: e.target.value})} required />
                 </div>
-                <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl"><FileText size={18} /> Create Contract & Preserve Quotation</button>
+                <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-wider hover:bg-slate-800 transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg flex items-center justify-center gap-2"><FileText size={18} /> Create Contract & Preserve Quotation</button>
               </form>
             </div>
           </div>

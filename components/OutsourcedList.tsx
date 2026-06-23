@@ -134,8 +134,8 @@ export const OutsourcedList: React.FC = () => {
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={() => { setIsModalOpen(false); setCurrentBillboard({}); }} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                        <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2">
+                        <button type="button" onClick={() => { setIsModalOpen(false); setCurrentBillboard({}); }} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Cancel</button>
+                        <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg flex items-center justify-center gap-2">
                             {isEditing ? <><CheckCircle size={14} /> Update Assignment</> : <><Save size={14} /> Save Assignment</>}
                         </button>
                     </div>
@@ -176,8 +176,8 @@ export const OutsourcedList: React.FC = () => {
                         <p className="text-xs text-amber-700 font-medium">Removing this assignment will unlink the billboard from this partner. The billboard asset will remain in your inventory.</p>
                     </div>
                     <div className="flex gap-3 pt-1">
-                        <button onClick={() => setItemToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Keep Assignment</button>
-                        <button onClick={handleDeleteConfirm} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20">Remove Permanently</button>
+                        <button onClick={() => setItemToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Keep Assignment</button>
+                        <button onClick={handleDeleteConfirm} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg shadow-red-600/20">Remove Permanently</button>
                     </div>
                 </div>
             </div>

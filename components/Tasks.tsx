@@ -122,14 +122,14 @@ export const Tasks: React.FC = () => {
                 <div key={task.id} className={`bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between h-full ${task.status === 'Done' ? 'opacity-75' : ''}`}>
                     <div>
                         <div className="flex justify-between items-start mb-4">
-                            <div className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getPriorityColor(task.priority)}`}>
+                            <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${getPriorityColor(task.priority)}`}>
                                 {task.priority} Priority
                             </div>
                             <div className="flex gap-2">
                                 <select 
                                     value={task.status} 
                                     onChange={(e) => handleStatusChange(task, e.target.value as any)}
-                                    className="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer"
+                                    className="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 rounded-xl px-2 py-1 outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer"
                                 >
                                     <option value="Todo">Todo</option>
                                     <option value="In Progress">In Progress</option>
@@ -141,7 +141,7 @@ export const Tasks: React.FC = () => {
                         <p className="text-sm text-slate-900 mb-6 leading-relaxed line-clamp-3">{task.description}</p>
                         
                         {task.relatedBillboardId && (
-                            <div className="mb-4 p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] text-indigo-600 font-bold uppercase tracking-wide flex items-center gap-2">
+                            <div className="mb-4 p-2 bg-indigo-50 border border-indigo-100 rounded-xl text-[10px] text-indigo-600 font-bold uppercase tracking-wide flex items-center gap-2">
                                 <Clock size={12}/> Automated Maintenance Task
                             </div>
                         )}
@@ -267,13 +267,13 @@ export const Tasks: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setIsModalOpen(false)}
-                            className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                            className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"
                         >
                             <Save size={14} /> Save Task
                         </button>
@@ -306,7 +306,7 @@ export const Tasks: React.FC = () => {
                             <p className="text-sm text-slate-900 line-clamp-2">{taskToDelete.description}</p>
                         )}
                         <div className="flex items-center gap-4 pt-1">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getPriorityColor(taskToDelete.priority)}`}>
+                            <span className={`px-2 py-0.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${getPriorityColor(taskToDelete.priority)}`}>
                                 {taskToDelete.priority}
                             </span>
                             <span className="text-xs text-slate-900 flex items-center gap-1">
@@ -331,13 +331,13 @@ export const Tasks: React.FC = () => {
                     <div className="flex gap-3 pt-1">
                         <button
                             onClick={() => setTaskToDelete(null)}
-                            className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                            className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5"
                         >
                             Keep Task
                         </button>
                         <button
                             onClick={handleConfirmDelete}
-                            className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20"
+                            className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 shadow-lg shadow-red-600/20"
                         >
                             Delete Permanently
                         </button>

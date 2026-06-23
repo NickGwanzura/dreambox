@@ -449,7 +449,7 @@ export const BusinessIntelligence: React.FC = () => {
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Business Intelligence</h1>
           <p className="text-sm text-slate-500 mt-0.5">Forward-looking signals, forecasts, and asset intelligence</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 rounded-lg px-3 py-1.5">
+        <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 rounded-xl px-3 py-1.5">
           <Clock size={12} />
           <span>Updated now</span>
         </div>
@@ -461,7 +461,7 @@ export const BusinessIntelligence: React.FC = () => {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
               tab === t.id
                 ? 'bg-slate-900 text-white shadow'
                 : 'text-slate-500 hover:text-slate-700'
@@ -484,7 +484,7 @@ export const BusinessIntelligence: React.FC = () => {
               { label: 'Total Collected', value: formatCurrency(paidInvoiceTotal), sub: 'all time (paid invoices)', icon: CheckCircle2, color: 'text-slate-700', bg: 'bg-slate-100' },
             ].map(kpi => (
               <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                <div className={`w-8 h-8 rounded-lg ${kpi.bg} flex items-center justify-center mb-3`}>
+                <div className={`w-8 h-8 rounded-xl ${kpi.bg} flex items-center justify-center mb-3`}>
                   <kpi.icon size={16} className={kpi.color} />
                 </div>
                 <div className="text-xl font-black text-slate-900">{kpi.value}</div>
@@ -531,7 +531,7 @@ export const BusinessIntelligence: React.FC = () => {
               },
             ].map(kpi => (
               <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                <div className={`w-8 h-8 rounded-lg ${kpi.bg} flex items-center justify-center mb-3`}>
+                <div className={`w-8 h-8 rounded-xl ${kpi.bg} flex items-center justify-center mb-3`}>
                   <kpi.icon size={16} className={kpi.color} />
                 </div>
                 <div className="text-xl font-black text-slate-900">{kpi.value}</div>
@@ -745,7 +745,7 @@ export const BusinessIntelligence: React.FC = () => {
                   const client = clients.find(cl => cl.id === c.clientId);
                   const board = billboards.find(b => b.id === c.billboardId);
                   return (
-                    <div key={c.id} className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-lg">
+                    <div key={c.id} className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-xl">
                       <div>
                         <p className="text-xs font-semibold text-slate-800">{client?.companyName || '—'}</p>
                         <p className="text-[11px] text-slate-500">{board?.name || '—'} · expires in {daysUntil(c.endDate)}d</p>
@@ -955,9 +955,9 @@ export const BusinessIntelligence: React.FC = () => {
                         <span className="font-semibold text-slate-700">{stage.name}</span>
                         <span className="font-bold text-slate-900">{stage.value} <span className="text-slate-400 font-normal">({pct}%)</span></span>
                       </div>
-                      <div className="h-7 bg-slate-100 rounded-lg overflow-hidden">
+                      <div className="h-7 bg-slate-100 rounded-xl overflow-hidden">
                         <div
-                          className="h-full rounded-lg flex items-center px-2 transition-all"
+                          className="h-full rounded-xl flex items-center px-2 transition-all"
                           style={{ width: `${Math.max(pct, 4)}%`, background: stage.fill }}
                         >
                           {pct >= 15 && <span className="text-white text-[10px] font-bold">{stage.value}</span>}
@@ -1197,7 +1197,7 @@ export const BusinessIntelligence: React.FC = () => {
                         estNetProfit, expenseRatio,
                       }).then(text => setAiAnalysis(text || null)).finally(() => setAiAnalysisLoading(false));
                     }}
-                    className="text-white/40 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10 shrink-0"
+                    className="text-white/40 hover:text-white transition-colors p-1 rounded-xl hover:bg-white/10 shrink-0"
                     title="Refresh analysis"
                   >
                     <RefreshCw size={13} />

@@ -170,10 +170,10 @@ if (isConfigured()) {
 // --- Profile Mutations ---
 export const setCompanyLogo = async (url: string): Promise<void> => {
     companyLogo = url;
+    updateLocalCompanyProfile({ logo: url });
     if (isConfigured() && companyProfile) {
         await api.put('/api/company-profile', { ...companyProfile, id: 'profile_v1', logo: url });
     }
-    notifyListeners();
 };
 
 export const updateCompanyProfile = async (profile: CompanyProfile): Promise<void> => {
@@ -1349,6 +1349,16 @@ export const getTasks = () => tasks || [];
 export const getMaintenanceLogs = () => maintenanceLogs || [];
 export const getCompanyLogo = () => companyLogo;
 export const getCompanyProfile = () => companyProfile;
+
+/**
+ * Lightweight sync — updates in-memory companyProfile fields WITHOUT hitting the API.
+ * Used by WebsiteSettings (hero images, partner logos) to keep mockData state in sync
+ * after it saves those assets via direct fetch().
+ */
+export const updateLocalCompanyProfile = (partial: Partial<CompanyProfile>): void => {
+  companyProfile = { ...companyProfile!, ...partial } as CompanyProfile;
+  notifyListeners();
+};
 export const getHeroImageUrl = (): string | null => (companyProfile as any)?.heroImageUrl || null;
 export const getPartnerLogos = (): { name: string; src: string }[] => {
   try {

@@ -31,6 +31,7 @@ import {
   getContracts,
   getHeroImageUrl,
   getPartnerLogos,
+  subscribe,
 } from '../services/mockData';
 import {
   addCRMCompany,
@@ -318,9 +319,21 @@ export const PublicWebsite: React.FC = () => {
   const contracts = getContracts();
   const logo = liveLogo;
   const profile = getCompanyProfile();
-  const heroImageUrl = getHeroImageUrl();
-  const storedPartnerLogos = getPartnerLogos();
-  const partnerLogos = storedPartnerLogos.length ? storedPartnerLogos : DEFAULT_PARTNER_LOGOS;
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(() => getHeroImageUrl());
+  const [partnerLogos, setPartnerLogos] = useState<{ name: string; src: string }[]>(() => {
+    const stored = getPartnerLogos();
+    return stored.length ? stored : DEFAULT_PARTNER_LOGOS;
+  });
+
+  // Re-read hero image and partner logos when mockData state changes (e.g. saved from WebsiteSettings)
+  useEffect(() => {
+    const unsubscribe = subscribe(() => {
+      setHeroImageUrl(getHeroImageUrl());
+      const stored = getPartnerLogos();
+      setPartnerLogos(stored.length ? stored : DEFAULT_PARTNER_LOGOS);
+    });
+    return () => unsubscribe();
+  }, []);
   const [page, setPage] = useState<PublicPage>(() => getPageFromPath());
   const [form, setForm] = useState<EnquiryFormState>(EMPTY_ENQUIRY);
   const [enquiryStatus, setEnquiryStatus] = useState<'idle' | 'sent' | 'error'>('idle');

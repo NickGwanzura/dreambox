@@ -239,7 +239,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                     key={i} 
                                     className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-default"
                                 >
-                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center border border-indigo-500/20">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center border border-indigo-500/20">
                                         <feat.icon className="w-5 h-5 text-indigo-400" />
                                     </div>
                                     <div>

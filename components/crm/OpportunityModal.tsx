@@ -476,19 +476,19 @@ export const OpportunityModal: React.FC<OpportunityModalProps> = ({
                     <div className="flex gap-2">
                       <button
                         onClick={() => quickSetFollowUp(1)}
-                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors border border-white/10"
+                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-medium transition-colors border border-white/10"
                       >
                         Tomorrow
                       </button>
                       <button
                         onClick={() => quickSetFollowUp(3)}
-                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors border border-white/10"
+                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-medium transition-colors border border-white/10"
                       >
                         3 Days
                       </button>
                       <button
                         onClick={() => quickSetFollowUp(7)}
-                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors border border-white/10"
+                        className="flex-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-medium transition-colors border border-white/10"
                       >
                         1 Week
                       </button>
@@ -918,7 +918,7 @@ const ActivityItem: React.FC<{ touchpoint: CRMTouchpoint }> = ({ touchpoint }) =
           <p className="text-sm text-slate-900 mt-1">{touchpoint.content}</p>
         )}
         {touchpoint.outcome && (
-          <span className="inline-block mt-2 px-2.5 py-1 bg-slate-100 rounded-lg text-xs text-slate-900 border border-slate-200">
+          <span className="inline-block mt-2 px-2.5 py-1 bg-slate-100 rounded-xl text-xs text-slate-900 border border-slate-200">
             {touchpoint.outcome.replace(/_/g, ' ')}
           </span>
         )}
@@ -938,7 +938,7 @@ const TaskItem: React.FC<{ task: CRMTask }> = ({ task }) => {
     }`}>
       <button
         onClick={() => completeCRMTask(task.id, 'Completed', '')}
-        className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-colors ${
+        className={`w-6 h-6 rounded-xl border flex items-center justify-center transition-colors ${
           task.status === 'completed'
             ? 'bg-emerald-500 border-emerald-500 text-white'
             : 'border-slate-300 hover:border-indigo-500'
@@ -955,7 +955,7 @@ const TaskItem: React.FC<{ task: CRMTask }> = ({ task }) => {
           {isOverdue && ' (Overdue)'}
         </p>
       </div>
-      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold capitalize border ${
+      <span className={`px-2.5 py-1 rounded-xl text-xs font-bold capitalize border ${
         task.priority === 'high' || task.priority === 'urgent'
           ? 'bg-red-100 text-red-700 border-red-200'
           : task.priority === 'medium'

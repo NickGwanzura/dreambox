@@ -216,13 +216,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
              <div className="space-y-3">
                <button 
                  onClick={() => window.location.reload()} 
-                 className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold uppercase text-xs hover:bg-slate-800 transition-all w-full shadow-lg shadow-slate-900/20"
+                 className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold uppercase text-xs hover:bg-slate-800 transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg w-full shadow-slate-900/20"
                >
                  Reload Application
                </button>
                <button 
                  onClick={() => self.setState({ hasError: false, error: undefined })}
-                 className="bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold uppercase text-xs hover:bg-slate-50 transition-all w-full"
+                 className="bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-2xl font-bold uppercase text-xs hover:bg-slate-50 transition-all hover:-translate-y-0.5 w-full"
                >
                  Try to Recover
                </button>

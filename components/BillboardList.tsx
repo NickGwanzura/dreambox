@@ -636,13 +636,13 @@ export const BillboardList: React.FC = () => {
                  <div className="absolute top-4 right-4 z-[400] bg-white p-2 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-2">
                      <button 
                         onClick={() => setShowHeatmap(!showHeatmap)} 
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${showHeatmap ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-white text-slate-900 hover:bg-slate-50'}`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${showHeatmap ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-white text-slate-900 hover:bg-slate-50'}`}
                      >
                          <Layers size={14} /> {showHeatmap ? 'Hide Traffic Heat' : 'Show Traffic Heat'}
                      </button>
                      <button 
                         onClick={shareMap} 
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
                      >
                          <Globe size={14} /> Share Public Map
                      </button>
@@ -680,7 +680,7 @@ export const BillboardList: React.FC = () => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 mb-1">
                                     <h4 className="font-bold text-slate-900 truncate text-lg tracking-tight" title={b.name}>{b.name}</h4>
-                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border shrink-0 ${isAvailable ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isPartial ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                    <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-widest border shrink-0 ${isAvailable ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isPartial ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                                         {availability.label}
                                     </span>
                                 </div>
@@ -695,7 +695,7 @@ export const BillboardList: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-50 sm:border-t-0 mt-2 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
                                 <div className="flex flex-col items-end mr-2">
-                                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-1 ${b.type === BillboardType.LED ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>{b.type}</span>
+                                    <span className={`px-2 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider mb-1 ${b.type === BillboardType.LED ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>{b.type}</span>
                                     {availability.priceLabel && <span className="text-sm font-bold text-slate-900">{availability.priceLabel}{b.type === BillboardType.Static && <span className="text-[10px] font-medium text-slate-900">/mo</span>}</span>}
                                     <span className="text-[10px] text-slate-900 font-mono">ID: {b.id.slice(-4)}</span>
                                 </div>
@@ -716,7 +716,7 @@ export const BillboardList: React.FC = () => {
       {viewImage && (
           <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in" onClick={() => setViewImage(null)}>
               <div className="relative max-w-7xl max-h-full w-full h-full flex flex-col items-center justify-center">
-                  <img src={viewImage} className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10" onClick={(e) => e.stopPropagation()}/>
+                  <img src={viewImage} className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl border border-white/10" onClick={(e) => e.stopPropagation()}/>
                   <div className="absolute top-4 right-4 flex gap-4">
                       <a href={viewImage} download="billboard_image" className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-colors" onClick={(e) => e.stopPropagation()}>
                           <Download size={24} />
@@ -756,10 +756,10 @@ export const BillboardList: React.FC = () => {
                                             <MinimalInput label="Lng" type="number" value={newBillboard.coordinates?.lng} onChange={(e: any) => setNewBillboard({...newBillboard, coordinates: {...newBillboard.coordinates!, lng: Number(e.target.value)}})} />
                                         </div>
                                     </div>
-                                    <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider border ${pickingLocation ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:shadow-sm'}`} title="Set location on map">
+                                    <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider border ${pickingLocation ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:shadow-sm'}`} title="Set location on map">
                                         <MapIcon size={13}/> {pickingLocation ? 'Close Map' : 'Set on Map'}
                                     </button>
-                                    <button type="button" onClick={() => handleGeocode(false)} disabled={isGeocoding || !newBillboard.location || !newBillboard.town} className="mb-2 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1" title="Geocode Address">
+                                    <button type="button" onClick={() => handleGeocode(false)} disabled={isGeocoding || !newBillboard.location || !newBillboard.town} className="mb-2 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1" title="Geocode Address">
                                         {isGeocoding ? <RefreshCw size={14} className="animate-spin"/> : <MapPin size={14}/>} {isGeocoding ? 'Finding...' : 'Find'}
                                     </button>
                                 </div>
@@ -818,11 +818,11 @@ export const BillboardList: React.FC = () => {
                             <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide">Billboard Image</label>
                             <div className="flex items-center gap-4">
                                 {isUploadingImage ? (
-                                    <div className="w-16 h-16 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
+                                    <div className="w-16 h-16 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
                                         <RefreshCw size={18} className="animate-spin text-indigo-500" />
                                     </div>
                                 ) : newBillboard.imageUrl ? (
-                                    <img src={newBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" />
+                                    <img src={newBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0" />
                                 ) : null}
                                 <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} disabled={isUploadingImage} className="block w-full text-sm text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all disabled:opacity-50"/>
                                 {isUploadingImage && <span className="text-xs text-indigo-500 font-medium whitespace-nowrap">Uploading…</span>}
@@ -833,7 +833,7 @@ export const BillboardList: React.FC = () => {
                         <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 relative overflow-hidden">
                             <div className="flex justify-between items-center mb-4 relative z-10">
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-500 flex items-center gap-2"><Sparkles size={14}/> Analysis & Traffic</h4>
-                                <button type="button" onClick={() => handleAutoAnalyze(false)} disabled={isAnalyzing} className="text-[10px] bg-white text-indigo-600 px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider shadow-sm border border-indigo-100 hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50">
+                                <button type="button" onClick={() => handleAutoAnalyze(false)} disabled={isAnalyzing} className="text-[10px] bg-white text-indigo-600 px-3 py-1.5 rounded-xl font-bold uppercase tracking-wider shadow-sm border border-indigo-100 hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50">
                                     {isAnalyzing ? <RefreshCw size={12} className="animate-spin"/> : <Sparkles size={12}/>} {isAnalyzing ? 'Analyzing...' : 'Auto-Generate'}
                                 </button>
                             </div>
@@ -848,8 +848,8 @@ export const BillboardList: React.FC = () => {
                         </div>
 
                         <div className="flex gap-3 pt-2">
-                            <button type="button" onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                            <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Save size={14} /> Save Asset</button>
+                            <button type="button" onClick={() => { setIsAddModalOpen(false); setPickingLocation(false); }} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Cancel</button>
+                            <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"><Save size={14} /> Save Asset</button>
                         </div>
                     </form>
             </div>
@@ -897,10 +897,10 @@ export const BillboardList: React.FC = () => {
                                         <MinimalInput label="Lng" type="number" value={editingBillboard.coordinates?.lng} onChange={(e: any) => setEditingBillboard({...editingBillboard, coordinates: {...editingBillboard.coordinates!, lng: Number(e.target.value)}})} />
                                     </div>
                                 </div>
-                                <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-lg transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
+                                <button type="button" onClick={() => setPickingLocation(!pickingLocation)} className={`mb-2 p-2 rounded-xl transition-colors ${pickingLocation ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`} title="Pick on Map">
                                     <MousePointer2 size={18}/>
                                 </button>
-                                <button type="button" onClick={() => handleGeocode(true)} disabled={isGeocoding || !editingBillboard.location || !editingBillboard.town} className="mb-2 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1" title="Geocode Address">
+                                <button type="button" onClick={() => handleGeocode(true)} disabled={isGeocoding || !editingBillboard.location || !editingBillboard.town} className="mb-2 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1" title="Geocode Address">
                                     {isGeocoding ? <RefreshCw size={14} className="animate-spin"/> : <MapPin size={14}/>} {isGeocoding ? 'Finding...' : 'Find'}
                                 </button>
                             </div>
@@ -960,11 +960,11 @@ export const BillboardList: React.FC = () => {
                             <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide">Billboard Image</label>
                             <div className="flex items-center gap-4">
                                 {isUploadingImage ? (
-                                    <div className="w-16 h-16 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
+                                    <div className="w-16 h-16 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
                                         <RefreshCw size={18} className="animate-spin text-indigo-500" />
                                     </div>
                                 ) : editingBillboard.imageUrl ? (
-                                    <img src={editingBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" />
+                                    <img src={editingBillboard.imageUrl} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0" />
                                 ) : null}
                                 <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} disabled={isUploadingImage} className="block w-full text-sm text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-all disabled:opacity-50"/>
                                 {isUploadingImage && <span className="text-xs text-indigo-500 font-medium whitespace-nowrap">Uploading…</span>}
@@ -975,7 +975,7 @@ export const BillboardList: React.FC = () => {
                         <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 relative overflow-hidden">
                             <div className="flex justify-between items-center mb-4 relative z-10">
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-500 flex items-center gap-2"><Sparkles size={14}/> Analysis & Traffic</h4>
-                                <button type="button" onClick={() => handleAutoAnalyze(true)} disabled={isAnalyzing} className="text-[10px] bg-white text-indigo-600 px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider shadow-sm border border-indigo-100 hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50">
+                                <button type="button" onClick={() => handleAutoAnalyze(true)} disabled={isAnalyzing} className="text-[10px] bg-white text-indigo-600 px-3 py-1.5 rounded-xl font-bold uppercase tracking-wider shadow-sm border border-indigo-100 hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50">
                                     {isAnalyzing ? <RefreshCw size={12} className="animate-spin"/> : <Sparkles size={12}/>} {isAnalyzing ? 'Analyzing...' : 'Auto-Generate'}
                                 </button>
                             </div>
@@ -990,8 +990,8 @@ export const BillboardList: React.FC = () => {
                         </div>
                         
                         <div className="flex gap-3 pt-2">
-                            <button type="button" onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Cancel</button>
-                            <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"><Save size={14} /> Update Asset</button>
+                            <button type="button" onClick={() => { setEditingBillboard(null); setPickingLocation(false); }} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Cancel</button>
+                            <button type="submit" className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"><Save size={14} /> Update Asset</button>
                         </div>
                     </form>
             </div>
@@ -1027,8 +1027,8 @@ export const BillboardList: React.FC = () => {
                         <p className="text-xs text-amber-700 font-medium">Any active rental contracts referencing this billboard will be orphaned. The asset will be permanently removed from inventory.</p>
                     </div>
                     <div className="flex gap-3 pt-1">
-                        <button onClick={() => setBillboardToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">Keep Billboard</button>
-                        <button onClick={handleConfirmDelete} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors shadow-lg shadow-red-600/20">Delete Permanently</button>
+                        <button onClick={() => setBillboardToDelete(null)} className="flex-1 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">Keep Billboard</button>
+                        <button onClick={handleConfirmDelete} className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 shadow-lg shadow-red-600/20">Delete Permanently</button>
                     </div>
                 </div>
             </div>

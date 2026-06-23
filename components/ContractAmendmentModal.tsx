@@ -370,7 +370,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[60] p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }} role="dialog" aria-modal="true" aria-label="Contract Amendment">
-      <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-3xl lg:max-w-4xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
           <div>
@@ -387,19 +387,19 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200">
             <button
               onClick={() => { setActiveTab('extension'); setNewEndDate(contract.endDate); setError(null); setShowInvoiceDeleteConfirm(false); }}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'extension' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-900 hover:text-slate-700'}`}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'extension' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-900 hover:text-slate-700'}`}
             >
               <TrendingUp size={14} /> Extend
             </button>
             <button
               onClick={() => { setActiveTab('reduction'); setNewEndDate(contract.endDate); setError(null); setShowInvoiceDeleteConfirm(false); }}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'reduction' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-900 hover:text-slate-700'}`}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'reduction' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-900 hover:text-slate-700'}`}
             >
               <TrendingDown size={14} /> Reduce
             </button>
             <button
               onClick={() => { setActiveTab('rate_change'); setNewMonthlyRate(contract.monthlyRate); setError(null); setShowInvoiceDeleteConfirm(false); }}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'rate_change' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-900 hover:text-slate-700'}`}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === 'rate_change' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-900 hover:text-slate-700'}`}
             >
               <DollarSign size={14} /> Rate
             </button>
@@ -441,7 +441,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
           {activeTab === 'rate_change' ? (
             <div className="space-y-4">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-900">New Monthly Rate</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Current Rate</label>
                   <input type="number" value={contract.monthlyRate} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-sm" />
@@ -456,15 +456,28 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Difference</label>
+                  <div className={`w-full px-3 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1 ${
+                    rateDelta > 0
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : rateDelta < 0
+                      ? 'bg-red-50 text-red-600 border border-red-200'
+                      : 'bg-slate-50 text-slate-900 border border-slate-200'
+                  }`}>
+                    {rateDelta > 0 ? <TrendingUp size={14} /> : rateDelta < 0 ? <TrendingDown size={14} /> : null}
+                    {rateDelta === 0 ? 'No change' : `${rateDelta > 0 ? '+' : ''}$${rateDelta.toLocaleString()}/mo`}
+                  </div>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 {[50, 100, 200, 500].map(inc => (
-                  <button key={inc} type="button" onClick={() => setNewMonthlyRate(prev => prev + inc)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors flex items-center gap-1">
+                  <button key={inc} type="button" onClick={() => setNewMonthlyRate(prev => prev + inc)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors flex items-center gap-1">
                     <DollarSign size={10} /> +{inc}
                   </button>
                 ))}
                 {[50, 100, 200].map(dec => (
-                  <button key={dec} type="button" onClick={() => setNewMonthlyRate(prev => Math.max(0, prev - dec))} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1">
+                  <button key={dec} type="button" onClick={() => setNewMonthlyRate(prev => Math.max(0, prev - dec))} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors flex items-center gap-1">
                     <DollarSign size={10} /> -{dec}
                   </button>
                 ))}
@@ -481,7 +494,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
               <p className="text-xs font-bold uppercase tracking-wider text-slate-900">
                 {activeTab === 'extension' ? 'New End Date (Extension)' : 'New End Date (Early Termination)'}
               </p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Current End</label>
                   <input type="date" value={contract.endDate} disabled className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-sm" />
@@ -496,6 +509,19 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-900"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Duration Change</label>
+                  <div className={`w-full px-3 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1 ${
+                    monthsDelta > 0
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : monthsDelta < 0
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-slate-50 text-slate-900 border border-slate-200'
+                  }`}>
+                    {monthsDelta > 0 ? <TrendingUp size={14} /> : monthsDelta < 0 ? <TrendingDown size={14} /> : null}
+                    {monthsDelta === 0 ? 'No change' : `${monthsDelta > 0 ? '+' : ''}${monthsDelta} month${Math.abs(monthsDelta) !== 1 ? 's' : ''}`}
+                  </div>
+                </div>
               </div>
 
               {/* Quick buttons */}
@@ -503,7 +529,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                 {activeTab === 'extension' ? (
                   <>
                     {[1, 3, 6, 12].map(m => (
-                      <button key={m} type="button" onClick={() => handleQuickDate(m)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors flex items-center gap-1">
+                      <button key={m} type="button" onClick={() => handleQuickDate(m)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors flex items-center gap-1">
                         <Calendar size={10} /> +{m} Mo
                       </button>
                     ))}
@@ -511,7 +537,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                 ) : (
                   <>
                     {[-1, -3, -6].map(m => (
-                      <button key={m} type="button" onClick={() => handleQuickDate(m)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-1">
+                      <button key={m} type="button" onClick={() => handleQuickDate(m)} className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors flex items-center gap-1">
                         <Calendar size={10} /> {m} Mo
                       </button>
                     ))}
@@ -527,7 +553,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
               <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Timeline Preview</p>
               <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-4">
                 {/* Bar */}
-                <div className="relative h-8 bg-slate-200 rounded-lg overflow-hidden">
+                <div className="relative h-8 bg-slate-200 rounded-xl overflow-hidden">
                   {/* Current period */}
                   {(() => {
                     const style = getBarStyle(contract.startDate, contract.endDate, 'current');
@@ -581,28 +607,30 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                 </span>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-900">Original contract value</span>
-                  <span className="font-semibold text-slate-800">${contract.totalContractValue.toLocaleString()}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white/60 rounded-xl p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-0.5">Original</p>
+                  <p className="text-lg font-black text-slate-800">${contract.totalContractValue.toLocaleString()}</p>
+                  <p className="text-[10px] text-slate-900">Total contract value</p>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-900">New contract value</span>
-                  <span className="font-semibold text-slate-800">${effectiveNewValue.toLocaleString()}</span>
+                <div className="bg-white/60 rounded-xl p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-900 mb-0.5">New</p>
+                  <p className="text-lg font-black text-slate-800">${effectiveNewValue.toLocaleString()}</p>
+                  <p className="text-[10px] text-slate-900">Revised value</p>
                 </div>
-                <div className={`flex justify-between text-sm font-bold pt-2 border-t ${activeTab === 'extension' ? 'border-emerald-200' : activeTab === 'reduction' ? 'border-amber-200' : 'border-indigo-200'}`}>
-                  <span className={activeTab === 'extension' ? 'text-emerald-700' : activeTab === 'reduction' ? 'text-amber-700' : isPositiveImpact ? 'text-indigo-700' : 'text-red-600'}>
-                    {activeTab === 'extension' ? 'Additional revenue' : activeTab === 'reduction' ? 'Credit to client' : isPositiveImpact ? 'Revenue increase' : 'Revenue reduction'}
-                  </span>
-                  <span className={activeTab === 'extension' ? 'text-emerald-700' : activeTab === 'reduction' ? 'text-amber-700' : isPositiveImpact ? 'text-indigo-700' : 'text-red-600'}>
-                    ${Math.abs(financialImpact).toLocaleString()}
-                  </span>
-                </div>
-                {contract.hasVat && financialImpact !== 0 && (
-                  <p className="text-[10px] text-slate-900">
-                    Net: ${splitInclusiveVat(Math.abs(financialImpact), vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(Math.abs(financialImpact), vatRate).vat.toFixed(2)}
+                <div className={`rounded-xl p-3 text-center ${activeTab === 'extension' ? 'bg-emerald-100' : activeTab === 'reduction' ? 'bg-amber-100' : isPositiveImpact ? 'bg-indigo-100' : 'bg-red-100'}`}>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${activeTab === 'extension' ? 'text-emerald-700' : activeTab === 'reduction' ? 'text-amber-700' : isPositiveImpact ? 'text-indigo-700' : 'text-red-600'}`}>
+                    {activeTab === 'extension' ? 'Additional Revenue' : activeTab === 'reduction' ? 'Credit Due' : isPositiveImpact ? 'Revenue Increase' : 'Revenue Decrease'}
                   </p>
-                )}
+                  <p className={`text-lg font-black ${activeTab === 'extension' ? 'text-emerald-700' : activeTab === 'reduction' ? 'text-amber-700' : isPositiveImpact ? 'text-indigo-700' : 'text-red-600'}`}>
+                    ${Math.abs(financialImpact).toLocaleString()}
+                  </p>
+                  {contract.hasVat && financialImpact !== 0 && (
+                    <p className="text-[10px] mt-0.5 text-slate-900">
+                      Net: ${splitInclusiveVat(Math.abs(financialImpact), vatRate).subtotal.toFixed(2)} + VAT: ${splitInclusiveVat(Math.abs(financialImpact), vatRate).vat.toFixed(2)}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
             );
@@ -620,7 +648,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
               </p>
               <div className="space-y-2">
                 {affectedInvoices.map(inv => (
-                  <div key={inv.id} className="bg-white rounded-lg border border-red-100 p-3 flex justify-between items-center text-sm">
+                  <div key={inv.id} className="bg-white rounded-xl border border-red-100 p-3 flex justify-between items-center text-sm">
                     <div className="flex items-center gap-2">
                       <FileText size={14} className="text-red-400" />
                       <span className="font-medium text-slate-700">{inv.id}</span>
@@ -701,7 +729,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                             onApplied();
                           }
                         }}
-                        className="shrink-0 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 text-slate-300 hover:text-red-500 transition-all"
+                        className="shrink-0 p-1.5 rounded-xl opacity-0 group-hover:opacity-100 hover:bg-red-50 text-slate-300 hover:text-red-500 transition-all"
                         title="Delete amendment"
                       >
                         <Trash2 size={14} />
@@ -728,7 +756,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
               </div>
               <div className="space-y-2 max-h-32 overflow-y-auto">
                 {affectedInvoices.map(inv => (
-                  <div key={inv.id} className="bg-white rounded-lg border border-red-100 p-2.5 flex justify-between items-center text-sm">
+                  <div key={inv.id} className="bg-white rounded-xl border border-red-100 p-2.5 flex justify-between items-center text-sm">
                     <div className="flex items-center gap-2">
                       <FileText size={13} className="text-red-400" />
                       <span className="font-medium text-slate-700">{inv.id}</span>
@@ -748,7 +776,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                   onClick={() => {
                     setShowInvoiceDeleteConfirm(false);
                   }}
-                  className="flex-1 py-2.5 text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                  className="flex-1 py-2.5 text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5"
                 >
                   Cancel Reduction
                 </button>
@@ -757,7 +785,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
                     setShowInvoiceDeleteConfirm(false);
                     handleApply();
                   }}
-                  className="flex-1 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                 >
                   <Trash2 size={13} /> Delete & Apply
                 </button>
@@ -767,7 +795,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
-            <button onClick={() => { if (!saving) onClose(); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-40">
+            <button onClick={() => { if (!saving) onClose(); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 disabled:opacity-40">
               Cancel
             </button>
             <button

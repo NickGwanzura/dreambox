@@ -266,7 +266,7 @@ const PipelineCard: React.FC<PipelineCardProps> = ({
             {formatCurrency(opportunity.estimatedValue)}
           </span>
         </div>
-        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-900 px-2 py-1 bg-slate-100 rounded-lg">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-900 px-2 py-1 bg-slate-100 rounded-xl">
           {STAGE_LABELS[opportunity.stage]}
         </span>
       </div>
@@ -299,7 +299,7 @@ const PipelineCard: React.FC<PipelineCardProps> = ({
         </div>
         
         {opportunity.nextFollowUpDate && (
-          <span className={`text-xs flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium ${
+          <span className={`text-xs flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-medium ${
             isOverdue(opportunity.nextFollowUpDate) 
               ? 'bg-red-50 text-red-600 border border-red-200' 
               : isToday(opportunity.nextFollowUpDate)

@@ -454,7 +454,7 @@ export const Settings: React.FC = () => {
                             <p className="text-xs text-slate-900">{user.email}</p>
                           </div>
                         </div>
-                        <button onClick={() => setApprovalUser(user)} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md transition-colors">
+                        <button onClick={() => setApprovalUser(user)} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-md transition-colors">
                           Review Request
                         </button>
                       </div>
@@ -527,7 +527,7 @@ export const Settings: React.FC = () => {
                   <div className="border-t border-slate-50 pt-6">
                     <h4 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900 tracking-wider mb-4"><FileText size={14} /> Legal Contract Template</h4>
                     <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 flex items-start gap-3">
-                      <div className="p-2 bg-white rounded-lg text-indigo-600 shrink-0"><FileText size={16} /></div>
+                      <div className="p-2 bg-white rounded-xl text-indigo-600 shrink-0"><FileText size={16} /></div>
                       <div className="text-sm text-indigo-900">
                         <p className="font-bold mb-1">Edit the contract template on the dedicated page.</p>
                         <p className="text-indigo-700 leading-relaxed">
@@ -600,9 +600,9 @@ export const Settings: React.FC = () => {
                       <h3 className="text-lg font-bold text-slate-800">All Team Members <span className="text-sm font-normal text-slate-900">({activeUsers.length})</span></h3>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={refreshUsers} className="flex items-center gap-1 text-xs text-slate-900 font-bold uppercase tracking-wider hover:bg-slate-50 px-3 py-2 rounded-lg transition-colors border border-slate-200"><RefreshCw size={13} /> Refresh</button>
-                      <button onClick={() => setIsBulkInviteOpen(true)} className="flex items-center gap-1 text-xs text-indigo-600 font-bold uppercase tracking-wider hover:bg-indigo-50 px-3 py-2 rounded-lg transition-colors border border-indigo-200"><Users size={14} /> Bulk Invite</button>
-                      <button onClick={() => setIsAddUserModalOpen(true)} className="flex items-center gap-1 text-sm text-blue-600 font-bold uppercase tracking-wider hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors"><Plus size={16} /> Add User</button>
+                      <button onClick={refreshUsers} className="flex items-center gap-1 text-xs text-slate-900 font-bold uppercase tracking-wider hover:bg-slate-50 px-3 py-2 rounded-xl transition-colors border border-slate-200"><RefreshCw size={13} /> Refresh</button>
+                      <button onClick={() => setIsBulkInviteOpen(true)} className="flex items-center gap-1 text-xs text-indigo-600 font-bold uppercase tracking-wider hover:bg-indigo-50 px-3 py-2 rounded-xl transition-colors border border-indigo-200"><Users size={14} /> Bulk Invite</button>
+                      <button onClick={() => setIsAddUserModalOpen(true)} className="flex items-center gap-1 text-sm text-blue-600 font-bold uppercase tracking-wider hover:bg-blue-50 px-3 py-2 rounded-xl transition-colors"><Plus size={16} /> Add User</button>
                     </div>
                   </div>
                   <div className="overflow-x-auto">
@@ -637,18 +637,18 @@ export const Settings: React.FC = () => {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex justify-end gap-1">
-                                <button title="Edit" onClick={() => setEditingUser(user)} className="p-1.5 text-slate-900 hover:bg-white hover:shadow-sm hover:text-slate-800 rounded-lg transition-all border border-transparent hover:border-slate-100"><Edit2 size={15} /></button>
-                                <button title="Permissions" onClick={() => openPermissionsModal(user)} className="p-1.5 text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors"><Key size={15} /></button>
-                                <button title="Login History" onClick={() => openHistoryModal(user)} className="p-1.5 text-slate-900 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"><History size={15} /></button>
-                                <button title="Send Password Reset" onClick={() => handleAdminResetPassword(user)} className="p-1.5 text-slate-900 hover:bg-violet-50 hover:text-violet-600 rounded-lg transition-colors"><Mail size={15} /></button>
+                                <button title="Edit" onClick={() => setEditingUser(user)} className="p-1.5 text-slate-900 hover:bg-white hover:shadow-sm hover:text-slate-800 rounded-xl transition-all border border-transparent hover:border-slate-100"><Edit2 size={15} /></button>
+                                <button title="Permissions" onClick={() => openPermissionsModal(user)} className="p-1.5 text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-colors"><Key size={15} /></button>
+                                <button title="Login History" onClick={() => openHistoryModal(user)} className="p-1.5 text-slate-900 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-colors"><History size={15} /></button>
+                                <button title="Send Password Reset" onClick={() => handleAdminResetPassword(user)} className="p-1.5 text-slate-900 hover:bg-violet-50 hover:text-violet-600 rounded-xl transition-colors"><Mail size={15} /></button>
                                 <button
                                   title={user.status === 'Inactive' ? 'Reactivate' : 'Suspend'}
                                   onClick={() => handleSuspendUser(user)}
-                                  className={`p-1.5 rounded-lg transition-colors ${user.status === 'Inactive' ? 'text-green-500 hover:bg-green-50' : 'text-slate-900 hover:bg-amber-50 hover:text-amber-500'}`}
+                                  className={`p-1.5 rounded-xl transition-colors ${user.status === 'Inactive' ? 'text-green-500 hover:bg-green-50' : 'text-slate-900 hover:bg-amber-50 hover:text-amber-500'}`}
                                 >
                                   <UserX size={15} />
                                 </button>
-                                <button title="Delete" onClick={() => setUserToDelete(user)} className="p-1.5 text-slate-900 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={15} /></button>
+                                <button title="Delete" onClick={() => setUserToDelete(user)} className="p-1.5 text-slate-900 hover:bg-red-50 hover:text-red-500 rounded-xl transition-colors"><Trash2 size={15} /></button>
                               </div>
                             </td>
                           </tr>
@@ -775,7 +775,7 @@ export const Settings: React.FC = () => {
       {/* Add User Modal */}
       {isAddUserModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
@@ -813,10 +813,10 @@ export const Settings: React.FC = () => {
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setIsAddUserModalOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                <button type="button" onClick={() => setIsAddUserModalOpen(false)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">
                   Cancel
                 </button>
-                <button type="submit" disabled={isUserLoading} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                <button type="submit" disabled={isUserLoading} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
                   {isUserLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   {isUserLoading ? 'Creating...' : 'Create Account'}
                 </button>
@@ -829,7 +829,7 @@ export const Settings: React.FC = () => {
       {/* Edit User Modal */}
       {editingUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
@@ -888,10 +888,10 @@ export const Settings: React.FC = () => {
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">
                   Cancel
                 </button>
-                <button type="submit" disabled={isUserLoading} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-xl font-bold uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                <button type="submit" disabled={isUserLoading} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
                   {isUserLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   {isUserLoading ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -943,10 +943,10 @@ export const Settings: React.FC = () => {
 
               {/* Actions — Cancel first */}
               <div className="flex gap-3 pt-1">
-                <button onClick={() => setUserToDelete(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                <button onClick={() => setUserToDelete(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">
                   Cancel
                 </button>
-                <button onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold uppercase text-xs tracking-wider shadow-lg shadow-red-500/20 transition-colors">
+                <button onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg shadow-red-500/20">
                   Delete Permanently
                 </button>
               </div>
@@ -1019,7 +1019,7 @@ export const Settings: React.FC = () => {
       {/* Permissions Modal */}
       {permissionsUser && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
@@ -1064,7 +1064,7 @@ export const Settings: React.FC = () => {
                             <button
                               key={opt.value}
                               onClick={() => setEditingPermissions(p => ({ ...p, [key]: opt.value as any }))}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                                 editingPermissions[key] === opt.value
                                   ? opt.value === 'none' ? 'bg-red-100 text-red-700' : opt.value === 'read' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                                   : 'bg-white text-slate-900 border border-slate-200 hover:bg-slate-100'
@@ -1174,7 +1174,7 @@ export const Settings: React.FC = () => {
 
               {/* Close button */}
               <div className="flex gap-3 pt-1">
-                <button onClick={() => setHistoryUser(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors">
+                <button onClick={() => setHistoryUser(null)} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">
                   Close
                 </button>
               </div>
@@ -1186,7 +1186,7 @@ export const Settings: React.FC = () => {
       {/* Bulk Invite Modal */}
       {isBulkInviteOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-2xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
@@ -1228,14 +1228,14 @@ export const Settings: React.FC = () => {
                   <div className="flex gap-3 pt-1">
                     <button
                       onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }}
-                      className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                      className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleBulkInvite}
                       disabled={isBulkInviting || !bulkInviteText.trim()}
-                      className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-xs tracking-wider hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                      className="flex-1 py-3 bg-slate-900 text-white rounded-2xl font-bold uppercase text-xs tracking-wider hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
                     >
                       {isBulkInviting ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
                       {isBulkInviting ? 'Sending...' : 'Send Invites'}
@@ -1267,13 +1267,13 @@ export const Settings: React.FC = () => {
                   <div className="flex gap-3 pt-1">
                     <button
                       onClick={() => { setBulkInviteResults([]); setBulkInviteText(''); }}
-                      className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold uppercase text-xs tracking-wider transition-colors"
+                      className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5"
                     >
                       Invite More
                     </button>
                     <button
                       onClick={() => { setIsBulkInviteOpen(false); setBulkInviteResults([]); setBulkInviteText(''); }}
-                      className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-xs tracking-wider hover:bg-slate-800 transition-colors"
+                      className="flex-1 py-3 bg-slate-900 text-white rounded-2xl font-bold uppercase text-xs tracking-wider hover:bg-slate-800 transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
                     >
                       Done
                     </button>
