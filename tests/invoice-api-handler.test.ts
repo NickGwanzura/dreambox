@@ -98,7 +98,7 @@ function mockRes(): VercelResponse & { _status: number; _json: any; _called: boo
 
 // ─── Import the module under test ────────────────────────────────────────────
 
-let handler: (req: VercelRequest, res: VercelResponse) => Promise<void>;
+let handler: (req: VercelRequest, res: VercelResponse) => Promise<VercelResponse | void>;
 
 beforeEach(async () => {
   vi.clearAllMocks();
