@@ -711,7 +711,7 @@ export const PublicWebsite: React.FC = () => {
           {(() => {
             const ytId = heroImageUrl ? getYouTubeIdFromThumbnail(heroImageUrl) : null;
             if (ytId) {
-              const embedUrl = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&modestbranding=1&showinfo=0&rel=0&iv_load_policy=3&playsinline=1`;
+              const embedUrl = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&controls=0&playsinline=1&enablejsapi=1`;
               return (
                 <>
                   <div className="absolute inset-0 overflow-hidden">
