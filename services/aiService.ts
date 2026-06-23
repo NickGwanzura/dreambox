@@ -1,4 +1,4 @@
-import { Billboard, Client } from "../types";
+import { Billboard, Client, Task, Contract } from "../types";
 import { getToken } from "./apiClient";
 import { logger } from "../utils/logger";
 
@@ -7,6 +7,7 @@ type AIOptions = {
   temperature?: number;
   max_tokens?: number;
   response_format?: { type: string };
+  provider?: 'groq' | 'deepseek';
 };
 
 type AIProxyError = Error & {
@@ -42,6 +43,7 @@ async function callAI(
     temperature: opts.temperature ?? 0.7,
     max_tokens: opts.max_tokens || 200,
     ...(opts.response_format ? { response_format: opts.response_format } : {}),
+    ...(opts.provider ? { provider: opts.provider } : {}),
   };
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -316,5 +318,73 @@ Repeat exactly this format for all 5 items.`,
   } catch (e) {
     logAIError('News fetch failed, using mock data', e, { feature: 'fetchIndustryNews' });
     return mockNews;
+  }
+};
+
+export type DailyBriefingContext = {
+  user: { firstName: string; email: string; role: string };
+  myTasks: Pick<Task, 'title' | 'priority' | 'status' | 'dueDate'>[];
+  expiringContracts: Pick<Contract, 'id' | 'details' | 'endDate' | 'billboardId'>[];
+  overdueInvoiceCount: number;
+  upcomingBillingCount: number;
+  totalActiveContracts: number;
+};
+
+export const generateDailyBriefing = async (ctx: DailyBriefingContext): Promise<string> => {
+  const today = new Date().toISOString().split('T')[0];
+  const todayTs = Date.now();
+
+  const overdueTasks = ctx.myTasks.filter(t => t.status !== 'Done' && t.dueDate < today);
+  const dueTodayTasks = ctx.myTasks.filter(t => t.status !== 'Done' && t.dueDate === today);
+  const upcomingTasks = ctx.myTasks.filter(t => t.status !== 'Done' && t.dueDate > today);
+
+  const taskLines = [
+    ...overdueTasks.map(t => `OVERDUE: "${t.title}" (${t.priority} priority, was due ${t.dueDate})`),
+    ...dueTodayTasks.map(t => `DUE TODAY: "${t.title}" (${t.priority} priority)`),
+    ...upcomingTasks.slice(0, 3).map(t => `UPCOMING: "${t.title}" (due ${t.dueDate})`),
+  ];
+
+  const contractLines = ctx.expiringContracts.map(c => {
+    const daysLeft = Math.ceil((new Date(c.endDate).getTime() - todayTs) / 86_400_000);
+    return `Contract ${c.id} (${c.details}) expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'} on ${c.endDate}`;
+  });
+
+  const contextBlock = [
+    `User: ${ctx.user.firstName} | Role: ${ctx.user.role}`,
+    `Today: ${today}`,
+    '',
+    taskLines.length > 0 ? `Tasks:\n${taskLines.join('\n')}` : 'Tasks: None assigned',
+    '',
+    contractLines.length > 0 ? `Expiring contracts (within 30 days):\n${contractLines.join('\n')}` : 'No contracts expiring soon',
+    '',
+    `System: ${ctx.overdueInvoiceCount} overdue invoice(s), ${ctx.upcomingBillingCount} billing(s) due this week, ${ctx.totalActiveContracts} active contracts total`,
+  ].join('\n');
+
+  const fallback = overdueTasks.length > 0
+    ? `${ctx.user.firstName}, you have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''} and ${ctx.expiringContracts.length} contract${ctx.expiringContracts.length !== 1 ? 's' : ''} expiring soon. Review your task list and follow up on renewals today.`
+    : ctx.expiringContracts.length > 0
+      ? `${ctx.user.firstName}, ${ctx.expiringContracts.length} contract${ctx.expiringContracts.length !== 1 ? 's are' : ' is'} expiring within 30 days. Reach out to those clients about renewals.`
+      : `${ctx.user.firstName}, everything looks on track today. Keep an eye on upcoming tasks and contract renewals.`;
+
+  try {
+    return await callAI(
+      [
+        {
+          role: 'system',
+          content: `You are a concise daily briefing assistant for Dreambox Advertising, a billboard advertising company in Zimbabwe.
+Your job is to give each staff member a short, personal, actionable morning briefing based on their data.
+Write 2–3 sentences of natural prose. Be specific, encouraging, and direct.
+Address the user by first name. Prioritise overdue items first. Do not use bullet points or headers.`,
+        },
+        {
+          role: 'user',
+          content: `Generate my daily briefing based on this data:\n\n${contextBlock}`,
+        },
+      ],
+      { provider: 'deepseek', model: 'deepseek-chat', temperature: 0.6, max_tokens: 120 }
+    );
+  } catch (e) {
+    logAIError('Daily briefing failed', e, { feature: 'generateDailyBriefing', user: ctx.user.email });
+    return fallback;
   }
 };

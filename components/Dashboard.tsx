@@ -10,9 +10,9 @@ import {
   Zap, TrendingDown, CheckCircle2, Clock, CreditCard, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet,
   Plus, Receipt
 } from 'lucide-react';
-import { getContracts, getInvoices, getBillboards, getClients, getExpenses, getExpiringContracts, getOverdueInvoices, getUpcomingBillings, getFinancialTrends, subscribe } from '../services/mockData';
+import { getContracts, getInvoices, getBillboards, getClients, getExpenses, getExpiringContracts, getOverdueInvoices, getUpcomingBillings, getFinancialTrends, getTasks, subscribe } from '../services/mockData';
 import { BillboardType } from '../types';
-import { generateGreeting, fetchIndustryNews } from '../services/aiService';
+import { generateGreeting, fetchIndustryNews, generateDailyBriefing } from '../services/aiService';
 import { getCurrentUser } from '../services/authServiceSecure';
 import { logger } from '../utils/logger';
 import { getGrossProfit, getNetProfit, getTotalMonthlyRecurringRevenue } from '../services/profitAnalytics';
@@ -25,6 +25,9 @@ export const Dashboard: React.FC = () => {
   const [selectedNews, setSelectedNews] = useState<{ title: string; summary: string; source?: string; date?: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [briefing, setBriefing] = useState<string | null>(null);
+  const [briefingLoading, setBriefingLoading] = useState(false);
+  const [briefingDismissed, setBriefingDismissed] = useState(false);
 
   const currentUser = getCurrentUser();
 
@@ -57,6 +60,61 @@ export const Dashboard: React.FC = () => {
     return () => { isMounted = false; };
   }, [currentUser?.firstName]);
 
+  useEffect(() => {
+    if (!currentUser?.email) return;
+    const today = new Date().toISOString().split('T')[0];
+    const cacheKey = `dreambox_briefing_${currentUser.email}_${today}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) { setBriefing(cached); return; }
+
+    let isMounted = true;
+    setBriefingLoading(true);
+
+    const buildAndFetch = async () => {
+      const allContracts   = getContracts();
+      const allTasks       = getTasks();
+      const allInvoices    = getInvoices();
+      const allUpcoming    = getUpcomingBillings();
+      const today          = new Date().toISOString().split('T')[0];
+
+      const userHandle = currentUser.firstName?.toLowerCase() || currentUser.email.toLowerCase();
+      const myTasks = allTasks.filter(t =>
+        t.status !== 'Done' &&
+        (t.assignedTo?.toLowerCase().includes(userHandle) || currentUser.role === 'Admin')
+      ).map(t => ({ title: t.title, priority: t.priority, status: t.status, dueDate: t.dueDate }));
+
+      const expiring = getExpiringContracts().filter(c =>
+        !c.assignedTo || c.assignedTo.toLowerCase().includes(userHandle) || currentUser.role === 'Admin'
+      ).map(c => ({ id: c.id, details: c.details, endDate: c.endDate, billboardId: c.billboardId }));
+
+      const overdueCount   = allInvoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice').length;
+      const upcomingCount  = allUpcoming.length;
+      const activeContracts = allContracts.filter(c => c.status === 'Active').length;
+
+      try {
+        const text = await generateDailyBriefing({
+          user: { firstName: currentUser.firstName || 'there', email: currentUser.email, role: currentUser.role || 'Staff' },
+          myTasks,
+          expiringContracts: expiring,
+          overdueInvoiceCount: overdueCount,
+          upcomingBillingCount: upcomingCount,
+          totalActiveContracts: activeContracts,
+        });
+        if (isMounted) {
+          setBriefing(text);
+          sessionStorage.setItem(cacheKey, text);
+        }
+      } catch (e) {
+        logger.error('Briefing failed:', e);
+      } finally {
+        if (isMounted) setBriefingLoading(false);
+      }
+    };
+
+    buildAndFetch();
+    return () => { isMounted = false; };
+  }, [currentUser?.email]);
+
   const contracts  = useMemo(() => getContracts(),  [refreshKey]);
   const invoices   = useMemo(() => getInvoices(),   [refreshKey]);
   const billboards = useMemo(() => getBillboards(), [refreshKey]);
@@ -83,7 +141,7 @@ export const Dashboard: React.FC = () => {
     // Outstanding balance = all pending + overdue invoices
     const outstanding = invoices
       .filter(i => typeIs(i.type, 'Invoice') && (i.status === 'Pending' || i.status === 'Overdue'))
-      .reduce((sum, i) => sum + i.total, 0);
+      .reduce((sum, i) => sum + (i.total ?? 0), 0);
 
     // Collected this month (receipts)
     const collectedThisMonth = invoices
@@ -91,7 +149,7 @@ export const Dashboard: React.FC = () => {
         const d = new Date(i.date);
         return typeIs(i.type, 'Receipt') && d.getMonth() === thisMonth && d.getFullYear() === thisYear;
       })
-      .reduce((sum, i) => sum + i.total, 0);
+      .reduce((sum, i) => sum + (i.total ?? 0), 0);
 
     // Collected last month
     const collectedLastMonth = invoices
@@ -99,7 +157,7 @@ export const Dashboard: React.FC = () => {
         const d = new Date(i.date);
         return typeIs(i.type, 'Receipt') && d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
       })
-      .reduce((sum, i) => sum + i.total, 0);
+      .reduce((sum, i) => sum + (i.total ?? 0), 0);
 
     // Billed this month
     const billedThisMonth = invoices
@@ -107,7 +165,7 @@ export const Dashboard: React.FC = () => {
         const d = new Date(i.date);
         return typeIs(i.type, 'Invoice') && d.getMonth() === thisMonth && d.getFullYear() === thisYear;
       })
-      .reduce((sum, i) => sum + i.total, 0);
+      .reduce((sum, i) => sum + (i.total ?? 0), 0);
 
     // Billed last month
     const billedLastMonth = invoices
@@ -115,7 +173,7 @@ export const Dashboard: React.FC = () => {
         const d = new Date(i.date);
         return typeIs(i.type, 'Invoice') && d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
       })
-      .reduce((sum, i) => sum + i.total, 0);
+      .reduce((sum, i) => sum + (i.total ?? 0), 0);
 
     const activeContractsCount = activeContractsList.length;
     const lastMonthActiveContracts = contracts.filter(c => {
@@ -124,7 +182,7 @@ export const Dashboard: React.FC = () => {
     }).length;
 
     // Total Revenue (all invoices)
-    const totalRevenue = invoices.filter(i => typeIs(i.type, 'Invoice')).reduce((s, i) => s + i.total, 0);
+    const totalRevenue = invoices.filter(i => typeIs(i.type, 'Invoice')).reduce((s, i) => s + (i.total ?? 0), 0);
 
     // Gross Profit & COGS from profit analytics
     const gp = getGrossProfit();
@@ -298,6 +356,36 @@ export const Dashboard: React.FC = () => {
           <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </div>
+
+      {/* AI Daily Briefing */}
+      {!briefingDismissed && (briefingLoading || briefing) && (
+        <div className="relative bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl px-5 py-4 shadow-lg shadow-indigo-500/20 overflow-hidden">
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+          <div className="relative flex items-start gap-3">
+            <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+              <Zap size={15} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-wider text-white/60 mb-1">Your Daily Briefing</p>
+              {briefingLoading && !briefing ? (
+                <div className="space-y-1.5">
+                  <div className="h-3 bg-white/20 rounded-full w-3/4 animate-pulse" />
+                  <div className="h-3 bg-white/20 rounded-full w-1/2 animate-pulse" />
+                </div>
+              ) : (
+                <p className="text-sm text-white leading-relaxed">{briefing}</p>
+              )}
+            </div>
+            <button
+              onClick={() => setBriefingDismissed(true)}
+              className="text-white/50 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10 shrink-0"
+              aria-label="Dismiss briefing"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -642,7 +730,7 @@ export const Dashboard: React.FC = () => {
                         <p className="text-xs font-semibold text-slate-900">{getClientName(inv.clientId)}</p>
                         <p className="text-[10px] text-slate-900">{inv.date}</p>
                       </div>
-                      <span className="text-xs font-bold text-red-600">${inv.total.toLocaleString()}</span>
+                      <span className="text-xs font-bold text-red-600">${(inv.total ?? 0).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -688,7 +776,7 @@ export const Dashboard: React.FC = () => {
                     <p className="text-xs font-semibold text-slate-900 truncate">{getClientName(r.clientId)}</p>
                     <p className="text-[10px] text-slate-900">{r.date} · {r.paymentMethod || 'Payment'}</p>
                   </div>
-                  <span className="text-xs font-bold text-emerald-600 ml-2 shrink-0">+${r.total.toLocaleString()}</span>
+                  <span className="text-xs font-bold text-emerald-600 ml-2 shrink-0">+${(r.total ?? 0).toLocaleString()}</span>
                 </div>
               )) : (
                 <p className="text-xs text-slate-900 text-center py-4">No payments recorded yet</p>
