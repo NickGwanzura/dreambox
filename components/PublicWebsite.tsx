@@ -839,18 +839,37 @@ export const PublicWebsite: React.FC = () => {
                           return billboards.map((board, i) => {
                             const t = themes[i % themes.length];
                             const headline = headlines[i % headlines.length].split('\n');
+                            const hasImage = !!board.imageUrl;
                             return (
                               <div
                                 key={board.id}
-                                className="absolute inset-0 flex items-center justify-between px-8 transition-opacity duration-700"
-                                style={{ opacity: i === heroSlide ? 1 : 0, background: t.bg }}
+                                className="absolute inset-0 flex items-center justify-between transition-opacity duration-700"
+                                style={{ opacity: i === heroSlide ? 1 : 0, background: hasImage ? undefined : t.bg }}
                               >
-                                <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: t.pattern, backgroundSize: '30px 30px' }} />
-                                <div className={`absolute right-4 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full ${t.glowCls} blur-2xl`} />
-                                <div className="relative z-10 min-w-0">
-                                  {board.location && <div className={`text-[8px] font-black uppercase tracking-[0.3em] ${t.accentCls} opacity-60 truncate`}>{board.location}</div>}
+                                {/* Billboard photo — shown when available */}
+                                {hasImage && (
+                                  <>
+                                    <img
+                                      src={board.imageUrl}
+                                      alt={board.name}
+                                      className="absolute inset-0 h-full w-full object-cover"
+                                    />
+                                    {/* Dark overlay so text stays legible over photo */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/60 to-slate-950/30" />
+                                  </>
+                                )}
+                                {/* Gradient pattern — shown when no photo */}
+                                {!hasImage && (
+                                  <>
+                                    <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: t.pattern, backgroundSize: '30px 30px' }} />
+                                    <div className={`absolute right-4 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full ${t.glowCls} blur-2xl`} />
+                                  </>
+                                )}
+                                {/* Text content */}
+                                <div className="relative z-10 min-w-0 px-8">
+                                  {board.location && <div className={`text-[8px] font-black uppercase tracking-[0.3em] ${hasImage ? 'text-white/50' : t.accentCls + ' opacity-60'} truncate`}>{board.location}</div>}
                                   <div className="mt-2 text-[1.55rem] font-black leading-none text-white">
-                                    {headline[0]}<br /><span className={t.accentCls}>{headline[1]}</span>
+                                    {headline[0]}<br /><span className={hasImage ? 'text-indigo-300' : t.accentCls}>{headline[1]}</span>
                                   </div>
                                   {board.width && board.height && (
                                     <div className="mt-2 text-[8px] text-white/30">
@@ -858,11 +877,12 @@ export const PublicWebsite: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
-                                <div className="relative z-10 ml-6 shrink-0">
-                                  <div className={`flex flex-col items-center gap-1 rounded-xl border ${t.borderCls} ${t.badgeBg} px-4 py-2.5`}>
-                                    <span className={`text-[8px] font-black uppercase tracking-widest ${t.labelCls}`}>Size</span>
+                                {/* Size badge */}
+                                <div className="relative z-10 mr-8 shrink-0">
+                                  <div className={`flex flex-col items-center gap-1 rounded-xl border ${hasImage ? 'border-white/15 bg-slate-950/60 backdrop-blur-sm' : `${t.borderCls} ${t.badgeBg}`} px-4 py-2.5`}>
+                                    <span className={`text-[8px] font-black uppercase tracking-widest ${hasImage ? 'text-white/40' : t.labelCls}`}>Size</span>
                                     <span className="text-xl font-black text-white">{board.width}×{board.height}</span>
-                                    <span className={`text-[8px] ${t.subCls}`}>metres</span>
+                                    <span className={`text-[8px] ${hasImage ? 'text-white/30' : t.subCls}`}>metres</span>
                                   </div>
                                 </div>
                               </div>
