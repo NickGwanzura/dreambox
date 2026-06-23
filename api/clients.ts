@@ -10,6 +10,9 @@ const clientSchema = z.object({
   contactPerson: z.string().min(1, 'Contact person is required'),
   email: z.string().email('Invalid email format').optional().or(z.literal('')),
   phone: z.string().min(1, 'Phone is required'),
+  streetAddress: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

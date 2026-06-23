@@ -45,7 +45,7 @@ export const ClientList: React.FC = () => {
     );
   }, [clients, searchQuery]);
 
-  const [newClient, setNewClient] = useState<Partial<Client>>({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined, streetAddress: '', city: '', country: '' });
+  const [newClient, setNewClient] = useState<Partial<Client>>({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined, streetAddress: '', city: '', country: 'Zimbabwe' });
 
   // Real-time Subscription
   useEffect(() => {
@@ -68,12 +68,12 @@ export const ClientList: React.FC = () => {
         billingDay: newClient.billingDay,
         streetAddress: newClient.streetAddress || '',
         city: newClient.city || '',
-        country: newClient.country || '',
+        country: 'Zimbabwe',
     };
     try {
         await addClient(client);
         setIsAddModalOpen(false);
-        setNewClient({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined, streetAddress: '', city: '', country: '' });
+        setNewClient({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined, streetAddress: '', city: '', country: 'Zimbabwe' });
     } catch (err: any) {
         alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
     }
@@ -294,7 +294,7 @@ export const ClientList: React.FC = () => {
                     <MinimalInput label="Street Address" value={editingClient.streetAddress || ''} onChange={(e: any) => setEditingClient({...editingClient, streetAddress: e.target.value})} />
                     <div className="grid grid-cols-2 gap-6">
                       <MinimalInput label="City" value={editingClient.city || ''} onChange={(e: any) => setEditingClient({...editingClient, city: e.target.value})} />
-                      <MinimalInput label="Country" value={editingClient.country || ''} onChange={(e: any) => setEditingClient({...editingClient, country: e.target.value})} />
+                      <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-400 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-300">· locked</span></div></div>
                     </div>
                   </div>
                 </div>
@@ -469,7 +469,7 @@ export const ClientList: React.FC = () => {
                             <MinimalInput label="Street Address" value={newClient.streetAddress || ''} onChange={(e: any) => setNewClient({...newClient, streetAddress: e.target.value})} />
                             <div className="grid grid-cols-2 gap-6">
                                 <MinimalInput label="City" value={newClient.city || ''} onChange={(e: any) => setNewClient({...newClient, city: e.target.value})} />
-                                <MinimalInput label="Country" value={newClient.country || ''} onChange={(e: any) => setNewClient({...newClient, country: e.target.value})} />
+                                <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-400 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-300">· locked</span></div></div>
                             </div>
                         </div>
                     </div>
@@ -560,7 +560,7 @@ export const ClientList: React.FC = () => {
                             <MinimalInput label="Street Address" value={editingClient.streetAddress || ''} onChange={(e: any) => setEditingClient({...editingClient, streetAddress: e.target.value})} />
                             <div className="grid grid-cols-2 gap-6">
                                 <MinimalInput label="City" value={editingClient.city || ''} onChange={(e: any) => setEditingClient({...editingClient, city: e.target.value})} />
-                                <MinimalInput label="Country" value={editingClient.country || ''} onChange={(e: any) => setEditingClient({...editingClient, country: e.target.value})} />
+                                <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-400 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-300">· locked</span></div></div>
                             </div>
                         </div>
                     </div>

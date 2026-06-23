@@ -59,6 +59,9 @@ export function pickClientData(body: any) {
     phone:         body.phone,
     status:        body.status                ?? undefined,
     billingDay:    body.billingDay != null    ? Number(body.billingDay) : undefined,
+    streetAddress: body.streetAddress         ?? undefined,
+    city:          body.city                  ?? undefined,
+    country:       body.country               ?? undefined,
   };
 }
 

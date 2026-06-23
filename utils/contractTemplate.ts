@@ -169,8 +169,9 @@ export function buildTemplateData(
   const months = monthsBetween(contract.startDate, contract.endDate);
   const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || '[address]';
   // Prefer address from the client record; fall back to CRM if not set
-  const clientAddress = [client.streetAddress, client.city, client.country].filter(Boolean).join(', ');
-  const crmCompany = clientAddress ? null : getCRMCompanies().find(c => c.name.toLowerCase() === client.companyName.toLowerCase());
+  const clientCountry = client.country || 'Zimbabwe';
+  const clientAddress = [client.streetAddress, client.city, clientCountry].filter(Boolean).join(', ');
+  const crmCompany = (client.streetAddress || client.city) ? null : getCRMCompanies().find(c => c.name.toLowerCase() === client.companyName.toLowerCase());
   const advertiserAddress = clientAddress || [crmCompany?.streetAddress, crmCompany?.city, crmCompany?.country].filter(Boolean).join(', ') || '[address on file]';
 
   const base: TemplateData = {
