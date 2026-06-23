@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, addContract, updateContract, subscribe, getEffectiveVatRate, endContract, permanentDeleteContract } from '../services/mockData';
+import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, addContract, updateContract, updateClient, subscribe, getEffectiveVatRate, endContract, permanentDeleteContract } from '../services/mockData';
 import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
 import { SendDocumentModal } from './SendDocumentModal';
@@ -23,6 +23,7 @@ export const ContractList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [contractToPermanentDelete, setContractToPermanentDelete] = useState<Contract | null>(null);
   const [isDeletingPermanent, setIsDeletingPermanent] = useState(false);
+  const [editClientAddress, setEditClientAddress] = useState<{ streetAddress: string; city: string } | null>(null);
   const [typeFilter, setTypeFilter] = useState<'All' | 'Static' | 'Digital'>('All');
   const [newContract, setNewContract] = useState<Contract | null>(null);
 
@@ -56,7 +57,7 @@ export const ContractList: React.FC = () => {
         if (sendModal) { setSendModal(null); return; }
         if (renewContract) { setRenewContract(null); return; }
         if (newContract) { setNewContract(null); return; }
-        if (editContract) { setEditContract(null); return; }
+        if (editContract) { setEditContract(null); setEditClientAddress(null); return; }
         if (selectedContract) { setSelectedContract(null); return; }
       }
     };
@@ -280,7 +281,21 @@ export const ContractList: React.FC = () => {
           
           console.log('[ContractList] Calling updateContract with:', updatedContract);
           updateContract(updatedContract);
-          
+
+          // Save address to the client record if it was changed
+          if (editClientAddress) {
+            const currentClient = clients.find(c => c.id === editContract.clientId);
+            if (currentClient) {
+              const addressChanged =
+                editClientAddress.streetAddress !== (currentClient.streetAddress || '') ||
+                editClientAddress.city !== (currentClient.city || '');
+              if (addressChanged) {
+                await updateClient({ ...currentClient, ...editClientAddress, country: 'Zimbabwe' });
+              }
+            }
+          }
+          setEditClientAddress(null);
+
           // Force a complete refresh by getting the latest data
           const latestContracts = getContracts();
           console.log('[ContractList] Post-update contract count:', latestContracts.length);
@@ -518,7 +533,7 @@ export const ContractList: React.FC = () => {
                 <button onClick={() => setSelectedContract(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-1">
                   <Eye size={14} /> <span className="sm:hidden">View</span><span className="hidden sm:inline">View</span>
                 </button>
-                <button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-1">
+                <button onClick={() => { console.log('Edit clicked for contract:', contract.id); setEditContract({...contract}); setEditError(null); const c = clients.find(cl => cl.id === contract.clientId); setEditClientAddress({ streetAddress: c?.streetAddress || '', city: c?.city || '' }); }} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-1">
                   <Edit size={14} /> <span className="sm:hidden">Edit</span><span className="hidden sm:inline">Edit</span>
                 </button>
                 <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl transition-colors flex items-center gap-1">
@@ -688,6 +703,39 @@ export const ContractList: React.FC = () => {
                    <p className="font-semibold text-slate-800 text-sm font-mono">{editContract.id}</p>
                  </div>
                </div>
+
+              {/* Advertiser Address */}
+              {editClientAddress !== null && (
+                <div className="space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Advertiser Address <span className="text-slate-400 font-normal normal-case tracking-normal">(appears on contract PDF)</span></p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-900 mb-2">Street Address</label>
+                      <input
+                        type="text"
+                        value={editClientAddress.streetAddress}
+                        onChange={(e) => setEditClientAddress({ ...editClientAddress, streetAddress: e.target.value })}
+                        placeholder="e.g. 54 Borrowdale Road"
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-900 mb-2">City</label>
+                      <input
+                        type="text"
+                        value={editClientAddress.city}
+                        onChange={(e) => setEditClientAddress({ ...editClientAddress, city: e.target.value })}
+                        placeholder="e.g. Harare"
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-800"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-1">
+                    <span className="text-xs text-slate-400">Country:</span>
+                    <span className="text-xs font-medium text-slate-500">Zimbabwe · locked</span>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
                 <p className="text-xs text-amber-700 font-medium flex items-center gap-2"><Edit size={14} /> Edit dates, rates, fees, billboard assignment, and side/slot before saving.</p>
