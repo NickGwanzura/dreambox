@@ -742,9 +742,13 @@ const recalcBillboardAvailability = (billboardId: string) => {
             else { b.sideBStatus = 'Available'; b.sideBClientId = undefined; }
         }
     } else if (b.type === BillboardType.LED) {
-        const contractSlots = contracts
-            .filter(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active')
-            .reduce((sum, c) => sum + (c.slotNumber || 1), 0);
+        // Count unique occupied slot numbers — summing slot numbers was incorrectly reporting full boards
+        const occupiedSlotNumbers = new Set(
+            contracts
+                .filter(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active' && typeof c.slotNumber === 'number')
+                .map(c => c.slotNumber!)
+        );
+        const contractSlots = occupiedSlotNumbers.size;
         const invoiceSlots = invoices
             .filter(i => String(i.type || '').toLowerCase() === 'invoice')
             .reduce((acc, i) => acc + (i.items || [])
