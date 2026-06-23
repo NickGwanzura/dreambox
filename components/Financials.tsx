@@ -379,8 +379,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       if (activeTab === 'Invoices') matchesType = iType === 'invoice';
       else if (activeTab === 'Receipts') matchesType = iType === 'receipt';
       const searchLower = searchTerm.toLowerCase();
-      const clientName = allClients.find(c => c.id === i.clientId)?.companyName.toLowerCase() || '';
-      const matchesSearch = i.id.toLowerCase().includes(searchLower) || clientName.includes(searchLower) || (i.paymentReference && i.paymentReference.toLowerCase().includes(searchLower));
+      const clientName = String(allClients.find(c => c.id === i.clientId)?.companyName || '').toLowerCase();
+      const matchesSearch = String(i.id || '').toLowerCase().includes(searchLower) || clientName.includes(searchLower) || (i.paymentReference && i.paymentReference.toLowerCase().includes(searchLower));
       return matchesType && matchesSearch;
   });
 
@@ -613,7 +613,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                               const allBillboards = getBillboards();
                               const search = billboardSearch.toLowerCase();
                               const filteredBillboards = search
-                                ? allBillboards.filter(b => b.name.toLowerCase().includes(search) || b.location.toLowerCase().includes(search) || b.town.toLowerCase().includes(search))
+                                ? allBillboards.filter(b => String(b.name || '').toLowerCase().includes(search) || String(b.location || '').toLowerCase().includes(search) || String(b.town || '').toLowerCase().includes(search))
                                 : allBillboards;
                               const hasSelections = Object.values(billboardSelections).some(s => s.sideA || s.sideB || (s.slots && s.slots > 0));
                               return (
