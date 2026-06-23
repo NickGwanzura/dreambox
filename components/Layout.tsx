@@ -10,6 +10,9 @@ import { isConfigured as isNeonConfigured, checkConnection as checkNeonConnectio
 import { useToast } from './ToastProvider';
 import {
   getSystemAlertCount,
+  getExpiringContracts,
+  getOverdueInvoices,
+  markOverdueInvoices,
   triggerAutoBackup,
   runAutoBilling,
   runMaintenanceCheck,
@@ -100,9 +103,11 @@ const ALL_SECTIONS: Section[] = [
 export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+  const [alertOpen, setAlertOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickCreateType, setQuickCreateType] = useState<DocType>('Quotation');
+  const alertPanelRef = useRef<HTMLDivElement>(null);
   const syncStatus = useSync();
 
   const [user, setUser] = useState<Awaited<ReturnType<typeof getCurrentUser>>>(
@@ -178,6 +183,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [sidebarOpen]);
 
+  useEffect(() => {
+    if (!alertOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (alertPanelRef.current && !alertPanelRef.current.contains(e.target as Node)) {
+        setAlertOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [alertOpen]);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchCurrentX.current = e.touches[0].clientX;
@@ -218,7 +234,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
     const alertInterval     = setInterval(() => setAlertCount(getSystemAlertCount()), ALERT_CHECK_INTERVAL_MS);
     const backupInterval    = setInterval(() => triggerAutoBackup(), BACKUP_INTERVAL_MS);
-    const billingInterval   = setInterval(() => runAutoBilling(), BILLING_INTERVAL_MS);
+    const billingInterval   = setInterval(() => { runAutoBilling(); markOverdueInvoices(); }, BILLING_INTERVAL_MS);
     const maintenanceInterval = setInterval(() => runMaintenanceCheck(), MAINTENANCE_INTERVAL_MS);
     intervalsRef.current = [alertInterval, backupInterval, billingInterval, maintenanceInterval];
 
@@ -448,19 +464,97 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             </button>
 
             {/* Alerts Bell */}
-            <button
-              onClick={() => onNavigate('dashboard')}
-              className="relative p-2 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
-              title={`${alertCount} System Alerts`}
-              aria-label={`${alertCount} notifications`}
-            >
-              <Bell size={20} />
-              {alertCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white animate-pulse">
-                  {alertCount > 9 ? '9+' : alertCount}
-                </span>
-              )}
-            </button>
+            <div className="relative" ref={alertPanelRef}>
+              <button
+                onClick={() => setAlertOpen(o => !o)}
+                className={`relative p-2 rounded-full transition-all ${alertOpen ? 'text-indigo-600 bg-indigo-50' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                title={`${alertCount} System Alerts`}
+                aria-label={`${alertCount} notifications`}
+                aria-expanded={alertOpen}
+              >
+                <Bell size={20} />
+                {alertCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-white animate-pulse">
+                    {alertCount > 9 ? '9+' : alertCount}
+                  </span>
+                )}
+              </button>
+
+              {alertOpen && (() => {
+                const expiring = getExpiringContracts();
+                const overdue  = getOverdueInvoices();
+                const empty    = expiring.length === 0 && overdue.length === 0;
+                return (
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                      <p className="text-sm font-bold text-slate-900">Notifications</p>
+                      {!empty && <span className="text-[10px] font-bold px-2 py-0.5 bg-red-100 text-red-600 rounded-full">{expiring.length + overdue.length} alerts</span>}
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+                      {empty && (
+                        <div className="px-4 py-8 text-center text-sm text-slate-400">
+                          <Bell size={24} className="mx-auto mb-2 opacity-30" />
+                          All clear — no alerts right now
+                        </div>
+                      )}
+
+                      {overdue.length > 0 && (
+                        <div>
+                          <p className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-wider text-red-500">Overdue Invoices</p>
+                          {overdue.slice(0, 5).map(inv => (
+                            <button
+                              key={inv.id}
+                              onClick={() => { onNavigate('invoices'); setAlertOpen(false); }}
+                              className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-slate-800 truncate">{inv.id}</p>
+                                <p className="text-[11px] text-slate-400">${(inv.total || 0).toLocaleString()} · overdue</p>
+                              </div>
+                            </button>
+                          ))}
+                          {overdue.length > 5 && <p className="px-4 pb-2 text-[11px] text-slate-400">+{overdue.length - 5} more</p>}
+                        </div>
+                      )}
+
+                      {expiring.length > 0 && (
+                        <div>
+                          <p className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-wider text-amber-500">Expiring Soon</p>
+                          {expiring.slice(0, 5).map(c => {
+                            const daysLeft = Math.ceil((new Date(c.endDate).getTime() - Date.now()) / 86400000);
+                            return (
+                              <button
+                                key={c.id}
+                                onClick={() => { onNavigate('rentals'); setAlertOpen(false); }}
+                                className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left"
+                              >
+                                <span className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-slate-800 truncate">{c.id}</p>
+                                  <p className="text-[11px] text-slate-400">{daysLeft}d left · expires {c.endDate}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {expiring.length > 5 && <p className="px-4 pb-2 text-[11px] text-slate-400">+{expiring.length - 5} more</p>}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="px-4 py-3 border-t border-slate-100">
+                      <button
+                        onClick={() => { onNavigate('dashboard'); setAlertOpen(false); }}
+                        className="w-full text-center text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                      >
+                        View all on Dashboard →
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </header>
 

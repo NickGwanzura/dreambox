@@ -1436,7 +1436,7 @@ export const markOverdueInvoices = async () => {
   }
 };
 
-export const getOverdueInvoices = () => { markOverdueInvoices(); return invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice'); };
+export const getOverdueInvoices = () => invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice');
 
 export const getSystemAlertCount = () => getExpiringContracts().length + invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice').length;
 
