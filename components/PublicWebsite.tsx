@@ -359,6 +359,25 @@ export const PublicWebsite: React.FC = () => {
       })
       .catch(() => undefined);
 
+    fetch('/api/public-profile')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!cancelled && data) {
+          if (data.heroImageUrl) {
+            setHeroImageUrl(data.heroImageUrl);
+          }
+          if (data.partnerLogos) {
+            try {
+              const parsed = JSON.parse(data.partnerLogos);
+              if (Array.isArray(parsed) && parsed.length) {
+                setPartnerLogos(parsed);
+              }
+            } catch { /* ignore parse errors */ }
+          }
+        }
+      })
+      .catch(() => undefined);
+
     return () => { cancelled = true; };
   }, []);
 
