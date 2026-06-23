@@ -22,11 +22,24 @@ const scaleRgb = (c: RGB, factor: number): RGB => [
 type LogoInfo = { pngDataUrl: string; width: number; height: number; primary: RGB; accent: RGB };
 
 const prepareLogoForPdf = (logoDataUrl?: string | null): Promise<LogoInfo | null> => {
+    if (!logoDataUrl) return Promise.resolve(null);
+
+    // If it's a remote URL (R2/CDN), fetch it as a blob and convert to data URL first
+    // so the canvas draw doesn't hit cross-origin taint issues.
+    if (!logoDataUrl.startsWith('data:')) {
+        return fetch(logoDataUrl)
+            .then(r => r.blob())
+            .then(blob => new Promise<string>((res, rej) => {
+                const reader = new FileReader();
+                reader.onloadend = () => res(reader.result as string);
+                reader.onerror = rej;
+                reader.readAsDataURL(blob);
+            }))
+            .then(dataUrl => prepareLogoForPdf(dataUrl))
+            .catch(() => null);
+    }
+
     return new Promise((resolve) => {
-        if (!logoDataUrl || !logoDataUrl.startsWith('data:image')) {
-            resolve(null);
-            return;
-        }
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {

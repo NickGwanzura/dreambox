@@ -1,5 +1,6 @@
 import { Billboard, Client, CompanyProfile, Contract, BillboardType } from '../types';
 import { VAT_RATE, formatVatPercent } from '../services/constants';
+import { getCRMCompanies } from '../services/crmService';
 
 export const CONTRACT_TEMPLATE_PLACEHOLDERS = [
   { key: 'contract_number', label: 'Contract reference (the contract ID, e.g. C-1234)' },
@@ -167,7 +168,8 @@ export function buildTemplateData(
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const months = monthsBetween(contract.startDate, contract.endDate);
   const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || '[address]';
-  const advertiserAddress = '[address on file]';
+  const crmCompany = getCRMCompanies().find(c => c.name.toLowerCase() === client.companyName.toLowerCase());
+  const advertiserAddress = [crmCompany?.streetAddress, crmCompany?.city, crmCompany?.country].filter(Boolean).join(', ') || '[address on file]';
 
   const base: TemplateData = {
     contract_number: contract.id,
