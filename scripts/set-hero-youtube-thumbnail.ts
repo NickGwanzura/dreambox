@@ -7,14 +7,23 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaNeon } from '@prisma/adapter-neon';
 
 const YT_THUMB = 'https://img.youtube.com/vi/30hzTKg7WFg/maxresdefault.jpg';
 
 async function main() {
-  const prisma = new PrismaClient();
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    console.error('❌ DATABASE_URL is not set. Run via: railway run npx tsx scripts/set-hero-youtube-thumbnail.ts');
+    process.exit(1);
+  }
+
+  const adapter = new PrismaNeon({ connectionString: databaseUrl });
+  const prisma = new PrismaClient({ adapter });
 
   try {
     console.log('📡 Updating heroImageUrl in production database…');
+    console.log(`   URL: ${databaseUrl.slice(0, 30)}…`);
 
     const updated = await prisma.companyProfile.upsert({
       where: { id: 'profile_v1' },
