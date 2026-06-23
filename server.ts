@@ -287,9 +287,10 @@ function startCronScheduler() {
   // ─── Back-online notification at maintenance end time ──────────────────────
   const now = Date.now();
   const targetMs = MAINTENANCE_END.getTime();
-  const delayMs = Math.max(0, targetMs - now) + 5_000; // 5s grace after target
+  const rawDelayMs = targetMs - now;
+  const delayMs = rawDelayMs + 5_000; // 5s grace after target
 
-  if (delayMs > 0 && delayMs < 86_400_000) {
+  if (rawDelayMs > 0 && delayMs < 86_400_000) {
     // Only schedule if the target is within the next 24 hours
     const timeoutId = setTimeout(async () => {
       log.boot(`  Back-online        →  scheduled after maintenance end, notifying users...`);
