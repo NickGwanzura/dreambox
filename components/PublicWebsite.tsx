@@ -695,40 +695,47 @@ export const PublicWebsite: React.FC = () => {
             </>
           ) : (
             <>
-              {/* Depth gradient — base: richer indigo-to-violet-to-navy */}
-              <div className="absolute inset-0 bg-[linear-gradient(145deg,#030712_0%,#0c0f2e_25%,#160c3a_55%,#06091a_100%)]" />
-              {/* Radial glow — top-right indigo (brighter) */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_65%_at_76%_6%,rgba(99,102,241,0.48)_0%,transparent_58%)]" />
+              {/* Depth gradient — base: rich indigo-to-violet-to-navy */}
+              <div className="absolute inset-0 bg-[linear-gradient(145deg,#020510_0%,#0a0d2a_25%,#130938_55%,#050817_100%)]" />
+              {/* Radial glow — top-right indigo (vivid) */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_65%_at_76%_6%,rgba(99,102,241,0.65)_0%,transparent_58%)]" />
               {/* Radial glow — mid-right violet accent */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_88%_52%,rgba(139,92,246,0.28)_0%,transparent_55%)]" />
-              {/* Radial glow — bottom-left violet (brighter) */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_48%_at_4%_82%,rgba(109,40,217,0.30)_0%,transparent_52%)]" />
-              {/* Diagonal vibrant accent band — slashes across the right half */}
-              <div className="absolute inset-0 opacity-[0.07]" style={{ background: 'linear-gradient(125deg, transparent 38%, rgba(99,102,241,0.9) 48%, rgba(139,92,246,0.9) 52%, transparent 62%)' }} />
-              {/* Animated orb — primary (brighter) */}
-              <div className="absolute right-[10%] top-[10%] h-[560px] w-[560px] animate-glow-pulse rounded-full bg-indigo-500/[0.18] blur-[130px]" />
-              {/* Animated orb — secondary (brighter, offset phase) */}
-              <div className="absolute left-[3%] bottom-[20%] h-[400px] w-[400px] animate-glow-pulse rounded-full bg-violet-600/[0.16] blur-[105px]" style={{ animationDelay: '-4s' }} />
-              {/* Animated orb — tertiary cyan accent (brighter) */}
-              <div className="absolute right-[3%] bottom-[8%] h-[280px] w-[280px] animate-glow-pulse rounded-full bg-cyan-500/[0.12] blur-[85px]" style={{ animationDelay: '-7s' }} />
-              {/* Animated orb — center-left warm accent */}
-              <div className="absolute left-[30%] top-[40%] h-[220px] w-[220px] animate-glow-pulse rounded-full bg-violet-400/[0.08] blur-[80px]" style={{ animationDelay: '-2s' }} />
-              {/* Perspective floor grid — recedes to horizon */}
-              <div className="hero-depth-grid absolute inset-0 opacity-[0.22]" />
-              {/* Billboard silhouette shapes — decorative geometric outlines */}
-              <div className="absolute right-[8%] top-[18%] hidden h-36 w-64 rounded-sm border border-indigo-400/[0.07] xl:block" />
-              <div className="absolute right-[12%] top-[22%] hidden h-28 w-52 rounded-sm border border-violet-400/[0.05] xl:block" style={{ transform: 'translateX(8px) translateY(8px)' }} />
-              {/* Edge vignette — darkens corners to push depth inward */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_75%_at_48%_40%,transparent_22%,rgba(2,6,23,0.72)_100%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_88%_52%,rgba(139,92,246,0.42)_0%,transparent_55%)]" />
+              {/* Radial glow — bottom-left violet */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_48%_at_4%_82%,rgba(109,40,217,0.44)_0%,transparent_52%)]" />
+              {/* Diagonal vibrant accent band */}
+              <div className="absolute inset-0 opacity-[0.13]" style={{ background: 'linear-gradient(125deg, transparent 38%, rgba(99,102,241,0.9) 48%, rgba(139,92,246,0.9) 52%, transparent 62%)' }} />
+              {/* Animated orb — primary */}
+              <div className="absolute right-[10%] top-[10%] h-[580px] w-[580px] animate-glow-pulse rounded-full bg-indigo-500/[0.32] blur-[120px]" />
+              {/* Animated orb — secondary */}
+              <div className="absolute left-[3%] bottom-[20%] h-[420px] w-[420px] animate-glow-pulse rounded-full bg-violet-600/[0.28] blur-[100px]" style={{ animationDelay: '-4s' }} />
+              {/* Animated orb — tertiary cyan */}
+              <div className="absolute right-[3%] bottom-[8%] h-[300px] w-[300px] animate-glow-pulse rounded-full bg-cyan-500/[0.22] blur-[80px]" style={{ animationDelay: '-7s' }} />
+              {/* Animated orb — center warm accent */}
+              <div className="absolute left-[30%] top-[40%] h-[240px] w-[240px] animate-glow-pulse rounded-full bg-violet-400/[0.14] blur-[75px]" style={{ animationDelay: '-2s' }} />
+              {/* Perspective floor grid */}
+              <div className="hero-depth-grid absolute inset-0 opacity-[0.30]" />
+              {/* Edge vignette */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_75%_at_48%_40%,transparent_22%,rgba(2,6,23,0.68)_100%)]" />
               {/* Top atmospheric haze */}
               <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/60 to-transparent" />
-              {/* Light shafts — two diagonal beams */}
-              <div className="absolute right-[28%] top-0 h-3/4 w-[200px] bg-gradient-to-b from-indigo-400/[0.08] via-indigo-400/[0.03] to-transparent" style={{ clipPath: 'polygon(25% 0, 75% 0, 100% 100%, 0% 100%)' }} />
-              <div className="absolute right-[18%] top-0 h-1/2 w-[120px] bg-gradient-to-b from-violet-400/[0.05] to-transparent" style={{ clipPath: 'polygon(20% 0, 80% 0, 100% 100%, 0% 100%)' }} />
+              {/* Light shafts */}
+              <div className="absolute right-[28%] top-0 h-3/4 w-[220px] bg-gradient-to-b from-indigo-400/[0.14] via-indigo-400/[0.05] to-transparent" style={{ clipPath: 'polygon(25% 0, 75% 0, 100% 100%, 0% 100%)' }} />
+              <div className="absolute right-[18%] top-0 h-1/2 w-[140px] bg-gradient-to-b from-violet-400/[0.10] to-transparent" style={{ clipPath: 'polygon(20% 0, 80% 0, 100% 100%, 0% 100%)' }} />
               {/* Noise grain texture */}
               <div className="hero-noise absolute inset-0 opacity-[0.04] mix-blend-screen" />
             </>
           )}
+          {/* City ticker strip */}
+          <div className="absolute inset-x-0 bottom-14 z-10 overflow-hidden border-y border-white/[0.05] py-2.5">
+            <div className="flex animate-marquee whitespace-nowrap">
+              {['HARARE', 'BULAWAYO', 'MUTARE', 'GWERU', 'MASVINGO', 'VICTORIA FALLS', 'KWEKWE', 'KADOMA', 'BINDURA', 'CHINHOYI', 'HARARE', 'BULAWAYO', 'MUTARE', 'GWERU', 'MASVINGO', 'VICTORIA FALLS', 'KWEKWE', 'KADOMA', 'BINDURA', 'CHINHOYI'].map((city, i) => (
+                <span key={i} className="mx-5 text-[9px] font-black uppercase tracking-[0.32em] text-white/[0.18]">
+                  <span className="mr-5 text-indigo-400/30">◆</span>{city}
+                </span>
+              ))}
+            </div>
+          </div>
           {/* Bottom fade to merge with next section */}
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950 to-transparent" />
           <div className="relative mx-auto grid min-h-[calc(94vh-72px)] max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 md:min-h-[calc(94vh-108px)] lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
@@ -791,91 +798,137 @@ export const PublicWebsite: React.FC = () => {
             </div>
 
             <div className="hidden lg:block">
-              <div className="relative ml-auto max-w-[380px]">
-              {/* Depth cards — stacked behind the main card */}
-              <div className="absolute inset-0 rounded-2xl border border-indigo-400/[0.08] bg-white/[0.03]" style={{ transform: 'rotate(3deg) translate(10px, -6px)' }} />
-              <div className="absolute inset-0 rounded-2xl border border-violet-400/[0.05] bg-white/[0.015]" style={{ transform: 'rotate(-2deg) translate(-5px, 10px)' }} />
-              {/* Floating badge — daily reach */}
-              <div className="absolute -left-14 top-1/3 z-20 flex animate-soft-scale items-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 shadow-lg backdrop-blur-md" style={{ animationDelay: '600ms' }}>
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-wider text-white/40">Daily Reach</p>
-                  <p className="text-sm font-black text-white">{stats[3].value}</p>
-                </div>
-              </div>
-              {/* Floating badge — available sites */}
-              <div className="absolute -right-10 bottom-28 z-20 animate-soft-scale rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-md" style={{ animationDelay: '800ms' }}>
-                <p className="text-lg font-black text-white">{stats[2].value}</p>
-                <p className="text-[9px] font-black uppercase tracking-wider text-indigo-200/70">Open Sites</p>
-              </div>
-              {/* Main card */}
-              <div className="relative animate-soft-scale animation-delay-300 overflow-hidden rounded-2xl border border-white/[0.1] bg-white/[0.05] backdrop-blur-xl">
-                {/* Shimmer line */}
-                <div className="relative h-px overflow-hidden bg-white/10">
-                  <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-indigo-300/60 to-transparent animate-line-sweep" />
-                </div>
-                {/* Billboard photo */}
-                <div className="overflow-hidden bg-slate-800">
-                  {(() => {
-                    const img = billboards.find(b => b.imageUrl)?.imageUrl;
-                    return img
-                      ? <img src={img} alt="Dreambox billboard location preview" loading="eager" decoding="async" className="h-56 w-full object-cover opacity-90" />
-                      : (
-                        <div className="relative flex h-56 flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-800 via-[#0d1033] to-slate-900">
-                          {/* Subtle grid */}
-                          <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-                          {/* Billboard frame */}
-                          <div className="relative z-10 w-44">
-                            <div className="flex h-28 items-center justify-center rounded-sm border border-white/20 bg-gradient-to-br from-indigo-500/20 to-violet-600/15 shadow-lg shadow-indigo-500/10">
-                              <div className="text-center px-3">
-                                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-200/60">Billboard</div>
-                                <div className="mt-0.5 text-xl font-black leading-none text-white">12 × 4m</div>
-                                <div className="mt-1.5 flex items-center justify-center gap-1.5">
-                                  {['Harare', 'Bulawayo'].map(t => (
-                                    <span key={t} className="rounded-sm bg-white/[0.07] px-1.5 py-0.5 text-[8px] font-semibold text-white/45">{t}</span>
-                                  ))}
-                                </div>
-                              </div>
+              <div className="relative ml-auto" style={{ maxWidth: '460px' }}>
+                {/* Ambient halo behind billboard */}
+                <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/[0.16] blur-[110px]" />
+
+                <div className="relative animate-soft-scale animation-delay-300">
+                  {/* Billboard frame */}
+                  <div
+                    className="relative overflow-hidden rounded-2xl"
+                    style={{ boxShadow: '0 0 0 2px rgba(99,102,241,0.32), 0 0 80px rgba(99,102,241,0.16), 0 40px 100px rgba(2,6,23,0.72)' }}
+                  >
+                    {/* Face area */}
+                    <div className="relative" style={{ aspectRatio: '2.5 / 1' }}>
+                      <div className="absolute inset-0 bg-slate-950 rounded-t-2xl" />
+                      {/* LED top bar */}
+                      <div className="absolute inset-x-0 top-0 z-10 h-[3px] bg-gradient-to-r from-indigo-600 via-violet-400 to-cyan-400" />
+                      {/* Slides */}
+                      <div className="absolute inset-[3px] overflow-hidden rounded-t-xl">
+                        {/* Slide 1 — Indigo / Harare */}
+                        <div
+                          className="billboard-ad-slide absolute inset-0 flex items-center justify-between px-8"
+                          style={{ animationDelay: '0s', background: 'linear-gradient(145deg,#0a0820 0%,#1e1b4b 45%,#1c1645 100%)' }}
+                        >
+                          <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,0.7) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.7) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
+                          <div className="absolute right-4 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full bg-indigo-500/25 blur-2xl" />
+                          <div className="relative z-10">
+                            <div className="text-[8px] font-black uppercase tracking-[0.3em] text-indigo-300/60">Harare CBD · Samora Machel Ave</div>
+                            <div className="mt-2 text-[1.55rem] font-black leading-none text-white">YOUR BRAND<br /><span className="text-indigo-300">IN MOTION.</span></div>
+                            <div className="mt-2 text-[8px] text-white/30">12 × 4m · Est. 200K daily impressions</div>
+                          </div>
+                          <div className="relative z-10 ml-6 shrink-0">
+                            <div className="flex flex-col items-center gap-1 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-2.5">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-indigo-200/50">Size</span>
+                              <span className="text-xl font-black text-white">12×4</span>
+                              <span className="text-[8px] text-indigo-200/40">metres</span>
                             </div>
-                            <div className="mx-auto h-6 w-[3px] bg-white/15" />
-                            <div className="mx-auto h-px w-12 bg-white/10" />
-                          </div>
-                          {/* Live indicator */}
-                          <div className="absolute right-4 top-4 flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300/80">Live</span>
-                          </div>
-                          {/* Mutare tag bottom-left */}
-                          <div className="absolute bottom-4 left-4">
-                            <span className="rounded-sm bg-white/[0.05] px-1.5 py-0.5 text-[8px] font-semibold text-white/35">Mutare</span>
                           </div>
                         </div>
-                      );
-                  })()}
-                </div>
-                {/* Content */}
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300">Featured inventory</p>
-                      <h2 className="mt-1.5 text-xl font-black leading-tight text-white">Live site availability</h2>
-                      <p className="mt-1.5 text-sm leading-6 text-white/55">Browse our full network with live side, slot, and pricing status.</p>
+                        {/* Slide 2 — Emerald / Bulawayo */}
+                        <div
+                          className="billboard-ad-slide absolute inset-0 flex items-center justify-between px-8"
+                          style={{ animationDelay: '4s', background: 'linear-gradient(145deg,#022c22 0%,#064e3b 45%,#065f46 100%)' }}
+                        >
+                          <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle,rgba(52,211,153,0.7) 1px,transparent 1px)', backgroundSize: '28px 28px' }} />
+                          <div className="absolute left-4 bottom-0 h-44 w-44 rounded-full bg-emerald-500/20 blur-2xl" />
+                          <div className="relative z-10">
+                            <div className="text-[8px] font-black uppercase tracking-[0.3em] text-emerald-300/60">Bulawayo · Main Street</div>
+                            <div className="mt-2 text-[1.55rem] font-black leading-none text-white">PRIME<br /><span className="text-emerald-300">VISIBILITY.</span></div>
+                            <div className="mt-2 text-[8px] text-white/30">10 × 3m · High foot-traffic corridor</div>
+                          </div>
+                          <div className="relative z-10 ml-6 shrink-0">
+                            <div className="flex flex-col items-center gap-1 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-2.5">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-200/50">Open</span>
+                              <span className="text-xl font-black text-white">{stats[2].value}</span>
+                              <span className="text-[8px] text-emerald-200/40">sites</span>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Slide 3 — Amber / Mutare */}
+                        <div
+                          className="billboard-ad-slide absolute inset-0 flex items-center justify-between px-8"
+                          style={{ animationDelay: '8s', background: 'linear-gradient(145deg,#1c0a00 0%,#431407 45%,#7c2d12 100%)' }}
+                        >
+                          <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(45deg,rgba(251,146,60,0.6) 1px,transparent 1px),linear-gradient(-45deg,rgba(251,146,60,0.6) 1px,transparent 1px)', backgroundSize: '36px 36px' }} />
+                          <div className="absolute right-4 top-0 h-44 w-44 rounded-full bg-orange-500/20 blur-2xl" />
+                          <div className="relative z-10">
+                            <div className="text-[8px] font-black uppercase tracking-[0.3em] text-orange-300/60">Mutare · A3 Highway Corridor</div>
+                            <div className="mt-2 text-[1.55rem] font-black leading-none text-white">HIGHWAY<br /><span className="text-orange-300">DOMINANCE.</span></div>
+                            <div className="mt-2 text-[8px] text-white/30">12 × 4m · High-speed intercept</div>
+                          </div>
+                          <div className="relative z-10 ml-6 shrink-0">
+                            <div className="flex flex-col items-center gap-1 rounded-xl border border-orange-400/20 bg-orange-500/10 px-4 py-2.5">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-orange-200/50">Reach</span>
+                              <span className="text-xl font-black text-white">{stats[3].value}</span>
+                              <span className="text-[8px] text-orange-200/40">daily</span>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Corner vignette */}
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_100%_at_50%_50%,transparent_55%,rgba(2,6,23,0.45)_100%)]" />
+                      </div>
+                      {/* Live indicator */}
+                      <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                        <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300/80">Live</span>
+                      </div>
+                      {/* Slide dots */}
+                      <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5">
+                        <div className="h-[3px] w-8 rounded-full bg-white/60" />
+                        <div className="h-[3px] w-3 rounded-full bg-white/20" />
+                        <div className="h-[3px] w-3 rounded-full bg-white/20" />
+                      </div>
                     </div>
-                    <div className="shrink-0 rounded-lg bg-emerald-400 px-3 py-2 text-center">
-                      <div className="text-base font-black text-slate-950">{availableSites.filter(item => item.available).length || shownAvailability.length || 12}</div>
-                      <div className="text-[9px] font-black uppercase tracking-wide text-slate-800">Open</div>
+                    {/* Bottom status bar */}
+                    <div className="flex items-center justify-between border-t border-white/[0.07] bg-slate-950/95 px-5 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <MapPin size={10} className="text-indigo-300/70" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">Harare · Bulawayo · Mutare</span>
+                      </div>
+                      <a
+                        href="/site-availability"
+                        onClick={navigate('locations')}
+                        className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wide text-indigo-300/70 transition hover:text-indigo-200"
+                      >
+                        View All <ArrowRight size={9} />
+                      </a>
                     </div>
                   </div>
-                  <a
-                    href="/site-availability"
-                    onClick={navigate('locations')}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.08] px-5 py-2.5 text-xs font-black uppercase tracking-wide text-white transition hover:bg-white/[0.14]"
-                  >
-                    View All Sites <ArrowRight size={13} />
-                  </a>
+                  {/* Support poles */}
+                  <div className="flex justify-between px-20">
+                    <div className="h-8 w-px bg-gradient-to-b from-slate-500/30 to-transparent" />
+                    <div className="h-8 w-px bg-gradient-to-b from-slate-500/30 to-transparent" />
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="h-px w-28 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                  </div>
+                </div>
+
+                {/* Floating badge — daily reach */}
+                <div className="absolute -left-14 top-1/3 z-20 flex animate-soft-scale items-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 shadow-lg backdrop-blur-md" style={{ animationDelay: '600ms' }}>
+                  <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-400" />
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-wider text-white/40">Daily Reach</p>
+                    <p className="text-sm font-black text-white">{stats[3].value}</p>
+                  </div>
+                </div>
+                {/* Floating badge — open sites */}
+                <div className="absolute -right-10 bottom-16 z-20 animate-soft-scale rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-md" style={{ animationDelay: '800ms' }}>
+                  <p className="text-lg font-black text-white">{stats[2].value}</p>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-indigo-200/70">Open Sites</p>
                 </div>
               </div>
-              </div>{/* end relative wrapper */}
             </div>
           </div>
         </section>}
@@ -904,7 +957,7 @@ export const PublicWebsite: React.FC = () => {
                   alt={`${partner.name} logo`}
                   loading="lazy"
                   decoding="async"
-                  className="max-h-12 max-w-full object-contain opacity-50 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0"
+                  className="max-h-12 max-w-full object-contain transition duration-300"
                 />
               </div>
             ))}
