@@ -253,26 +253,59 @@ export const Rentals: React.FC = () => {
       return { ok, reason };
   };
 
-  const getDigitalOccupancy = (billboardId: string, start: string, end: string) => {
-      if (!start || !end || !billboardId) return 0;
-      const existingContracts = getContracts().filter(c => c.billboardId === billboardId && String(c.status || '').toLowerCase() === 'active');
+  // Returns a map of slotNumber → { clientName, endDate, contractId } for overlapping active contracts.
+  // Counts UNIQUE occupied slot numbers only — not raw contract count.
+  const getSlotOccupancy = (billboardId: string, start: string, end: string): Record<number, { clientName: string; endDate: string; contractId: string }> => {
+      if (!start || !end || !billboardId) return {};
       const newStart = new Date(start).getTime();
-      const newEnd = new Date(end).getTime();
-      
-      const overlapping = existingContracts.filter(c => {
+      const newEnd   = new Date(end).getTime();
+      const result: Record<number, { clientName: string; endDate: string; contractId: string }> = {};
+      getContracts()
+          .filter(c =>
+              c.billboardId === billboardId &&
+              String(c.status || '').toLowerCase() === 'active' &&
+              typeof c.slotNumber === 'number'
+          )
+          .forEach(c => {
+              const cStart = new Date(c.startDate).getTime();
+              const cEnd   = new Date(c.endDate).getTime();
+              if (newStart <= cEnd && newEnd >= cStart) {
+                  // First contract to occupy a slot wins; prevents double-counted phantom blocks
+                  if (!(c.slotNumber! in result)) {
+                      result[c.slotNumber!] = {
+                          clientName: getClientName(c.clientId),
+                          endDate: c.endDate,
+                          contractId: c.id,
+                      };
+                  }
+              }
+          });
+      return result;
+  };
+
+  // Find the contract blocking a specific static side for the current form dates
+  const getBlockingContract = (side: 'A' | 'B' | 'Both') => {
+      if (!newRental.startDate || !newRental.endDate || !newRental.billboardId) return null;
+      const newStart = new Date(newRental.startDate).getTime();
+      const newEnd   = new Date(newRental.endDate).getTime();
+      return getContracts().find(c => {
+          if (c.billboardId !== newRental.billboardId) return false;
+          if (String(c.status || '').toLowerCase() !== 'active') return false;
           const cStart = new Date(c.startDate).getTime();
-          const cEnd = new Date(c.endDate).getTime();
-          return (newStart <= cEnd && newEnd >= cStart);
-      });
-      return overlapping.length;
-  }
+          const cEnd   = new Date(c.endDate).getTime();
+          if (!(newStart <= cEnd && newEnd >= cStart)) return false;
+          if (side === 'Both') return c.side === 'A' || c.side === 'B' || c.side === 'Both';
+          return c.side === side || c.side === 'Both';
+      }) ?? null;
+  };
 
   // Pre-calculate side availability for UI state
   const sideAAvailable = checkAvailability(newRental.billboardId, 'A', newRental.startDate, newRental.endDate);
   const sideBAvailable = checkAvailability(newRental.billboardId, 'B', newRental.startDate, newRental.endDate);
   const bothAvailable = sideAAvailable.ok && sideBAvailable.ok;
-  const digitalOccupancy = getDigitalOccupancy(newRental.billboardId, newRental.startDate, newRental.endDate);
-  const digitalFull = selectedBillboard?.type === BillboardType.LED && digitalOccupancy >= (selectedBillboard.totalSlots || 1);
+  const slotOccupancy = getSlotOccupancy(newRental.billboardId, newRental.startDate, newRental.endDate);
+  const takenSlotCount = Object.keys(slotOccupancy).length;
+  const digitalFull = selectedBillboard?.type === BillboardType.LED && takenSlotCount >= (selectedBillboard.totalSlots || 1);
 
   // Auto-populate production fee when billboard changes (not on date changes)
   useEffect(() => {
@@ -1001,49 +1034,128 @@ export const Rentals: React.FC = () => {
 
                                 {selectedBillboard?.type === BillboardType.Static && (
                                     <div className="space-y-2">
-                                        <p className="text-xs font-bold uppercase tracking-wide text-slate-900">Select Sides (Based on availability)</p>
-                                        <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Select Side</p>
+                                            {newRental.startDate && (
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${bothAvailable ? 'bg-emerald-100 text-emerald-700' : (!sideAAvailable.ok && !sideBAvailable.ok) ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    {bothAvailable ? 'Both sides free' : (!sideAAvailable.ok && !sideBAvailable.ok) ? 'Both sides taken' : 'One side free'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-3">
                                             {(['A', 'B', 'Both'] as const).map(side => {
                                                 const available = checkAvailability(newRental.billboardId, side, newRental.startDate, newRental.endDate).ok;
                                                 let price = 0;
-                                                if(side === 'A') price = selectedBillboard.sideARate || 0;
-                                                else if(side === 'B') price = selectedBillboard.sideBRate || 0;
+                                                if (side === 'A') price = selectedBillboard.sideARate || 0;
+                                                else if (side === 'B') price = selectedBillboard.sideBRate || 0;
                                                 else price = (selectedBillboard.sideARate || 0) + (selectedBillboard.sideBRate || 0);
-
                                                 const isSelected = newRental.side === side;
                                                 const disabled = !available;
-
+                                                const blocker = disabled && newRental.startDate ? getBlockingContract(side) : null;
                                                 return (
-                                                    <label key={side} className={`flex-1 relative cursor-pointer border rounded-xl p-3 text-center transition-all ${disabled ? 'opacity-40 bg-slate-50 cursor-not-allowed border-slate-100' : isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}>
-                                                        <input type="radio" name="side" className="hidden" disabled={disabled} checked={isSelected} onChange={() => !disabled && setNewRental({...newRental, side, monthlyRate: price})} />
-                                                        <div className="font-bold text-slate-800">{side === 'Both' ? 'Both A&B' : `Side ${side}`}</div>
-                                                        <div className="text-xs text-slate-900">${price.toLocaleString()}</div>
-                                                        {disabled && (
-                                                            <div className="text-[10px] text-red-500 font-bold uppercase mt-1 flex items-center justify-center gap-1">
-                                                                <Lock size={10}/> Booked
+                                                    <label key={side} className={`flex-1 relative cursor-pointer rounded-xl border p-3.5 text-center transition-all ${disabled ? 'bg-red-50 border-red-200 cursor-not-allowed' : isSelected ? 'border-slate-900 bg-slate-900 ring-1 ring-slate-900 shadow-sm' : 'border-slate-200 hover:border-slate-400 bg-white'}`}>
+                                                        <input type="radio" name="side" className="hidden" disabled={disabled} checked={isSelected} onChange={() => !disabled && setNewRental({ ...newRental, side, monthlyRate: price })} />
+                                                        <div className={`font-black text-sm ${disabled ? 'text-red-400' : isSelected ? 'text-white' : 'text-slate-800'}`}>{side === 'Both' ? 'Both A & B' : `Side ${side}`}</div>
+                                                        <div className={`text-xs mt-0.5 font-semibold ${disabled ? 'text-red-300' : isSelected ? 'text-slate-300' : 'text-slate-500'}`}>${price.toLocaleString()}/mo</div>
+                                                        {disabled ? (
+                                                            <div className="mt-2 space-y-0.5">
+                                                                <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase text-red-500"><Lock size={9} /> Booked</div>
+                                                                {blocker && (
+                                                                    <>
+                                                                        <div className="text-[9px] font-bold text-slate-500 truncate">{getClientName(blocker.clientId)}</div>
+                                                                        <div className="text-[9px] text-slate-400">until {blocker.endDate}</div>
+                                                                    </>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                        {isSelected && <div className="absolute top-2 right-2 text-blue-500"><CheckCircle size={14}/></div>}
+                                                        ) : isSelected ? (
+                                                            <div className="absolute top-2 right-2 text-white"><CheckCircle size={13} /></div>
+                                                        ) : null}
                                                     </label>
-                                                )
+                                                );
                                             })}
                                         </div>
-                                        {!newRental.startDate && <p className="text-[10px] text-indigo-500 mt-1">* Select dates to check availability.</p>}
+                                        {!newRental.startDate && <p className="text-[10px] text-indigo-500 mt-1">* Select dates above to check availability.</p>}
                                     </div>
                                 )}
 
-                                {selectedBillboard?.type === BillboardType.LED && (
-                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h4 className="text-xs font-bold uppercase tracking-wide text-slate-900">Digital Availability</h4>
-                                            <span className={`text-xs font-bold px-2 py-1 rounded ${digitalFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                                {digitalOccupancy} / {selectedBillboard.totalSlots} Slots Booked
-                                            </span>
+                                {selectedBillboard?.type === BillboardType.LED && (() => {
+                                    const totalSlots = selectedBillboard.totalSlots || 1;
+                                    const freeCount  = totalSlots - takenSlotCount;
+                                    const cols = Math.min(totalSlots, 6);
+                                    return (
+                                        <div className="overflow-hidden rounded-xl border border-slate-200">
+                                            {/* Header */}
+                                            <div className="flex items-center justify-between bg-slate-50 px-4 py-3 border-b border-slate-100">
+                                                <p className="text-xs font-black uppercase tracking-wider text-slate-700">Slot Availability</p>
+                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${digitalFull ? 'bg-red-100 text-red-700' : takenSlotCount === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    {freeCount} of {totalSlots} slots free
+                                                </span>
+                                            </div>
+
+                                            {!newRental.startDate ? (
+                                                <p className="px-4 py-5 text-xs text-slate-400 italic text-center">Select dates above to see slot availability.</p>
+                                            ) : (
+                                                <div className="p-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                                                    {Array.from({ length: totalSlots }, (_, i) => i + 1).map(slot => {
+                                                        const taken     = slotOccupancy[slot];
+                                                        const isSelected = newRental.slotNumber === slot;
+                                                        return (
+                                                            <button
+                                                                key={slot}
+                                                                type="button"
+                                                                disabled={!!taken}
+                                                                onClick={() => !taken && setNewRental({ ...newRental, slotNumber: slot })}
+                                                                title={taken ? `Booked by ${taken.clientName} · until ${taken.endDate}` : `Slot ${slot} — available`}
+                                                                className={`relative flex flex-col items-center justify-center rounded-lg border px-2 py-3 text-center transition-all ${
+                                                                    taken
+                                                                        ? 'cursor-not-allowed border-red-200 bg-red-50'
+                                                                        : isSelected
+                                                                        ? 'border-slate-900 bg-slate-900 shadow-md cursor-pointer'
+                                                                        : 'cursor-pointer border-slate-200 bg-white hover:border-slate-900 hover:bg-slate-50'
+                                                                }`}
+                                                            >
+                                                                <span className={`text-sm font-black leading-none ${taken ? 'text-red-400' : isSelected ? 'text-white' : 'text-slate-700'}`}>{slot}</span>
+                                                                {taken ? (
+                                                                    <>
+                                                                        <Lock size={9} className="mt-1 text-red-400" />
+                                                                        <span className="mt-0.5 w-full truncate text-center text-[8px] font-bold leading-tight text-red-500">{taken.clientName.split(' ')[0]}</span>
+                                                                        <span className="text-[7px] text-slate-400 leading-tight">until {taken.endDate.slice(0, 7)}</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className={`mt-1 text-[9px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>Free</span>
+                                                                )}
+                                                                {isSelected && !taken && (
+                                                                    <CheckCircle size={10} className="absolute right-1 top-1 text-white" />
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {/* Selected slot / status footer */}
+                                            {newRental.startDate && (
+                                                <div className={`px-4 py-2.5 border-t text-xs font-semibold flex items-center justify-between ${
+                                                    digitalFull ? 'bg-red-50 border-red-100 text-red-600' :
+                                                    slotOccupancy[newRental.slotNumber] ? 'bg-amber-50 border-amber-100 text-amber-700' :
+                                                    'bg-slate-50 border-slate-100 text-slate-600'
+                                                }`}>
+                                                    <span>Selected:</span>
+                                                    <span className="font-black">
+                                                        {digitalFull ? 'All slots booked for these dates' :
+                                                         slotOccupancy[newRental.slotNumber] ? `Slot ${newRental.slotNumber} is taken — choose another` :
+                                                         `Slot ${newRental.slotNumber} · available`}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {digitalFull && (
+                                                <div className="flex items-center gap-1.5 px-4 py-2 bg-red-50 border-t border-red-100 text-[10px] font-black text-red-600">
+                                                    <Lock size={10} /> All {totalSlots} slots are booked for the selected dates.
+                                                </div>
+                                            )}
                                         </div>
-                                        <MinimalSelect label="Select Slot ID (Reference)" value={newRental.slotNumber} onChange={(e: any) => setNewRental({...newRental, slotNumber: Number(e.target.value)})} options={Array.from({length: selectedBillboard.totalSlots || 10}, (_, i) => ({value: i+1, label: `Slot ${i+1}`}))} disabled={digitalFull} />
-                                        {digitalFull && <p className="text-[10px] text-red-500 mt-2 font-bold flex items-center gap-1"><Lock size={10}/> Fully Booked for selected dates.</p>}
-                                    </div>
-                                )}
+                                    );
+                                })()}
 
                                 <div className="bg-slate-50 p-6 rounded-2xl space-y-6">
                                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Financials</h4>
