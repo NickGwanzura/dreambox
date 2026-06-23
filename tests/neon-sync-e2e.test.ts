@@ -103,7 +103,7 @@ function makeInvoiceData(id: string, overrides: Record<string, any> = {}) {
     subtotal: 1000,
     vatAmount: 0,
     total: 1000,
-    status: 'Pending',
+    status: 'Pending' as const,
     type: 'Invoice' as const,
     ...overrides,
   };
