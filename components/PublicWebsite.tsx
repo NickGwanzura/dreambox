@@ -341,11 +341,6 @@ export const PublicWebsite: React.FC = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [cookieDismissed, setCookieDismissed] = useState(() => localStorage.getItem('db_cookie_ok') === '1');
   const [heroSlide, setHeroSlide] = useState(0);
-  useEffect(() => {
-    if (billboards.length <= 1) return;
-    const t = setInterval(() => setHeroSlide(s => (s + 1) % billboards.length), 4500);
-    return () => clearInterval(t);
-  }, [billboards.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -381,6 +376,11 @@ export const PublicWebsite: React.FC = () => {
     () => getAvailableSites(billboards, contracts),
     [billboards, contracts]
   );
+  useEffect(() => {
+    if (availableSites.length <= 1) return;
+    const t = setInterval(() => setHeroSlide(s => (s + 1) % availableSites.length), 4500);
+    return () => clearInterval(t);
+  }, [availableSites.length]);
 
   const stats = useMemo(() => {
     const towns = new Set(billboards.map(board => board.town).filter(Boolean));
@@ -811,140 +811,90 @@ export const PublicWebsite: React.FC = () => {
             </div>
 
             <div className="hidden lg:block">
-              <div className="relative ml-auto" style={{ maxWidth: '460px' }}>
-                {/* Ambient halo behind billboard */}
-                <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/[0.16] blur-[110px]" />
-
-                <div className="relative animate-soft-scale animation-delay-300">
-                  {/* Billboard frame */}
-                  <div
-                    className="relative overflow-hidden rounded-2xl"
-                    style={{ boxShadow: '0 0 0 2px rgba(99,102,241,0.32), 0 0 80px rgba(99,102,241,0.16), 0 40px 100px rgba(2,6,23,0.72)' }}
-                  >
-                    {/* Face area */}
-                    <div className="relative" style={{ aspectRatio: '2.5 / 1' }}>
-                      <div className="absolute inset-0 bg-slate-950 rounded-t-2xl" />
-                      {/* LED top bar */}
-                      <div className="absolute inset-x-0 top-0 z-10 h-[3px] bg-gradient-to-r from-indigo-600 via-violet-400 to-cyan-400" />
-                      {/* Slides — one per billboard, driven by heroSlide state */}
-                      <div className="absolute inset-[3px] overflow-hidden rounded-t-xl">
-                        {(() => {
-                          const themes = [
-                            { bg: 'linear-gradient(145deg,#0a0820 0%,#1e1b4b 45%,#1c1645 100%)', glowCls: 'bg-indigo-500/25', accentCls: 'text-indigo-300', borderCls: 'border-indigo-400/20', badgeBg: 'bg-indigo-500/10', labelCls: 'text-indigo-200/50', subCls: 'text-indigo-200/40', pattern: 'linear-gradient(rgba(99,102,241,0.7) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.7) 1px,transparent 1px)' },
-                            { bg: 'linear-gradient(145deg,#022c22 0%,#064e3b 45%,#065f46 100%)', glowCls: 'bg-emerald-500/20', accentCls: 'text-emerald-300', borderCls: 'border-emerald-400/20', badgeBg: 'bg-emerald-500/10', labelCls: 'text-emerald-200/50', subCls: 'text-emerald-200/40', pattern: 'radial-gradient(circle,rgba(52,211,153,0.7) 1px,transparent 1px)' },
-                            { bg: 'linear-gradient(145deg,#1c0a00 0%,#431407 45%,#7c2d12 100%)', glowCls: 'bg-orange-500/20', accentCls: 'text-orange-300', borderCls: 'border-orange-400/20', badgeBg: 'bg-orange-500/10', labelCls: 'text-orange-200/50', subCls: 'text-orange-200/40', pattern: 'linear-gradient(45deg,rgba(251,146,60,0.6) 1px,transparent 1px),linear-gradient(-45deg,rgba(251,146,60,0.6) 1px,transparent 1px)' },
-                            { bg: 'linear-gradient(145deg,#0a1628 0%,#0f2660 45%,#0c1a4e 100%)', glowCls: 'bg-blue-500/20', accentCls: 'text-blue-300', borderCls: 'border-blue-400/20', badgeBg: 'bg-blue-500/10', labelCls: 'text-blue-200/50', subCls: 'text-blue-200/40', pattern: 'linear-gradient(rgba(59,130,246,0.7) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.7) 1px,transparent 1px)' },
-                          ];
-                          const headlines = ['YOUR BRAND\nIN MOTION.', 'PRIME\nVISIBILITY.', 'MAXIMUM\nIMPACT.', 'STAND OUT\nEVERY DAY.'];
-                          return billboards.map((board, i) => {
-                            const t = themes[i % themes.length];
-                            const headline = headlines[i % headlines.length].split('\n');
-                            const hasImage = !!board.imageUrl;
-                            return (
-                              <div
-                                key={board.id}
-                                className="absolute inset-0 flex items-center justify-between transition-opacity duration-700"
-                                style={{ opacity: i === heroSlide ? 1 : 0, background: hasImage ? undefined : t.bg }}
-                              >
-                                {/* Billboard photo — shown when available */}
-                                {hasImage && (
-                                  <>
-                                    <img
-                                      src={board.imageUrl}
-                                      alt={board.name}
-                                      className="absolute inset-0 h-full w-full object-cover"
-                                    />
-                                    {/* Dark overlay so text stays legible over photo */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/60 to-slate-950/30" />
-                                  </>
-                                )}
-                                {/* Gradient pattern — shown when no photo */}
-                                {!hasImage && (
-                                  <>
-                                    <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: t.pattern, backgroundSize: '30px 30px' }} />
-                                    <div className={`absolute right-4 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full ${t.glowCls} blur-2xl`} />
-                                  </>
-                                )}
-                                {/* Text content */}
-                                <div className="relative z-10 min-w-0 px-8">
-                                  {board.location && <div className={`text-[8px] font-black uppercase tracking-[0.3em] ${hasImage ? 'text-white/50' : t.accentCls + ' opacity-60'} truncate`}>{board.location}</div>}
-                                  <div className="mt-2 text-[1.55rem] font-black leading-none text-white">
-                                    {headline[0]}<br /><span className={hasImage ? 'text-indigo-300' : t.accentCls}>{headline[1]}</span>
-                                  </div>
-                                  {board.width && board.height && (
-                                    <div className="mt-2 text-[8px] text-white/30">
-                                      {board.width} × {board.height}m{board.dailyTraffic ? ` · Est. ${board.dailyTraffic.toLocaleString()} daily` : ''}
-                                    </div>
-                                  )}
-                                </div>
-                                {/* Size badge */}
-                                <div className="relative z-10 mr-8 shrink-0">
-                                  <div className={`flex flex-col items-center gap-1 rounded-xl border ${hasImage ? 'border-white/15 bg-slate-950/60 backdrop-blur-sm' : `${t.borderCls} ${t.badgeBg}`} px-4 py-2.5`}>
-                                    <span className={`text-[8px] font-black uppercase tracking-widest ${hasImage ? 'text-white/40' : t.labelCls}`}>Size</span>
-                                    <span className="text-xl font-black text-white">{board.width}×{board.height}</span>
-                                    <span className={`text-[8px] ${hasImage ? 'text-white/30' : t.subCls}`}>metres</span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          });
-                        })()}
-                        {/* Corner vignette */}
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_100%_at_50%_50%,transparent_55%,rgba(2,6,23,0.45)_100%)]" />
-                      </div>
-                      {/* Live indicator */}
-                      <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                        <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300/80">Live</span>
-                      </div>
-                      {/* Slide counter */}
-                      <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5">
-                        {billboards.map((_, i) => (
-                          <button key={i} onClick={() => setHeroSlide(i)} className={`h-[3px] rounded-full transition-all duration-300 ${i === heroSlide ? 'w-8 bg-white/70' : 'w-2 bg-white/20'}`} />
+              {shownAvailability.length > 0 && (() => {
+                const item = shownAvailability[heroSlide % shownAvailability.length];
+                return (
+                  <div className="relative ml-auto" style={{ maxWidth: '400px' }}>
+                    {/* Slide indicator dots */}
+                    {shownAvailability.length > 1 && (
+                      <div className="mb-3 flex justify-center gap-1.5">
+                        {shownAvailability.map((_, i) => (
+                          <button key={i} onClick={() => setHeroSlide(i)} className={`h-[3px] rounded-full transition-all duration-300 ${i === heroSlide % shownAvailability.length ? 'w-6 bg-white/60' : 'w-2 bg-white/20'}`} />
                         ))}
                       </div>
-                    </div>
-                    {/* Bottom status bar */}
-                    <div className="flex items-center justify-between border-t border-white/[0.07] bg-slate-950/95 px-5 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={10} className="text-indigo-300/70" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">
-                          {[...new Set(billboards.map(b => b.town).filter(Boolean))].slice(0, 3).join(' · ') || 'Zimbabwe'}
+                    )}
+                    <a
+                      key={heroSlide}
+                      href={item.board.id.startsWith('live-') ? '/contact' : billboardLink(item.board)}
+                      onClick={item.board.id.startsWith('live-') ? navigate('contact') : undefined}
+                      className="premium-dark-card premium-dark-card-hover group animate-soft-scale block"
+                    >
+                      <div className="relative h-52 overflow-hidden rounded-t-[inherit] bg-slate-800">
+                        {item.board.imageUrl ? (
+                          <img src={item.board.imageUrl} alt={item.board.name} loading="eager" decoding="async" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        ) : (
+                          <div className="flex h-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950">
+                            <Building2 className="h-10 w-10 text-white/15" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/25">Photo coming soon</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                        <span className="absolute left-4 top-4 rounded-md bg-indigo-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">
+                          {item.board.type}
                         </span>
+                        <span className={`absolute right-4 top-4 rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${item.available ? 'bg-emerald-400 text-slate-950' : 'bg-slate-200 text-slate-700'}`}>
+                          {item.label}
+                        </span>
+                        <span className="absolute bottom-4 left-4 right-4 text-lg font-black text-white">{item.board.name}</span>
                       </div>
-                      <a
-                        href="/site-availability"
-                        onClick={navigate('locations')}
-                        className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wide text-indigo-300/70 transition hover:text-indigo-200"
-                      >
-                        View All <ArrowRight size={9} />
-                      </a>
-                    </div>
+                      <div className="p-5">
+                        <p className="flex items-center gap-2 text-sm text-white/68">
+                          <MapPin size={14} /> {item.board.location}, {item.board.town}
+                        </p>
+                        <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">From</p>
+                            <p className="mt-1 text-sm font-black text-white">
+                              {item.monthlyRate ? money(item.monthlyRate) : 'Quote'}
+                              {item.monthlyRate ? <span className="text-[10px] font-semibold text-white/45">/mo</span> : null}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">Size</p>
+                            <p className="mt-1 text-sm font-black text-white">{item.board.width}x{item.board.height}m</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">Traffic</p>
+                            <p className="mt-1 text-sm font-black text-white">{item.board.dailyTraffic ? compactNumber(item.board.dailyTraffic) : '-'}</p>
+                          </div>
+                        </div>
+                        <div className="mt-4 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">Prices</p>
+                          <p className="mt-1 text-xs font-bold text-white/78">{item.priceSummary}</p>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setForm(prev => ({ ...prev, locationInterest: item.board.name, billboardType: String(item.board.type) }));
+                              setPage('contact');
+                              window.history.pushState(null, '', '/contact');
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            className={`rounded-md px-3 py-2 text-xs font-black uppercase tracking-wide transition hover:-translate-y-0.5 ${item.available ? 'bg-white text-slate-950 shadow-md hover:bg-indigo-50' : 'bg-slate-700 text-white/80 hover:bg-slate-600'}`}
+                          >
+                            {item.available ? 'Enquire' : 'Join Waitlist'}
+                          </button>
+                          <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide text-indigo-200">
+                            Details <ArrowRight size={13} />
+                          </span>
+                        </div>
+                      </div>
+                    </a>
                   </div>
-                  {/* Support poles */}
-                  <div className="flex justify-between px-20">
-                    <div className="h-8 w-px bg-gradient-to-b from-slate-500/30 to-transparent" />
-                    <div className="h-8 w-px bg-gradient-to-b from-slate-500/30 to-transparent" />
-                  </div>
-                  <div className="flex justify-center">
-                    <div className="h-px w-28 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                  </div>
-                </div>
-
-                {/* Floating badge — daily reach */}
-                <div className="absolute -left-14 top-1/3 z-20 flex animate-soft-scale items-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 shadow-lg backdrop-blur-md" style={{ animationDelay: '600ms' }}>
-                  <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-400" />
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-wider text-white/40">Daily Reach</p>
-                    <p className="text-sm font-black text-white">{stats[3].value}</p>
-                  </div>
-                </div>
-                {/* Floating badge — open sites */}
-                <div className="absolute -right-10 bottom-16 z-20 animate-soft-scale rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-md" style={{ animationDelay: '800ms' }}>
-                  <p className="text-lg font-black text-white">{stats[2].value}</p>
-                  <p className="text-[9px] font-black uppercase tracking-wider text-indigo-200/70">Open Sites</p>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
         </section>}
