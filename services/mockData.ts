@@ -28,42 +28,57 @@ const notifyListeners = () => {
 };
 
 // --- Deleted Queue ---
-// Tracks IDs that were deleted locally but may not have been deleted from the server yet.
-// Prevents deleted records from reappearing after reloadAllFromApi().
+// Tracks {table, id} pairs deleted locally that may not yet be deleted from the server.
+// Prevents deleted records from reappearing when pullAllFromNeon() re-imports them.
+interface DeletedQueueEntry { table: string; id: string; timestamp: number; }
 const deletedQueueKey = STORAGE_KEYS.DELETED_QUEUE;
-let deletedQueue: Set<string> = new Set();
+let deletedQueue: DeletedQueueEntry[] = [];
 
 const loadDeletedQueue = (): void => {
     try {
         const raw = localStorage.getItem(deletedQueueKey);
-        if (raw) {
-            const arr: string[] = JSON.parse(raw);
-            deletedQueue = new Set(arr);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            // Accept new {table,id,timestamp} format; skip any legacy plain-string entries
+            deletedQueue = parsed.filter(
+                e => typeof e === 'object' && e !== null && typeof e.id === 'string' && typeof e.table === 'string'
+            );
         }
-    } catch { deletedQueue = new Set(); }
+    } catch { deletedQueue = []; }
 };
 
 const persistDeletedQueue = (): void => {
-    try {
-        localStorage.setItem(deletedQueueKey, JSON.stringify([...deletedQueue]));
-    } catch {}
+    try { localStorage.setItem(deletedQueueKey, JSON.stringify(deletedQueue)); } catch {}
 };
 
-const addToDeletedQueue = (id: string): void => {
-    deletedQueue.add(id);
+const addToDeletedQueue = (table: string, id: string): void => {
+    if (!deletedQueue.some(e => e.table === table && e.id === id)) {
+        deletedQueue.push({ table, id, timestamp: Date.now() });
+    }
     persistDeletedQueue();
 };
 
-const removeFromDeletedQueue = (id: string): void => {
-    if (deletedQueue.has(id)) {
-        deletedQueue.delete(id);
-        persistDeletedQueue();
-    }
+const removeFromDeletedQueue = (table: string, id: string): void => {
+    const before = deletedQueue.length;
+    deletedQueue = deletedQueue.filter(e => !(e.table === table && e.id === id));
+    if (deletedQueue.length !== before) persistDeletedQueue();
 };
 
-const isInDeletedQueue = (id: string): boolean => deletedQueue.has(id);
+const isInDeletedQueue = (table: string, id: string): boolean =>
+    deletedQueue.some(e => e.table === table && e.id === id);
 
-// Initialize on module load
+// --- Offline-first localStorage init ---
+// Populate in-memory arrays from localStorage so the app works without auth.
+// When auth is present, reloadAllFromApi() overwrites these with fresh server data.
+const initFromLocalStorage = (): void => {
+    try { const raw = localStorage.getItem(STORAGE_KEYS.INVOICES);   if (raw) invoices   = JSON.parse(raw); } catch {}
+    try { const raw = localStorage.getItem(STORAGE_KEYS.BILLBOARDS); if (raw) billboards = JSON.parse(raw); } catch {}
+    try { const raw = localStorage.getItem(STORAGE_KEYS.CONTRACTS);  if (raw) contracts  = JSON.parse(raw); } catch {}
+    try { const raw = localStorage.getItem(STORAGE_KEYS.CLIENTS);    if (raw) clients    = JSON.parse(raw); } catch {}
+};
+
+// Initialize deleted queue on module load
 loadDeletedQueue();
 
 // --- Entity Exports (in-memory, populated from API on init) ---
@@ -80,6 +95,9 @@ export let maintenanceLogs: MaintenanceLog[] = [];
 export let tasks: Task[] = [];
 export let users: User[] = [];
 export let quotationEvents: QuotationEvent[] = [];
+
+// Load from localStorage after variable declarations (offline-first fallback)
+initFromLocalStorage();
 
 // --- Company Profile (in-memory, fetched from API) ---
 let companyProfile: CompanyProfile | null = null;
@@ -119,15 +137,25 @@ export const getEffectiveVatRate = (): number => {
 export const reloadAllFromApi = async (): Promise<void> => {
     if (!isConfigured()) return;
     try {
+        // Merge helper: remote takes precedence, local-only records are preserved
+        const mergeRemoteWithLocal = <T extends { id: string }>(
+            remote: T[], local: T[], table: string
+        ): T[] => {
+            const remoteIds = new Set(remote.map(r => r.id));
+            const deletedIds = new Set(deletedQueue.filter(e => e.table === table).map(e => e.id));
+            const localOnly = local.filter(r => !remoteIds.has(r.id) && !deletedIds.has(r.id));
+            return [...remote.filter(r => !deletedIds.has(r.id)), ...localOnly];
+        };
+
         const results = await Promise.allSettled([
-            api.get<any[]>('/api/billboards').then(d => { if (d) billboards = d; }),
-            api.get<any[]>('/api/clients').then(d => { if (d) clients = d; }),
-            api.get<any[]>('/api/contracts?limit=1000').then(d => { if (d) contracts = d; }),
+            api.get<any[]>('/api/billboards').then(d => { if (d) billboards = mergeRemoteWithLocal(d, billboards, 'billboards'); }),
+            api.get<any[]>('/api/clients').then(d => { if (d) clients = mergeRemoteWithLocal(d, clients, 'clients'); }),
+            api.get<any[]>('/api/contracts?limit=1000').then(d => { if (d) contracts = mergeRemoteWithLocal(d, contracts, 'contracts'); }),
             api.get<any[]>('/api/contract-amendments').then(d => { if (d) contractAmendments = d; }),
             api.get<any[]>('/api/invoices').then(d => {
                 if (d) {
-                    // Filter out invoices that were locally deleted but may still exist on server
-                    invoices = d.filter((inv: any) => !isInDeletedQueue(inv.id));
+                    // Filter deleted + merge local-only (offline-created invoices not yet on server)
+                    invoices = mergeRemoteWithLocal(d, invoices, 'invoices');
                 }
             }),
             api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d; }),
@@ -372,64 +400,63 @@ export const updateContract = async (updated: Contract) => {
 
 export const deleteContract = async (id: string) => {
     const contract = contracts.find(c => c.id === id);
-    if (contract) {
-        contracts = contracts.filter(c => c.id !== id);
-        if (isConfigured()) {
+    if (!contract) return;
+
+    // 1. Synchronous in-memory mutations (visible to caller before any await)
+    contracts = contracts.filter(c => c.id !== id);
+    addToDeletedQueue('contracts', id);
+
+    const linkedInvoices = invoices.filter(
+        i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice'
+    );
+    for (const i of linkedInvoices) addToDeletedQueue('invoices', i.id);
+    invoices = invoices.filter(
+        i => !(i.contractId === id && String(i.type || '').toLowerCase() === 'invoice')
+    );
+
+    const linkedAmendments = contractAmendments.filter(a => a.contractId === id);
+    contractAmendments = contractAmendments.filter(a => a.contractId !== id);
+
+    // Persist locally so data survives refresh even if API calls fail
+    try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
+    try { localStorage.setItem(STORAGE_KEYS.CONTRACTS, JSON.stringify(contracts)); } catch {}
+
+    // Billboard availability
+    const billboard = billboards.find(b => b.id === contract.billboardId);
+    if (billboard) {
+        if (billboard.type === BillboardType.Static) {
+            if (contract.side === 'A' || contract.details.includes('Side A')) { billboard.sideAStatus = 'Available'; billboard.sideAClientId = undefined; }
+            if (contract.side === 'B' || contract.details.includes('Side B')) { billboard.sideBStatus = 'Available'; billboard.sideBClientId = undefined; }
+            if (contract.side === 'Both') { billboard.sideAStatus = 'Available'; billboard.sideBStatus = 'Available'; billboard.sideAClientId = undefined; billboard.sideBClientId = undefined; }
+        } else if (billboard.type === BillboardType.LED) {
+            billboard.rentedSlots = Math.max(0, (billboard.rentedSlots || 0) - 1);
+        }
+        updateBillboard(billboard);
+    }
+
+    logAction('Delete Contract', `Removed contract ${id} and freed up assets`);
+    notifyListeners();
+
+    // 2. Async API calls — best-effort, deleted queue protects against re-import on failure
+    if (isConfigured()) {
+        try {
+            await api.delete('/api/contracts', { id });
+            removeFromDeletedQueue('contracts', id);
+        } catch (e) { console.error('[deleteContract] API DELETE failed:', e); }
+
+        for (const i of linkedInvoices) {
             try {
-                await api.delete('/api/contracts', { id });
-            } catch (e) {
-                contracts = [contract, ...contracts];
-                notifyListeners();
-                throw e;
-            }
+                await api.delete('/api/invoices', { id: i.id });
+                removeFromDeletedQueue('invoices', i.id);
+            } catch (e) { console.error('[deleteContract] API DELETE failed for invoice:', i.id, e); }
         }
+        if (linkedInvoices.length > 0) logAction('Delete Contract', `Cascade-deleted ${linkedInvoices.length} invoice(s) from contract ${id}`);
 
-        const linkedInvoices = invoices.filter(i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice');
-        if (linkedInvoices.length > 0) {
-            for (const i of linkedInvoices) {
-                addToDeletedQueue(i.id);
-                if (isConfigured()) {
-                    try {
-                        await api.delete('/api/invoices', { id: i.id });
-                        removeFromDeletedQueue(i.id);
-                    } catch (e) {
-                        console.error('[deleteContract] API DELETE failed for invoice:', i.id, e);
-                    }
-                }
-            }
-            invoices = invoices.filter(i => !(i.contractId === id && String(i.type || '').toLowerCase() === 'invoice'));
-            logAction('Delete Contract', `Cascade-deleted ${linkedInvoices.length} invoice(s) from contract ${id}`);
+        for (const a of linkedAmendments) {
+            try { await api.delete('/api/contract-amendments', { id: a.id }); }
+            catch (e) { console.error('[deleteContract] API error deleting amendment:', a.id, e); }
         }
-
-        const linkedAmendments = contractAmendments.filter(a => a.contractId === id);
-        if (linkedAmendments.length > 0) {
-            for (const a of linkedAmendments) {
-                if (isConfigured()) {
-                    try {
-                        await api.delete('/api/contract-amendments', { id: a.id });
-                    } catch (e) {
-                        console.error('[deleteContract] API error deleting amendment:', a.id, e);
-                    }
-                }
-            }
-            contractAmendments = contractAmendments.filter(a => a.contractId !== id);
-            logAction('Delete Contract', `Cascade-deleted ${linkedAmendments.length} amendment(s) from contract ${id}`);
-        }
-
-        const billboard = billboards.find(b => b.id === contract.billboardId);
-        if (billboard) {
-            if (billboard.type === BillboardType.Static) {
-                if (contract.side === 'A' || contract.details.includes('Side A')) { billboard.sideAStatus = 'Available'; billboard.sideAClientId = undefined; }
-                if (contract.side === 'B' || contract.details.includes('Side B')) { billboard.sideBStatus = 'Available'; billboard.sideBClientId = undefined; }
-                if (contract.side === 'Both') { billboard.sideAStatus = 'Available'; billboard.sideBStatus = 'Available'; billboard.sideAClientId = undefined; billboard.sideBClientId = undefined; }
-            } else if (billboard.type === BillboardType.LED) {
-                billboard.rentedSlots = Math.max(0, (billboard.rentedSlots || 0) - 1);
-            }
-            updateBillboard(billboard);
-        }
-
-        logAction('Delete Contract', `Removed contract ${id} and freed up assets`);
-        notifyListeners();
+        if (linkedAmendments.length > 0) logAction('Delete Contract', `Cascade-deleted ${linkedAmendments.length} amendment(s) from contract ${id}`);
     }
 };
 
@@ -447,18 +474,9 @@ export const endContract = async (id: string) => {
         lastModifiedBy: `${(() => { try { const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER); if (stored) { const u = JSON.parse(stored); return u?.firstName || u?.name || u?.email || 'Current User'; } } catch (_) {} return 'Current User'; })()}`,
     };
 
+    // 1. Synchronous in-memory mutations
     contracts = contracts.map(c => c.id === endedContract.id ? endedContract : c);
-    if (isConfigured()) {
-        try {
-            await api.put('/api/contracts', endedContract, { id: endedContract.id });
-        } catch (e) {
-            contracts = contracts.map(c => c.id === endedContract.id ? contract : c);
-            notifyListeners();
-            throw e;
-        }
-    }
 
-    // Cancel any pending invoices tied to this contract
     const pendingInvoices = invoices.filter(i =>
         i.contractId === id &&
         String(i.type || '').toLowerCase() === 'invoice' &&
@@ -466,20 +484,30 @@ export const endContract = async (id: string) => {
     );
     for (const inv of pendingInvoices) {
         invoices = invoices.filter(i => i.id !== inv.id);
-        addToDeletedQueue(inv.id);
-        if (isConfigured()) {
-            try {
-                await api.delete('/api/invoices', { id: inv.id });
-                removeFromDeletedQueue(inv.id);
-            } catch (e) {
-                console.error('[endContract] API DELETE failed for invoice:', inv.id, e);
-            }
-        }
+        addToDeletedQueue('invoices', inv.id);
     }
+
+    // Persist locally
+    try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
+    try { localStorage.setItem(STORAGE_KEYS.CONTRACTS, JSON.stringify(contracts)); } catch {}
 
     recalcBillboardAvailability(contract.billboardId);
     logAction('End Contract', `Ended contract ${id} — marked as Expired, availability freed, ${pendingInvoices.length} pending invoice(s) cancelled`);
     notifyListeners();
+
+    // 2. Async API calls — best-effort
+    if (isConfigured()) {
+        try {
+            await api.put('/api/contracts', endedContract, { id: endedContract.id });
+        } catch (e) { console.error('[endContract] API update failed:', e); }
+
+        for (const inv of pendingInvoices) {
+            try {
+                await api.delete('/api/invoices', { id: inv.id });
+                removeFromDeletedQueue('invoices', inv.id);
+            } catch (e) { console.error('[endContract] API DELETE failed for invoice:', inv.id, e); }
+        }
+    }
 };
 
 const auditLogToApi = async (action: string, details: string, tableName?: string, recordId?: string) => {
@@ -515,10 +543,10 @@ export const permanentDeleteContract = async (id: string): Promise<{ success: bo
                 id
             );
             for (const iid of linkedInvoiceIds) {
-                addToDeletedQueue(iid);
+                addToDeletedQueue('invoices', iid);
                 try {
                     await api.delete('/api/invoices', { id: iid });
-                    removeFromDeletedQueue(iid);
+                    removeFromDeletedQueue('invoices', iid);
                 } catch (e: any) {
                     console.error('[permanentDeleteContract] API error deleting invoice:', iid, e);
                 }
@@ -769,14 +797,22 @@ const recalcBillboardAvailability = (billboardId: string) => {
 
 // --- Invoice CRUD ---
 export const addInvoice = async (invoice: Invoice): Promise<Invoice> => {
+    // 1. Optimistic local add — immediately visible, persisted to localStorage
+    invoices = [invoice, ...invoices];
+    try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
+
+    // 2. API sync — updates invoice with server-assigned fields if available
     if (isConfigured()) {
-        // Let API errors propagate — callers must handle them and surface feedback to the user.
-        // Silently falling back to local-only storage creates phantom records that vanish on refresh.
-        const created = await api.post<Invoice>('/api/invoices', invoice);
-        invoices = [created, ...invoices];
-        invoice = created;
-    } else {
-        invoices = [invoice, ...invoices];
+        try {
+            const created = await api.post<Invoice>('/api/invoices', invoice);
+            // Replace optimistic entry with server response (e.g. server-generated timestamps)
+            if (created && created.id) {
+                invoices = invoices.map(i => i.id === invoice.id ? created : i);
+                invoice = created;
+            }
+        } catch (e) {
+            console.error('[addInvoice] API error, invoice kept locally:', e);
+        }
     }
     if (String(invoice.type || '').toLowerCase() === 'invoice') {
         const touched = Array.from(new Set((invoice.items || []).map(it => it.billboardId).filter((id): id is string => !!id)));
@@ -846,17 +882,17 @@ export const deleteInvoice = async (id: string): Promise<void> => {
         ? Array.from(new Set((target.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid)))
         : [];
 
-    // Optimistic local removal
+    // 1. Immediate local removal — persists regardless of API outcome
     invoices = invoices.filter(i => i.id !== id);
-    addToDeletedQueue(id);
+    addToDeletedQueue('invoices', id);
+    try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
 
-    // Try to revert invoice status if this was a receipt
+    // Revert linked invoice to Pending if this was a receipt
     if (target.type === 'Receipt') {
         const desc = target.items?.[0]?.description || '';
         const match = desc.match(/Invoice #([A-Za-z0-9-]+)/);
         if (match && match[1]) {
-            const linkedInvoiceId = match[1];
-            const invoice = invoices.find(i => i.id === linkedInvoiceId);
+            const invoice = invoices.find(i => i.id === match[1]);
             if (invoice) {
                 invoice.status = 'Pending';
                 if (isConfigured()) {
@@ -867,16 +903,13 @@ export const deleteInvoice = async (id: string): Promise<void> => {
         }
     }
 
+    // 2. Async remote delete — best-effort; deleted queue guards against re-import on failure
     if (isConfigured()) {
         try {
             await api.delete('/api/invoices', { id });
-            removeFromDeletedQueue(id);
+            removeFromDeletedQueue('invoices', id);
         } catch (e: any) {
-            // Roll back: restore the record locally so the UI stays consistent
-            invoices = [target, ...invoices];
-            removeFromDeletedQueue(id);
-            notifyListeners();
-            throw e;
+            console.error('[deleteInvoice] Remote delete failed, queue entry retained:', e?.message);
         }
     }
 
