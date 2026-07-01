@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import {
   getBillboards,
+  getCampaignGallery,
   getCompanyProfile,
   getContracts,
   getHeroImageUrl,
@@ -44,6 +45,8 @@ import { Billboard, BillboardType, Contract } from '../types';
 
 const liveLogo =
   'https://static.wixstatic.com/media/33e2c5_fa30ae7289ea444186df47e4189fca0d~mv2.png/v1/crop/x_0,y_194,w_526,h_100/fill/w_678,h_136,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/IMG_9520__1_-removebg-preview.png';
+
+const HERO_VIDEO_URL = 'https://pub-14569e32d4434e8d9db6cbdfe16b96f4.r2.dev/videoplayback%20(2).mp4';
 
 const DEFAULT_PARTNER_LOGOS = [
   {
@@ -227,7 +230,7 @@ const LogoLockup: React.FC<{ logo?: string | null; inverted?: boolean }> = ({ lo
 );
 
 const toSlug = (name: string): string =>
-  name
+  (name || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -330,13 +333,15 @@ export const PublicWebsite: React.FC = () => {
     const stored = getPartnerLogos();
     return stored.length ? stored : DEFAULT_PARTNER_LOGOS;
   });
+  const [campaignGallery, setCampaignGallery] = useState<{ src: string }[]>(() => getCampaignGallery());
 
-  // Re-read hero image and partner logos when mockData state changes (e.g. saved from WebsiteSettings)
+  // Re-read hero image, partner logos, and campaign gallery when mockData state changes
   useEffect(() => {
     const unsubscribe = subscribe(() => {
       setHeroImageUrl(getHeroImageUrl());
       const stored = getPartnerLogos();
       setPartnerLogos(stored.length ? stored : DEFAULT_PARTNER_LOGOS);
+      setCampaignGallery(getCampaignGallery());
     });
     return () => unsubscribe();
   }, []);
@@ -371,6 +376,14 @@ export const PublicWebsite: React.FC = () => {
               const parsed = JSON.parse(data.partnerLogos);
               if (Array.isArray(parsed) && parsed.length) {
                 setPartnerLogos(parsed);
+              }
+            } catch { /* ignore parse errors */ }
+          }
+          if (data.campaignGallery) {
+            try {
+              const parsed = JSON.parse(data.campaignGallery);
+              if (Array.isArray(parsed) && parsed.length) {
+                setCampaignGallery(parsed);
               }
             } catch { /* ignore parse errors */ }
           }
@@ -709,79 +722,27 @@ export const PublicWebsite: React.FC = () => {
 
         {page === 'home' && <section className="relative min-h-[94vh] overflow-hidden bg-slate-950 pt-[72px] text-white md:pt-[108px]">
           {(() => {
-            const ytId = heroImageUrl ? getYouTubeIdFromThumbnail(heroImageUrl) : null;
-            if (ytId) {
-              const embedUrl = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}&playsinline=1&disablekb=1`;
-              return (
-                <>
-                  <div className="absolute inset-0 overflow-hidden">
-                    <iframe
-                      src={embedUrl}
-                      title="Dreambox Advertising hero video"
-                      allow="autoplay; encrypted-media"
-                      className="absolute left-1/2 top-1/2 h-[130%] w-[130%] -translate-x-1/2 -translate-y-1/2"
-                      style={{ border: 0, pointerEvents: 'none' }}
-                    />
-                  </div>
-                  {/* Directional left-to-right darkening for text legibility */}
-                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
-                  {/* Edge vignette — darkens all four corners for cinematic depth */}
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_38%_52%,transparent_25%,rgba(2,6,23,0.72)_100%)]" />
-                  {/* Top atmospheric scrim */}
-                  <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-slate-950/60 to-transparent" />
-                </>
-              );
-            }
-            if (heroImageUrl) {
-              return (
-                <>
-                  <img
-                    src={heroImageUrl}
-                    alt="Hero background"
-                    loading="eager"
-                    decoding="async"
-                    className="absolute inset-0 h-full w-full object-cover animate-image-drift"
-                  />
-                  {/* Directional left-to-right darkening for text legibility */}
-                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
-                  {/* Edge vignette — darkens all four corners for cinematic depth */}
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_38%_52%,transparent_25%,rgba(2,6,23,0.72)_100%)]" />
-                  {/* Top atmospheric scrim */}
-                  <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-slate-950/60 to-transparent" />
-                </>
-              );
-            }
+            const overlays = (
+              <>
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94)_0%,rgba(15,23,42,0.82)_45%,rgba(15,23,42,0.38)_100%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_38%_52%,transparent_25%,rgba(2,6,23,0.72)_100%)]" />
+                <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-slate-950/60 to-transparent" />
+              </>
+            );
+
             return (
               <>
-                {/* Depth gradient — base: rich indigo-to-violet-to-navy */}
-                <div className="absolute inset-0 bg-[linear-gradient(145deg,#020510_0%,#0a0d2a_25%,#130938_55%,#050817_100%)]" />
-                {/* Radial glow — top-right indigo (vivid) */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_65%_at_76%_6%,rgba(99,102,241,0.65)_0%,transparent_58%)]" />
-                {/* Radial glow — mid-right violet accent */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_55%_at_88%_52%,rgba(139,92,246,0.42)_0%,transparent_55%)]" />
-                {/* Radial glow — bottom-left violet */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_48%_at_4%_82%,rgba(109,40,217,0.44)_0%,transparent_52%)]" />
-                {/* Diagonal vibrant accent band */}
-                <div className="absolute inset-0 opacity-[0.13]" style={{ background: 'linear-gradient(125deg, transparent 38%, rgba(99,102,241,0.9) 48%, rgba(139,92,246,0.9) 52%, transparent 62%)' }} />
-                {/* Animated orb — primary */}
-                <div className="absolute right-[10%] top-[10%] h-[580px] w-[580px] animate-glow-pulse rounded-full bg-indigo-500/[0.32] blur-[120px]" />
-                {/* Animated orb — secondary */}
-                <div className="absolute left-[3%] bottom-[20%] h-[420px] w-[420px] animate-glow-pulse rounded-full bg-violet-600/[0.28] blur-[100px]" style={{ animationDelay: '-4s' }} />
-                {/* Animated orb — tertiary cyan */}
-                <div className="absolute right-[3%] bottom-[8%] h-[300px] w-[300px] animate-glow-pulse rounded-full bg-cyan-500/[0.22] blur-[80px]" style={{ animationDelay: '-7s' }} />
-                {/* Animated orb — center warm accent */}
-                <div className="absolute left-[30%] top-[40%] h-[240px] w-[240px] animate-glow-pulse rounded-full bg-violet-400/[0.14] blur-[75px]" style={{ animationDelay: '-2s' }} />
-                {/* Perspective floor grid */}
-                <div className="hero-depth-grid absolute inset-0 opacity-[0.30]" />
-                {/* Edge vignette */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_88%_75%_at_48%_40%,transparent_22%,rgba(2,6,23,0.68)_100%)]" />
-                {/* Top atmospheric haze */}
-                <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-slate-950/60 to-transparent" />
-                {/* Light shafts */}
-                <div className="absolute right-[28%] top-0 h-3/4 w-[220px] bg-gradient-to-b from-indigo-400/[0.14] via-indigo-400/[0.05] to-transparent" style={{ clipPath: 'polygon(25% 0, 75% 0, 100% 100%, 0% 100%)' }} />
-                <div className="absolute right-[18%] top-0 h-1/2 w-[140px] bg-gradient-to-b from-violet-400/[0.10] to-transparent" style={{ clipPath: 'polygon(20% 0, 80% 0, 100% 100%, 0% 100%)' }} />
-                {/* Noise grain texture */}
-                <div className="hero-noise absolute inset-0 opacity-[0.04] mix-blend-screen" />
+                <div className="absolute inset-0 overflow-hidden">
+                  <video
+                    src={HERO_VIDEO_URL}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="absolute left-1/2 top-1/2 h-full w-full min-h-full min-w-full -translate-x-1/2 -translate-y-1/2 object-cover"
+                  />
+                </div>
+                {overlays}
               </>
             );
           })()}
@@ -1692,38 +1653,54 @@ export const PublicWebsite: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {shownAvailability.slice(0, 4).map((item, index) => (
-                <a
-                  key={item.board.id}
-                  href={item.board.id.startsWith('live-') ? '/site-availability' : billboardLink(item.board)}
-                  onClick={item.board.id.startsWith('live-') ? navigate('locations') : undefined}
-                  className="group animate-reveal-up overflow-hidden rounded-xl border border-white/[0.07] bg-slate-900 shadow-xl shadow-slate-950/20 transition-all duration-500 hover:-translate-y-1.5 hover:border-white/[0.14] hover:shadow-2xl hover:shadow-slate-950/30"
-                  style={{ animationDelay: `${index * 80}ms` }}
-                >
-                  <div className="relative h-72 overflow-hidden bg-slate-800">
-                    {item.board.imageUrl ? (
+            {campaignGallery.length > 0 ? (
+              <div className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4 [column-fill:_balance]">
+                {campaignGallery.map((img, index) => (
+                  <div
+                    key={index}
+                    className="mb-4 break-inside-avoid overflow-hidden rounded-xl animate-reveal-up"
+                    style={{ animationDelay: `${index * 60}ms` }}
+                  >
+                    <img
+                      src={img.src}
+                      alt={`Campaign photo ${index + 1}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full object-cover transition duration-500 hover:scale-[1.02] rounded-xl"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4 [column-fill:_balance]">
+                {shownAvailability.filter(item => item.board.imageUrl).slice(0, 8).map((item, index) => (
+                  <a
+                    key={item.board.id}
+                    href={item.board.id.startsWith('live-') ? '/site-availability' : billboardLink(item.board)}
+                    onClick={item.board.id.startsWith('live-') ? navigate('locations') : undefined}
+                    className="mb-4 break-inside-avoid group block overflow-hidden rounded-xl animate-reveal-up"
+                    style={{ animationDelay: `${index * 60}ms` }}
+                  >
+                    <div className="relative overflow-hidden rounded-xl bg-slate-800">
                       <img
-                        src={item.board.imageUrl}
+                        src={item.board.imageUrl!}
                         alt={`${item.board.name} billboard`}
                         loading="lazy"
                         decoding="async"
-                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                        className="w-full object-cover transition duration-700 group-hover:scale-105"
                       />
-                    ) : (
-                      <div className="h-full bg-gradient-to-br from-indigo-900/40 via-slate-800 to-slate-900" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <h3 className="text-lg font-black text-white">{item.board.name}</h3>
-                      <p className="mt-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-indigo-100">
-                        <MapPin size={13} /> {item.board.location || item.board.town}
-                      </p>
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="absolute bottom-0 left-0 right-0 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 p-4">
+                        <h3 className="text-sm font-black text-white">{item.board.name}</h3>
+                        <p className="mt-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-200">
+                          <MapPin size={10} /> {item.board.location || item.board.town}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </a>
-              ))}
-            </div>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </section>}
 

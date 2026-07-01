@@ -4,11 +4,9 @@ import { getCompanyProfile, updateCompanyProfile, subscribe } from '../services/
 import { CONTRACT_TEMPLATE_PLACEHOLDERS, DEFAULT_CONTRACT_TEMPLATE } from '../utils/contractTemplate';
 import { FileText, RotateCcw, Save, CheckCircle, Info, Eye } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
-import { canAccessSettings } from '../utils/settingsAccess';
 
 export const ContractTemplatePage: React.FC = () => {
   const currentUser = getCurrentUser();
-  const hasAccess = canAccessSettings(currentUser);
 
   const [profile, setProfile] = useState<CompanyProfile>(getCompanyProfile());
   const [saved, setSaved] = useState(false);
@@ -18,16 +16,6 @@ export const ContractTemplatePage: React.FC = () => {
     const unsubscribe = subscribe(() => setProfile(getCompanyProfile()));
     return () => unsubscribe();
   }, []);
-
-  if (!hasAccess) {
-    return (
-      <div className="max-w-xl mx-auto mt-16 bg-slate-50 border border-slate-200 rounded-2xl p-10 text-center">
-        <FileText className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-slate-700">Access Restricted</h2>
-        <p className="text-slate-900 font-medium mt-2">The contract template editor is limited to the finance/admin team.</p>
-      </div>
-    );
-  }
 
   const template = profile.contractTemplate ?? '';
   const isDefault = !template.trim();

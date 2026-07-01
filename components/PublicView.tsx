@@ -97,9 +97,9 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             result = result.filter(b =>
-                b.name.toLowerCase().includes(q) ||
-                b.location.toLowerCase().includes(q) ||
-                b.town.toLowerCase().includes(q)
+                String(b.name || '').toLowerCase().includes(q) ||
+                String(b.location || '').toLowerCase().includes(q) ||
+                String(b.town || '').toLowerCase().includes(q)
             );
         }
         if (townFilter !== 'all') {

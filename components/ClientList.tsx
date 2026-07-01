@@ -174,7 +174,7 @@ export const ClientList: React.FC = () => {
       }
 
       const current = getClients();
-      const byName = new Map(current.map(c => [c.companyName.toLowerCase().trim(), c]));
+      const byName = new Map(current.map(c => [String(c.companyName || '').toLowerCase().trim(), c]));
       let updated = 0, created = 0, skipped = 0;
       const details: string[] = [];
 
@@ -193,7 +193,7 @@ export const ClientList: React.FC = () => {
         const city = iCity >= 0 ? (cols[iCity] || '').trim() : '';
         const country = iCountry >= 0 ? (cols[iCountry] || '').trim() : '';
 
-        const existing = byName.get(companyName.toLowerCase().trim());
+        const existing = byName.get(String(companyName || '').toLowerCase().trim());
         if (existing) {
           const merged: Client = {
             ...existing,
@@ -231,7 +231,7 @@ export const ClientList: React.FC = () => {
             city,
             country,
           };
-          try { await addClient(newClient); byName.set(companyName.toLowerCase().trim(), newClient); created++; } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
+          try { await addClient(newClient); byName.set(String(companyName || '').toLowerCase().trim(), newClient); created++; } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
         }
       }
 

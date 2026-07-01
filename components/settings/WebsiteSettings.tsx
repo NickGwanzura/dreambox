@@ -14,11 +14,13 @@ import {
   Users2,
   MoveUp,
   MoveDown,
+  GalleryHorizontal,
 } from 'lucide-react';
 import { getToken } from '../../services/apiClient';
 import { updateLocalCompanyProfile } from '../../services/mockData';
 
 export type PartnerLogo = { name: string; src: string };
+export type GalleryImage = { src: string };
 
 const FALLBACK_LOGOS: PartnerLogo[] = [
   { name: 'Cardinal Properties', src: 'https://static.wixstatic.com/media/6d48c9_b05994263fed4b859517750397b8c30b~mv2.png/v1/fill/w_546,h_326,al_c,lg_1,q_85,enc_avif,quality_auto/Cardinal%20Properties%20Logo%20SQ.png' },
@@ -34,11 +36,11 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function uploadToR2(dataUrl: string): Promise<string> {
+async function uploadToR2WithFolder(dataUrl: string, folder: string): Promise<string> {
   const res = await fetch('/api/upload-image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ dataUrl, folder: 'logos' }),
+    body: JSON.stringify({ dataUrl, folder }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Upload failed' }));
@@ -46,6 +48,10 @@ async function uploadToR2(dataUrl: string): Promise<string> {
   }
   const { url } = await res.json();
   return url;
+}
+
+async function uploadToR2(dataUrl: string): Promise<string> {
+  return uploadToR2WithFolder(dataUrl, 'logos');
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -86,6 +92,14 @@ export const WebsiteSettings: React.FC = () => {
   // ── Per-logo replace input refs ──────────────────────────────────────────
   const replaceRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
+  // ── Campaign gallery ──────────────────────────────────────────────────────
+  const [gallery, setGallery] = useState<GalleryImage[]>([]);
+  const [gallerySaving, setGallerySaving] = useState(false);
+  const [galleryStatus, setGalleryStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [galleryError, setGalleryError] = useState('');
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   // ── Load ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -102,6 +116,9 @@ export const WebsiteSettings: React.FC = () => {
             try { setLogos(JSON.parse(data.partnerLogos)); } catch {}
           } else {
             setLogos(FALLBACK_LOGOS);
+          }
+          if (data.campaignGallery) {
+            try { setGallery(JSON.parse(data.campaignGallery)); } catch {}
           }
         }
       } catch {}
@@ -263,6 +280,84 @@ export const WebsiteSettings: React.FC = () => {
     setLogos(FALLBACK_LOGOS);
     setLogosStatus('idle');
     setLogosError('');
+  };
+
+  // ── Gallery handlers ──────────────────────────────────────────────────────
+  const handleGalleryFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setGalleryUploading(true);
+    setGalleryError('');
+    const uploaded: GalleryImage[] = [];
+    for (const file of files) {
+      if (file.size > 8 * 1024 * 1024) continue;
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const url = await uploadToR2WithFolder(dataUrl, 'gallery');
+        uploaded.push({ src: url });
+      } catch {
+        const dataUrl = await readFileAsDataUrl(file).catch(() => '');
+        if (dataUrl) uploaded.push({ src: dataUrl });
+      }
+    }
+    setGallery(prev => [...prev, ...uploaded]);
+    setGalleryUploading(false);
+    e.target.value = '';
+  };
+
+  const handleGalleryDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (!files.length) return;
+    setGalleryUploading(true);
+    setGalleryError('');
+    const uploaded: GalleryImage[] = [];
+    for (const file of files) {
+      if (file.size > 8 * 1024 * 1024) continue;
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const url = await uploadToR2WithFolder(dataUrl, 'gallery');
+        uploaded.push({ src: url });
+      } catch {
+        const dataUrl = await readFileAsDataUrl(file).catch(() => '');
+        if (dataUrl) uploaded.push({ src: dataUrl });
+      }
+    }
+    setGallery(prev => [...prev, ...uploaded]);
+    setGalleryUploading(false);
+  }, []);
+
+  const removeGalleryImage = (index: number) => {
+    setGallery(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const saveGallery = async () => {
+    setGallerySaving(true);
+    setGalleryStatus('idle');
+    setGalleryError('');
+    try {
+      const getRes = await fetch('/api/company-profile', {
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      });
+      const current = getRes.ok ? await getRes.json() : {};
+      const res = await fetch('/api/company-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ ...current, campaignGallery: JSON.stringify(gallery) }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Save failed (${res.status})`);
+      }
+      setGalleryStatus('saved');
+      updateLocalCompanyProfile({ campaignGallery: JSON.stringify(gallery) } as any);
+      setTimeout(() => setGalleryStatus('idle'), 3000);
+    } catch (e: any) {
+      setGalleryError(e.message || 'Save failed');
+      setGalleryStatus('error');
+    } finally {
+      setGallerySaving(false);
+    }
   };
 
   const heroChanged = heroPreview !== heroUrl;
@@ -565,6 +660,106 @@ export const WebsiteSettings: React.FC = () => {
             >
               {logosSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {logosSaving ? 'Saving…' : 'Save Partner Logos'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Campaign Gallery ─────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white rounded-lg text-indigo-600 shadow-sm border border-slate-100">
+              <GalleryHorizontal size={18} />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-800">Campaign Gallery</h4>
+              <p className="text-xs text-slate-500">Masonry photo gallery shown in the &ldquo;Previous Campaigns&rdquo; section. Upload multiple images.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => galleryInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors"
+          >
+            <Plus size={14} /> Add Photos
+          </button>
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleGalleryFiles}
+          />
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Drop zone */}
+          <div
+            onDragOver={e => e.preventDefault()}
+            onDrop={handleGalleryDrop}
+            onClick={() => galleryInputRef.current?.click()}
+            className="cursor-pointer rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors flex flex-col items-center justify-center gap-3 py-8 text-slate-400"
+          >
+            {galleryUploading ? (
+              <>
+                <Loader2 size={28} className="animate-spin text-indigo-400" />
+                <p className="text-sm font-semibold text-indigo-600">Uploading…</p>
+              </>
+            ) : (
+              <>
+                <div className="p-4 bg-slate-100 rounded-full"><Upload size={24} /></div>
+                <p className="text-sm font-semibold">Drop photos here or click to upload</p>
+                <p className="text-xs">PNG, JPG, WebP — max 8 MB each — multiple allowed</p>
+              </>
+            )}
+          </div>
+
+          {/* Masonry preview grid */}
+          {gallery.length > 0 && (
+            <div className="columns-2 gap-3 sm:columns-3 md:columns-4">
+              {gallery.map((img, i) => (
+                <div key={i} className="mb-3 break-inside-avoid group relative overflow-hidden rounded-lg">
+                  <img src={img.src} alt={`Gallery ${i + 1}`} className="w-full object-cover rounded-lg" />
+                  <button
+                    type="button"
+                    onClick={() => removeGalleryImage(i)}
+                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                    title="Remove"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {gallery.length === 0 && !galleryUploading && (
+            <p className="text-center text-xs text-slate-400 py-2">No gallery images yet. Upload photos to populate the campaign gallery section.</p>
+          )}
+
+          {/* Status */}
+          {galleryStatus === 'error' && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertTriangle size={13} /> {galleryError || 'Save failed'}
+            </div>
+          )}
+          {galleryStatus === 'saved' && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <CheckCircle size={13} /> Campaign gallery saved.
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={saveGallery}
+              disabled={gallerySaving}
+              className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-800 disabled:opacity-50 shadow-sm transition-all"
+            >
+              {gallerySaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {gallerySaving ? 'Saving…' : 'Save Gallery'}
             </button>
           </div>
         </div>

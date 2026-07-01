@@ -18,6 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       phone: row.phone,
       heroImageUrl: row.heroImageUrl || null,
       partnerLogos: row.partnerLogos || null,
+      campaignGallery: (row as any).campaignGallery || null,
     });
   } catch (e: any) {
     log.error('[public-profile]', e);

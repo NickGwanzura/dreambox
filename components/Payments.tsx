@@ -216,8 +216,8 @@ export const Payments: React.FC = () => {
         }
     };
 
-    const filteredInvoices = allInvoices.filter(inv => { const matchesStatus = statusFilter === 'All' ? true : String(inv.status || '').toLowerCase() === statusFilter.toLowerCase(); const searchLower = searchTerm.toLowerCase(); const clientName = getClientName(inv.clientId).toLowerCase(); const matchesSearch = inv.id.toLowerCase().includes(searchLower) || clientName.includes(searchLower); return matchesStatus && matchesSearch; });
-    const filteredReceipts = allReceipts.filter(r => { const searchLower = searchTerm.toLowerCase(); const clientName = getClientName(r.clientId).toLowerCase(); return r.id.toLowerCase().includes(searchLower) || clientName.includes(searchLower) || (r.paymentReference && r.paymentReference.toLowerCase().includes(searchLower)); });
+    const filteredInvoices = allInvoices.filter(inv => { const matchesStatus = statusFilter === 'All' ? true : String(inv.status || '').toLowerCase() === statusFilter.toLowerCase(); const searchLower = searchTerm.toLowerCase(); const clientName = String(getClientName(inv.clientId) || '').toLowerCase(); const matchesSearch = String(inv.id || '').toLowerCase().includes(searchLower) || clientName.includes(searchLower); return matchesStatus && matchesSearch; });
+    const filteredReceipts = allReceipts.filter(r => { const searchLower = searchTerm.toLowerCase(); const clientName = String(getClientName(r.clientId) || '').toLowerCase(); return String(r.id || '').toLowerCase().includes(searchLower) || clientName.includes(searchLower) || (r.paymentReference && String(r.paymentReference).toLowerCase().includes(searchLower)); });
 
     // Build year options (current year ± 2)
     const yearOptions = Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i).map(y => ({ value: String(y), label: String(y) }));

@@ -207,7 +207,9 @@ export const setCompanyLogo = async (url: string): Promise<void> => {
 export const updateCompanyProfile = async (profile: CompanyProfile): Promise<void> => {
     companyProfile = profile;
     if (isConfigured()) {
-        await api.put('/api/company-profile', { ...profile, id: 'profile_v1', logo: companyLogo });
+        const payload: any = { ...profile, id: 'profile_v1' };
+        if (companyLogo) payload.logo = companyLogo;
+        await api.put('/api/company-profile', payload);
     }
     logAction('Settings Update', 'Updated company profile details');
     notifyListeners();
@@ -1380,7 +1382,7 @@ export const getClients = () => clients || [];
 export const getOutsourcedBillboards = () => outsourcedBillboards || [];
 export const getTasks = () => tasks || [];
 export const getMaintenanceLogs = () => maintenanceLogs || [];
-export const getCompanyLogo = () => companyLogo;
+export const getCompanyLogo = () => companyLogo || (companyProfile as any)?.logo || null;
 export const getCompanyProfile = () => companyProfile;
 
 /**
@@ -1390,12 +1392,22 @@ export const getCompanyProfile = () => companyProfile;
  */
 export const updateLocalCompanyProfile = (partial: Partial<CompanyProfile>): void => {
   companyProfile = { ...companyProfile!, ...partial } as CompanyProfile;
+  if (partial && 'logo' in partial && partial.logo !== undefined) {
+    companyLogo = partial.logo || null;
+  }
   notifyListeners();
 };
 export const getHeroImageUrl = (): string | null => (companyProfile as any)?.heroImageUrl || null;
 export const getPartnerLogos = (): { name: string; src: string }[] => {
   try {
     const raw = (companyProfile as any)?.partnerLogos;
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch { return []; }
+};
+export const getCampaignGallery = (): { src: string }[] => {
+  try {
+    const raw = (companyProfile as any)?.campaignGallery;
     if (!raw) return [];
     return JSON.parse(raw);
   } catch { return []; }

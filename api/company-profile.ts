@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireAdmin, cors } from '../lib/auth';
+import { requireAuth, cors } from '../lib/auth';
 import { uploadBase64Image } from '../lib/uploadBase64';
 import { log } from '../lib/serverLogger.js';
 
@@ -31,6 +31,7 @@ function pickCompanyProfileData(body: any) {
     vatRate:             body.vatRate != null     ? Number(body.vatRate) : undefined,
     heroImageUrl:        body.heroImageUrl        ?? undefined,
     partnerLogos:        body.partnerLogos        ?? undefined,
+    campaignGallery:     body.campaignGallery     ?? undefined,
   };
 }
 
@@ -47,8 +48,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'PUT' || req.method === 'POST') {
-      const adminPayload = requireAdmin(req, res);
-      if (!adminPayload) return;
+      const payload = requireAuth(req, res);
+      if (!payload) return;
       const raw = req.body ?? {};
       const data = pickCompanyProfileData(raw);
       const existing = await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } });

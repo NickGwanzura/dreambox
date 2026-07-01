@@ -46,7 +46,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const [newItem, setNewItem] = useState({ description: '', amount: 0 });
   const [formData, setFormData] = useState<Partial<Invoice>>({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '' });
   const [selectedInvoiceToPay, setSelectedInvoiceToPay] = useState('');
-  const [hasVat, setHasVat] = useState(true);
+  const [hasVat, setHasVat] = useState(false);
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
   const [discountValue, setDiscountValue] = useState(0);
   const [discountDescription, setDiscountDescription] = useState('');
@@ -218,7 +218,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           setIsModalOpen(false);
           setEditingInvoice(null);
           setFormData(getEmptyFormData());
-          setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription('');
+          setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription('');
           setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch('');
           resetQuoteFields();
           alert(`${editingInvoice.type} Updated Successfully!`);
@@ -257,7 +257,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
               return;
           }
-          setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+          setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
       }
   };
   const downloadPDF = (doc: Invoice) => { const client = allClients.find(c => c.id === doc.clientId); if (client) { generateInvoicePDF(doc, client); } else { alert(`Could not generate PDF: Client data missing for ID ${doc.clientId}`); } };
@@ -380,7 +380,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       else if (activeTab === 'Receipts') matchesType = iType === 'receipt';
       const searchLower = searchTerm.toLowerCase();
       const clientName = String(allClients.find(c => c.id === i.clientId)?.companyName || '').toLowerCase();
-      const matchesSearch = String(i.id || '').toLowerCase().includes(searchLower) || clientName.includes(searchLower) || (i.paymentReference && i.paymentReference.toLowerCase().includes(searchLower));
+      const matchesSearch = String(i.id || '').toLowerCase().includes(searchLower) || clientName.includes(searchLower) || (i.paymentReference && String(i.paymentReference).toLowerCase().includes(searchLower));
       return matchesType && matchesSearch;
   });
 
@@ -389,7 +389,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : 'Invoices'}</h2><p className="text-slate-900 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : activeTab === 'Receipts' ? 'Payment receipts and collection history' : 'Create invoices, manage VAT, and track payment history'}</p></div>
-          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(true); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
+          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
         </div>
 
         {/* Tabs — Quotations and Proformas moved to dedicated Quotations page */}
@@ -722,8 +722,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                             {receiptIsLinkedToInvoice && <p className="text-xs text-slate-900">To keep balances correct, linked receipts use the invoice amount exactly.</p>}
                         </div>
                         <div className="flex items-center gap-2">
-                            <input type="checkbox" checked={hasVat} disabled={activeTab === 'Receipts' && !!selectedInvoiceToPay} onChange={e => setHasVat(e.target.checked)} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
-                            <label className="text-sm font-medium text-slate-900">Amounts include VAT ({vatPct})</label>
+                            <input id="hasVatCheckbox" type="checkbox" checked={hasVat} disabled={activeTab === 'Receipts' && !!selectedInvoiceToPay} onChange={e => setHasVat(e.target.checked)} className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer" />
+                            <label htmlFor="hasVatCheckbox" className="text-sm font-medium text-slate-900 cursor-pointer select-none">Amounts include VAT ({vatPct})</label>
                         </div>
                         {(activeTab as string) === 'Quotations' && (
                           <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">

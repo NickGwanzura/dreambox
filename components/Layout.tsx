@@ -19,7 +19,6 @@ import {
   subscribe
 } from '../services/mockData';
 import { logger } from '../utils/logger';
-import { canAccessSettings } from '../utils/settingsAccess';
 import { startAutoSync, useSync, forceSyncNow } from '../services/neonSyncManager';
 import {
   ALERT_CHECK_INTERVAL_MS,
@@ -268,12 +267,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   }, [dbConnected]);
 
   const userRole = user?.role || 'Staff';
-  const settingsVisible = canAccessSettings(user);
 
   const visibleSections = ALL_SECTIONS.map(section => ({
     ...section,
     items: section.items.filter(item => {
-      if (item.id === 'settings' || item.id === 'contract-template') return settingsVisible;
+      if (item.id === 'settings' || item.id === 'contract-template') return true;
       return !item.roles || item.roles.includes(userRole);
     }),
   })).filter(s => s.items.length > 0);

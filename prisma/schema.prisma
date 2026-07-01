@@ -343,6 +343,7 @@ model CompanyProfile {
   vatRate           Float?
   heroImageUrl      String?
   partnerLogos      String?
+  campaignGallery   String?
 
   @@map("company_profile")
 }

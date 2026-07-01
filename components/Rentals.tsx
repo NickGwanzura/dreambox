@@ -82,13 +82,13 @@ export const Rentals: React.FC = () => {
   const filteredRentals = rentals.filter(contract => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
-      const clientName = getClientName(contract.clientId).toLowerCase();
-      const billboardName = getBillboardName(contract.billboardId).toLowerCase();
+      const clientName = String(getClientName(contract.clientId) || '').toLowerCase();
+      const billboardName = String(getBillboardName(contract.billboardId) || '').toLowerCase();
       return (
           clientName.includes(q) ||
           billboardName.includes(q) ||
-          contract.id.toLowerCase().includes(q) ||
-          contract.details.toLowerCase().includes(q) ||
+          String(contract.id || '').toLowerCase().includes(q) ||
+          String(contract.details || '').toLowerCase().includes(q) ||
           contract.startDate.includes(q) ||
           contract.endDate.includes(q)
       );

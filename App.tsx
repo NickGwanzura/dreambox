@@ -405,14 +405,6 @@ const App: React.FC = () => {
             </FeatureErrorBoundary>
           );
         case 'settings': {
-          if (!canAccessSettings(getCachedUser())) {
-            return (
-              <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
-                <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
-                <p className="text-slate-900 text-sm">Settings access is limited to the finance/admin team. Contact Rufaro, Brian, or Nick if you need a change made.</p>
-              </div>
-            );
-          }
           return (
             <FeatureErrorBoundary featureName="Settings" onReset={() => setPageError(null)}>
               <Settings />
@@ -420,14 +412,6 @@ const App: React.FC = () => {
           );
         }
         case 'contract-template': {
-          if (!canAccessSettings(getCachedUser())) {
-            return (
-              <div className="p-8 bg-white rounded-3xl shadow-lg border border-slate-100 text-center max-w-lg mx-auto mt-8">
-                <h2 className="text-xl font-bold text-slate-900 mb-2">Restricted</h2>
-                <p className="text-slate-900 text-sm">Contract template editing is limited to the finance/admin team. Contact Rufaro, Brian, or Nick if you need a change made.</p>
-              </div>
-            );
-          }
           return (
             <FeatureErrorBoundary featureName="Contract Template" onReset={() => setPageError(null)}>
               <ContractTemplatePage />

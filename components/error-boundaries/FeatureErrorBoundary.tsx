@@ -61,7 +61,7 @@ export class FeatureErrorBoundary extends React.Component<Props, State> {
             </h3>
             
             <p className="text-slate-900 mb-6 max-w-md mx-auto">
-              Something went wrong in the {featureName.toLowerCase()} section. 
+              Something went wrong in the {String(featureName || '').toLowerCase()} section.
               Try refreshing or go back to the dashboard.
             </p>
             

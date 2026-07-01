@@ -518,7 +518,7 @@ export const BillboardList: React.FC = () => {
 
               if (clientName && startDate && endDate) {
                   const currentClients = getClients();
-                  let client = currentClients.find(c => c.companyName.toLowerCase() === clientName.toLowerCase());
+                  let client = currentClients.find(c => String(c.companyName || '').toLowerCase() === String(clientName || '').toLowerCase());
                   const preferredBillingDay = billingDay ? parseInt(billingDay, 10) : undefined;
 
                   if (!client) {
