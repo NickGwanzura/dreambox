@@ -171,6 +171,7 @@ export const reloadAllFromApi = async (): Promise<void> => {
                     const overrides = Object.fromEntries(Object.entries(d).filter(([, v]) => v !== null && v !== undefined && v !== ''));
                     companyProfile = { ...DEFAULT_PROFILE, ...overrides } as CompanyProfile;
                     companyLogo = d.logo || null;
+                    persistCompanyProfile();
                 }
             }),
             api.get<any[]>('/api/audit-logs?limit=500').then(d => {
@@ -196,20 +197,52 @@ if (isConfigured()) {
 }
 
 // --- Profile Mutations ---
+const COMPANY_PROFILE_KEY = 'dreambox_company_profile';
+
+const persistCompanyProfile = (): void => {
+  try { localStorage.setItem(COMPANY_PROFILE_KEY, JSON.stringify(companyProfile)); } catch {}
+};
+
+const loadCompanyProfile = (): void => {
+  try {
+    const raw = localStorage.getItem(COMPANY_PROFILE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.name) {
+        companyProfile = parsed as CompanyProfile;
+        if ((parsed as any).logo) companyLogo = (parsed as any).logo;
+      }
+    }
+  } catch {}
+};
+
+// Load local backup on module init
+loadCompanyProfile();
+
 export const setCompanyLogo = async (url: string): Promise<void> => {
     companyLogo = url;
     updateLocalCompanyProfile({ logo: url });
+    persistCompanyProfile();
     if (isConfigured() && companyProfile) {
-        await api.put('/api/company-profile', { ...companyProfile, id: 'profile_v1', logo: url });
+        try {
+            await api.put('/api/company-profile', { id: 'profile_v1', logo: url });
+        } catch (e: any) {
+            console.warn('[setCompanyLogo] API save failed, logo kept locally:', e?.message);
+        }
     }
 };
 
 export const updateCompanyProfile = async (profile: CompanyProfile): Promise<void> => {
     companyProfile = profile;
+    persistCompanyProfile();
     if (isConfigured()) {
         const payload: any = { ...profile, id: 'profile_v1' };
         if (companyLogo) payload.logo = companyLogo;
-        await api.put('/api/company-profile', payload);
+        try {
+            await api.put('/api/company-profile', payload);
+        } catch (e: any) {
+            console.warn('[updateCompanyProfile] API save failed, kept locally:', e?.message);
+        }
     }
     logAction('Settings Update', 'Updated company profile details');
     notifyListeners();
@@ -1395,6 +1428,7 @@ export const updateLocalCompanyProfile = (partial: Partial<CompanyProfile>): voi
   if (partial && 'logo' in partial && partial.logo !== undefined) {
     companyLogo = partial.logo || null;
   }
+  persistCompanyProfile();
   notifyListeners();
 };
 export const getHeroImageUrl = (): string | null => (companyProfile as any)?.heroImageUrl || null;
