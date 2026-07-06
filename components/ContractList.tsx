@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { generateId } from '../utils/sanitizers';
 import { contracts as initialContracts, clients, billboards, getContracts, getBillboards, addContract, updateContract, updateClient, subscribe, getEffectiveVatRate, endContract, permanentDeleteContract } from '../services/mockData';
 import { generateLegalContractPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
@@ -342,7 +343,7 @@ export const ContractList: React.FC = () => {
 
           const renewedContract: Contract = {
               ...renewContract,
-              id: `C-${Date.now().toString().slice(-4)}`,
+              id: `C-${generateId()}`,
               startDate: newStart.toISOString().split('T')[0],
               endDate: newEnd.toISOString().split('T')[0],
               status: 'Active',
@@ -383,7 +384,7 @@ export const ContractList: React.FC = () => {
           const gross = (newContract.monthlyRate * months) + newContract.installationCost + newContract.printingCost + (newContract.productionCost || 0);
           const contract: Contract = {
               ...newContract,
-              id: `C-${Date.now().toString().slice(-6)}`,
+              id: `C-${generateId()}`,
               totalContractValue: gross,
               createdAt: new Date().toISOString(),
               lastModifiedDate: new Date().toISOString(),

@@ -27,6 +27,22 @@ const notifyListeners = () => {
     listeners.forEach(listener => listener());
 };
 
+// --- Sync error notifications ---
+// Offline-first writes keep going when the server rejects them, but the user
+// must know the data only exists locally. UI layers register a callback here
+// (Layout wires it to a toast).
+type SyncErrorListener = (message: string) => void;
+const syncErrorListeners = new Set<SyncErrorListener>();
+
+export const onSyncError = (cb: SyncErrorListener): (() => void) => {
+    syncErrorListeners.add(cb);
+    return () => { syncErrorListeners.delete(cb); };
+};
+
+export const notifySyncError = (message: string): void => {
+    syncErrorListeners.forEach(cb => { try { cb(message); } catch { /* listener errors must not break sync */ } });
+};
+
 // --- Deleted Queue ---
 // Tracks {table, id} pairs deleted locally that may not yet be deleted from the server.
 // Prevents deleted records from reappearing when pullAllFromNeon() re-imports them.
@@ -159,6 +175,11 @@ export const getEffectiveVatRate = (): number => {
     return typeof r === 'number' && r >= 0 ? r : VAT_RATE;
 };
 
+// True once the first server hydration has completed — guards actions that
+// must not run against stale localStorage data (e.g. auto-billing).
+let hydratedFromApi = false;
+export const hasHydratedFromApi = (): boolean => hydratedFromApi;
+
 // --- Initialize from API (callable after login too) ---
 export const reloadAllFromApi = async (): Promise<void> => {
     if (!isConfigured()) return;
@@ -220,6 +241,7 @@ export const reloadAllFromApi = async (): Promise<void> => {
         if (rejected.length > 0) {
             console.warn(`[mockData] ${rejected.length}/${results.length} API initializations failed`);
         }
+        hydratedFromApi = true;
         notifyListeners();
     } catch (e) {
         console.error('[mockData] Failed to initialize from API:', e);
@@ -262,6 +284,7 @@ export const setCompanyLogo = async (url: string): Promise<void> => {
             await api.put('/api/company-profile', { id: 'profile_v1', logo: url });
         } catch (e: any) {
             console.warn('[setCompanyLogo] API save failed, logo kept locally:', e?.message);
+            notifySyncError('Logo saved locally — server sync failed. It may not appear on other devices yet.');
         }
     }
 };
@@ -276,6 +299,7 @@ export const updateCompanyProfile = async (profile: CompanyProfile): Promise<voi
             await api.put('/api/company-profile', payload);
         } catch (e: any) {
             console.warn('[updateCompanyProfile] API save failed, kept locally:', e?.message);
+            notifySyncError('Company details saved locally — server sync failed.');
         }
     }
     logAction('Settings Update', 'Updated company profile details');
@@ -284,6 +308,9 @@ export const updateCompanyProfile = async (profile: CompanyProfile): Promise<voi
 
 // --- Auto Billing ---
 export const runAutoBilling = async (): Promise<number> => {
+  // Never bill from stale localStorage: before the first hydration the
+  // "already billed this month" check can't see invoices created elsewhere.
+  if (isConfigured() && !hydratedFromApi) return 0;
   const today = new Date();
   const yr = today.getFullYear();
   const mo = String(today.getMonth() + 1).padStart(2, '0');
@@ -475,13 +502,16 @@ export const deleteContract = async (id: string) => {
     contracts = contracts.filter(c => c.id !== id);
     addToDeletedQueue('contracts', id);
 
+    // Only cascade unpaid invoices — paid invoices are revenue history and
+    // must survive their contract (same rule as endContract).
     const linkedInvoices = invoices.filter(
-        i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice'
+        i => i.contractId === id
+            && String(i.type || '').toLowerCase() === 'invoice'
+            && (i.status === 'Pending' || i.status === 'Overdue')
     );
+    const linkedInvoiceIds = new Set(linkedInvoices.map(i => i.id));
     for (const i of linkedInvoices) addToDeletedQueue('invoices', i.id);
-    invoices = invoices.filter(
-        i => !(i.contractId === id && String(i.type || '').toLowerCase() === 'invoice')
-    );
+    invoices = invoices.filter(i => !linkedInvoiceIds.has(i.id));
 
     const linkedAmendments = contractAmendments.filter(a => a.contractId === id);
     contractAmendments = contractAmendments.filter(a => a.contractId !== id);
@@ -490,18 +520,10 @@ export const deleteContract = async (id: string) => {
     try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
     try { localStorage.setItem(STORAGE_KEYS.CONTRACTS, JSON.stringify(contracts)); } catch {}
 
-    // Billboard availability
-    const billboard = billboards.find(b => b.id === contract.billboardId);
-    if (billboard) {
-        if (billboard.type === BillboardType.Static) {
-            if (contract.side === 'A' || contract.details.includes('Side A')) { billboard.sideAStatus = 'Available'; billboard.sideAClientId = undefined; }
-            if (contract.side === 'B' || contract.details.includes('Side B')) { billboard.sideBStatus = 'Available'; billboard.sideBClientId = undefined; }
-            if (contract.side === 'Both') { billboard.sideAStatus = 'Available'; billboard.sideBStatus = 'Available'; billboard.sideAClientId = undefined; billboard.sideBClientId = undefined; }
-        } else if (billboard.type === BillboardType.LED) {
-            billboard.rentedSlots = Math.max(0, (billboard.rentedSlots || 0) - 1);
-        }
-        updateBillboard(billboard);
-    }
+    // Billboard availability — full recalc instead of manual flag flips:
+    // the manual LED decrement drifted when a contract held multiple slots
+    // or invoices also occupied the board.
+    recalcBillboardAvailability(contract.billboardId);
 
     logAction('Delete Contract', `Removed contract ${id} and freed up assets`);
     notifyListeners();
@@ -511,7 +533,7 @@ export const deleteContract = async (id: string) => {
         try {
             await api.delete('/api/contracts', { id });
             removeFromDeletedQueue('contracts', id);
-        } catch (e) { console.error('[deleteContract] API DELETE failed:', e); }
+        } catch (e) { console.error('[deleteContract] API DELETE failed:', e); notifySyncError('Contract deleted locally — server removal failed and will retry on next reload.'); }
 
         for (const i of linkedInvoices) {
             try {
@@ -568,7 +590,7 @@ export const endContract = async (id: string) => {
     if (isConfigured()) {
         try {
             await api.put('/api/contracts', endedContract, { id: endedContract.id });
-        } catch (e) { console.error('[endContract] API update failed:', e); }
+        } catch (e) { console.error('[endContract] API update failed:', e); notifySyncError('Contract ended locally — server sync failed.'); }
 
         for (const inv of pendingInvoices) {
             try {
@@ -887,6 +909,7 @@ export const addInvoice = async (invoice: Invoice): Promise<Invoice> => {
         } catch (e) {
             invoice = { ...invoice, id: tempId };
             console.error('[addInvoice] API error, invoice kept locally:', e);
+            notifySyncError(`${invoice.type || 'Invoice'} saved locally — server sync failed and will retry on next reload.`);
         }
     } else {
         invoice = { ...invoice, id: tempId };
@@ -907,12 +930,14 @@ export const addInvoice = async (invoice: Invoice): Promise<Invoice> => {
 export const markInvoiceAsPaid = async (id: string) => {
     const previous = invoices.find(i => i.id === id);
     invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid' } : i);
+    persistInvoices();
     const updated = invoices.find(i => i.id === id);
     if (updated && isConfigured()) {
         try {
             await api.put('/api/invoices', updated, { id: updated.id });
         } catch (e) {
             if (previous) invoices = invoices.map(i => i.id === id ? previous : i);
+            persistInvoices();
             notifyListeners();
             throw e;
         }
@@ -929,6 +954,7 @@ export const updateInvoice = async (updated: Invoice): Promise<void> => {
     }
     // Optimistic local update
     invoices = invoices.map(i => i.id === updated.id ? updated : i);
+    persistInvoices();
 
     const oldBillboards = new Set((previous.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
     const newBillboards = new Set((updated.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid));
@@ -943,6 +969,7 @@ export const updateInvoice = async (updated: Invoice): Promise<void> => {
         } catch (e) {
             // Roll back the optimistic update so local state stays consistent with the server
             invoices = invoices.map(i => i.id === updated.id ? previous : i);
+            persistInvoices();
             notifyListeners();
             throw e;
         }
@@ -1025,6 +1052,7 @@ export const deleteInvoice = async (id: string): Promise<void> => {
                     throw e;
                 } else {
                     console.error('[deleteInvoice] Remote delete failed, queue entry retained:', e?.message);
+                    notifySyncError('Deleted locally — server removal failed and will retry on next reload.');
                 }
             }
         }

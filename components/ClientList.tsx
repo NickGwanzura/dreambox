@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { generateId } from '../utils/sanitizers';
 import { Client, Contract } from '../types';
 import { getClients, addClient, deleteClient, updateClient, getNextBillingDetails, getContracts, subscribe } from '../services/mockData';
 import { generateClientDirectoryPDF } from '../services/pdfGenerator';
@@ -56,10 +57,15 @@ export const ClientList: React.FC = () => {
       return () => { unsubscribe(); };
   }, []);
 
+  const isSubmittingRef = useRef(false);
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A double-click on submit would create the record twice
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    try {
     const client: Client = {
-        id: (Date.now()).toString(),
+        id: generateId(),
         companyName: newClient.companyName || 'New Company',
         contactPerson: newClient.contactPerson || 'N/A',
         email: newClient.email || '',
@@ -76,6 +82,9 @@ export const ClientList: React.FC = () => {
         setNewClient({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined, streetAddress: '', city: '', country: 'Zimbabwe' });
     } catch (err: any) {
         alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+    }
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -220,7 +229,7 @@ export const ClientList: React.FC = () => {
           } else { skipped++; }
         } else {
           const newClient: Client = {
-            id: `CLI-${Date.now()}-${Math.floor(Math.random() * 1000)}-${r}`,
+            id: `CLI-${generateId()}`,
             companyName,
             contactPerson: contact || 'N/A',
             email,

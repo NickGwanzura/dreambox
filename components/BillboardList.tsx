@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { generateId } from '../utils/sanitizers';
 import { Billboard, BillboardType, Client, Contract } from '../types';
 import { getBillboards, addBillboard, updateBillboard, deleteBillboard, clients, ZIM_TOWNS, addClient, addContract, getClients, updateClient, getContracts, subscribe } from '../services/mockData';
 import { analyzeBillboardLocation } from '../services/aiService';
@@ -309,10 +310,15 @@ export const BillboardList: React.FC = () => {
   };
   
   // ... (Other handlers unchanged)
+  const isSubmittingRef = useRef(false);
   const handleAddBillboard = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A double-click on submit would create the record twice
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    try {
     const billboard: Billboard = {
-      id: (Date.now()).toString(), name: newBillboard.name!, location: newBillboard.location!, town: newBillboard.town || 'Harare', type: newBillboard.type!, width: newBillboard.width!, height: newBillboard.height!,
+      id: generateId(), name: newBillboard.name!, location: newBillboard.location!, town: newBillboard.town || 'Harare', type: newBillboard.type!, width: newBillboard.width!, height: newBillboard.height!,
       sideARate: newBillboard.sideARate, sideBRate: newBillboard.sideBRate, ratePerSlot: newBillboard.ratePerSlot, totalSlots: newBillboard.totalSlots, rentedSlots: 0,
       sideAStatus: 'Available', sideBStatus: 'Available', imageUrl: newBillboard.imageUrl || '', visibility: newBillboard.visibility, dailyTraffic: newBillboard.dailyTraffic, coordinates: newBillboard.coordinates || { lat: 0, lng: 0 },
       notes: newBillboard.notes
@@ -325,6 +331,9 @@ export const BillboardList: React.FC = () => {
     }
     setIsAddModalOpen(false); setPickingLocation(false); setGeocodeResult(null); setGeocodeError(null);
     setNewBillboard({ name: '', location: '', town: 'Harare', type: BillboardType.Static, width: 0, height: 0, sideARate: 0, sideBRate: 0, ratePerSlot: 0, totalSlots: 10, rentedSlots: 0, imageUrl: '', visibility: '', dailyTraffic: 0, coordinates: { lat: 0, lng: 0 }, sideAStatus: 'Available', sideBStatus: 'Available', notes: '' });
+    } finally {
+      isSubmittingRef.current = false;
+    }
   };
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
     const file = e.target.files?.[0];
@@ -490,7 +499,7 @@ export const BillboardList: React.FC = () => {
               const [name, location, town, typeStr, width, height, rateA, rateB, lat, lng, clientName, startDate, endDate, sideOrSlot, agreedRate, billingDay] = cols;
 
               const newBoard: Billboard = {
-                  id: `IMP-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+                  id: `IMP-${generateId()}`,
                   name: name || 'Imported Billboard',
                   location: location || 'Unknown',
                   town: town || 'Harare',
@@ -523,7 +532,7 @@ export const BillboardList: React.FC = () => {
 
                   if (!client) {
                       const newClient: Client = {
-                          id: `CLI-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+                          id: `CLI-${generateId()}`,
                           companyName: clientName,
                           contactPerson: 'Imported Contact',
                           email: '',
@@ -566,7 +575,7 @@ export const BillboardList: React.FC = () => {
                   }
 
                   const newContract: Contract = {
-                      id: `CNT-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+                      id: `CNT-${generateId()}`,
                       clientId: client!.id,
                       billboardId: newBoard.id,
                       startDate: startDate,

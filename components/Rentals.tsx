@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { generateId } from '../utils/sanitizers';
 import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract, endContract, permanentDeleteContract, invoices } from '../services/mockData';
 import { generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
 import { generateRentalProposal } from '../services/aiService';
@@ -336,8 +337,13 @@ export const Rentals: React.FC = () => {
     }
   }, [newRental.billboardId, newRental.startDate, newRental.endDate, newRental.side, selectedBillboard]);
 
+  const isSubmittingRef = useRef(false);
   const handleCreateRental = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A double-click on submit would create the record twice
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    try {
     if (selectedBillboard?.type === BillboardType.Static) {
         if (!checkAvailability(newRental.billboardId, newRental.side, newRental.startDate, newRental.endDate).ok) {
             alert(`Selected side option (${newRental.side}) is not available for these dates.`);
@@ -426,6 +432,9 @@ export const Rentals: React.FC = () => {
     setCreateStep(1);
     setNewRental({ clientId: '', billboardId: '', side: 'A', slotNumber: 1, startDate: '', endDate: '', monthlyRate: 0, installationCost: 0, printingCost: 0, productionCost: 0, hasVat: true, assignedTo: '' });
     alert("Success! Rental Active & Initial Invoice Generated.");
+    } finally {
+      isSubmittingRef.current = false;
+    }
   };
 
   const handleEditSave = async () => {
@@ -601,7 +610,7 @@ export const Rentals: React.FC = () => {
 
           const renewedContract: Contract = {
               ...renewRental,
-              id: `C-${Date.now().toString().slice(-4)}`,
+              id: `C-${generateId()}`,
               startDate: newStart.toISOString().split('T')[0],
               endDate: newEnd.toISOString().split('T')[0],
               status: 'Active',

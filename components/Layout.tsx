@@ -16,7 +16,8 @@ import {
   triggerAutoBackup,
   runAutoBilling,
   runMaintenanceCheck,
-  subscribe
+  subscribe,
+  onSyncError
 } from '../services/mockData';
 import { logger } from '../utils/logger';
 import { startAutoSync, useSync, forceSyncNow } from '../services/neonSyncManager';
@@ -252,6 +253,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     const handleFocus = () => { logger.debug('Window focused - triggering sync'); forceSyncNow(); };
     window.addEventListener('focus', handleFocus);
     const unsubscribe = subscribe(() => setAlertCount(getSystemAlertCount()));
+    const unsubscribeSyncErrors = onSyncError(msg => showToast(msg, 'error', 6000));
 
     return () => {
       isMounted = false;
@@ -259,6 +261,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       intervalsRef.current = [];
       window.removeEventListener('focus', handleFocus);
       unsubscribe();
+      unsubscribeSyncErrors();
     };
   }, []);
 

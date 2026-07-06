@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { generateId } from '../utils/sanitizers';
 import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType } from '../services/mockData';
 import { calculateContractMonths } from '../utils/contractDate';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
@@ -347,7 +348,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     }
     const gross = monthlyRate * months;
     const contract: Contract = {
-      id: `C-${Date.now().toString().slice(-4)}`,
+      id: `C-${generateId()}`,
       clientId: convertingQuotation.clientId,
       billboardId: convertForm.billboardId,
       startDate: convertForm.startDate,

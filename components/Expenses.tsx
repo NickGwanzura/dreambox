@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { getExpenses, addExpense, deleteExpense, printingJobs, getClients, addPrintingJob, getPrintingJobs } from '../services/mockData';
 import { generateExpensesPDF } from '../services/pdfGenerator';
 import { Printer, TrendingDown, Plus, BarChart3, Scissors, Droplets, Zap, User, X, Save, Download, Trash2, AlertTriangle, Search } from 'lucide-react';
@@ -35,8 +35,13 @@ export const Expenses: React.FC = () => {
   const [newExpense, setNewExpense] = useState<Partial<Expense>>({ category: 'Maintenance', description: '', amount: 0, date: new Date().toISOString().split('T')[0], reference: '' });
 
   const getClientName = (id: string) => getClients().find(c => c.id === id)?.companyName || 'Unknown';
+  const isSubmittingRef = useRef(false);
   const handleAddJob = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A double-click on submit would create the record twice
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    try {
     if (!newJob.clientId || !newJob.description) { alert('Client and description are required'); return; }
     const totalCost = calculateTotalJobCost();
     const job: PrintingJob = {
@@ -61,9 +66,16 @@ export const Expenses: React.FC = () => {
     } catch (err: any) {
       alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
     }
+    } finally {
+      isSubmittingRef.current = false;
+    }
   };
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A double-click on submit would create the record twice
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    try {
     const expense: Expense = { id: `EXP-${Date.now()}`, category: newExpense.category as any, description: newExpense.description || '', amount: newExpense.amount || 0, date: newExpense.date || new Date().toISOString(), reference: newExpense.reference };
     try {
       await addExpense(expense);
@@ -72,6 +84,9 @@ export const Expenses: React.FC = () => {
       setNewExpense({ category: 'Maintenance', description: '', amount: 0, date: new Date().toISOString().split('T')[0], reference: '' });
     } catch (err: any) {
       alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+    }
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
   const exportExpenseReport = () => { const clients = getClients(); const csvRows = clients.map(client => { const jobs = printingJobs.filter(j => j.clientId === client.id); if (jobs.length === 0) return null; const totalSpent = jobs.reduce((acc, curr) => acc + curr.chargedAmount, 0); const totalCost = jobs.reduce((acc, curr) => acc + curr.totalCost, 0); const profit = totalSpent - totalCost; const margin = totalSpent > 0 ? ((profit / totalSpent) * 100).toFixed(2) : '0'; return `"${client.companyName}",${jobs.length},${totalSpent},${totalCost},${profit},${margin}`; }).filter(row => row !== null).join("\n"); if (!csvRows) { alert("No data to export."); return; } const blob = new Blob(["Client,Total Jobs,Total Billed,Total Internal Cost,Net Profit,Margin %\n" + csvRows], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.setAttribute('download', `printing_expenses_report_${new Date().toISOString().slice(0,10)}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); };
