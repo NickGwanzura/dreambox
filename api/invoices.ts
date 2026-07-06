@@ -192,14 +192,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'id required' });
 
+    if (!requireDeletePermission(req, res)) return;
+
     try {
       const target = await prisma.invoice.findUnique({ where: { id: id as string } });
       if (!target) {
         log.warn(`[invoices] DELETE requested for non-existent invoice ${id}`);
         return res.status(404).json({ error: 'Invoice not found' });
       }
-
-      if (!requireDeletePermission(req, res)) return;
 
       await prisma.invoice.delete({ where: { id: id as string } });
       log.info(`[invoices] DELETE removed ${id} type=${target.type} status=${target.status} total=${target.total}`);
