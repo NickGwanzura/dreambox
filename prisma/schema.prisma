@@ -209,6 +209,8 @@ model Invoice {
   type                InvoiceType   @default(Invoice)
   paymentMethod       String?
   paymentReference    String?
+  // Receipt→invoice link (replaces parsing the line-item description)
+  linkedInvoiceId     String?
   // Quotation-specific fields
   quoteNumber         String?       @unique
   expiryDate          String?
@@ -230,6 +232,7 @@ model Invoice {
   @@index([status])
   @@index([quoteStatus])
   @@index([createdBy])
+  @@index([linkedInvoiceId])
   @@map("invoices")
 }
 

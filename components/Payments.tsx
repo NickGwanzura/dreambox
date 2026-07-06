@@ -174,7 +174,7 @@ export const Payments: React.FC = () => {
     const confirmPayment = async () => {
         if (selectedInvoice) {
             const clientName = getClientName(selectedInvoice.clientId);
-            const receipt: Invoice = { id: `RCT-${Date.now()}`, clientId: selectedInvoice.clientId, date: paymentDetails.date, items: [{ description: `Payment for Invoice #${selectedInvoice.id}`, amount: selectedInvoice.total }], subtotal: selectedInvoice.total, vatAmount: 0, total: selectedInvoice.total, status: 'Paid', type: 'Receipt', contractId: selectedInvoice.contractId, paymentMethod: paymentDetails.method as any, paymentReference: paymentDetails.reference };
+            const receipt: Invoice = { id: `RCT-${Date.now()}`, clientId: selectedInvoice.clientId, date: paymentDetails.date, items: [{ description: `Payment for Invoice #${selectedInvoice.id}`, amount: selectedInvoice.total }], linkedInvoiceId: selectedInvoice.id, subtotal: selectedInvoice.total, vatAmount: 0, total: selectedInvoice.total, status: 'Paid', type: 'Receipt', contractId: selectedInvoice.contractId, paymentMethod: paymentDetails.method as any, paymentReference: paymentDetails.reference };
             try {
                 await addInvoice(receipt);
             } catch (err: any) {

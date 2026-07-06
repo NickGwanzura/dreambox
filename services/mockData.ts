@@ -981,6 +981,8 @@ export const updateInvoice = async (updated: Invoice): Promise<void> => {
 // A receipt references its invoice via the first line-item description
 // ("Payment for Invoice #<id>"), the only linkage that exists on old records.
 const linkedInvoiceIdOfReceipt = (receipt: Invoice): string | null => {
+    if (receipt.linkedInvoiceId) return receipt.linkedInvoiceId;
+    // Legacy receipts predate the linkedInvoiceId field
     const desc = receipt.items?.[0]?.description || '';
     const match = desc.match(/Invoice #([A-Za-z0-9-]+)/);
     return match?.[1] || null;

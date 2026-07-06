@@ -156,6 +156,8 @@ export interface Invoice {
   // Audit Trail
   paymentMethod?: 'Cash' | 'Bank Transfer' | 'EcoCash' | 'Other';
   paymentReference?: string;
+  /** Receipt→invoice link; legacy receipts fall back to parsing the description */
+  linkedInvoiceId?: string;
   
   // Quotation-specific fields
   quoteNumber?: string;

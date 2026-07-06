@@ -34,6 +34,7 @@ export function pickInvoiceData(body: any) {
     type:                  body.type                  ?? 'Invoice',
     paymentMethod:         body.paymentMethod         ?? undefined,
     paymentReference:      body.paymentReference      ?? undefined,
+    linkedInvoiceId:       body.linkedInvoiceId       ?? undefined,
     quoteNumber:           body.quoteNumber           ?? undefined,
     expiryDate:            body.expiryDate            ?? undefined,
     terms:                 body.terms                 ?? undefined,
