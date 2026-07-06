@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { log } from './serverLogger.js';
+import { prisma } from './prisma.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -32,13 +33,43 @@ export function getTokenFromRequest(req: VercelRequest): string | null {
   return null;
 }
 
+// Tokens live 24h, but role/status can change at any moment (deactivation,
+// demotion). Re-check the DB on each request, with a short cache so we don't
+// pay a query per call. This is a long-lived Express process, so a
+// module-level cache is safe.
+const USER_CACHE_TTL_MS = 60 * 1000;
+const userCache = new Map<string, { role: string; status: string; expiresAt: number }>();
+
+async function getFreshUserState(userId: string): Promise<{ role: string; status: string } | null> {
+  const cached = userCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { role: cached.role, status: cached.status };
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, status: true },
+  });
+  if (!user) {
+    userCache.delete(userId);
+    return null;
+  }
+  userCache.set(userId, { role: user.role, status: user.status, expiresAt: Date.now() + USER_CACHE_TTL_MS });
+  return { role: user.role, status: user.status };
+}
+
+/** Drop a user's cached role/status so permission changes apply immediately. */
+export function invalidateUserCache(userId: string): void {
+  userCache.delete(userId);
+}
+
 /**
- * Middleware: extract and verify JWT. Returns the payload or sends 401.
+ * Middleware: extract and verify JWT, then re-check the user's current
+ * role/status in the DB. Returns the payload or sends 401/403.
  */
-export function requireAuth(
+export async function requireAuth(
   req: VercelRequest,
   res: VercelResponse
-): JWTPayload | null {
+): Promise<JWTPayload | null> {
   const token = getTokenFromRequest(req);
   if (!token) {
     log.warn(`Auth rejected — no token  ${req.method} ${(req as any).originalUrl ?? req.url}`);
@@ -51,6 +82,19 @@ export function requireAuth(
     res.status(401).json({ error: 'Invalid or expired token' });
     return null;
   }
+  const fresh = await getFreshUserState(payload.userId).catch(e => {
+    // DB unavailable — fall back to the token's own claims rather than
+    // locking everyone out.
+    log.warn(`Auth DB check failed, using token claims: ${e?.message}`);
+    return { role: payload.role, status: payload.status };
+  });
+  if (!fresh) {
+    log.warn(`Auth rejected — user no longer exists  user=${payload.email}`);
+    res.status(401).json({ error: 'Account not found' });
+    return null;
+  }
+  payload.role = fresh.role;
+  payload.status = fresh.status;
   if (payload.status === 'Pending') {
     log.warn(`Auth rejected — account pending  user=${payload.email}`);
     res.status(403).json({ error: 'Account awaiting administrator approval' });
@@ -70,11 +114,11 @@ export function requireAuth(
   return payload;
 }
 
-export function requireAdmin(
+export async function requireAdmin(
   req: VercelRequest,
   res: VercelResponse
-): JWTPayload | null {
-  const payload = requireAuth(req, res);
+): Promise<JWTPayload | null> {
+  const payload = await requireAuth(req, res);
   if (!payload) return null;
   if (payload.role !== 'Admin') {
     res.status(403).json({ error: 'Admin access required' });
@@ -99,11 +143,11 @@ export function cors(res: VercelResponse, req?: VercelRequest): void {
   res.setHeader('Vary', 'Origin');
 }
 
-export function requireManagerOrAdmin(
+export async function requireManagerOrAdmin(
   req: VercelRequest,
   res: VercelResponse
-): JWTPayload | null {
-  const payload = requireAuth(req, res);
+): Promise<JWTPayload | null> {
+  const payload = await requireAuth(req, res);
   if (!payload) return null;
   if (payload.role !== 'Admin' && payload.role !== 'Manager') {
     res.status(403).json({ error: 'Admin or Manager access required' });
@@ -118,11 +162,11 @@ export function isSystemAdmin(email: string | null | undefined): boolean {
   return !!SYSTEM_ADMIN_EMAIL && email?.trim()?.toLowerCase() === SYSTEM_ADMIN_EMAIL;
 }
 
-export function requireDeletePermission(
+export async function requireDeletePermission(
   req: VercelRequest,
   res: VercelResponse
-): JWTPayload | null {
-  const payload = requireAuth(req, res);
+): Promise<JWTPayload | null> {
+  const payload = await requireAuth(req, res);
   if (!payload) return null;
 
   if (payload.role === 'Admin' || payload.role === 'Manager') {
@@ -139,11 +183,11 @@ export function requireDeletePermission(
  * Admin/Manager always allowed. SalesAgent can create/edit own.
  * Staff can read only.
  */
-export function requireQuotationWritePermission(
+export async function requireQuotationWritePermission(
   req: VercelRequest,
   res: VercelResponse
-): JWTPayload | null {
-  const payload = requireAuth(req, res);
+): Promise<JWTPayload | null> {
+  const payload = await requireAuth(req, res);
   if (!payload) return null;
 
   if (payload.role === 'Admin' || payload.role === 'Manager' || payload.role === 'SalesAgent') {
@@ -159,11 +203,11 @@ export function requireQuotationWritePermission(
  * Check if user can approve/convert quotations.
  * Only Admin and Manager can approve/convert.
  */
-export function requireQuotationApprovePermission(
+export async function requireQuotationApprovePermission(
   req: VercelRequest,
   res: VercelResponse
-): JWTPayload | null {
-  const payload = requireAuth(req, res);
+): Promise<JWTPayload | null> {
+  const payload = await requireAuth(req, res);
   if (!payload) return null;
 
   if (payload.role === 'Admin' || payload.role === 'Manager') {

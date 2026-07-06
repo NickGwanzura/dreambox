@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Path 2: change password while authenticated
-    const payload = requireAuth(req, res);
+    const payload = await requireAuth(req, res);
     if (!payload) return;
 
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });

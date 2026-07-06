@@ -23,7 +23,7 @@ const crmTaskSchema = z.object({
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  const payload = requireAuth(req, res);
+  const payload = await requireAuth(req, res);
   if (!payload) return;
 
   try {
@@ -67,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'DELETE') {
-      if (!requireDeletePermission(req, res)) return;
+      if (!await requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
       await prisma.cRMTask.delete({ where: { id: id as string } });

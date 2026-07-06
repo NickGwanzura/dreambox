@@ -80,7 +80,7 @@ function handlePrismaError(e: any, res: VercelResponse, context: string): void {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  const payload = requireAuth(req, res);
+  const payload = await requireAuth(req, res);
   if (!payload) return;
 
   // ── GET ────────────────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (String(body.type).toLowerCase() === 'quotation') {
-      if (!requireQuotationWritePermission(req, res)) return;
+      if (!await requireQuotationWritePermission(req, res)) return;
     }
 
     const totalError = validateTotals(body);
@@ -137,6 +137,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const conflict = await prisma.invoice.findUnique({ where: { quoteNumber: data.quoteNumber } });
         if (conflict) {
           return res.status(409).json({ error: 'Quotation number already exists', quoteNumber: data.quoteNumber });
+        }
+      }
+
+      // Auto-billing idempotency: a client running against stale local data
+      // can re-post this month's rental invoice for a contract. Reject the
+      // duplicate; manual invoices (non-"Monthly Rental" items) are unaffected.
+      const isMonthlyRental = String(body.type).toLowerCase() === 'invoice'
+        && data.contractId
+        && String(body.items?.[0]?.description || '').startsWith('Monthly Rental');
+      if (isMonthlyRental) {
+        const monthPrefix = String(data.date || '').slice(0, 7);
+        if (monthPrefix) {
+          const sameMonth = await prisma.invoice.findMany({
+            where: { contractId: data.contractId, type: 'Invoice', date: { startsWith: monthPrefix } },
+            select: { id: true, items: true },
+          });
+          const duplicate = sameMonth.find(inv =>
+            Array.isArray(inv.items) && String((inv.items as any[])[0]?.description || '').startsWith('Monthly Rental')
+          );
+          if (duplicate) {
+            log.warn(`[invoices] POST rejected duplicate monthly invoice for contract ${data.contractId} (${monthPrefix})`);
+            return res.status(409).json({ error: 'Monthly invoice already exists for this contract and month', existingId: duplicate.id });
+          }
         }
       }
 
@@ -163,7 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (String(existing.type).toLowerCase() === 'quotation') {
-        if (!requireQuotationWritePermission(req, res)) return;
+        if (!await requireQuotationWritePermission(req, res)) return;
       }
 
       const totalError = validateTotals(body);
@@ -192,7 +215,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'id required' });
 
-    if (!requireDeletePermission(req, res)) return;
+    if (!await requireDeletePermission(req, res)) return;
 
     try {
       const target = await prisma.invoice.findUnique({ where: { id: id as string } });

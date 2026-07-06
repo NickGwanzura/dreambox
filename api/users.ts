@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { Resend } from 'resend';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireAdmin, requireDeletePermission, cors } from '../lib/auth';
+import { requireAuth, requireAdmin, requireDeletePermission, cors, invalidateUserCache } from '../lib/auth';
 import { validatePassword } from '../lib/passwordPolicy.js';
 import { notifyAdminNewUser } from '../lib/notifyAdmin.js';
 import { log } from '../lib/serverLogger.js';
@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const payload = requireAuth(req, res);
+  const payload = await requireAuth(req, res);
   if (!payload) return;
 
   // ----------------------------------------------------------------
@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // GET /api/users?loginHistory=userId — login history for a user
   // ----------------------------------------------------------------
   if (req.method === 'GET') {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
 
     const { loginHistory } = req.query;
@@ -71,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // POST /api/users?action=bulkInvite — bulk invite (Admin only)
   // ----------------------------------------------------------------
   if (req.method === 'POST') {
-    const admin = requireAdmin(req, res);
+    const admin = await requireAdmin(req, res);
     if (!admin) return;
 
     // Bulk invite
@@ -307,6 +307,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: updateData,
         select: USER_SELECT,
       });
+      invalidateUserCache(id as string);
       return res.status(200).json(updated);
     } catch (e: any) {
       log.error('[users PUT]', e);
@@ -318,7 +319,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // DELETE /api/users?id=... — delete user (allowlist only)
   // ----------------------------------------------------------------
   if (req.method === 'DELETE') {
-    if (!requireDeletePermission(req, res)) return;
+    if (!await requireDeletePermission(req, res)) return;
     const { id } = req.query;
     if (!id || !UUID_RE.test(id as string)) return res.status(400).json({ error: 'Valid id required' });
 

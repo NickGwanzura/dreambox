@@ -41,14 +41,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      const payload = requireAuth(req, res);
+      const payload = await requireAuth(req, res);
       if (!payload) return;
       const row = await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } });
       return res.status(200).json(row ?? {});
     }
 
     if (req.method === 'PUT' || req.method === 'POST') {
-      const payload = requireAuth(req, res);
+      const payload = await requireAuth(req, res);
       if (!payload) return;
       const raw = req.body ?? {};
       const data = pickCompanyProfileData(raw);

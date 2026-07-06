@@ -6,7 +6,7 @@ import { log } from '../lib/serverLogger.js';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  const payload = requireAuth(req, res);
+  const payload = await requireAuth(req, res);
   if (!payload) return;
 
   try {
