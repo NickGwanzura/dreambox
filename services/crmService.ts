@@ -27,7 +27,7 @@ import { api, isConfigured } from './apiClient';
 import { STORAGE_KEYS, EMAIL_REGEX, PHONE_REGEX } from './constants';
 import { logger } from '../utils/logger';
 import { sanitizeString, generateId } from '../utils/sanitizers';
-import { logAction } from './mockData';
+import { logAction, notifySyncError } from './mockData';
 
 // ==========================================
 // HELPER FUNCTIONS (defined first to avoid hoisting issues)
@@ -51,6 +51,34 @@ const saveToStorage = (key: string, data: any) => {
   }
 };
 
+// Normalize free-form status text (CSV imports, legacy DB rows) into the
+// seven canonical OpportunityStatus values. Unknown values become 'new' —
+// an unrecognized status must never crash analytics again.
+const STATUS_SYNONYMS: Record<string, OpportunityStatus> = {
+  new: 'new', pending: 'new', new_lead: 'new', lead: 'new', open: 'new',
+  contacted: 'contacted', contact: 'contacted',
+  qualified: 'qualified', qualify: 'qualified',
+  proposal: 'proposal', proposed: 'proposal', quote: 'proposal', quoted: 'proposal',
+  negotiation: 'negotiation', negotiating: 'negotiation',
+  closed_won: 'closed_won', won: 'closed_won',
+  closed_lost: 'closed_lost', lost: 'closed_lost',
+};
+
+export const normalizeOpportunityStatus = (raw: unknown): OpportunityStatus => {
+  const key = String(raw ?? '').trim().toLowerCase().replace(/[-\s]+/g, '_');
+  return STATUS_SYNONYMS[key] || 'new';
+};
+
+// Stored/remote rows can carry legacy statuses, null numerics, or a null
+// stageHistory — coerce them into the shape the UI code assumes.
+const sanitizeOpportunity = (o: any): CRMOpportunity => ({
+  ...o,
+  status: normalizeOpportunityStatus(o.status),
+  numberOfAttempts: typeof o.numberOfAttempts === 'number' ? o.numberOfAttempts : 0,
+  daysInCurrentStage: typeof o.daysInCurrentStage === 'number' ? o.daysInCurrentStage : 0,
+  stageHistory: Array.isArray(o.stageHistory) ? o.stageHistory : [],
+});
+
 // ==========================================
 // STATE MANAGEMENT
 // ==========================================
@@ -69,7 +97,7 @@ interface CRMState {
 const loadCRMState = (): CRMState => ({
   companies: loadFromStorage(STORAGE_KEYS.CRM_COMPANIES, []),
   contacts: loadFromStorage(STORAGE_KEYS.CRM_CONTACTS, []),
-  opportunities: loadFromStorage(STORAGE_KEYS.CRM_OPPORTUNITIES, []),
+  opportunities: loadFromStorage<any[]>(STORAGE_KEYS.CRM_OPPORTUNITIES, []).map(sanitizeOpportunity),
   touchpoints: loadFromStorage(STORAGE_KEYS.CRM_TOUCHPOINTS, []),
   tasks: loadFromStorage(STORAGE_KEYS.CRM_TASKS, []),
   emailThreads: loadFromStorage(STORAGE_KEYS.CRM_EMAIL_THREADS, []),
@@ -135,6 +163,57 @@ const API_ENDPOINTS: Record<keyof CRMState, string> = {
   callLogs: 'crm/call-logs',
 };
 
+// --- Deleted queue (tombstones) ---
+// Records deleted locally whose server DELETE may not have landed yet.
+// Prevents the hydration merge from resurrecting them, and lets us retry.
+interface CRMDeletedEntry { table: keyof CRMState; id: string; timestamp: number; }
+let crmDeletedQueue: CRMDeletedEntry[] = loadFromStorage<CRMDeletedEntry[]>(STORAGE_KEYS.CRM_DELETED_QUEUE, []);
+
+const persistCRMDeletedQueue = () => saveToStorage(STORAGE_KEYS.CRM_DELETED_QUEUE, crmDeletedQueue);
+
+const addCRMTombstone = (table: keyof CRMState, id: string): void => {
+  if (!crmDeletedQueue.some(e => e.table === table && e.id === id)) {
+    crmDeletedQueue.push({ table, id, timestamp: Date.now() });
+    persistCRMDeletedQueue();
+  }
+};
+
+const removeCRMTombstone = (table: keyof CRMState, id: string): void => {
+  const before = crmDeletedQueue.length;
+  crmDeletedQueue = crmDeletedQueue.filter(e => !(e.table === table && e.id === id));
+  if (crmDeletedQueue.length !== before) persistCRMDeletedQueue();
+};
+
+const isCRMTombstoned = (table: keyof CRMState, id: string): boolean =>
+  crmDeletedQueue.some(e => e.table === table && e.id === id);
+
+// Tombstone first, then delete server-side; success or 404 clears the tombstone.
+const deleteRecordFromApi = (table: keyof CRMState, id: string): void => {
+  addCRMTombstone(table, id);
+  if (!isConfigured()) return;
+  api.delete(`/api/${API_ENDPOINTS[table]}`, { id })
+    .then(() => removeCRMTombstone(table, id))
+    .catch(e => {
+      if (e?.status === 404) removeCRMTombstone(table, id);
+      else {
+        logger.error(`CRM delete failed for ${table}/${id}, tombstone retained:`, e);
+        notifySyncError('CRM record deleted locally — server removal failed and will retry on next reload.');
+      }
+    });
+};
+
+const flushCRMDeletedQueue = async (): Promise<void> => {
+  for (const entry of [...crmDeletedQueue]) {
+    try {
+      await api.delete(`/api/${API_ENDPOINTS[entry.table]}`, { id: entry.id });
+      removeCRMTombstone(entry.table, entry.id);
+    } catch (e: any) {
+      if (e?.status === 404) removeCRMTombstone(entry.table, entry.id);
+      else logger.warn(`CRM tombstone retry failed for ${entry.table}/${entry.id}:`, e?.message);
+    }
+  }
+};
+
 const syncRecordToApi = async (stateKey: string, record: any) => {
   const endpoint = API_ENDPOINTS[stateKey as keyof CRMState];
   if (!endpoint) return;
@@ -146,6 +225,7 @@ const syncRecordToApi = async (stateKey: string, record: any) => {
     }
   } catch (e) {
     logger.error(`API sync error for ${endpoint}:`, e);
+    notifySyncError('CRM change saved locally — server sync failed and will retry on next reload.');
   }
 };
 
@@ -155,18 +235,34 @@ const syncRecordToApi = async (stateKey: string, record: any) => {
 export const reloadCRMFromApi = async (): Promise<void> => {
   if (!isConfigured()) return;
 
-  const mergeRemoteWithLocal = <T extends { id: string }>(remote: T[], local: T[]): T[] => {
+  // Retry pending remote deletes first so the merge below doesn't race them
+  await flushCRMDeletedQueue();
+
+  // Remote wins for matching ids; tombstoned records stay dead; records that
+  // exist only locally (created offline / failed sync) are kept and re-pushed.
+  const mergeRemoteWithLocal = <T extends { id: string }>(
+    key: keyof CRMState, remote: T[], local: T[]
+  ): { merged: T[]; localOnly: T[] } => {
     const remoteIds = new Set(remote.map(r => r.id));
-    const localOnly = local.filter(r => !remoteIds.has(r.id));
-    return [...remote, ...localOnly];
+    const localOnly = local.filter(r => r.id && !remoteIds.has(r.id) && !isCRMTombstoned(key, r.id));
+    return {
+      merged: [...remote.filter(r => !isCRMTombstoned(key, r.id)), ...localOnly],
+      localOnly,
+    };
   };
 
   const keys = Object.keys(API_ENDPOINTS) as (keyof CRMState)[];
   const results = await Promise.allSettled(
     keys.map(async key => {
-      const data = await api.get<any[]>(`/api/${API_ENDPOINTS[key]}`);
+      let data = await api.get<any[]>(`/api/${API_ENDPOINTS[key]}`);
       if (Array.isArray(data)) {
-        return { key, data: mergeRemoteWithLocal(data, state[key] as any[]) };
+        if (key === 'opportunities') data = data.map(sanitizeOpportunity);
+        const { merged, localOnly } = mergeRemoteWithLocal(key, data, state[key] as any[]);
+        // Push records the server doesn't have, sequentially, best-effort
+        for (const record of localOnly) {
+          await syncRecordToApi(key, record);
+        }
+        return { key, data: merged };
       }
       return null;
     })
@@ -245,7 +341,7 @@ export const deleteCRMCompany = (id: string): void => {
   persist('companies', updated);
   if (target) logAction('CRM: Company Deleted', `Removed company "${target.name}"`);
 
-  api.delete('/api/crm/companies', { id }).catch(e => logger.error('Delete company error:', e));
+  deleteRecordFromApi('companies', id);
 };
 
 // ==========================================
@@ -290,7 +386,7 @@ export const deleteCRMContact = (id: string): void => {
   const updated = state.contacts.filter(c => c.id !== id);
   persist('contacts', updated);
 
-  api.delete('/api/crm/contacts', { id }).catch(e => logger.error('Delete contact error:', e));
+  deleteRecordFromApi('contacts', id);
 };
 
 // ==========================================
@@ -426,6 +522,8 @@ export const updateOpportunityStatus = (
 
 export const deleteCRMOpportunity = (id: string): void => {
   const target = state.opportunities.find(o => o.id === id);
+  const cascadedTouchpoints = state.touchpoints.filter(t => t.opportunityId === id);
+  const cascadedTasks = state.tasks.filter(t => t.opportunityId === id);
   const updatedTouchpoints = state.touchpoints.filter(t => t.opportunityId !== id);
   const updatedTasks = state.tasks.filter(t => t.opportunityId !== id);
   const updatedOpportunities = state.opportunities.filter(o => o.id !== id);
@@ -435,9 +533,11 @@ export const deleteCRMOpportunity = (id: string): void => {
   persist('opportunities', updatedOpportunities);
   if (target) logAction('CRM: Lead Deleted', `Removed opportunity for "${getCompanyName(target.companyId)}"`);
 
-
-  // Hard-delete from API so items don't reappear after cloud pull
-  api.delete('/api/crm/opportunities', { id }).catch(e => logger.error('Delete opportunity error:', e));
+  // Hard-delete from API so items don't reappear after cloud pull —
+  // cascaded touchpoints/tasks included, they'd resurrect otherwise.
+  deleteRecordFromApi('opportunities', id);
+  cascadedTouchpoints.forEach(t => deleteRecordFromApi('touchpoints', t.id));
+  cascadedTasks.forEach(t => deleteRecordFromApi('tasks', t.id));
 };
 
 // ==========================================
@@ -646,6 +746,8 @@ export const updateCRMTask = (task: CRMTask): void => {
 export const deleteCRMTask = (id: string): void => {
   const updated = state.tasks.filter(t => t.id !== id);
   persist('tasks', updated);
+
+  deleteRecordFromApi('tasks', id);
 };
 
 // ==========================================
@@ -822,7 +924,7 @@ export const importCSVRow = (
         
         // Update fields from CSV
         const updates: Partial<CRMOpportunity> = {
-          status: row['Opportunity Status'] || existing.status,
+          status: row['Opportunity Status'] ? normalizeOpportunityStatus(row['Opportunity Status']) : existing.status,
           stage: row['Opportunity Stage'] as OpportunityStage || existing.stage,
           estimatedValue: parseFloat(String(row['Estimated Deal Value']).replace(/[$,]/g, '')) || existing.estimatedValue,
           locationInterest: row['Location Interest (Zone/City)'] || existing.locationInterest,
@@ -884,7 +986,7 @@ export const importCSVRow = (
       billboardType: row['Billboard Type Interest'],
       campaignDuration: row['Campaign Duration'],
       estimatedValue: parseFloat(String(row['Estimated Deal Value']).replace(/[$,]/g, '')) || undefined,
-      status: (row['Opportunity Status'] || 'new') as OpportunityStatus,
+      status: normalizeOpportunityStatus(row['Opportunity Status'] || 'new'),
       stage: (row['Opportunity Stage'] || 'new_lead') as OpportunityStage,
       leadSource: row['Lead Source'],
       lastContactDate: row['Last Contact Date'],
@@ -1047,9 +1149,11 @@ export const getCRMPipelineMetrics = (): CRMPipelineMetrics => {
   };
   
   opportunities.forEach(opp => {
-    byStatus[opp.status].count++;
-    byStatus[opp.status].value += opp.estimatedValue || 0;
-    byStatus[opp.status].avgDaysInStage += opp.daysInCurrentStage;
+    // Never crash on an out-of-vocabulary status — bucket it as 'new'
+    const bucket = byStatus[opp.status] || byStatus[normalizeOpportunityStatus(opp.status)];
+    bucket.count++;
+    bucket.value += opp.estimatedValue || 0;
+    bucket.avgDaysInStage += opp.daysInCurrentStage || 0;
   });
   
   // Calculate averages

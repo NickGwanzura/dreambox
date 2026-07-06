@@ -75,6 +75,7 @@ export const STORAGE_KEYS = {
   CRM_EMAIL_THREADS: 'db_crm_email_threads',
   CRM_CALL_LOGS: 'db_crm_call_logs',
   CRM_CSV_IMPORT_HISTORY: 'db_crm_csv_import_history',
+  CRM_DELETED_QUEUE: 'db_crm_deleted_queue',
 } as const;
 
 // Feature Flags
