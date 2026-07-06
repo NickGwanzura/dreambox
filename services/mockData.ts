@@ -68,6 +68,32 @@ const removeFromDeletedQueue = (table: string, id: string): void => {
 const isInDeletedQueue = (table: string, id: string): boolean =>
     deletedQueue.some(e => e.table === table && e.id === id);
 
+// Retry server deletes that failed when the record was removed locally.
+// Success or 404 (already gone) clears the entry; other failures keep it
+// for the next hydration.
+const DELETE_ENDPOINTS: Record<string, string> = {
+    invoices: '/api/invoices',
+    contracts: '/api/contracts',
+};
+
+const flushDeletedQueue = async (): Promise<void> => {
+    if (!isConfigured()) return;
+    for (const entry of [...deletedQueue]) {
+        const endpoint = DELETE_ENDPOINTS[entry.table];
+        if (!endpoint) continue;
+        try {
+            await api.delete(endpoint, { id: entry.id });
+            removeFromDeletedQueue(entry.table, entry.id);
+        } catch (e: any) {
+            if (e?.status === 404) {
+                removeFromDeletedQueue(entry.table, entry.id);
+            } else {
+                console.warn(`[flushDeletedQueue] Retry failed for ${entry.table}/${entry.id}:`, e?.message);
+            }
+        }
+    }
+};
+
 // --- Offline-first localStorage init ---
 // Populate in-memory arrays from localStorage so the app works without auth.
 // When auth is present, reloadAllFromApi() overwrites these with fresh server data.
@@ -137,13 +163,18 @@ export const getEffectiveVatRate = (): number => {
 export const reloadAllFromApi = async (): Promise<void> => {
     if (!isConfigured()) return;
     try {
-        // Merge helper: remote takes precedence, local-only records are preserved
+        // Retry pending remote deletes first so re-imports below don't race them
+        await flushDeletedQueue();
+
+        // Merge helper: remote takes precedence, local-only records are preserved.
+        // Local records without an id are dropped — they can never sync and are
+        // stale optimistic leftovers whose server copy is already in `remote`.
         const mergeRemoteWithLocal = <T extends { id: string }>(
             remote: T[], local: T[], table: string
         ): T[] => {
             const remoteIds = new Set(remote.map(r => r.id));
             const deletedIds = new Set(deletedQueue.filter(e => e.table === table).map(e => e.id));
-            const localOnly = local.filter(r => !remoteIds.has(r.id) && !deletedIds.has(r.id));
+            const localOnly = local.filter(r => r.id && !remoteIds.has(r.id) && !deletedIds.has(r.id));
             return [...remote.filter(r => !deletedIds.has(r.id)), ...localOnly];
         };
 
@@ -170,7 +201,10 @@ export const reloadAllFromApi = async (): Promise<void> => {
                     // details) come back blank, which would strip payment info from every PDF.
                     const overrides = Object.fromEntries(Object.entries(d).filter(([, v]) => v !== null && v !== undefined && v !== ''));
                     companyProfile = { ...DEFAULT_PROFILE, ...overrides } as CompanyProfile;
-                    companyLogo = d.logo || null;
+                    // Keep a locally-saved logo when the server has none — the
+                    // upload may have failed (e.g. R2 down) and only exist here.
+                    companyLogo = d.logo || companyLogo;
+                    if (companyLogo) (companyProfile as any).logo = companyLogo;
                     persistCompanyProfile();
                 }
             }),
@@ -832,22 +866,30 @@ const recalcBillboardAvailability = (billboardId: string) => {
 
 // --- Invoice CRUD ---
 export const addInvoice = async (invoice: Invoice): Promise<Invoice> => {
-    // 1. Optimistic local add — immediately visible, persisted to localStorage
-    invoices = [invoice, ...invoices];
-    try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
+    // 1. Optimistic local add — immediately visible, persisted to localStorage.
+    // Callers usually omit the id (the server generates it), so give the
+    // optimistic entry a temporary one: an id-less entry can't be matched for
+    // replacement below and would survive as a duplicate after reload.
+    const tempId = invoice.id || `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    invoices = [{ ...invoice, id: tempId }, ...invoices];
+    persistInvoices();
 
     // 2. API sync — updates invoice with server-assigned fields if available
     if (isConfigured()) {
         try {
             const created = await api.post<Invoice>('/api/invoices', invoice);
-            // Replace optimistic entry with server response (e.g. server-generated timestamps)
+            // Replace optimistic entry with server response (e.g. server-generated id/timestamps)
             if (created && created.id) {
-                invoices = invoices.map(i => i.id === invoice.id ? created : i);
+                invoices = invoices.map(i => i.id === tempId ? created : i);
+                persistInvoices();
                 invoice = created;
             }
         } catch (e) {
+            invoice = { ...invoice, id: tempId };
             console.error('[addInvoice] API error, invoice kept locally:', e);
         }
+    } else {
+        invoice = { ...invoice, id: tempId };
     }
     if (String(invoice.type || '').toLowerCase() === 'invoice') {
         const touched = Array.from(new Set((invoice.items || []).map(it => it.billboardId).filter((id): id is string => !!id)));
@@ -909,6 +951,18 @@ export const updateInvoice = async (updated: Invoice): Promise<void> => {
     notifyListeners();
 };
 
+// A receipt references its invoice via the first line-item description
+// ("Payment for Invoice #<id>"), the only linkage that exists on old records.
+const linkedInvoiceIdOfReceipt = (receipt: Invoice): string | null => {
+    const desc = receipt.items?.[0]?.description || '';
+    const match = desc.match(/Invoice #([A-Za-z0-9-]+)/);
+    return match?.[1] || null;
+};
+
+const persistInvoices = (): void => {
+    try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
+};
+
 export const deleteInvoice = async (id: string): Promise<void> => {
     const target = invoices.find(i => i.id === id);
     if (!target) return;
@@ -917,40 +971,71 @@ export const deleteInvoice = async (id: string): Promise<void> => {
         ? Array.from(new Set((target.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid)))
         : [];
 
-    // 1. Immediate local removal — persists regardless of API outcome
-    invoices = invoices.filter(i => i.id !== id);
-    addToDeletedQueue('invoices', id);
-    try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
+    // Deleting an invoice also removes its receipts, so no orphaned
+    // "Payment for Invoice #X" records survive their invoice.
+    const cascadeReceipts = target.type === 'Invoice'
+        ? invoices.filter(i => i.type === 'Receipt' && linkedInvoiceIdOfReceipt(i) === id)
+        : [];
+    const removedIds = [id, ...cascadeReceipts.map(r => r.id)];
 
-    // Revert linked invoice to Pending if this was a receipt
+    // 1. Immediate local removal — persists regardless of API outcome
+    const snapshot = invoices;
+    invoices = invoices.filter(i => !removedIds.includes(i.id));
+    removedIds.forEach(rid => addToDeletedQueue('invoices', rid));
+    persistInvoices();
+
+    // Revert linked invoice to Pending if this was a receipt — but only when
+    // no other receipt still covers that invoice (partial payments).
     if (target.type === 'Receipt') {
-        const desc = target.items?.[0]?.description || '';
-        const match = desc.match(/Invoice #([A-Za-z0-9-]+)/);
-        if (match && match[1]) {
-            const invoice = invoices.find(i => i.id === match[1]);
+        const linkedId = linkedInvoiceIdOfReceipt(target);
+        const otherReceiptExists = linkedId
+            ? invoices.some(i => i.type === 'Receipt' && linkedInvoiceIdOfReceipt(i) === linkedId)
+            : false;
+        if (linkedId && !otherReceiptExists) {
+            const invoice = invoices.find(i => i.id === linkedId);
             if (invoice) {
-                invoice.status = 'Pending';
+                invoices = invoices.map(i => i.id === linkedId ? { ...i, status: 'Pending' as const } : i);
+                persistInvoices();
                 if (isConfigured()) {
-                    try { await api.put('/api/invoices', invoice, { id: invoice.id }); }
+                    const reverted = invoices.find(i => i.id === linkedId);
+                    try { await api.put('/api/invoices', reverted, { id: linkedId }); }
                     catch (e) { console.error('[deleteInvoice] API error reverting linked invoice:', e); }
                 }
             }
         }
     }
 
-    // 2. Async remote delete — best-effort; deleted queue guards against re-import on failure
+    // 2. Remote delete. 404 counts as success (already gone server-side).
+    // A permission refusal (401/403) rolls back the local removal and
+    // surfaces to the caller; network errors keep the queue entry so the
+    // hydration flush can retry later.
     if (isConfigured()) {
-        try {
-            await api.delete('/api/invoices', { id });
-            removeFromDeletedQueue('invoices', id);
-        } catch (e: any) {
-            console.error('[deleteInvoice] Remote delete failed, queue entry retained:', e?.message);
+        for (const rid of removedIds) {
+            try {
+                await api.delete('/api/invoices', { id: rid });
+                removeFromDeletedQueue('invoices', rid);
+            } catch (e: any) {
+                if (e?.status === 404) {
+                    removeFromDeletedQueue('invoices', rid);
+                } else if (e?.status === 401 || e?.status === 403) {
+                    invoices = snapshot;
+                    removedIds.forEach(x => removeFromDeletedQueue('invoices', x));
+                    persistInvoices();
+                    notifyListeners();
+                    throw e;
+                } else {
+                    console.error('[deleteInvoice] Remote delete failed, queue entry retained:', e?.message);
+                }
+            }
         }
     }
 
     if (touchedBillboards.length > 0) {
         touchedBillboards.forEach(recalcBillboardAvailability);
         logAction('Billboard Availability', `Recalculated ${touchedBillboards.length} billboard${touchedBillboards.length > 1 ? 's' : ''} after deleting Invoice #${id}`);
+    }
+    if (cascadeReceipts.length > 0) {
+        logAction('Delete Document', `Cascade-deleted ${cascadeReceipts.length} receipt(s) of Invoice #${id}`);
     }
     logAction('Delete Document', `Removed ${target.type} #${id}`);
     notifyListeners();

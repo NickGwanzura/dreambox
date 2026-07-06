@@ -149,6 +149,7 @@ async function registerRoutes() {
   const contractAmendments = await import('./api/contract-amendments.js');
   const backup             = await import('./api/backup.js');
   const uploadImage        = await import('./api/upload-image.js');
+  const logoProxy          = await import('./api/logo-proxy.js');
 
   app.all('/api/billboards',            adapt(billboards,          'billboards'));
   app.all('/api/backup',                adapt(backup,              'backup'));
@@ -168,6 +169,7 @@ async function registerRoutes() {
   app.all('/api/printing-jobs',         adapt(printingJobs,        'printing-jobs'));
   app.all('/api/company-profile',       adapt(companyProf,         'company-profile'));
   app.all('/api/upload-image',          adapt(uploadImage,         'upload-image'));
+  app.all('/api/logo-proxy',            adapt(logoProxy,           'logo-proxy'));
   app.all('/api/users',                 adapt(users,               'users'));
   app.all('/api/ai',                    adapt(ai,                  'ai'));
   log.boot('  Core routes        ✓  (billboards, clients, contracts, contract-amendments, invoices, expenses, tasks, maintenance, outsourced, printing-jobs, company-profile, users, ai)');

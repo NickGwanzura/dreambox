@@ -3,6 +3,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard, BillboardType, CompanyProfile } from '../types';
 import { getCompanyProfile, getCompanyLogo, getContracts, getEffectiveVatRate, getUsers } from './mockData';
+import { api } from './apiClient';
 import { formatVatPercent } from './constants';
 import { buildTemplateData, resolveContractTemplate, substituteTemplate, TemplateData } from '../utils/contractTemplate';
 
@@ -25,18 +26,22 @@ const prepareLogoForPdf = (logoDataUrl?: string | null): Promise<LogoInfo | null
     if (!logoDataUrl) return Promise.resolve(null);
 
     // If it's a remote URL (R2/CDN), fetch it as a blob and convert to data URL first
-    // so the canvas draw doesn't hit cross-origin taint issues.
+    // so the canvas draw doesn't hit cross-origin taint issues. R2 public buckets
+    // don't send CORS headers, so when the direct fetch fails, fall back to our
+    // same-origin proxy which fetches it server-side.
     if (!logoDataUrl.startsWith('data:')) {
         return fetch(logoDataUrl)
-            .then(r => r.blob())
+            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
             .then(blob => new Promise<string>((res, rej) => {
                 const reader = new FileReader();
                 reader.onloadend = () => res(reader.result as string);
                 reader.onerror = rej;
                 reader.readAsDataURL(blob);
             }))
-            .then(dataUrl => prepareLogoForPdf(dataUrl))
-            .catch(() => null);
+            .catch(() => api.get<{ dataUrl: string }>('/api/logo-proxy')
+                .then(r => r?.dataUrl || null)
+                .catch(() => null))
+            .then(dataUrl => dataUrl ? prepareLogoForPdf(dataUrl) : null);
     }
 
     return new Promise((resolve) => {
@@ -137,7 +142,11 @@ const getPdfBranding = async (): Promise<LogoInfo | null> => {
     const key = logo || '';
     if (_brandingCache && _brandingCache.key === key) return _brandingCache.value;
     const value = await prepareLogoForPdf(logo);
-    _brandingCache = { key, value };
+    // Don't cache a failure when a logo exists — a transient network error
+    // would otherwise blank the logo on every PDF for the rest of the session.
+    if (value !== null || !logo) {
+        _brandingCache = { key, value };
+    }
     return value;
 };
 

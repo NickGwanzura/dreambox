@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType } from '../services/mockData';
 import { calculateContractMonths } from '../utils/contractDate';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
@@ -186,8 +186,13 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const subtotal = taxableSubtotal;
   const total = grossAfterDiscount;
   const receiptIsLinkedToInvoice = activeTab === 'Receipts' && !!selectedInvoiceToPay;
+  const isSubmittingRef = useRef(false);
   const handleCreate = async (e: React.FormEvent) => {
       e.preventDefault();
+      // A double-click on submit would create the document twice
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
+      try {
       if (editingInvoice) {
           // Edit mode: update existing invoice
           const updatedDoc: Invoice = {
@@ -258,6 +263,9 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               return;
           }
           setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+      }
+      } finally {
+          isSubmittingRef.current = false;
       }
   };
   const downloadPDF = (doc: Invoice) => { const client = allClients.find(c => c.id === doc.clientId); if (client) { generateInvoicePDF(doc, client); } else { alert(`Could not generate PDF: Client data missing for ID ${doc.clientId}`); } };
