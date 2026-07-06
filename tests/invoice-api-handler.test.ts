@@ -302,15 +302,18 @@ describe('pickInvoiceData whitelist', () => {
     expect(data.paymentReference).toBe('REF-001');
   });
 
-  it('defaults status to Pending and type to Invoice when omitted', async () => {
+  it('leaves omitted status/type undefined so partial PUTs cannot reset them (DB schema supplies create defaults)', async () => {
     const res = mockRes();
     await handler(
       mockReq({ body: { clientId: 'CLI-001', date: '2026-06-19', items: [{ description: 'Rental', quantity: 1, unitPrice: 500, amount: 500 }], subtotal: 500, total: 500 } }),
       res,
     );
     const data = mockPrisma.invoice.create.mock.calls[0][0].data;
-    expect(data.status).toBe('Pending');
-    expect(data.type).toBe('Invoice');
+    // Prisma applies @default(Pending)/@default(Invoice) on create; sending
+    // undefined here is what keeps partial updates from clobbering rows.
+    expect(data.status).toBeUndefined();
+    expect(data.type).toBeUndefined();
+    expect(data.vatAmount).toBe(0); // POST-level creation default
   });
 
   it('omits quoteStatus for non-quotation invoices', async () => {

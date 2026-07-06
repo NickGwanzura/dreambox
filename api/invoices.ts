@@ -125,6 +125,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const data: any = pickInvoiceData(body);
+      // Creation defaults (the whitelist leaves absent fields undefined so
+      // partial PUTs can't reset them; status/type default in the schema)
+      if (data.vatAmount == null) data.vatAmount = 0;
 
       // Server-side quoteNumber generation — prevents client-side counter collisions
       if (String(body.type).toLowerCase() === 'quotation' && !data.quoteNumber) {

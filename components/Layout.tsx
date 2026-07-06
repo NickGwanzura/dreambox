@@ -229,6 +229,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     setAlertCount(getSystemAlertCount());
     triggerAutoBackup();
     runAutoBilling();
+    markOverdueInvoices();
     runMaintenanceCheck();
 
     const initializeDatabaseState = async () => {

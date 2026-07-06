@@ -243,6 +243,8 @@ export const reloadAllFromApi = async (): Promise<void> => {
         }
         hydratedFromApi = true;
         notifyListeners();
+        // Fresh data is in — safe to flag overdue invoices now
+        markOverdueInvoices().catch(e => console.error('[reloadAllFromApi] overdue check failed:', e));
     } catch (e) {
         console.error('[mockData] Failed to initialize from API:', e);
     }
@@ -1618,6 +1620,9 @@ export const getExpiringContracts = () => {
 };
 
 export const markOverdueInvoices = async () => {
+  // Never flag from stale localStorage: an invoice paid on another device
+  // could still read Pending here and get pushed back to Overdue.
+  if (isConfigured() && !hydratedFromApi) return;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const changed: Invoice[] = [];
@@ -1630,9 +1635,12 @@ export const markOverdueInvoices = async () => {
     return inv;
   });
   if (changed.length > 0) {
+    persistInvoices();
     if (isConfigured()) {
       for (const inv of changed) {
-        try { await api.put('/api/invoices', { status: 'Overdue' }, { id: inv.id }); }
+        // Full invoice body — a partial {status} PUT trips the server
+        // whitelist's required numeric fields
+        try { await api.put('/api/invoices', inv, { id: inv.id }); }
         catch (e) { console.error('[markOverdueInvoices] API error:', e); }
       }
     }

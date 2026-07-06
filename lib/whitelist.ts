@@ -21,17 +21,21 @@ function toDate(v: unknown): Date | undefined {
 
 export function pickInvoiceData(body: any) {
   return {
+    // Absent fields must stay undefined so partial updates don't corrupt
+    // rows: Number(undefined) is NaN (Prisma rejects it), and defaulting
+    // status/vatAmount here would silently reset them on partial PUTs.
+    // POST guarantees the required fields via zod + its own defaults.
     clientId:              body.clientId,
     contractId:            body.contractId            ?? undefined,
     date:                  body.date,
     items:                 body.items,
-    subtotal:              Number(body.subtotal),
+    subtotal:              body.subtotal != null ? Number(body.subtotal) : undefined,
     discountAmount:        body.discountAmount != null ? Number(body.discountAmount) : undefined,
     discountDescription:   body.discountDescription   ?? undefined,
-    vatAmount:             Number(body.vatAmount ?? 0),
-    total:                 Number(body.total),
-    status:                body.status                ?? 'Pending',
-    type:                  body.type                  ?? 'Invoice',
+    vatAmount:             body.vatAmount != null ? Number(body.vatAmount) : undefined,
+    total:                 body.total != null ? Number(body.total) : undefined,
+    status:                body.status                ?? undefined,
+    type:                  body.type                  ?? undefined,
     paymentMethod:         body.paymentMethod         ?? undefined,
     paymentReference:      body.paymentReference      ?? undefined,
     linkedInvoiceId:       body.linkedInvoiceId       ?? undefined,
