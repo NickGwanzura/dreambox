@@ -23,7 +23,7 @@ import {
   CRMTaskPriority,
   StageHistoryEntry
 } from '../types';
-import { api } from './apiClient';
+import { api, isConfigured } from './apiClient';
 import { STORAGE_KEYS, EMAIL_REGEX, PHONE_REGEX } from './constants';
 import { logger } from '../utils/logger';
 import { sanitizeString, generateId } from '../utils/sanitizers';
@@ -96,19 +96,19 @@ const notifyListeners = () => {
   });
 };
 
+// Map CRMState keys to correct STORAGE_KEYS
+const storageKeyMap: Record<keyof CRMState, string> = {
+  companies: STORAGE_KEYS.CRM_COMPANIES,
+  contacts: STORAGE_KEYS.CRM_CONTACTS,
+  opportunities: STORAGE_KEYS.CRM_OPPORTUNITIES,
+  touchpoints: STORAGE_KEYS.CRM_TOUCHPOINTS,
+  tasks: STORAGE_KEYS.CRM_TASKS,
+  emailThreads: STORAGE_KEYS.CRM_EMAIL_THREADS,
+  callLogs: STORAGE_KEYS.CRM_CALL_LOGS,
+};
+
 // Persist to storage and optionally sync to Neon
 const persist = (key: keyof CRMState, data: any[], changedRecord?: any) => {
-  // Map CRMState keys to correct STORAGE_KEYS
-  const storageKeyMap: Record<keyof CRMState, string> = {
-    companies: STORAGE_KEYS.CRM_COMPANIES,
-    contacts: STORAGE_KEYS.CRM_CONTACTS,
-    opportunities: STORAGE_KEYS.CRM_OPPORTUNITIES,
-    touchpoints: STORAGE_KEYS.CRM_TOUCHPOINTS,
-    tasks: STORAGE_KEYS.CRM_TASKS,
-    emailThreads: STORAGE_KEYS.CRM_EMAIL_THREADS,
-    callLogs: STORAGE_KEYS.CRM_CALL_LOGS,
-  };
-
   const storageKey = storageKeyMap[key];
   if (storageKey) {
     saveToStorage(storageKey, data);
@@ -125,17 +125,18 @@ const persist = (key: keyof CRMState, data: any[], changedRecord?: any) => {
   }
 };
 
+const API_ENDPOINTS: Record<keyof CRMState, string> = {
+  companies: 'crm/companies',
+  contacts: 'crm/contacts',
+  opportunities: 'crm/opportunities',
+  touchpoints: 'crm/touchpoints',
+  tasks: 'crm/tasks',
+  emailThreads: 'crm/email-threads',
+  callLogs: 'crm/call-logs',
+};
+
 const syncRecordToApi = async (stateKey: string, record: any) => {
-  const tableMap: Record<string, string> = {
-    companies: 'crm/companies',
-    contacts: 'crm/contacts',
-    opportunities: 'crm/opportunities',
-    touchpoints: 'crm/touchpoints',
-    tasks: 'crm/tasks',
-    emailThreads: 'crm/email-threads',
-    callLogs: 'crm/call-logs',
-  };
-  const endpoint = tableMap[stateKey];
+  const endpoint = API_ENDPOINTS[stateKey as keyof CRMState];
   if (!endpoint) return;
   try {
     if (record.id) {
@@ -148,7 +149,53 @@ const syncRecordToApi = async (stateKey: string, record: any) => {
   }
 };
 
+// --- Initialize from API (callable after login too) ---
+// Remote is the source of truth; local-only records (e.g. created while
+// offline or while a sync failed) are preserved rather than dropped.
+export const reloadCRMFromApi = async (): Promise<void> => {
+  if (!isConfigured()) return;
 
+  const mergeRemoteWithLocal = <T extends { id: string }>(remote: T[], local: T[]): T[] => {
+    const remoteIds = new Set(remote.map(r => r.id));
+    const localOnly = local.filter(r => !remoteIds.has(r.id));
+    return [...remote, ...localOnly];
+  };
+
+  const keys = Object.keys(API_ENDPOINTS) as (keyof CRMState)[];
+  const results = await Promise.allSettled(
+    keys.map(async key => {
+      const data = await api.get<any[]>(`/api/${API_ENDPOINTS[key]}`);
+      if (Array.isArray(data)) {
+        return { key, data: mergeRemoteWithLocal(data, state[key] as any[]) };
+      }
+      return null;
+    })
+  );
+
+  let changed = false;
+  const next = { ...state };
+  results.forEach(result => {
+    if (result.status === 'fulfilled' && result.value) {
+      next[result.value.key] = result.value.data as any;
+      changed = true;
+    }
+  });
+
+  const rejected = results.filter(r => r.status === 'rejected');
+  if (rejected.length > 0) {
+    logger.warn(`CRM: ${rejected.length}/${results.length} API loads failed`);
+  }
+
+  if (changed) {
+    state = next;
+    keys.forEach(key => saveToStorage(storageKeyMap[key], state[key]));
+    notifyListeners();
+  }
+};
+
+if (isConfigured()) {
+  reloadCRMFromApi();
+}
 
 // ==========================================
 // COMPANY OPERATIONS
