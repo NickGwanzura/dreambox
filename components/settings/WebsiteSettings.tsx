@@ -67,6 +67,22 @@ function isDataUrl(s: string) {
   return s.startsWith('data:');
 }
 
+// Mirrors the server's ALLOWED_MIME_TYPES / MAX_UPLOAD_BYTES in lib/uploadBase64.ts —
+// reject unsupported types and oversized files before spending time on an upload
+// that the server will reject anyway.
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function validateImageFile(file: File): string | null {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return `Unsupported file type: ${file.type || 'unknown'}. Use JPEG, PNG, WebP, GIF, or SVG.`;
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return `File too large: ${(file.size / 1024 / 1024).toFixed(1)} MB. Maximum allowed is 5 MB.`;
+  }
+  return null;
+}
+
 export const WebsiteSettings: React.FC = () => {
   // ── Hero image ───────────────────────────────────────────────────────────
   const [heroUrl, setHeroUrl] = useState<string>('');           // saved R2 URL
@@ -129,7 +145,8 @@ export const WebsiteSettings: React.FC = () => {
   const handleHeroFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { setHeroError('Max 5 MB'); setHeroStatus('error'); return; }
+    const err = validateImageFile(file);
+    if (err) { setHeroError(err); setHeroStatus('error'); e.target.value = ''; return; }
     setHeroError('');
     setHeroStatus('idle');
     const dataUrl = await readFileAsDataUrl(file);
@@ -140,8 +157,9 @@ export const WebsiteSettings: React.FC = () => {
   const handleHeroDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith('image/')) return;
-    if (file.size > 5 * 1024 * 1024) { setHeroError('Max 5 MB'); setHeroStatus('error'); return; }
+    if (!file) return;
+    const err = validateImageFile(file);
+    if (err) { setHeroError(err); setHeroStatus('error'); return; }
     setHeroError('');
     setHeroStatus('idle');
     const dataUrl = await readFileAsDataUrl(file);
@@ -153,15 +171,13 @@ export const WebsiteSettings: React.FC = () => {
     setHeroStatus('idle');
     setHeroError('');
     try {
-      // Get current full profile to merge into
-      const getRes = await fetch('/api/company-profile', {
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      });
-      const current = getRes.ok ? await getRes.json() : {};
+      // Send only the changed field — Prisma treats an absent key as "don't
+      // touch this column", so this can't clobber a concurrent edit to
+      // another section (partner logos, gallery, bank details, ...).
       const res = await fetch('/api/company-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ ...current, heroImageUrl: heroPreview || null }),
+        body: JSON.stringify({ heroImageUrl: heroPreview || null }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -193,7 +209,8 @@ export const WebsiteSettings: React.FC = () => {
   const handleAddFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { setAddError('Max 2 MB'); return; }
+    const validationErr = validateImageFile(file);
+    if (validationErr) { setAddError(validationErr); e.target.value = ''; return; }
     setAddError('');
     setAddUploading(true);
     try {
@@ -201,10 +218,10 @@ export const WebsiteSettings: React.FC = () => {
       const url = await uploadToR2(dataUrl);
       setAddPreview(url);
     } catch (err: any) {
-      // Fall back to data URL if R2 is not configured
-      const dataUrl = await readFileAsDataUrl(file).catch(() => '');
-      if (dataUrl) setAddPreview(dataUrl);
-      else setAddError(err.message || 'Upload failed');
+      // Surface the failure rather than falling back to a raw data URL —
+      // that used to silently embed megabytes of base64 into the saved
+      // profile whenever R2 rejected or was unreachable.
+      setAddError(err.message || 'Upload failed. Please try again.');
     } finally {
       setAddUploading(false);
     }
@@ -237,12 +254,16 @@ export const WebsiteSettings: React.FC = () => {
   const handleReplaceFile = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) return;
+    const validationErr = validateImageFile(file);
+    if (validationErr) { setLogosError(validationErr); setLogosStatus('error'); e.target.value = ''; return; }
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const url = await uploadToR2(dataUrl).catch(() => dataUrl);
+      const url = await uploadToR2(dataUrl);
       setLogos(prev => prev.map((l, i) => i === index ? { ...l, src: url } : l));
-    } catch {}
+    } catch (err: any) {
+      setLogosError(err.message || 'Upload failed. Please try again.');
+      setLogosStatus('error');
+    }
     e.target.value = '';
   };
 
@@ -251,14 +272,11 @@ export const WebsiteSettings: React.FC = () => {
     setLogosStatus('idle');
     setLogosError('');
     try {
-      const getRes = await fetch('/api/company-profile', {
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      });
-      const current = getRes.ok ? await getRes.json() : {};
+      // Send only the changed field — see saveHero for why.
       const res = await fetch('/api/company-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ ...current, partnerLogos: JSON.stringify(logos) }),
+        body: JSON.stringify({ partnerLogos: JSON.stringify(logos) }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -283,24 +301,33 @@ export const WebsiteSettings: React.FC = () => {
   };
 
   // ── Gallery handlers ──────────────────────────────────────────────────────
+  const uploadGalleryFiles = async (files: File[]): Promise<{ uploaded: GalleryImage[]; errors: string[] }> => {
+    const uploaded: GalleryImage[] = [];
+    const errors: string[] = [];
+    for (const file of files) {
+      const validationErr = validateImageFile(file);
+      if (validationErr) { errors.push(`${file.name}: ${validationErr}`); continue; }
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const url = await uploadToR2WithFolder(dataUrl, 'gallery');
+        uploaded.push({ src: url });
+      } catch (err: any) {
+        // Surface the failure instead of embedding raw base64 — a fallback
+        // here previously let multi-MB inline images into the saved profile.
+        errors.push(`${file.name}: ${err.message || 'Upload failed'}`);
+      }
+    }
+    return { uploaded, errors };
+  };
+
   const handleGalleryFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     setGalleryUploading(true);
     setGalleryError('');
-    const uploaded: GalleryImage[] = [];
-    for (const file of files) {
-      if (file.size > 8 * 1024 * 1024) continue;
-      try {
-        const dataUrl = await readFileAsDataUrl(file);
-        const url = await uploadToR2WithFolder(dataUrl, 'gallery');
-        uploaded.push({ src: url });
-      } catch {
-        const dataUrl = await readFileAsDataUrl(file).catch(() => '');
-        if (dataUrl) uploaded.push({ src: dataUrl });
-      }
-    }
+    const { uploaded, errors } = await uploadGalleryFiles(files);
     setGallery(prev => [...prev, ...uploaded]);
+    if (errors.length) setGalleryError(errors.join('; '));
     setGalleryUploading(false);
     e.target.value = '';
   };
@@ -311,19 +338,9 @@ export const WebsiteSettings: React.FC = () => {
     if (!files.length) return;
     setGalleryUploading(true);
     setGalleryError('');
-    const uploaded: GalleryImage[] = [];
-    for (const file of files) {
-      if (file.size > 8 * 1024 * 1024) continue;
-      try {
-        const dataUrl = await readFileAsDataUrl(file);
-        const url = await uploadToR2WithFolder(dataUrl, 'gallery');
-        uploaded.push({ src: url });
-      } catch {
-        const dataUrl = await readFileAsDataUrl(file).catch(() => '');
-        if (dataUrl) uploaded.push({ src: dataUrl });
-      }
-    }
+    const { uploaded, errors } = await uploadGalleryFiles(files);
     setGallery(prev => [...prev, ...uploaded]);
+    if (errors.length) setGalleryError(errors.join('; '));
     setGalleryUploading(false);
   }, []);
 
@@ -336,14 +353,11 @@ export const WebsiteSettings: React.FC = () => {
     setGalleryStatus('idle');
     setGalleryError('');
     try {
-      const getRes = await fetch('/api/company-profile', {
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      });
-      const current = getRes.ok ? await getRes.json() : {};
+      // Send only the changed field — see saveHero for why.
       const res = await fetch('/api/company-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ ...current, campaignGallery: JSON.stringify(gallery) }),
+        body: JSON.stringify({ campaignGallery: JSON.stringify(gallery) }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

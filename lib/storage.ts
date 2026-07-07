@@ -42,7 +42,7 @@ function generateKey(folder: string, originalName: string): string {
 }
 
 export async function uploadFile(
-  folder: 'billboards' | 'logos' | 'exports' | 'backups',
+  folder: 'billboards' | 'logos' | 'gallery' | 'exports' | 'backups',
   file: { buffer: Buffer; originalName: string; mimetype: string }
 ): Promise<UploadResult> {
   if (!s3 || !bucket) {

@@ -124,9 +124,18 @@ export const Settings: React.FC = () => {
     if (freshUsers.length > 0) setUsers(freshUsers);
   };
 
+  // Mirrors the server's ALLOWED_MIME_TYPES in lib/uploadBase64.ts — catches
+  // unsupported types (HEIC, AVIF, etc.) before the user is told "saved
+  // successfully" only to have the server silently reject it.
+  const ALLOWED_LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+        alert(`Unsupported file type: ${file.type || 'unknown'}. Use JPEG, PNG, WebP, GIF, or SVG.`);
+        return;
+      }
       if (file.size > 1024 * 1024) { alert("Image size is too large (Max 1MB)."); return; }
       const reader = new FileReader();
       reader.onloadend = async () => {

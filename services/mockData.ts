@@ -285,6 +285,14 @@ export const setCompanyLogo = async (url: string): Promise<void> => {
         try {
             await api.put('/api/company-profile', { id: 'profile_v1', logo: url });
         } catch (e: any) {
+            // A 4xx means the server permanently rejected this file (bad
+            // mimetype, too large) — retrying won't help, so rethrow instead
+            // of quietly claiming "saved" while the caller shows a success
+            // message. Network/5xx failures keep the offline-first behavior:
+            // stay local and retry on next sync.
+            if (e?.status >= 400 && e?.status < 500) {
+                throw e;
+            }
             console.warn('[setCompanyLogo] API save failed, logo kept locally:', e?.message);
             notifySyncError('Logo saved locally — server sync failed. It may not appear on other devices yet.');
         }

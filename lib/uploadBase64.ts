@@ -37,7 +37,7 @@ export function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; mimetype: st
 }
 
 export async function uploadBase64Image(
-  folder: 'billboards' | 'logos',
+  folder: 'billboards' | 'logos' | 'gallery',
   dataUrl: string | undefined | null,
   existingUrl?: string | null
 ): Promise<string | undefined> {
