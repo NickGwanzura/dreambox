@@ -19,7 +19,7 @@ function MaintenanceScreen() {
   const secs = totalSecs % 60;
   const pad  = (n: number) => String(n).padStart(2, '0');
 
-  const liveLogo = 'https://static.wixstatic.com/media/33e2c5_fa30ae7289ea444186df47e4189fca0d~mv2.png/v1/crop/x_0,y_194,w_526,h_100/fill/w_678,h_136,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/IMG_9520__1_-removebg-preview.png';
+  const liveLogo = 'https://pub-14569e32d4434e8d9db6cbdfe16b96f4.r2.dev/logos/image-1781703301263-hrjsyr.avif';
 
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" }}

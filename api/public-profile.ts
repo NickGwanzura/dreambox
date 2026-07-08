@@ -16,6 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       name: row.name,
       email: row.email,
       phone: row.phone,
+      logo: row.logo || null,
       heroImageUrl: row.heroImageUrl || null,
       partnerLogos: row.partnerLogos || null,
       campaignGallery: (row as any).campaignGallery || null,

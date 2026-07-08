@@ -28,6 +28,7 @@ import {
 import {
   getBillboards,
   getCampaignGallery,
+  getCompanyLogo,
   getCompanyProfile,
   getContracts,
   getHeroImageUrl,
@@ -43,37 +44,13 @@ import {
 } from '../services/crmService';
 import { Billboard, BillboardType, Contract } from '../types';
 
-const liveLogo =
-  'https://static.wixstatic.com/media/33e2c5_fa30ae7289ea444186df47e4189fca0d~mv2.png/v1/crop/x_0,y_194,w_526,h_100/fill/w_678,h_136,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/IMG_9520__1_-removebg-preview.png';
-
 const HERO_VIDEO_URL = 'https://pub-14569e32d4434e8d9db6cbdfe16b96f4.r2.dev/videoplayback%20(2).mp4';
 
-const DEFAULT_PARTNER_LOGOS = [
-  {
-    name: 'Cardinal Properties',
-    src: 'https://static.wixstatic.com/media/6d48c9_b05994263fed4b859517750397b8c30b~mv2.png/v1/fill/w_546,h_326,al_c,lg_1,q_85,enc_avif,quality_auto/Cardinal%20Properties%20Logo%20SQ.png',
-  },
-  {
-    name: 'Clouds To You',
-    src: 'https://static.wixstatic.com/media/6d48c9_03a536103d9a46e4a1cdb30f4f386f55~mv2.jpg/v1/fill/w_546,h_326,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/Clouds%20to%20you%20logo%20Sq.jpg',
-  },
-  {
-    name: 'Coca-Cola',
-    src: 'https://static.wixstatic.com/media/6d48c9_cb4241c2dec5483d9587c8fa395bb4f9~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Coke%20logo%20sq.jpg',
-  },
-  {
-    name: 'Colgate',
-    src: 'https://static.wixstatic.com/media/6d48c9_5afcb36a36c44a27a58695b08a35acfa~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Colgate%20logo%20sq.jpg',
-  },
-  {
-    name: 'National Foods',
-    src: 'https://static.wixstatic.com/media/6d48c9_95cb0cc7425d45329afa4f2bfbc1bd7f~mv2.png/v1/fill/w_546,h_326,al_c,lg_1,q_85,enc_avif,quality_auto/NatFoods%20Logo%20Sq.png',
-  },
-  {
-    name: 'Pepsi',
-    src: 'https://static.wixstatic.com/media/6d48c9_f1e0ceacc8264d0b9666333f4cd583f1~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Pepsi%20logo%20sq.jpg',
-  },
-];
+// No hardcoded demo logos — an empty list until the real, uploaded partner
+// logos load from /api/public-profile. Showing placeholder brand logos
+// (previously Coca-Cola, Pepsi, etc.) risked implying an endorsement that
+// was never given.
+const DEFAULT_PARTNER_LOGOS: { name: string; src: string }[] = [];
 
 
 const testimonials = [
@@ -326,7 +303,7 @@ export const PublicWebsite: React.FC = () => {
   const [publicBillboards, setPublicBillboards] = useState<Billboard[]>(() => getBillboards());
   const billboards = publicBillboards;
   const contracts = getContracts();
-  const logo = liveLogo;
+  const [logo, setLogo] = useState<string | null>(() => getCompanyLogo());
   const profile = getCompanyProfile();
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(() => getHeroImageUrl());
   const [partnerLogos, setPartnerLogos] = useState<{ name: string; src: string }[]>(() => {
@@ -335,9 +312,10 @@ export const PublicWebsite: React.FC = () => {
   });
   const [campaignGallery, setCampaignGallery] = useState<{ src: string }[]>(() => getCampaignGallery());
 
-  // Re-read hero image, partner logos, and campaign gallery when mockData state changes
+  // Re-read logo, hero image, partner logos, and campaign gallery when mockData state changes
   useEffect(() => {
     const unsubscribe = subscribe(() => {
+      setLogo(getCompanyLogo());
       setHeroImageUrl(getHeroImageUrl());
       const stored = getPartnerLogos();
       setPartnerLogos(stored.length ? stored : DEFAULT_PARTNER_LOGOS);
@@ -368,6 +346,9 @@ export const PublicWebsite: React.FC = () => {
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!cancelled && data) {
+          if (data.logo) {
+            setLogo(data.logo);
+          }
           if (data.heroImageUrl) {
             setHeroImageUrl(data.heroImageUrl);
           }

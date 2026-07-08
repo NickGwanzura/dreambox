@@ -22,14 +22,9 @@ import { updateLocalCompanyProfile } from '../../services/mockData';
 export type PartnerLogo = { name: string; src: string };
 export type GalleryImage = { src: string };
 
-const FALLBACK_LOGOS: PartnerLogo[] = [
-  { name: 'Cardinal Properties', src: 'https://static.wixstatic.com/media/6d48c9_b05994263fed4b859517750397b8c30b~mv2.png/v1/fill/w_546,h_326,al_c,lg_1,q_85,enc_avif,quality_auto/Cardinal%20Properties%20Logo%20SQ.png' },
-  { name: 'Clouds To You', src: 'https://static.wixstatic.com/media/6d48c9_03a536103d9a46e4a1cdb30f4f386f55~mv2.jpg/v1/fill/w_546,h_326,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/Clouds%20to%20you%20logo%20Sq.jpg' },
-  { name: 'Coca-Cola', src: 'https://static.wixstatic.com/media/6d48c9_cb4241c2dec5483d9587c8fa395bb4f9~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Coke%20logo%20sq.jpg' },
-  { name: 'Colgate', src: 'https://static.wixstatic.com/media/6d48c9_5afcb36a36c44a27a58695b08a35acfa~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Colgate%20logo%20sq.jpg' },
-  { name: 'National Foods', src: 'https://static.wixstatic.com/media/6d48c9_95cb0cc7425d45329afa4f2bfbc1bd7f~mv2.png/v1/fill/w_546,h_326,al_c,lg_1,q_85,enc_avif,quality_auto/NatFoods%20Logo%20Sq.png' },
-  { name: 'Pepsi', src: 'https://static.wixstatic.com/media/6d48c9_f1e0ceacc8264d0b9666333f4cd583f1~mv2.jpg/v1/fill/w_546,h_326,al_c,lg_1,q_80,enc_avif,quality_auto/Pepsi%20logo%20sq.jpg' },
-];
+// No hardcoded demo logos — "reset" clears to empty rather than repopulating
+// with placeholder brand logos that were never real clients or endorsements.
+const FALLBACK_LOGOS: PartnerLogo[] = [];
 
 function authHeaders() {
   const token = getToken();

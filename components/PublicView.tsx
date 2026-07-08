@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { getBillboards, getContracts } from '../services/mockData';
+import { getBillboards, getContracts, getCompanyLogo } from '../services/mockData';
 import { Billboard, Contract } from '../types';
 import { estimateDailyViews } from '../services/aiService';
 import { hasValidCoordinates } from '../utils/coordinates';
@@ -13,9 +13,6 @@ const toSlug = (name: string): string =>
         .replace(/^-+|-+$/g, '');
 
 const billboardLink = (b: Billboard): string => `/billboard/${toSlug(b.name)}-${b.id.slice(-8)}`;
-
-const liveLogo =
-    'https://static.wixstatic.com/media/33e2c5_fa30ae7289ea444186df47e4189fca0d~mv2.png/v1/crop/x_0,y_194,w_526,h_100/fill/w_678,h_136,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/IMG_9520__1_-removebg-preview.png';
 
 const publicNavLinks = [
     { href: '/', label: 'Home' },
@@ -71,7 +68,7 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
     const [contracts, setContracts] = useState<Contract[]>([]);
     const mapRef = useRef<L.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
-    const logo = liveLogo;
+    const [logo, setLogo] = useState<string | null>(() => getCompanyLogo());
 
     // Map view state
     const [searchQuery, setSearchQuery] = useState('');
@@ -167,6 +164,17 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
         loadBoards();
         return () => { cancelled = true; };
     }, [type, billboardId]);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch('/api/public-profile')
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                if (!cancelled && data?.logo) setLogo(data.logo);
+            })
+            .catch(() => undefined);
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         const boards = allBillboards;
