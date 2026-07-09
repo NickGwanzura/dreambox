@@ -155,9 +155,9 @@ const addCompanyHeader = (doc: jsPDF, logoInfo?: LogoInfo | null): number => {
     const pageWidth = doc.internal.pageSize.width;
     let startY = 15;
 
-    // Logo (Top Left) — aspect-preserving inside a 30mm x 22mm bounding box
+    // Logo (Top Left) — aspect-preserving inside a larger letterhead box
     if (logoInfo && logoInfo.pngDataUrl) {
-        const boxW = 30, boxH = 22;
+        const boxW = 58, boxH = 28;
         const scale = Math.min(boxW / logoInfo.width, boxH / logoInfo.height);
         const drawW = logoInfo.width * scale;
         const drawH = logoInfo.height * scale;
@@ -172,7 +172,7 @@ const addCompanyHeader = (doc: jsPDF, logoInfo?: LogoInfo | null): number => {
         const rawLogo = getCompanyLogo();
         if (rawLogo && rawLogo.startsWith('data:image') && !rawLogo.startsWith('data:image/avif')) {
             const fmt = rawLogo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-            try { doc.addImage(rawLogo, fmt, 14, 10, 25, 22); } catch { /* ignore */ }
+            try { doc.addImage(rawLogo, fmt, 14, 10, 58, 28); } catch { /* ignore */ }
         }
     }
 

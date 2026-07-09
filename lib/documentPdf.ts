@@ -115,11 +115,11 @@ function drawHeader(doc: PDFKit.PDFDocument, company: CompanyProfileLite, title:
 
   const logoBuf = tryDecodeLogo(company.logo);
   if (logoBuf) {
-    try { doc.image(logoBuf, left, top, { fit: [80, 60] }); } catch { /* ignore broken logo */ }
+    try { doc.image(logoBuf, left, top, { fit: [150, 70] }); } catch { /* ignore broken logo */ }
   }
 
   doc.fillColor(INK).font('Helvetica-Bold').fontSize(18)
-    .text(company.name || 'Company', left + (logoBuf ? 92 : 0), top + 4);
+    .text(company.name || 'Company', left + (logoBuf ? 164 : 0), top + 4);
 
   const lines = [
     company.address,
@@ -132,7 +132,7 @@ function drawHeader(doc: PDFKit.PDFDocument, company: CompanyProfileLite, title:
   ].filter(Boolean) as string[];
 
   doc.font('Helvetica').fontSize(9).fillColor(MUTE);
-  lines.forEach((l, i) => doc.text(l, left + (logoBuf ? 92 : 0), top + 26 + i * 11));
+  lines.forEach((l, i) => doc.text(l, left + (logoBuf ? 164 : 0), top + 26 + i * 11));
 
   // Title on the right
   doc.font('Helvetica-Bold').fontSize(22).fillColor(ACCENT)
