@@ -198,6 +198,38 @@ Focus on value, visibility, and partnership. Keep it under 100 words.`,
   }
 };
 
+export const generateRentalPackageProposal = async (
+  client: Client,
+  placements: Array<{ billboard: Billboard; details: string; monthlyRate: number }>
+): Promise<string> => {
+  const totalMonthly = placements.reduce((sum, item) => sum + (item.monthlyRate || 0), 0);
+  const placementSummary = placements
+    .map(item => `- ${item.billboard.name}: ${item.details} at ${item.billboard.location}, ${item.billboard.town} ($${item.monthlyRate}/mo)`)
+    .join('\n');
+
+  try {
+    return await callAI(
+      [{
+        role: 'user',
+        content: `Draft a professional, persuasive email proposal to ${client.contactPerson} from ${client.companyName} for a multi-site billboard advertising package.
+Placements:
+${placementSummary}
+
+Total monthly package rate: $${totalMonthly}.
+Focus on reach, visibility across multiple locations, and partnership. Keep it under 130 words.`,
+      }],
+      { temperature: 0.7, max_tokens: 240 }
+    );
+  } catch (e) {
+    logAIError('AI Package Proposal failed', e, {
+      feature: 'generateRentalPackageProposal',
+      clientId: client.id,
+      billboardIds: placements.map(item => item.billboard.id),
+    });
+    return `Dear ${client.contactPerson},\n\nWe are pleased to offer ${client.companyName} a multi-site billboard package covering ${placements.map(item => item.billboard.location).join(', ')}. The total monthly package rate is $${totalMonthly}.\n\nBest regards,\nDreambox Advertising`;
+  }
+};
+
 export const generateGreeting = async (username: string): Promise<string> => {
   try {
     const hour = new Date().getHours();

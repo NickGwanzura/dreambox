@@ -460,7 +460,7 @@ export const deleteBillboard = async (id: string): Promise<void> => {
 };
 
 // --- Contract CRUD ---
-export const addContract = async (contract: Contract) => {
+export const addContract = async (contract: Contract): Promise<Contract> => {
     if (isConfigured()) {
         const created = await api.post<Contract>('/api/contracts', contract);
         contracts = [...contracts, created];
@@ -481,6 +481,7 @@ export const addContract = async (contract: Contract) => {
     }
     logAction('Create Contract', `New contract for ${contract.billboardId}`);
     notifyListeners();
+    return contract;
 };
 
 export const updateContract = async (updated: Contract) => {

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { generateId } from '../utils/sanitizers';
 import { getContracts, getBillboards, addContract, addInvoice, clients, deleteContract, updateContract, subscribe, getContractAmendmentsForContract, endContract, permanentDeleteContract, invoices } from '../services/mockData';
 import { generateActiveContractsPDF, generateLegalContractPDF } from '../services/pdfGenerator';
-import { generateRentalProposal } from '../services/aiService';
+import { generateRentalPackageProposal, generateRentalProposal } from '../services/aiService';
 import { Contract, BillboardType, Invoice } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
@@ -13,6 +13,7 @@ import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
 import { getProductionFee } from '../utils/productionFee';
 import { ContractAmendmentModal } from './ContractAmendmentModal';
+import { getContractGroupAllLines as getGroupedLines, getContractGroupId as getGroupedId, invoiceTouchesContractLine } from '../utils/contractGroups';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -102,9 +103,9 @@ export const Rentals: React.FC = () => {
         if (contractToPermanentDelete) { setContractToPermanentDelete(null); return; }
         if (rentalToDelete) { setRentalToDelete(null); setShowPaidInvoiceDeleteWarning(false); return; }
         if (renewRental) { setRenewRental(null); return; }
-        if (editRental) { setEditRental(null); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); return; }
+        if (editRental) { setEditRental(null); setEditExtraLines([]); setDeletedEditLineIds([]); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); return; }
         if (selectedRental) { setSelectedRental(null); return; }
-        if (isCreateModalOpen) { setIsCreateModalOpen(false); setCreateStep(1); return; }
+        if (isCreateModalOpen) { setIsCreateModalOpen(false); resetCreateRental(); return; }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -118,6 +119,7 @@ export const Rentals: React.FC = () => {
     clientId: '', billboardId: '', side: 'A' as 'A' | 'B' | 'Both', slotNumber: 1, startDate: '', endDate: '',
     monthlyRate: 0, installationCost: 0, printingCost: 0, productionCost: 0, hasVat: true, assignedTo: ''
   });
+  const [createExtraLines, setCreateExtraLines] = useState<Contract[]>([]);
 
   // Real-time Subscription
   useEffect(() => {
@@ -133,12 +135,64 @@ export const Rentals: React.FC = () => {
   const getBillboardName = (id: string) => getBillboard(id)?.name || 'Unknown';
 
   const selectedBillboard = getBillboard(newRental.billboardId);
+  const selectedCreateBillboardIds = [
+      ...(newRental.billboardId ? [newRental.billboardId] : []),
+      ...createExtraLines.map(line => line.billboardId)
+  ];
+  const selectedCreateCount = selectedCreateBillboardIds.length;
 
-  const getContractGroupId = (contract: Contract) => contract.masterContractId || contract.id;
+  const getContractGroupId = (contract: Contract) => getGroupedId(contract);
 
   const getContractGroupLines = (contract: Contract) => {
       const groupId = getContractGroupId(contract);
       return getContracts().filter(c => (c.masterContractId || c.id) === groupId && c.id !== contract.id);
+  };
+
+  const getContractGroupAllLines = (contract: Contract) => {
+      return getGroupedLines(contract, getContracts());
+  };
+
+  const money = (value: number) => `$${(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const buildGroupedRateBlock = (lines: Contract[]) => {
+      const parts = lines.map((line, index) => {
+          const billboard = getBillboard(line.billboardId);
+          const oneOffs = [
+              line.installationCost > 0 ? `${money(line.installationCost)} installation` : '',
+              (line.productionCost || 0) > 0 ? `${money(line.productionCost || 0)} production` : '',
+              line.printingCost > 0 ? `${money(line.printingCost)} printing` : ''
+          ].filter(Boolean);
+          return `• Placement ${index + 1}: ${billboard?.name || 'Billboard'} (${line.details}) at ${billboard?.location || 'agreed location'} — ${money(line.monthlyRate)} per month${oneOffs.length ? ` plus ${oneOffs.join(', ')}` : ''}.`;
+      });
+      const totalMonthly = lines.reduce((sum, line) => sum + line.monthlyRate, 0);
+      const totalValue = lines.reduce((sum, line) => sum + line.totalContractValue, 0);
+      parts.push(`• Total monthly package rate: ${money(totalMonthly)}.`);
+      parts.push(`• Total contract value: ${money(totalValue)}.`);
+      return parts.join('\n');
+  };
+
+  const getGroupedContractOverrides = (contract: Contract) => {
+      const lines = getContractGroupAllLines(contract);
+      if (lines.length <= 1) return undefined;
+      const boards = lines.map(line => getBillboard(line.billboardId)).filter(Boolean);
+      return {
+          billboard_name: boards.map(board => board!.name).join(', '),
+          billboard_location: boards.map(board => `${board!.location}, ${board!.town}`).join('; '),
+          billboard_type: Array.from(new Set(boards.map(board => board!.type))).join(' + '),
+          billboard_size: 'Multiple placements',
+          rate_block: buildGroupedRateBlock(lines),
+          monthly_rate: money(lines.reduce((sum, line) => sum + line.monthlyRate, 0)),
+          total_contract_value: money(lines.reduce((sum, line) => sum + line.totalContractValue, 0)),
+      };
+  };
+
+  const getLineAvailabilityLabel = (line: Contract) => {
+      if (!newRental.startDate || !newRental.endDate || !line.billboardId) return 'Select dates to check availability';
+      const billboard = getBillboard(line.billboardId);
+      if (!billboard) return 'Billboard not found';
+      const avail = checkAvailability(line.billboardId, line.side || 'A', newRental.startDate, newRental.endDate, undefined, line.slotNumber);
+      if (avail.ok) return billboard.type === BillboardType.LED ? `Slot ${line.slotNumber || 1} available` : `${line.details || getLineDetails(line)} available`;
+      return avail.reason || 'Booked for selected dates';
   };
 
   const getLineDetails = (line: Contract) => {
@@ -174,11 +228,91 @@ export const Rentals: React.FC = () => {
   };
 
   const recalcContractValue = (line: Contract) => {
-      const months = calculateContractMonths(line.startDate, line.endDate);
+      const months = calculateContractMonthsSafe(line.startDate, line.endDate);
       return (Number(line.monthlyRate) || 0) * months +
           (Number(line.installationCost) || 0) +
           (Number(line.printingCost) || 0) +
           (Number(line.productionCost) || 0);
+  };
+
+  const createLineForBillboard = (billboardId: string): Contract => {
+      const billboard = getBillboard(billboardId);
+      const side: Contract['side'] = billboard?.type === BillboardType.Static ? 'A' : undefined;
+      const line: Contract = {
+          id: `C-${generateId()}`,
+          clientId: newRental.clientId,
+          billboardId,
+          startDate: newRental.startDate,
+          endDate: newRental.endDate,
+          monthlyRate: getDefaultRate(billboardId, side),
+          installationCost: 0,
+          printingCost: 0,
+          productionCost: billboard?.type === BillboardType.Static ? getProductionFee(billboard) : 0,
+          hasVat: newRental.hasVat,
+          totalContractValue: 0,
+          status: 'Active',
+          details: '',
+          side,
+          slotNumber: billboard?.type === BillboardType.LED ? 1 : undefined,
+          assignedTo: newRental.assignedTo || undefined,
+          createdAt: new Date().toISOString(),
+      };
+      return { ...line, details: getLineDetails(line), totalContractValue: recalcContractValue(line) };
+  };
+
+  const resetCreateRental = () => {
+      setCreateStep(1);
+      setNewRental({ clientId: '', billboardId: '', side: 'A', slotNumber: 1, startDate: '', endDate: '', monthlyRate: 0, installationCost: 0, printingCost: 0, productionCost: 0, hasVat: true, assignedTo: '' });
+      setCreateExtraLines([]);
+      setAiProposal('');
+  };
+
+  const toggleCreateBillboard = (billboardId: string) => {
+      if (newRental.billboardId === billboardId) {
+          const [nextPrimary, ...remaining] = createExtraLines;
+          if (nextPrimary) {
+              setNewRental(prev => ({
+                  ...prev,
+                  billboardId: nextPrimary.billboardId,
+                  side: nextPrimary.side || 'A',
+                  slotNumber: nextPrimary.slotNumber || 1,
+                  monthlyRate: nextPrimary.monthlyRate,
+                  installationCost: nextPrimary.installationCost,
+                  printingCost: nextPrimary.printingCost,
+                  productionCost: nextPrimary.productionCost || 0,
+              }));
+              setCreateExtraLines(remaining.map(line => ({
+                  ...line,
+                  masterContractId: undefined,
+                  details: getLineDetails(line),
+              })));
+          } else {
+              setNewRental(prev => ({ ...prev, billboardId: '', side: 'A', slotNumber: 1, monthlyRate: 0, installationCost: 0, printingCost: 0, productionCost: 0 }));
+          }
+          return;
+      }
+
+      if (createExtraLines.some(line => line.billboardId === billboardId)) {
+          setCreateExtraLines(createExtraLines.filter(line => line.billboardId !== billboardId));
+          return;
+      }
+
+      if (!newRental.billboardId) {
+          const line = createLineForBillboard(billboardId);
+          setNewRental(prev => ({
+              ...prev,
+              billboardId,
+              side: line.side || 'A',
+              slotNumber: line.slotNumber || 1,
+              monthlyRate: line.monthlyRate,
+              installationCost: line.installationCost,
+              printingCost: line.printingCost,
+              productionCost: line.productionCost || 0,
+          }));
+          return;
+      }
+
+      setCreateExtraLines([...createExtraLines, createLineForBillboard(billboardId)]);
   };
 
   interface AvailabilityResult {
@@ -314,6 +448,18 @@ export const Rentals: React.FC = () => {
     setNewRental(prev => ({ ...prev, productionCost: getProductionFee(selectedBillboard) }));
   }, [newRental.billboardId]);
 
+  useEffect(() => {
+      setCreateExtraLines(lines => lines.map(line => ({
+          ...line,
+          clientId: newRental.clientId,
+          startDate: newRental.startDate,
+          endDate: newRental.endDate,
+          hasVat: newRental.hasVat,
+          assignedTo: newRental.assignedTo || undefined,
+          totalContractValue: recalcContractValue({ ...line, startDate: newRental.startDate, endDate: newRental.endDate })
+      })));
+  }, [newRental.clientId, newRental.startDate, newRental.endDate, newRental.hasVat, newRental.assignedTo]);
+
   // Auto-select available side and sync rates
   useEffect(() => {
     if (selectedBillboard?.type === BillboardType.Static) {
@@ -344,37 +490,17 @@ export const Rentals: React.FC = () => {
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
     try {
-    if (selectedBillboard?.type === BillboardType.Static) {
-        if (!checkAvailability(newRental.billboardId, newRental.side, newRental.startDate, newRental.endDate).ok) {
-            alert(`Selected side option (${newRental.side}) is not available for these dates.`);
-            return;
-        }
-    } else if (selectedBillboard?.type === BillboardType.LED) {
-        if (digitalFull) {
-            alert("All slots for this digital billboard are fully booked for the selected dates.");
-            return;
-        }
-        if (!checkAvailability(newRental.billboardId, undefined, newRental.startDate, newRental.endDate, undefined, newRental.slotNumber).ok) {
-            alert(`Slot ${newRental.slotNumber} is already booked for the selected dates. Please choose a different slot.`);
-            return;
-        }
+    if (!newRental.clientId || !newRental.billboardId || !newRental.startDate || !newRental.endDate) {
+        alert('Please select a client, at least one billboard, and contract dates.');
+        return;
+    }
+    if (new Date(newRental.endDate) < new Date(newRental.startDate)) {
+        alert('End date cannot be before the start date.');
+        return;
     }
 
-    const months = calculateContractMonths(newRental.startDate, newRental.endDate);
-    const gross = (newRental.monthlyRate * months) + newRental.installationCost + newRental.printingCost + newRental.productionCost;
-    const { subtotal, vat } = newRental.hasVat
-      ? splitInclusiveVat(gross, vatRate)
-      : { subtotal: gross, vat: 0 };
     const rentalId = `C-${Date.now().toString().slice(-4)}`;
-    
-    let detailText = '';
-    if (selectedBillboard?.type === BillboardType.Static) {
-        detailText = newRental.side === 'Both' ? "Sides A & B" : `Side ${newRental.side}`;
-    } else {
-        detailText = `Slot ${newRental.slotNumber}`;
-    }
-
-    const rental: Contract = {
+    const primaryLine: Contract = {
         id: rentalId,
         clientId: newRental.clientId,
         billboardId: newRental.billboardId,
@@ -386,22 +512,81 @@ export const Rentals: React.FC = () => {
         productionCost: newRental.productionCost,
         hasVat: newRental.hasVat,
         assignedTo: newRental.assignedTo || undefined,
-        totalContractValue: gross,
+        totalContractValue: 0,
         status: 'Active',
         side: selectedBillboard?.type === BillboardType.Static ? newRental.side : undefined,
         slotNumber: selectedBillboard?.type === BillboardType.LED ? newRental.slotNumber : undefined,
-        details: detailText,
+        details: '',
         createdAt: new Date().toISOString()
     };
+    const normalizedPrimary = { ...primaryLine, details: getLineDetails(primaryLine), totalContractValue: recalcContractValue(primaryLine) };
+    const normalizedExtras = createExtraLines.map(line => {
+        const normalized = {
+            ...line,
+            clientId: newRental.clientId,
+            startDate: newRental.startDate,
+            endDate: newRental.endDate,
+            hasVat: newRental.hasVat,
+            assignedTo: newRental.assignedTo || undefined,
+            masterContractId: rentalId,
+            status: 'Active' as const,
+            createdAt: line.createdAt || new Date().toISOString(),
+        };
+        return { ...normalized, details: getLineDetails(normalized), totalContractValue: recalcContractValue(normalized) };
+    });
+    const allCreateLines = [normalizedPrimary, ...normalizedExtras];
 
+    for (let i = 0; i < allCreateLines.length; i += 1) {
+        for (let j = i + 1; j < allCreateLines.length; j += 1) {
+            const a = allCreateLines[i];
+            const b = allCreateLines[j];
+            if (a.billboardId !== b.billboardId) continue;
+            const billboard = getBillboard(a.billboardId);
+            const sameStaticSide = billboard?.type === BillboardType.Static &&
+                (a.side === 'Both' || b.side === 'Both' || a.side === b.side);
+            const sameDigitalSlot = billboard?.type === BillboardType.LED &&
+                (a.slotNumber || 1) === (b.slotNumber || 1);
+            if (sameStaticSide || sameDigitalSlot) {
+                alert(`${billboard?.name || 'A selected billboard'} is duplicated on this contract. Pick a different side/slot or remove one line.`);
+                return;
+            }
+        }
+    }
+
+    for (const line of allCreateLines) {
+        const billboard = getBillboard(line.billboardId);
+        if (!billboard) {
+            alert('One selected billboard could not be found. Please reselect it.');
+            return;
+        }
+        const avail = checkAvailability(line.billboardId, line.side || 'A', line.startDate, line.endDate, undefined, line.slotNumber);
+        if (!avail.ok) {
+            alert(`${billboard.name} is already booked: ${avail.reason || 'Conflict detected'}.`);
+            return;
+        }
+    }
+
+    const gross = allCreateLines.reduce((sum, line) => sum + line.totalContractValue, 0);
+    const { subtotal, vat } = newRental.hasVat
+      ? splitInclusiveVat(gross, vatRate)
+      : { subtotal: gross, vat: 0 };
+
+    const createdContracts: Contract[] = [];
     try {
-        await addContract(rental);
+        for (const line of allCreateLines) {
+            const created = await addContract(line);
+            createdContracts.push(created);
+        }
     } catch (err: any) {
+        for (const created of [...createdContracts].reverse()) {
+            try { await deleteContract(created.id); } catch (rollbackErr) { console.error('[Rentals] Rollback failed for contract line:', created.id, rollbackErr); }
+        }
         alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
         return;
     }
 
-    const invoiceGross = newRental.monthlyRate + newRental.installationCost + newRental.printingCost + newRental.productionCost;
+    const invoiceGross = allCreateLines.reduce((sum, line) =>
+        sum + line.monthlyRate + line.installationCost + line.printingCost + (line.productionCost || 0), 0);
     const { subtotal: invoiceSubtotal, vat: invoiceVat } = newRental.hasVat
       ? splitInclusiveVat(invoiceGross, vatRate)
       : { subtotal: invoiceGross, vat: 0 };
@@ -409,12 +594,15 @@ export const Rentals: React.FC = () => {
         contractId: rentalId,
         clientId: newRental.clientId,
         date: new Date().toISOString().split('T')[0],
-        items: [
-            { description: `Rental: ${selectedBillboard?.name} (${rental.details}) - Month 1`, amount: newRental.monthlyRate },
-            ...(newRental.installationCost > 0 ? [{ description: 'Installation Fee', amount: newRental.installationCost }] : []),
-            ...(newRental.productionCost > 0 ? [{ description: `Production Fee (${selectedBillboard?.width}m x ${selectedBillboard?.height}m)`, amount: newRental.productionCost }] : []),
-            ...(newRental.printingCost > 0 ? [{ description: 'Printing Costs', amount: newRental.printingCost }] : [])
-        ],
+        items: allCreateLines.flatMap(line => {
+            const billboard = getBillboard(line.billboardId);
+            return [
+                { description: `Rental: ${billboard?.name || 'Billboard'} (${line.details}) - Month 1`, amount: line.monthlyRate, billboardId: line.billboardId, contractLineId: line.id, side: line.side === 'Both' ? undefined : line.side, slots: line.slotNumber ? 1 : undefined },
+                ...(line.installationCost > 0 ? [{ description: `Installation Fee: ${billboard?.name || 'Billboard'}`, amount: line.installationCost, billboardId: line.billboardId, contractLineId: line.id }] : []),
+                ...((line.productionCost || 0) > 0 ? [{ description: `Production Fee: ${billboard?.name || 'Billboard'} (${billboard?.width || 0}m x ${billboard?.height || 0}m)`, amount: line.productionCost || 0, billboardId: line.billboardId, contractLineId: line.id }] : []),
+                ...(line.printingCost > 0 ? [{ description: `Printing Costs: ${billboard?.name || 'Billboard'}`, amount: line.printingCost, billboardId: line.billboardId, contractLineId: line.id }] : [])
+            ];
+        }),
         subtotal: invoiceSubtotal,
         vatAmount: invoiceVat,
         total: invoiceGross,
@@ -424,14 +612,16 @@ export const Rentals: React.FC = () => {
     try {
         await addInvoice(initialInvoice);
     } catch (err: any) {
+        for (const created of [...createdContracts].reverse()) {
+            try { await deleteContract(created.id); } catch (rollbackErr) { console.error('[Rentals] Rollback failed after invoice error:', created.id, rollbackErr); }
+        }
         alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
         return;
     }
     
     setIsCreateModalOpen(false);
-    setCreateStep(1);
-    setNewRental({ clientId: '', billboardId: '', side: 'A', slotNumber: 1, startDate: '', endDate: '', monthlyRate: 0, installationCost: 0, printingCost: 0, productionCost: 0, hasVat: true, assignedTo: '' });
-    alert("Success! Rental Active & Initial Invoice Generated.");
+    resetCreateRental();
+    alert(`Success! ${allCreateLines.length} billboard${allCreateLines.length === 1 ? '' : 's'} added to the contract and initial invoice generated.`);
     } finally {
       isSubmittingRef.current = false;
     }
@@ -507,7 +697,7 @@ export const Rentals: React.FC = () => {
           // Check if any deleted lines have associated invoices
       const linesWithInvoices = deletedEditLineIds
         .map(id => {
-          const linkedInvoices = invoices.filter(i => i.contractId === id && String(i.type || '').toLowerCase() === 'invoice');
+          const linkedInvoices = invoices.filter(i => invoiceTouchesContractLine(i, id) && String(i.type || '').toLowerCase() === 'invoice');
           if (linkedInvoices.length === 0) return null;
           return {
             contractId: id,
@@ -646,15 +836,26 @@ export const Rentals: React.FC = () => {
     setIsGenerating(true);
     const client = getClient(newRental.clientId)!;
     const billboard = getBillboard(newRental.billboardId)!;
-    const proposal = await generateRentalProposal(client, billboard, newRental.monthlyRate);
+    const placements = [
+      { billboard, details: selectedBillboard ? getLineDetails({ ...newRental, id: 'draft', clientId: newRental.clientId, status: 'Active', totalContractValue: 0, details: '', hasVat: newRental.hasVat } as Contract) : 'Placement', monthlyRate: newRental.monthlyRate },
+      ...createExtraLines.map(line => {
+        const b = getBillboard(line.billboardId);
+        return b ? { billboard: b, details: getLineDetails(line), monthlyRate: line.monthlyRate } : null;
+      }).filter((item): item is { billboard: NonNullable<ReturnType<typeof getBillboard>>; details: string; monthlyRate: number } => item !== null)
+    ];
+    const proposal = placements.length > 1
+      ? await generateRentalPackageProposal(client, placements)
+      : await generateRentalProposal(client, billboard, newRental.monthlyRate);
     setAiProposal(proposal);
     setIsGenerating(false);
   };
 
   const confirmDelete = async () => {
       if (rentalToDelete) {
+          const groupLines = getContractGroupAllLines(rentalToDelete);
+          const groupLineIds = groupLines.map(line => line.id);
           const paidInvoicesForContract = invoices.filter(i =>
-            i.contractId === rentalToDelete.id &&
+            groupLineIds.some(id => invoiceTouchesContractLine(i, id)) &&
             String(i.type || '').toLowerCase() === 'invoice' &&
             i.status === 'Paid'
           );
@@ -663,7 +864,9 @@ export const Rentals: React.FC = () => {
             return;
           }
           try {
-              await deleteContract(rentalToDelete.id);
+              for (const line of [...groupLines].reverse()) {
+                  await deleteContract(line.id);
+              }
               setRentalToDelete(null);
               setShowPaidInvoiceDeleteWarning(false);
           } catch (err: any) {
@@ -870,14 +1073,14 @@ export const Rentals: React.FC = () => {
                         <button onClick={() => setSelectedRental(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-1">
                             <Eye size={14} /> <span className="hidden sm:inline">View</span>
                         </button>
-                        <button onClick={() => { setEditRental({...contract}); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-1">
+                        <button onClick={() => { setEditRental({...contract}); setEditExtraLines(getContractGroupAllLines(contract).filter(line => line.id !== contract.id)); setDeletedEditLineIds([]); setEditError(null); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-900 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-1">
                             <Edit size={14} /> <span className="hidden sm:inline">Edit</span>
                         </button>
                         <button onClick={() => openTermAdjustment(contract)} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl transition-colors flex items-center gap-1">
                             <Calendar size={14} /> <span className="hidden sm:inline">Amend</span><span className="sm:hidden">Amend</span>
                         </button>
                         {!isContractExpired(contract) && (
-                            <button onClick={() => { if (window.confirm(`End contract ${contract.id}? This will mark it as Expired, free billboard availability, and stop all future billing.`)) { endContract(contract.id); } }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors flex items-center gap-1">
+                            <button onClick={async () => { const groupLines = getContractGroupAllLines(contract); if (window.confirm(`End contract ${contract.id}${groupLines.length > 1 ? ` and ${groupLines.length - 1} linked line(s)` : ''}? This will mark it as Expired, free billboard availability, and stop all future billing.`)) { for (const line of groupLines) await endContract(line.id); setRentals([...getContracts()]); } }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors flex items-center gap-1">
                                 <XCircle size={14} /> <span className="hidden sm:inline">End Contract</span><span className="sm:hidden">End</span>
                             </button>
                         )}
@@ -891,7 +1094,7 @@ export const Rentals: React.FC = () => {
                                 <Trash2 size={14} /> <span className="hidden sm:inline">Delete Contract</span><span className="sm:hidden">Delete</span>
                             </button>
                         )}
-                        <button onClick={() => { const client = getClient(contract.clientId); if(client) generateLegalContractPDF(contract, client, getBillboard(contract.billboardId)); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
+                        <button onClick={() => { const client = getClient(contract.clientId); if(client) generateLegalContractPDF(contract, client, getBillboard(contract.billboardId), { overrides: getGroupedContractOverrides(contract) }); }} className="px-3 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors flex items-center gap-1 shadow-lg hover:shadow-slate-500/30">
                             <Download size={14} /> <span className="hidden sm:inline">PDF</span>
                         </button>
                         {canUserDelete && !isContractExpired(contract) && (<button onClick={() => setRentalToDelete(contract)} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors" title="Delete Rental">
@@ -931,7 +1134,7 @@ export const Rentals: React.FC = () => {
                         <div className="flex items-center justify-between max-w-md mx-auto">
                             {[
                                 { n: 1, label: 'Client' },
-                                { n: 2, label: 'Billboard' },
+                                { n: 2, label: 'Billboards' },
                                 { n: 3, label: 'Duration' },
                             ].map((s, idx, arr) => {
                                 const done = createStep > s.n;
@@ -995,26 +1198,34 @@ export const Rentals: React.FC = () => {
                         {createStep === 2 && (
                             <div className="space-y-4 animate-fade-in">
                                 <div>
-                                    <h4 className="text-lg font-bold text-slate-900">Which billboard?</h4>
-                                    <p className="text-xs text-slate-900 mt-0.5">Pick the asset to rent. Side/slot availability is checked on the next step.</p>
+                                    <h4 className="text-lg font-bold text-slate-900">Which billboards?</h4>
+                                    <p className="text-xs text-slate-900 mt-0.5">Select one or more assets. The first selected board becomes the primary contract line.</p>
+                                    {selectedCreateCount > 0 && (
+                                        <p className="mt-2 inline-flex rounded-full bg-slate-900 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white">
+                                            {selectedCreateCount} selected
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1">
                                     {getBillboards().length === 0 && (
                                         <p className="col-span-2 text-sm text-slate-900 italic text-center py-8">No billboards in inventory.</p>
                                     )}
                                     {getBillboards().map(b => {
-                                        const isSelected = newRental.billboardId === b.id;
+                                        const isPrimary = newRental.billboardId === b.id;
+                                        const isExtra = createExtraLines.some(line => line.billboardId === b.id);
+                                        const isSelected = isPrimary || isExtra;
                                         const rateHint = b.type === BillboardType.LED
                                             ? `$${(b.ratePerSlot || 0).toLocaleString()}/slot`
                                             : `A: $${(b.sideARate || 0).toLocaleString()} · B: $${(b.sideBRate || 0).toLocaleString()}`;
                                         return (
-                                            <button type="button" key={b.id} onClick={() => setNewRental({ ...newRental, billboardId: b.id })}
+                                            <button type="button" key={b.id} onClick={() => toggleCreateBillboard(b.id)}
                                                 className={`text-left p-4 rounded-2xl border-2 transition-all ${isSelected ? 'border-slate-900 bg-slate-900/5 shadow-lg' : 'border-slate-100 hover:border-slate-300 bg-white'}`}>
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <p className="font-bold text-slate-900 truncate">{b.name}</p>
                                                             <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${b.type === BillboardType.LED ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>{b.type}</span>
+                                                            {isPrimary && <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-900 text-white shrink-0">Primary</span>}
                                                         </div>
                                                         <p className="text-xs text-slate-900 truncate">{b.location}, {b.town}</p>
                                                         <p className="text-[11px] text-slate-900 mt-2">{b.width}m × {b.height}m · {rateHint}</p>
@@ -1033,7 +1244,7 @@ export const Rentals: React.FC = () => {
                             <div className="space-y-6 animate-fade-in">
                                 <div>
                                     <h4 className="text-lg font-bold text-slate-900">How long and what's the price?</h4>
-                                    <p className="text-xs text-slate-900 mt-0.5">Set dates, side/slot, and pricing.</p>
+                                    <p className="text-xs text-slate-900 mt-0.5">Set shared dates, then tune side/slot and pricing for each selected billboard.</p>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1198,6 +1409,108 @@ export const Rentals: React.FC = () => {
                                 </div>
                                 <MinimalInput label="Assigned Sales Agent (Optional)" value={newRental.assignedTo} onChange={(e: any) => setNewRental({...newRental, assignedTo: e.target.value})} />
 
+                                {createExtraLines.length > 0 && (
+                                    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Additional Billboard Lines</p>
+                                                <p className="text-[10px] text-slate-900 mt-1">These will be linked to the same master contract.</p>
+                                            </div>
+                                            <span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-indigo-700">
+                                                +{createExtraLines.length}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {createExtraLines.map((line, index) => {
+                                                const billboard = getBillboard(line.billboardId);
+                                                return (
+                                                    <div key={line.id} className="rounded-2xl border border-slate-200 p-4 space-y-4">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Line {index + 2}</p>
+                                                                <p className="text-sm font-semibold text-slate-800">{billboard?.name || 'Unknown billboard'} &bull; {getLineDetails(line)}</p>
+                                                                <p className={`mt-1 text-[10px] font-bold ${newRental.startDate && !checkAvailability(line.billboardId, line.side || 'A', newRental.startDate, newRental.endDate, undefined, line.slotNumber).ok ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                                    {getLineAvailabilityLabel(line)}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setCreateExtraLines(createExtraLines.filter(l => l.id !== line.id))}
+                                                                className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                                                                aria-label="Remove billboard line"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+
+                                                        {billboard?.type === BillboardType.Static ? (
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                {(['A', 'B', 'Both'] as const).map(side => {
+                                                                    const price = getDefaultRate(line.billboardId, side);
+                                                                    const available = checkAvailability(line.billboardId, side, newRental.startDate, newRental.endDate).ok;
+                                                                    return (
+                                                                        <button
+                                                                            key={side}
+                                                                            type="button"
+                                                                            disabled={!available}
+                                                                            onClick={() => {
+                                                                                if (!available) return;
+                                                                                const next = { ...line, side, slotNumber: undefined, monthlyRate: price };
+                                                                                setCreateExtraLines(createExtraLines.map(l => l.id === line.id ? { ...next, details: getLineDetails(next), totalContractValue: recalcContractValue(next) } : l));
+                                                                            }}
+                                                                            className={`px-3 py-2 text-xs font-bold rounded-xl border transition-colors ${!available ? 'bg-red-50 text-red-300 border-red-100 cursor-not-allowed' : line.side === side ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200 hover:border-slate-400'}`}
+                                                                        >
+                                                                            {side === 'Both' ? 'Both A&B' : `Side ${side}`}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ) : billboard ? (
+                                                            <select
+                                                                value={line.slotNumber || 1}
+                                                                onChange={(e) => {
+                                                                    const next = { ...line, slotNumber: Number(e.target.value), side: undefined };
+                                                                    setCreateExtraLines(createExtraLines.map(l => l.id === line.id ? { ...next, details: getLineDetails(next), totalContractValue: recalcContractValue(next) } : l));
+                                                                }}
+                                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm font-medium text-slate-800"
+                                                            >
+                                                                {Array.from({ length: billboard.totalSlots || 10 }, (_, i) => {
+                                                                    const slot = i + 1;
+                                                                    const available = checkAvailability(line.billboardId, 'A', newRental.startDate, newRental.endDate, undefined, slot).ok;
+                                                                    return <option key={slot} value={slot} disabled={!available}>Slot {slot}{available ? '' : ' - booked'}</option>;
+                                                                })}
+                                                            </select>
+                                                        ) : null}
+
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <input type="number" value={line.monthlyRate} onChange={(e) => {
+                                                                const next = { ...line, monthlyRate: Number(e.target.value) };
+                                                                setCreateExtraLines(createExtraLines.map(l => l.id === line.id ? { ...next, totalContractValue: recalcContractValue(next) } : l));
+                                                            }} placeholder="Monthly rate" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900" />
+                                                            <input type="number" value={line.productionCost || 0} onChange={(e) => {
+                                                                const next = { ...line, productionCost: Number(e.target.value) };
+                                                                setCreateExtraLines(createExtraLines.map(l => l.id === line.id ? { ...next, totalContractValue: recalcContractValue(next) } : l));
+                                                            }} placeholder="Production fee" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900" />
+                                                            <input type="number" value={line.installationCost} onChange={(e) => {
+                                                                const next = { ...line, installationCost: Number(e.target.value) };
+                                                                setCreateExtraLines(createExtraLines.map(l => l.id === line.id ? { ...next, totalContractValue: recalcContractValue(next) } : l));
+                                                            }} placeholder="Install fee" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900" />
+                                                            <input type="number" value={line.printingCost} onChange={(e) => {
+                                                                const next = { ...line, printingCost: Number(e.target.value) };
+                                                                setCreateExtraLines(createExtraLines.map(l => l.id === line.id ? { ...next, totalContractValue: recalcContractValue(next) } : l));
+                                                            }} placeholder="Printing cost" className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 text-sm text-slate-900 placeholder:text-slate-900" />
+                                                        </div>
+                                                        <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
+                                                            <span className="text-slate-900 font-medium">Line value</span>
+                                                            <span className="text-slate-900 font-bold">${recalcContractValue({ ...line, startDate: newRental.startDate, endDate: newRental.endDate }).toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* AI Proposal — collapsible, step 3 only */}
                                 <details className="bg-white rounded-2xl border border-slate-100 shadow-sm">
                                     <summary className="p-4 cursor-pointer flex items-center gap-2 hover:bg-slate-50 transition-colors">
@@ -1233,7 +1546,7 @@ export const Rentals: React.FC = () => {
                                     Back
                                 </button>
                             ) : (
-                                <button type="button" onClick={() => { setIsCreateModalOpen(false); setCreateStep(1); }} className="px-6 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">
+                                <button type="button" onClick={() => { setIsCreateModalOpen(false); resetCreateRental(); }} className="px-6 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5">
                                     Cancel
                                 </button>
                             )}
@@ -1242,7 +1555,7 @@ export const Rentals: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setCreateStep((prev) => (prev + 1) as 1 | 2 | 3)}
-                                    disabled={(createStep === 1 && !newRental.clientId) || (createStep === 2 && !newRental.billboardId)}
+                                    disabled={(createStep === 1 && !newRental.clientId) || (createStep === 2 && selectedCreateCount === 0)}
                                     className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Next &rarr;
@@ -1250,7 +1563,7 @@ export const Rentals: React.FC = () => {
                             ) : (
                                 <button
                                     type="submit"
-                                    disabled={selectedBillboard?.type === BillboardType.LED && digitalFull}
+                                    disabled={!newRental.startDate || !newRental.endDate || selectedCreateCount === 0}
                                     className="flex-1 py-3 text-white bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle size={14} /> Generate Contract & Invoice
@@ -1393,7 +1706,7 @@ export const Rentals: React.FC = () => {
                                 const client = getClient(selectedRental.clientId);
                                 const billboard = getBillboard(selectedRental.billboardId);
                                 if (!client) { alert('Client data missing.'); return; }
-                                generateLegalContractPDF(selectedRental, client, billboard);
+                                generateLegalContractPDF(selectedRental, client, billboard, { overrides: getGroupedContractOverrides(selectedRental) });
                             }}
                             className="w-full py-3 text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2"
                         >
@@ -1418,14 +1731,14 @@ export const Rentals: React.FC = () => {
 
       {/* Edit Modal */}
       {editRental && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) { setEditRental(null); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); } }}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onClick={(e) => { if (e.target === e.currentTarget && !saving) { setEditRental(null); setEditExtraLines([]); setDeletedEditLineIds([]); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); } }}>
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-3xl lg:max-w-4xl w-full border border-white/20 max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                     <div>
                         <h3 className="text-xl font-bold text-slate-900">Edit Rental</h3>
                         <p className="text-xs text-slate-900 mt-0.5">{getClientName(editRental.clientId)} &bull; {getBillboardName(editRental.billboardId)}</p>
                     </div>
-                    <button onClick={() => { if (!saving) { setEditRental(null); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); } }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
+                    <button onClick={() => { if (!saving) { setEditRental(null); setEditExtraLines([]); setDeletedEditLineIds([]); setShowDeleteLineConfirm(false); setDeletedLinesWithInvoices([]); } }} disabled={saving} className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"><X size={20} className="text-slate-900" /></button>
                 </div>
                 <div className="p-8 space-y-6">
                     {/* Context card */}
@@ -1716,7 +2029,7 @@ export const Rentals: React.FC = () => {
                      )}
                      {!showDeleteLineConfirm && (
                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => { if (!saving) setEditRental(null); setShowDeleteLineConfirm(false); }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 disabled:opacity-40">Cancel</button>
+                        <button onClick={() => { if (!saving) { setEditRental(null); setEditExtraLines([]); setDeletedEditLineIds([]); setShowDeleteLineConfirm(false); } }} disabled={saving} className="flex-1 py-3 text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 disabled:opacity-40">Cancel</button>
                         <button onClick={handleEditSave} disabled={saving} className="flex-1 py-3 text-white bg-slate-900 hover:bg-slate-800 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-60">
                           {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {saving ? 'Saving…' : 'Save Changes'}
                         </button>
@@ -1926,11 +2239,11 @@ export const Rentals: React.FC = () => {
                   <p className="text-xs text-slate-900 font-mono">ID: {contractToPermanentDelete.id}</p>
                 </div>
 
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <p className="text-sm text-red-700 leading-relaxed">
-                    This will permanently delete this contract and all linked records including payments, invoices, revenue entries, availability blocks, notes, attachments, and history. This action cannot be undone.
-                  </p>
-                </div>
+	                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+	                  <p className="text-sm text-red-700 leading-relaxed">
+	                    This will permanently delete this contract group and all linked records including payments, invoices, revenue entries, availability blocks, notes, attachments, and history. This action cannot be undone.
+	                  </p>
+	                </div>
 
                 {isDeletingPermanent && (
                   <div className="flex items-center justify-center gap-2 text-sm text-slate-900 py-2">
@@ -1947,17 +2260,22 @@ export const Rentals: React.FC = () => {
                       Cancel
                     </button>
                     <button
-                      onClick={async () => {
-                        setIsDeletingPermanent(true);
-                        const result = await permanentDeleteContract(contractToPermanentDelete.id);
-                        setIsDeletingPermanent(false);
-                        setContractToPermanentDelete(null);
-                        if (result.success) {
-                          setRentals([...getContracts()]);
-                        } else {
-                          alert(result.error || 'Failed to delete contract.');
-                        }
-                      }}
+	                      onClick={async () => {
+	                        setIsDeletingPermanent(true);
+	                        const groupLines = getContractGroupAllLines(contractToPermanentDelete);
+	                        const results = [];
+	                        for (const line of [...groupLines].reverse()) {
+	                          results.push(await permanentDeleteContract(line.id));
+	                        }
+	                        setIsDeletingPermanent(false);
+	                        setContractToPermanentDelete(null);
+	                        const failed = results.find(result => !result.success);
+	                        if (!failed) {
+	                          setRentals([...getContracts()]);
+	                        } else {
+	                          alert(failed.error || 'Failed to delete contract.');
+	                        }
+	                      }}
                       className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
                     >
                       <Trash2 size={14} /> Delete Permanently

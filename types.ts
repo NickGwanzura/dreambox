@@ -144,7 +144,7 @@ export interface Invoice {
   contractId?: string;
   clientId: string;
   date: string;
-  items: { description: string; amount: number; billboardId?: string; side?: 'A' | 'B'; slots?: number; quantity?: number; unitPrice?: number }[];
+  items: { description: string; amount: number; billboardId?: string; contractLineId?: string; side?: 'A' | 'B'; slots?: number; quantity?: number; unitPrice?: number }[];
   subtotal: number;
   discountAmount?: number;
   discountDescription?: string;
