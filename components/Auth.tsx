@@ -2,15 +2,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   signIn,
-  signUp,
   sendPasswordReset,
-  resendVerificationEmail,
-  devLogin
 } from '../services/authService';
 import { useToast } from './ToastProvider';
 import { RELEASE_NOTES } from '../services/mockData';
 import { 
-  User, Lock, Mail, ArrowRight, CheckCircle, ArrowLeft, 
+  Lock, Mail, CheckCircle, ArrowLeft, 
   Sparkles, ShieldCheck, Trash2, Eye, EyeOff, Building2,
   TrendingUp, Users, DollarSign, BarChart3
 } from 'lucide-react';
@@ -22,7 +19,7 @@ interface AuthProps {
     onLogin: () => void;
 }
 
-type AuthMode = 'login' | 'register' | 'forgot' | 'verify-pending';
+type AuthMode = 'login' | 'forgot';
 
 export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     const [mode, setMode] = useState<AuthMode>('login');
@@ -31,16 +28,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     const [successMessage, setSuccessMessage] = useState('');
     const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [pendingEmail, setPendingEmail] = useState('');
-    const [isResending, setIsResending] = useState(false);
     
     const { showToast } = useToast();
 
     // Form State
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
 
     useEffect(() => {
         setMounted(true);
@@ -51,27 +44,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             if (mode === 'login') {
                 validators.required(email, 'Email/Username');
                 validators.required(password, 'Password');
-            } else if (mode === 'register') {
-                validators.required(firstName, 'First name');
-                validators.required(lastName, 'Last name');
-                validators.required(email, 'Email');
-                validators.email(email);
-                validators.required(password, 'Password');
-                if (password.length < 8) {
-                    throw new ValidationError('Password must be at least 8 characters');
-                }
-                if (!/[A-Z]/.test(password)) {
-                    throw new ValidationError('Password must contain at least one uppercase letter');
-                }
-                if (!/[a-z]/.test(password)) {
-                    throw new ValidationError('Password must contain at least one lowercase letter');
-                }
-                if (!/[0-9]/.test(password)) {
-                    throw new ValidationError('Password must contain at least one number');
-                }
-                if (!/[^A-Za-z0-9]/.test(password)) {
-                    throw new ValidationError('Password must contain at least one special character');
-                }
             } else if (mode === 'forgot') {
                 validators.required(email, 'Email');
                 validators.email(email);
@@ -83,7 +55,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             }
             return false;
         }
-    }, [mode, email, password, firstName, lastName]);
+    }, [mode, email, password]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -98,33 +70,15 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
         try {
             const sanitizedEmail = sanitizers.email(email);
-            const sanitizedFirstName = sanitizers.string(firstName);
-            const sanitizedLastName = sanitizers.string(lastName);
 
             if (mode === 'login') {
                 const { user, error } = await signIn(sanitizedEmail, password);
                 if (error) {
-                    // Check for specific error types
-                    if (error.message.includes('verify your email')) {
-                        setPendingEmail(sanitizedEmail);
-                        setMode('verify-pending');
-                    } else {
-                        setError(error.message);
-                        showToast(error.message, 'error');
-                    }
+                    setError(error.message);
+                    showToast(error.message, 'error');
                 } else if (user) {
                     showToast('Welcome back!', 'success');
                     onLogin();
-                }
-            } else if (mode === 'register') {
-                const { user, error } = await signUp(sanitizedFirstName, sanitizedLastName, sanitizedEmail, password);
-                if (error) {
-                    setError(error.message);
-                    showToast(error.message, 'error');
-                } else {
-                    setPendingEmail(sanitizedEmail);
-                    setMode('verify-pending');
-                    showToast('Verification email sent!', 'success');
                 }
             } else if (mode === 'forgot') {
                 const { error } = await sendPasswordReset(sanitizedEmail);
@@ -145,24 +99,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             logger.error('Auth error:', err);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const handleResendVerification = async () => {
-        if (!pendingEmail) return;
-        
-        setIsResending(true);
-        try {
-            const { error } = await resendVerificationEmail(pendingEmail);
-            if (error) {
-                showToast(error.message, 'error');
-            } else {
-                showToast('Verification email resent!', 'success');
-            }
-        } catch (err: any) {
-            showToast(err.message || 'Failed to resend', 'error');
-        } finally {
-            setIsResending(false);
         }
     };
 
@@ -287,15 +223,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                         {/* Card Header */}
                         <div className="px-8 pt-8 pb-6 border-b border-white/[0.06]">
                             <h2 className="text-2xl font-bold text-white mb-1">
-                                {mode === 'login' ? 'Welcome back' : 
-                                 mode === 'register' ? 'Create account' : 
-                                 mode === 'verify-pending' ? 'Verify your email' :
-                                 'Reset password'}
+                                {mode === 'login' ? 'Welcome back' : 'Reset password'}
                             </h2>
                             <p className="text-sm text-slate-400">
                                 {mode === 'login' ? 'Sign in to access your dashboard' :
-                                 mode === 'register' ? 'Get started with your free account' :
-                                 mode === 'verify-pending' ? 'Check your inbox for the verification link' :
                                  'Enter your email to receive reset instructions'}
                             </p>
                         </div>
@@ -318,70 +249,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                 </div>
                             )}
 
-                            {/* Verify Pending State */}
-                            {mode === 'verify-pending' ? (
-                                <div className="text-center py-8">
-                                    <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Mail className="w-10 h-10 text-indigo-500" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-white mb-2">
-                                        Check your email
-                                    </h3>
-                                    <p className="text-sm text-slate-400 mb-6">
-                                        We've sent a verification link to<br />
-                                        <span className="text-indigo-400">{pendingEmail}</span>
-                                    </p>
-                                    <div className="space-y-3">
-                                        <button
-                                            onClick={handleResendVerification}
-                                            disabled={isResending}
-                                            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-medium text-sm transition-all disabled:opacity-50"
-                                        >
-                                            {isResending ? 'Sending...' : 'Resend verification email'}
-                                        </button>
-                                        <button
-                                            onClick={() => toggleMode('login')}
-                                            className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"
-                                        >
-                                            Back to login
-                                        </button>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-6">
-                                        After verifying, your account will still need admin approval
-                                    </p>
-                                </div>
-                            ) : (
                             <form onSubmit={handleSubmit} className="space-y-5">
-                                {/* Name Fields */}
-                                {mode === 'register' && (
-                                    <div className="grid grid-cols-2 gap-4 animate-fade-in">
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                                First Name
-                                            </label>
-                                            <input 
-                                                type="text" 
-                                                value={firstName}
-                                                onChange={e => setFirstName(e.target.value)}
-                                                className="w-full bg-[#0a0a0f] border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none transition-all text-sm"
-                                                placeholder="John"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                                Last Name
-                                            </label>
-                                            <input 
-                                                type="text" 
-                                                value={lastName}
-                                                onChange={e => setLastName(e.target.value)}
-                                                className="w-full bg-[#0a0a0f] border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-3 text-white placeholder-slate-600 outline-none transition-all text-sm"
-                                                placeholder="Doe"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
                                 {/* Email Field */}
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -400,7 +268,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                 </div>
 
                                 {/* Password Field */}
-                                {(mode === 'login' || mode === 'register') && (
+                                {mode === 'login' && (
                                     <div className="space-y-2 animate-fade-in">
                                         <div className="flex justify-between items-center">
                                             <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -433,9 +301,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                             </button>
                                         </div>
-                                        {mode === 'register' && (
-                                            <p className="text-xs text-slate-500">Must be at least 6 characters</p>
-                                        )}
                                     </div>
                                 )}
 
@@ -450,25 +315,18 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                     spinnerPosition="left"
                                 >
                                     {mode === 'login' ? 'Sign In' : 
-                                     mode === 'register' ? 'Create Account' : 
                                      successMessage ? 'Email Sent' : 'Send Reset Link'}
                                 </LoadingButton>
                             </form>
-                            )}
 
-                            {/* Divider - Hide when in verify-pending mode */}
-                            {mode !== 'verify-pending' && (
                             <div className="mt-6 flex items-center gap-4">
                                 <div className="flex-1 h-px bg-white/10"></div>
                                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                    {mode === 'login' ? "New to Dreambox?" : "Already have an account?"}
+                                    {mode === 'login' ? 'Need access?' : 'Remembered your password?'}
                                 </span>
                                 <div className="flex-1 h-px bg-white/10"></div>
                             </div>
-                            )}
 
-                            {/* Toggle Mode - Hide when in verify-pending mode */}
-                            {mode !== 'verify-pending' && (
                             <div className="mt-6">
                                 {mode === 'forgot' ? (
                                     <button
@@ -479,25 +337,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                         Back to sign in
                                     </button>
                                 ) : (
-                                    <button 
-                                        onClick={() => toggleMode(mode === 'login' ? 'register' : 'login')}
-                                        className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2"
-                                    >
-                                        {mode === 'login' ? (
-                                            <React.Fragment>
-                                                Create an account
-                                                <ArrowRight className="w-4 h-4" />
-                                            </React.Fragment>
-                                        ) : (
-                                            <React.Fragment>
-                                                <ArrowLeft className="w-4 h-4" />
-                                                Sign in to existing account
-                                            </React.Fragment>
-                                        )}
-                                    </button>
+                                    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm text-slate-400">
+                                        New accounts are created by a Dreambox administrator only.
+                                    </div>
                                 )}
                             </div>
-                            )}
                         </div>
                     </div>
 
