@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { log } from './serverLogger.js';
 
 declare global {
@@ -18,7 +18,7 @@ function createPrismaClient(): PrismaClient {
         return () => {
           throw new Error(
             `Database unavailable: DATABASE_URL is not configured. ` +
-            `Please set the DATABASE_URL environment variable in your Railway service settings.`
+            `Please set the DATABASE_URL environment variable in your deployment platform's settings.`
           );
         };
       },
@@ -26,7 +26,7 @@ function createPrismaClient(): PrismaClient {
   }
 
   try {
-    const adapter = new PrismaNeon({ connectionString: databaseUrl });
+    const adapter = new PrismaPg({ connectionString: databaseUrl });
     return new PrismaClient({ adapter });
   } catch (e: any) {
     log.error(`[prisma] Failed to create Prisma client: ${e?.message}`);

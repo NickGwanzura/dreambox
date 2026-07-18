@@ -3,22 +3,22 @@
  * YouTube video thumbnail so the new animated hero background appears.
  *
  * Usage:
- *   railway run npx tsx scripts/set-hero-youtube-thumbnail.ts
+ *   npx tsx scripts/set-hero-youtube-thumbnail.ts
  */
 
 import { PrismaClient } from '@prisma/client';
-import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const YT_THUMB = 'https://img.youtube.com/vi/30hzTKg7WFg/maxresdefault.jpg';
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    console.error('❌ DATABASE_URL is not set. Run via: railway run npx tsx scripts/set-hero-youtube-thumbnail.ts');
+    console.error('❌ DATABASE_URL is not set. Run via: npx tsx scripts/set-hero-youtube-thumbnail.ts');
     process.exit(1);
   }
 
-  const adapter = new PrismaNeon({ connectionString: databaseUrl });
+  const adapter = new PrismaPg({ connectionString: databaseUrl });
   const prisma = new PrismaClient({ adapter });
 
   try {
