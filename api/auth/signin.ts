@@ -186,7 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Fire-and-forget notification when a watched user signs in.
     notifyWatchedLogin({ email: user.email, firstName: user.firstName, lastName: user.lastName }, ip, ua);
 
-    const token = signToken({ userId: user.id, email: user.email, role: user.role, status: user.status });
+    const token = signToken({ userId: user.id, email: user.email, role: user.role, status: user.status, sessionVersion: user.sessionVersion });
     log.info(`Signin success  email=${email}  role=${user.role}`);
 
     const { passwordHash: _, failedLoginAttempts: __, lockedUntil: ___, ...safeUser } = user;

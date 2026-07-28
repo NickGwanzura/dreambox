@@ -13,6 +13,7 @@ export interface JWTPayload {
   email: string;
   role: string;
   status: string;
+  sessionVersion: number;
 }
 
 export function signToken(payload: JWTPayload): string {
@@ -33,33 +34,23 @@ export function getTokenFromRequest(req: VercelRequest): string | null {
   return null;
 }
 
-// Tokens live 24h, but role/status can change at any moment (deactivation,
-// demotion). Re-check the DB on each request, with a short cache so we don't
-// pay a query per call. This is a long-lived Express process, so a
-// module-level cache is safe.
-const USER_CACHE_TTL_MS = 60 * 1000;
-const userCache = new Map<string, { role: string; status: string; expiresAt: number }>();
-
-async function getFreshUserState(userId: string): Promise<{ role: string; status: string } | null> {
-  const cached = userCache.get(userId);
-  if (cached && cached.expiresAt > Date.now()) {
-    return { role: cached.role, status: cached.status };
-  }
+async function getFreshUserState(userId: string): Promise<{ role: string; status: string; sessionVersion: number } | null> {
+  // Password resets must revoke sessions immediately across all instances, so
+  // this state cannot be served from a process-local cache.
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, status: true },
+    select: { role: true, status: true, sessionVersion: true },
   });
   if (!user) {
-    userCache.delete(userId);
     return null;
   }
-  userCache.set(userId, { role: user.role, status: user.status, expiresAt: Date.now() + USER_CACHE_TTL_MS });
-  return { role: user.role, status: user.status };
+  return { role: user.role, status: user.status, sessionVersion: user.sessionVersion };
 }
 
 /** Drop a user's cached role/status so permission changes apply immediately. */
-export function invalidateUserCache(userId: string): void {
-  userCache.delete(userId);
+export function invalidateUserCache(_userId: string): void {
+  // Retained as a no-op for callers. Authentication state is read directly
+  // from the database so changes apply immediately across all instances.
 }
 
 /**
@@ -86,7 +77,7 @@ export async function requireAuth(
     // DB unavailable — fall back to the token's own claims rather than
     // locking everyone out.
     log.warn(`Auth DB check failed, using token claims: ${e?.message}`);
-    return { role: payload.role, status: payload.status };
+    return { role: payload.role, status: payload.status, sessionVersion: payload.sessionVersion };
   });
   if (!fresh) {
     log.warn(`Auth rejected — user no longer exists  user=${payload.email}`);
@@ -95,6 +86,11 @@ export async function requireAuth(
   }
   payload.role = fresh.role;
   payload.status = fresh.status;
+  if (payload.sessionVersion !== fresh.sessionVersion) {
+    log.warn(`Auth rejected — session revoked  user=${payload.email}`);
+    res.status(401).json({ error: 'Session expired. Please sign in again.' });
+    return null;
+  }
   if (payload.status === 'Pending') {
     log.warn(`Auth rejected — account pending  user=${payload.email}`);
     res.status(403).json({ error: 'Account awaiting administrator approval' });

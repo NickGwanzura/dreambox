@@ -163,15 +163,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         const token = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
 
         await prisma.passwordResetToken.create({
-          data: { userId: targetUser.id, token, expiresAt },
+          data: { userId: targetUser.id, token: tokenHash, expiresAt },
         });
 
         await prisma.user.update({
           where: { id: targetUser.id },
-          data: { mustResetPassword: true },
+          data: { mustResetPassword: true, sessionVersion: { increment: 1 } },
         });
 
         const resetUrl = `${APP_URL}/auth/callback?type=reset&token=${token}`;
@@ -182,6 +183,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           subject: 'Reset your Dreambox CRM password',
           html: buildResetEmail(targetUser.firstName, resetUrl),
         });
+
+        await prisma.auditLog.create({
+          data: {
+            action: 'Auth: Admin Password Reset Requested',
+            details: `Password reset requested by administrator ${admin.email}`,
+            userId: admin.userId,
+            userEmail: admin.email,
+            tableName: 'users',
+            recordId: targetUser.id,
+          },
+        }).catch((auditError: any) => log.warn(`[users POST adminReset] audit log write failed: ${auditError?.message}`));
 
         return res.status(200).json({ message: `Password reset email sent to ${targetUser.email}` });
       } catch (e: any) {

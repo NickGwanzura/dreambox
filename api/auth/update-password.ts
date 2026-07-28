@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, signToken, cors } from '../../lib/auth';
 import { validatePassword } from '../../lib/passwordPolicy.js';
@@ -12,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { token, newPassword, currentPassword } = req.body ?? {};
 
-  if (!newPassword) return res.status(400).json({ error: 'newPassword is required' });
+  if (typeof newPassword !== 'string') return res.status(400).json({ error: 'newPassword is required' });
   const pwCheck = validatePassword(newPassword);
   if (!pwCheck.valid) {
     return res.status(400).json({ error: 'Password does not meet requirements', details: pwCheck.errors });
@@ -21,17 +22,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Path 1: reset via token (unauthenticated)
     if (token) {
-      const resetToken = await prisma.passwordResetToken.findUnique({ where: { token } });
-      if (!resetToken || resetToken.used || resetToken.expiresAt < new Date()) {
+      if (typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token)) {
         return res.status(400).json({ error: 'Invalid or expired reset token' });
       }
-
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const passwordHash = await bcrypt.hash(newPassword, 12);
-      await prisma.user.update({
-        where: { id: resetToken.userId },
-        data: { passwordHash, mustResetPassword: false },
+      const resetToken = await prisma.$transaction(async (tx) => {
+        const candidate = await tx.passwordResetToken.findUnique({ where: { token: tokenHash } });
+        if (!candidate) return null;
+        const consumed = await tx.passwordResetToken.updateMany({
+          where: { token: tokenHash, used: false, expiresAt: { gt: new Date() } },
+          data: { used: true },
+        });
+        if (consumed.count !== 1) return null;
+        await tx.user.update({
+          where: { id: candidate.userId },
+          data: { passwordHash, mustResetPassword: false, sessionVersion: { increment: 1 } },
+        });
+        return candidate;
       });
-      await prisma.passwordResetToken.update({ where: { token }, data: { used: true } });
+      if (!resetToken) return res.status(400).json({ error: 'Invalid or expired reset token' });
+
+      await prisma.auditLog.create({
+        data: { action: 'Auth: Password Reset Completed', details: 'Password reset completed using email token', userId: resetToken.userId, tableName: 'users', recordId: resetToken.userId },
+      }).catch((auditError: any) => log.warn(`[auth/update-password] audit log write failed: ${auditError?.message}`));
 
       return res.status(200).json({ message: 'Password updated successfully' });
     }
@@ -55,10 +69,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const passwordHash = await bcrypt.hash(newPassword, 12);
     const updated = await prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash, mustResetPassword: false },
+      data: { passwordHash, mustResetPassword: false, sessionVersion: { increment: 1 } },
     });
 
-    const newToken = signToken({ userId: updated.id, email: updated.email, role: updated.role, status: updated.status });
+    const newToken = signToken({ userId: updated.id, email: updated.email, role: updated.role, status: updated.status, sessionVersion: updated.sessionVersion });
     return res.status(200).json({ message: 'Password updated successfully', token: newToken });
   } catch (e: any) {
     log.error('[auth/update-password]', e);

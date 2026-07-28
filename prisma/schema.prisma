@@ -17,6 +17,7 @@ model User {
   email                String           @unique
   username             String?
   passwordHash         String
+  sessionVersion       Int              @default(0)
   role                 UserRole         @default(Staff)
   status               UserStatus       @default(Pending)
   mustResetPassword    Boolean          @default(false)
