@@ -73,6 +73,18 @@ async function runMigrations() {
     log.boot(`  Migrations         ⚠  ${msg.slice(0, 200)}`);
   }
 
+  // Authentication depends on this column. Keep an idempotent safeguard here
+  // because some older production databases have incomplete Prisma migration
+  // history, causing `migrate deploy` to fail while the process continues.
+  try {
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sessionVersion" INTEGER NOT NULL DEFAULT 0`,
+    );
+    log.boot('  Auth schema        ✓  sessionVersion ready');
+  } catch (e: any) {
+    log.boot(`  Auth schema        ⚠  ${e?.message?.slice(0, 200) || 'sessionVersion check failed'}`);
+  }
+
   // Bootstrap: ensure InvoiceType enum includes all values from Prisma schema.
   // The production DB enum may be missing newer values (e.g. 'Proforma').
   // The QuoteStatus enum is now handled by prisma/migrations/20260619043336_add_quotestatus_enum
