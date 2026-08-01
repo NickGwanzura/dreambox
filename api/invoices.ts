@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, requireFeatureRead, requireFeatureWrite, requireQuotationWritePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 import { pickInvoiceData } from '../lib/whitelist';
+import { assertPeriodOpen } from '../lib/accountingPeriod';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_VAT_RATE = 0.155;
@@ -170,6 +171,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const data: any = canonicalInvoiceData(parsed.data, vatRate);
       const paymentAuditError = validatePaymentAudit(data);
       if (paymentAuditError) return res.status(400).json({ error: paymentAuditError });
+      await assertPeriodOpen(data.date, payload.email);
       const audit = auditContext(req);
 
       if (data.type === 'Receipt') {
@@ -181,6 +183,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         data.recordedAt = new Date();
         data.postedAt = new Date();
         data.isVoided = false;
+        data.approvalStatus = 'Pending';
         const duplicateReference = await prisma.invoice.findFirst({
           where: { type: 'Receipt', isVoided: false, paymentMethod: data.paymentMethod, paymentReference: { equals: data.paymentReference, mode: 'insensitive' } },
           select: { id: true },
@@ -228,7 +231,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       });
       return res.status(201).json(row);
     } catch (e: any) {
-      if (/Discount cannot|Linked invoice|Receipt client|Receipt exceeds/.test(e?.message || '')) return res.status(400).json({ error: e.message });
+      if (/Discount cannot|Linked invoice|Receipt client|Receipt exceeds|Accounting period/.test(e?.message || '')) return res.status(409).json({ error: e.message });
       handlePrismaError(e, res, 'POST'); return;
     }
   }
@@ -247,6 +250,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!payload) return;
 
       const body = req.body ?? {};
+      await assertPeriodOpen(existing.date, authenticated.email);
       if (body.type && body.type !== existing.type && !(['Quotation', 'Proforma'].includes(existing.type) && body.type === 'Invoice')) {
         return res.status(400).json({ error: 'Document type cannot be changed this way' });
       }
@@ -292,6 +296,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     try {
       const target = await prisma.invoice.findUnique({ where: { id: id as string } });
       if (!target) return res.status(404).json({ error: 'Invoice not found' });
+      await assertPeriodOpen(target.date, payload.email);
       if ((target as any).isVoided) return res.status(409).json({ error: 'This financial record is already voided.' });
       const reason = String((req.body as any)?.reason || req.query.reason || '').trim();
       if (reason.length < 10) return res.status(400).json({ error: 'A void reason of at least 10 characters is required.' });

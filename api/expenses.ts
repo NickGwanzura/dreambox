@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { requireFeatureRead, requireDeletePermission, requireFeatureWrite, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 import { pickExpenseData } from '../lib/whitelist';
+import { assertPeriodOpen } from '../lib/accountingPeriod';
 
 const expenseSchema = z.object({
   category: z.enum(['Maintenance', 'Printing', 'Electricity', 'Labor', 'Other']),
@@ -39,6 +40,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       const data = pickExpenseData(parsed.data);
+      await assertPeriodOpen(data.date, payload.email);
       const row = await prisma.$transaction(async tx => {
         const created = await tx.expense.create({ data });
         await tx.auditLog.create({ data: { action: 'Finance: Expense Created', details: `${created.category}: ${created.description} ($${created.amount})`, userId: payload.userId, userEmail: payload.email, tableName: 'expenses', recordId: created.id } });
@@ -57,6 +59,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const data = pickExpenseData(parsed.data);
       const existing = await prisma.expense.findUnique({ where: { id: id as string } });
       if (!existing) return res.status(404).json({ error: 'Expense not found' });
+      await assertPeriodOpen(existing.date, payload.email);
       const row = await prisma.$transaction(async tx => {
         const updated = await tx.expense.update({ where: { id: id as string }, data });
         await tx.auditLog.create({ data: { action: 'Finance: Expense Updated', details: `${updated.category}: ${updated.description} ($${updated.amount})`, userId: payload.userId, userEmail: payload.email, tableName: 'expenses', recordId: updated.id } });
@@ -71,6 +74,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!id) return res.status(400).json({ error: 'id required' });
       const target = await prisma.expense.findUnique({ where: { id: id as string } });
       if (!target) return res.status(404).json({ error: 'Expense not found' });
+      await assertPeriodOpen(target.date, payload.email);
       await prisma.$transaction(async tx => {
         await tx.expense.delete({ where: { id: id as string } });
         await tx.auditLog.create({ data: { action: 'Finance: Expense Deleted', details: `${target.category}: ${target.description} ($${target.amount})`, userId: payload.userId, userEmail: payload.email, tableName: 'expenses', recordId: target.id } });
@@ -81,6 +85,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
     log.error('[expenses]', e);
+    if (/Accounting period/.test(e?.message || '')) return res.status(409).json({ error: e.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

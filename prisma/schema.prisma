@@ -221,6 +221,10 @@ model Invoice {
   proofUploadedAt     DateTime?
   recordedAt          DateTime?
   postedAt            DateTime?
+  approvalStatus      String        @default("NotRequired")
+  approvedBy          String?
+  approvedAt          DateTime?
+  approvalNote        String?
   isVoided            Boolean       @default(false)
   voidReason          String?
   voidedAt            DateTime?
@@ -565,6 +569,39 @@ model AuditLog {
   @@index([createdAt])
   @@index([source])
   @@map("audit_logs")
+}
+
+model AccountingPeriod {
+  id         String   @id @default(uuid())
+  startDate  String
+  endDate    String
+  status     String   @default("Open")
+  closedAt   DateTime?
+  closedBy   String?
+  reopenedAt DateTime?
+  reopenedBy String?
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([startDate, endDate])
+  @@index([status, startDate, endDate])
+  @@map("accounting_periods")
+}
+
+model PaymentReview {
+  id             String   @id @default(uuid())
+  receiptId      String   @unique
+  status         String   @default("Open")
+  assignedTo     String?
+  resolvedBy     String?
+  resolvedAt     DateTime?
+  resolutionNote String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("payment_reviews")
 }
 
 model ProductService {
