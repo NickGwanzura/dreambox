@@ -83,7 +83,7 @@ await crypto.subtle.digest('SHA-256', new TextEncoder().encode('your-password'))
 If you have multiple users or want cloud sync, you MUST configure Supabase:
 
 ### Environment Variables
-Set these in your deployment platform (Vercel, Netlify, etc.):
+Set these in your deployment platform (deployment platform, Netlify, etc.):
 
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co

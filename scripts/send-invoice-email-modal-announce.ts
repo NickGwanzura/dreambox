@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-// Snapshot of active users — hardcoded to avoid Neon cold-start drops via Prisma.
+// Snapshot of active users — hardcoded to avoid application database cold-start drops via Prisma.
 const RECIPIENTS: { email: string; firstName: string }[] = [
   { email: 'chiduroobc@gmail.com', firstName: 'Brian' },
   { email: 'chiduurobc@gmail.com', firstName: 'Brian' },

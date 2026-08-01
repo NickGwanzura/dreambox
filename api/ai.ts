@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../lib/http';
 import Groq from 'groq-sdk';
 import { requireAuth, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
@@ -16,7 +16,7 @@ type AIRequestBody = {
   provider?: 'groq' | 'deepseek';
 };
 
-function parseRequestBody(req: VercelRequest): AIRequestBody | null {
+function parseRequestBody(req: HttpRequest): AIRequestBody | null {
   if (!req.body) return null;
   if (typeof req.body === 'string') {
     try {
@@ -28,7 +28,7 @@ function parseRequestBody(req: VercelRequest): AIRequestBody | null {
   return req.body as AIRequestBody;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   const payload = await requireAuth(req, res);

@@ -10,13 +10,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint:safety": "bash scripts/check-optional-chain-safety.sh"
+    "lint:safety": "bash scripts/check-optional-chain-safety.sh",
+    "finance:reconcile": "node --import tsx scripts/reconcile-finance.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1067.0",
     "@google/genai": "^1.30.0",
-    "@neondatabase/serverless": "^1.0.2",
-    "@prisma/adapter-neon": "^7.7.0",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@types/bcryptjs": "^2.4.6",
@@ -48,7 +47,6 @@
     "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",
     "@types/pg": "^8.20.0",
-    "@vercel/node": "^5.6.16",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",

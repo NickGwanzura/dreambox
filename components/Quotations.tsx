@@ -331,9 +331,10 @@ export const Quotations: React.FC = () => {
       alert('You do not have permission to delete quotations.');
       return;
     }
-    if (window.confirm(`Are you sure you want to delete quotation ${doc.quoteNumber || doc.id}? This action cannot be undone.`)) {
+    const reason = window.prompt(`Void quotation ${doc.quoteNumber || doc.id}? Enter the audit reason:`);
+    if (reason) {
       try {
-        await deleteInvoice(doc.id);
+        await deleteInvoice(doc.id, reason);
         setInvoices(getInvoices());
       } catch (err: any) {
         alert(`Failed to delete quotation: ${err?.message || 'Server error. Please try again.'}`);

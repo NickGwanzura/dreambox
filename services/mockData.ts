@@ -45,7 +45,7 @@ export const notifySyncError = (message: string): void => {
 
 // --- Deleted Queue ---
 // Tracks {table, id} pairs deleted locally that may not yet be deleted from the server.
-// Prevents deleted records from reappearing when pullAllFromNeon() re-imports them.
+// Prevents deleted records from reappearing when pullAllFromDatabase() re-imports them.
 interface DeletedQueueEntry { table: string; id: string; timestamp: number; }
 const deletedQueueKey = STORAGE_KEYS.DELETED_QUEUE;
 let deletedQueue: DeletedQueueEntry[] = [];
@@ -180,6 +180,22 @@ export const getEffectiveVatRate = (): number => {
 let hydratedFromApi = false;
 export const hasHydratedFromApi = (): boolean => hydratedFromApi;
 
+const normalizeInvoiceMoney = (row: any): Invoice => ({
+    ...row,
+    subtotal: Number(row.subtotal) || 0,
+    discountAmount: row.discountAmount == null ? undefined : Number(row.discountAmount),
+    vatAmount: Number(row.vatAmount) || 0,
+    total: Number(row.total) || 0,
+    items: Array.isArray(row.items) ? row.items.map((item: any) => ({
+        ...item,
+        amount: Number(item.amount) || 0,
+        ...(item.quantity != null && { quantity: Number(item.quantity) }),
+        ...(item.unitPrice != null && { unitPrice: Number(item.unitPrice) }),
+    })) : [],
+});
+
+const normalizeExpenseMoney = (row: any): Expense => ({ ...row, amount: Number(row.amount) || 0 });
+
 // --- Initialize from API (callable after login too) ---
 export const reloadAllFromApi = async (): Promise<void> => {
     if (!isConfigured()) return;
@@ -206,11 +222,13 @@ export const reloadAllFromApi = async (): Promise<void> => {
             api.get<any[]>('/api/contract-amendments').then(d => { if (d) contractAmendments = d; }),
             api.get<any[]>('/api/invoices').then(d => {
                 if (d) {
-                    // Filter deleted + merge local-only (offline-created invoices not yet on server)
-                    invoices = mergeRemoteWithLocal(d, invoices, 'invoices');
+                    // The server is authoritative for the financial ledger.
+                    const deletedIds = new Set(deletedQueue.filter(e => e.table === 'invoices').map(e => e.id));
+                    invoices = d.filter(row => !deletedIds.has(row.id)).map(normalizeInvoiceMoney);
+                    persistInvoices();
                 }
             }),
-            api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d; }),
+            api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d.map(normalizeExpenseMoney); }),
             api.get<any[]>('/api/users').then(d => { if (d) users = d; }),
             api.get<any[]>('/api/outsourced').then(d => { if (d) outsourcedBillboards = d; }),
             api.get<any[]>('/api/printing-jobs').then(d => { if (d) printingJobs = d; }),
@@ -339,7 +357,7 @@ export const runAutoBilling = async (): Promise<number> => {
         contractId: contract.id,
         clientId: contract.clientId,
         date: today.toISOString().split('T')[0],
-        items: [{ description: `Monthly Rental — ${mo}/${yr} (Contract ${contract.id})`, amount: subtotal }],
+        items: [{ description: `Monthly Rental — ${mo}/${yr} (Contract ${contract.id})`, amount: gross }],
         subtotal,
         vatAmount,
         total,
@@ -636,7 +654,7 @@ export const permanentDeleteContract = async (id: string): Promise<{ success: bo
         const linkedInvoiceIds = invoices.filter(i => i.contractId === id).map(i => i.id);
         const linkedAmendmentIds = contractAmendments.filter(a => a.contractId === id).map(a => a.id);
 
-        // If API is configured, push audit log + deletes to Neon FIRST
+        // If API is configured, push audit log + deletes to application database FIRST
         if (isConfigured()) {
             await auditLogToApi(
                 'Permanent Delete Contract',
@@ -910,7 +928,8 @@ export const addInvoice = async (invoice: Invoice): Promise<Invoice> => {
     // 2. API sync — updates invoice with server-assigned fields if available
     if (isConfigured()) {
         try {
-            const created = await api.post<Invoice>('/api/invoices', invoice);
+            const createdRaw = await api.post<Invoice>('/api/invoices', invoice);
+            const created = normalizeInvoiceMoney(createdRaw);
             // Replace optimistic entry with server response (e.g. server-generated id/timestamps)
             if (created && created.id) {
                 invoices = invoices.map(i => i.id === tempId ? created : i);
@@ -918,9 +937,12 @@ export const addInvoice = async (invoice: Invoice): Promise<Invoice> => {
                 invoice = created;
             }
         } catch (e) {
-            invoice = { ...invoice, id: tempId };
-            console.error('[addInvoice] API error, invoice kept locally:', e);
-            notifySyncError(`${invoice.type || 'Invoice'} saved locally — server sync failed and will retry on next reload.`);
+            invoices = invoices.filter(i => i.id !== tempId);
+            persistInvoices();
+            console.error('[addInvoice] API error; optimistic invoice rolled back:', e);
+            notifySyncError(`${invoice.type || 'Invoice'} was not saved. Please retry when the server is available.`);
+            notifyListeners();
+            throw e;
         }
     } else {
         invoice = { ...invoice, id: tempId };
@@ -932,6 +954,18 @@ export const addInvoice = async (invoice: Invoice): Promise<Invoice> => {
     }
     if (String(invoice.type || '').toLowerCase() === 'quotation') {
         logQuotationEvent(invoice.id, 'created', `Quotation ${invoice.quoteNumber || invoice.id} created`);
+    }
+    if (String(invoice.type || '').toLowerCase() === 'receipt' && invoice.linkedInvoiceId) {
+        const linked = invoices.find(i => i.id === invoice.linkedInvoiceId);
+        if (linked) {
+            const allocated = invoices
+                .filter(i => i.type === 'Receipt' && i.linkedInvoiceId === linked.id)
+                .reduce((sum, receipt) => sum + (Number(receipt.total) || 0), 0);
+            invoices = invoices.map(i => i.id === linked.id
+                ? { ...i, status: allocated + 0.01 >= Number(linked.total) ? 'Paid' : 'Pending' }
+                : i);
+            persistInvoices();
+        }
     }
     logAction('Create Invoice', `Created ${invoice.type} #${invoice.id} ($${invoice.total})`);
     notifyListeners();
@@ -1003,89 +1037,31 @@ const persistInvoices = (): void => {
     try { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); } catch {}
 };
 
-export const deleteInvoice = async (id: string): Promise<void> => {
+export const deleteInvoice = async (id: string, reason = 'Approved financial record correction'): Promise<void> => {
     const target = invoices.find(i => i.id === id);
     if (!target) return;
-
-    const touchedBillboards = String(target.type || '').toLowerCase() === 'invoice'
-        ? Array.from(new Set((target.items || []).map(it => it.billboardId).filter((bid): bid is string => !!bid)))
-        : [];
-
-    // Deleting an invoice also removes its receipts, so no orphaned
-    // "Payment for Invoice #X" records survive their invoice.
-    const cascadeReceipts = target.type === 'Invoice'
-        ? invoices.filter(i => i.type === 'Receipt' && linkedInvoiceIdOfReceipt(i) === id)
-        : [];
-    const removedIds = [id, ...cascadeReceipts.map(r => r.id)];
-
-    // 1. Immediate local removal — persists regardless of API outcome
-    const snapshot = invoices;
-    invoices = invoices.filter(i => !removedIds.includes(i.id));
-    removedIds.forEach(rid => addToDeletedQueue('invoices', rid));
-    persistInvoices();
-
-    // Revert linked invoice to Pending if this was a receipt — but only when
-    // no other receipt still covers that invoice (partial payments).
+    if (reason.trim().length < 10) throw new Error('A clear void reason of at least 10 characters is required.');
+    if (isConfigured()) {
+        await api.delete('/api/invoices', { id, reason: reason.trim() });
+    }
+    invoices = invoices.filter(i => i.id !== id);
     if (target.type === 'Receipt') {
         const linkedId = linkedInvoiceIdOfReceipt(target);
-        const otherReceiptExists = linkedId
-            ? invoices.some(i => i.type === 'Receipt' && linkedInvoiceIdOfReceipt(i) === linkedId)
-            : false;
-        if (linkedId && !otherReceiptExists) {
-            const invoice = invoices.find(i => i.id === linkedId);
-            if (invoice) {
-                invoices = invoices.map(i => i.id === linkedId ? { ...i, status: 'Pending' as const } : i);
-                persistInvoices();
-                if (isConfigured()) {
-                    const reverted = invoices.find(i => i.id === linkedId);
-                    try { await api.put('/api/invoices', reverted, { id: linkedId }); }
-                    catch (e) { console.error('[deleteInvoice] API error reverting linked invoice:', e); }
-                }
-            }
+        if (linkedId) {
+            const linked = invoices.find(i => i.id === linkedId);
+            const allocated = invoices.filter(i => i.type === 'Receipt' && !i.isVoided && linkedInvoiceIdOfReceipt(i) === linkedId).reduce((sum, r) => sum + Number(r.total || 0), 0);
+            if (linked) invoices = invoices.map(i => i.id === linkedId ? { ...i, status: allocated + 0.01 >= Number(linked.total) ? 'Paid' : 'Pending' } : i);
         }
     }
-
-    // 2. Remote delete. 404 counts as success (already gone server-side).
-    // A permission refusal (401/403) rolls back the local removal and
-    // surfaces to the caller; network errors keep the queue entry so the
-    // hydration flush can retry later.
-    if (isConfigured()) {
-        for (const rid of removedIds) {
-            try {
-                await api.delete('/api/invoices', { id: rid });
-                removeFromDeletedQueue('invoices', rid);
-            } catch (e: any) {
-                if (e?.status === 404) {
-                    removeFromDeletedQueue('invoices', rid);
-                } else if (e?.status === 401 || e?.status === 403) {
-                    invoices = snapshot;
-                    removedIds.forEach(x => removeFromDeletedQueue('invoices', x));
-                    persistInvoices();
-                    notifyListeners();
-                    throw e;
-                } else {
-                    console.error('[deleteInvoice] Remote delete failed, queue entry retained:', e?.message);
-                    notifySyncError('Deleted locally — server removal failed and will retry on next reload.');
-                }
-            }
-        }
-    }
-
-    if (touchedBillboards.length > 0) {
-        touchedBillboards.forEach(recalcBillboardAvailability);
-        logAction('Billboard Availability', `Recalculated ${touchedBillboards.length} billboard${touchedBillboards.length > 1 ? 's' : ''} after deleting Invoice #${id}`);
-    }
-    if (cascadeReceipts.length > 0) {
-        logAction('Delete Document', `Cascade-deleted ${cascadeReceipts.length} receipt(s) of Invoice #${id}`);
-    }
-    logAction('Delete Document', `Removed ${target.type} #${id}`);
+    persistInvoices();
+    logAction('Void Financial Record', `Voided ${target.type} #${id}; reason: ${reason.trim()}`);
     notifyListeners();
 };
 
 // --- Expense CRUD ---
 export const addExpense = async (expense: Expense) => {
     if (isConfigured()) {
-        const created = await api.post<Expense>('/api/expenses', expense);
+        const created = normalizeExpenseMoney(await api.post<Expense>('/api/expenses', expense));
         expenses = [created, ...expenses];
         expense = created;
     } else {
@@ -1441,7 +1417,7 @@ export const RELEASE_NOTES = [
         features: [
             'Fix: Audit logs now update in real-time without a page reload (notifyListeners added to logAction).',
             'Fix: Duplicate users no longer appear after cloud sync — email-based deduplication applied during merge.',
-            'Fix: Deleted CRM opportunities/companies/contacts are now hard-deleted from Neon, preventing them from reappearing after cloud sync.',
+            'Fix: Deleted CRM opportunities/companies/contacts are now hard-deleted from application database, preventing them from reappearing after cloud sync.',
             'Fix: CRM company delete now cascades to linked opportunities.',
         ]
     },
@@ -1454,7 +1430,7 @@ export const RELEASE_NOTES = [
             'Billboard List View: Added Share button, rate display, slot count, and clickable image zoom to match Card view.',
             'Billboard Card View: Consistent feature parity with List view across all view modes.',
             'CRM: Removed auto-seeding of sample deals — deleted deals no longer reappear after refresh.',
-            'Deploy: Application deployed to Vercel production environment.',
+            'Deploy: Application deployed to deployment platform production environment.',
         ]
     },
     {
@@ -1472,7 +1448,7 @@ export const RELEASE_NOTES = [
 // --- Stub functions (previously localStorage-dependent, now no-ops) ---
 export const triggerAutoBackup = () => {};
 export const runMaintenanceCheck = () => 0;
-export const syncToNeon = async () => {};
+export const syncToDatabase = async () => {};
 export const simulateCloudSync = async () => {
   try {
     const backup = await createBackup();
@@ -1636,7 +1612,9 @@ export const markOverdueInvoices = async () => {
   cutoff.setDate(cutoff.getDate() - 30);
   const changed: Invoice[] = [];
   invoices = invoices.map(inv => {
-    if (inv.status === 'Pending' && String(inv.type || '').toLowerCase() === 'invoice' && new Date(inv.date) < cutoff) {
+    const dueDate = inv.dueDate ? new Date(`${inv.dueDate}T23:59:59`) : cutoff;
+    const isPastDue = inv.dueDate ? dueDate < new Date() : new Date(inv.date) < cutoff;
+    if (inv.status === 'Pending' && String(inv.type || '').toLowerCase() === 'invoice' && isPastDue) {
       const updated = { ...inv, status: 'Overdue' as const };
       changed.push(updated);
       return updated;

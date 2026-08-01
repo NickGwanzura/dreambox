@@ -80,8 +80,9 @@ export const BusinessIntelligence: React.FC = () => {
   const coldQuotes = invoices.filter(i => i.type === 'Quotation' && i.quoteStatus !== 'Converted' && i.quoteStatus !== 'Rejected' && daysUntil(i.date) < -14);
 
   const totalMRR = activeContracts.reduce((s, c) => s + c.monthlyRate, 0);
-  const paidInvoiceTotal = invoices.filter(i => i.status === 'Paid' && i.type === 'Invoice').reduce((s, i) => s + i.total, 0);
-  const pendingInvoiceTotal = invoices.filter(i => i.status === 'Pending' && i.type === 'Invoice').reduce((s, i) => s + i.total, 0);
+  const paidInvoiceTotal = invoices.filter(i => i.type === 'Receipt').reduce((s, i) => s + Number(i.total || 0), 0);
+  const billedInvoiceTotal = invoices.filter(i => i.type === 'Invoice').reduce((s, i) => s + Number(i.total || 0), 0);
+  const pendingInvoiceTotal = Math.max(0, billedInvoiceTotal - paidInvoiceTotal);
 
   // ── Expense metrics ───────────────────────────────────────────────────────
 
@@ -168,8 +169,9 @@ export const BusinessIntelligence: React.FC = () => {
   const clientData = useMemo(() => {
     return clients.map(cl => {
       const clInvoices = invoices.filter(i => i.clientId === cl.id && i.type === 'Invoice');
-      const clv = clInvoices.reduce((s, i) => s + (i.status === 'Paid' ? i.total : 0), 0);
-      const pending = clInvoices.reduce((s, i) => s + (i.status === 'Pending' ? i.total : 0), 0);
+      const clReceipts = invoices.filter(i => i.clientId === cl.id && i.type === 'Receipt');
+      const clv = clReceipts.reduce((s, i) => s + Number(i.total || 0), 0);
+      const pending = Math.max(0, clInvoices.reduce((s, i) => s + Number(i.total || 0), 0) - clv);
       const clContracts = activeContracts.filter(c => c.clientId === cl.id);
       const nextExpiry = clContracts.length
         ? Math.min(...clContracts.map(c => daysUntil(c.endDate)))

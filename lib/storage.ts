@@ -42,7 +42,7 @@ function generateKey(folder: string, originalName: string): string {
 }
 
 export async function uploadFile(
-  folder: 'billboards' | 'logos' | 'gallery' | 'exports' | 'backups',
+  folder: 'billboards' | 'logos' | 'gallery' | 'exports' | 'backups' | 'payment-proofs',
   file: { buffer: Buffer; originalName: string; mimetype: string }
 ): Promise<UploadResult> {
   if (!s3 || !bucket) {
@@ -79,5 +79,4 @@ export async function deleteFile(key: string): Promise<void> {
     })
   );
 }
-
 

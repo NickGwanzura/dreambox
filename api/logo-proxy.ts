@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../lib/http';
 import { prisma } from '../lib/prisma';
 import { requireAuth, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
@@ -14,7 +14,7 @@ const MAX_LOGO_BYTES = 6 * 1024 * 1024;
  * company profile — never from the request — so it cannot be used as an
  * open proxy.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

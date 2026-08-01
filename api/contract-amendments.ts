@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../lib/http';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, cors } from '../lib/auth';
@@ -24,7 +24,7 @@ const amendmentSchema = z.object({
   invoiceImpactNote: z.string().optional(),
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   const payload = await requireAuth(req, res);

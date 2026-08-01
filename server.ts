@@ -1,6 +1,6 @@
 /**
- * Express server for Railway deployment.
- * Serves the Vite static build + routes /api/* to Vercel-style handlers.
+ * Vendor-neutral Express application server.
+ * Serves the Vite static build and routes /api/* to HTTP handlers.
  */
 import 'dotenv/config';
 import express from 'express';
@@ -39,7 +39,7 @@ app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false 
 app.use(express.json({ limit: '10mb' }));
 app.use(requestLogger);
 
-// ─── Adapt Vercel handler to Express ─────────────────────────────────────────
+// ─── Adapt API handler to Express ────────────────────────────────────────────
 
 function adapt(handlerModule: { default: Function }, routeName: string) {
   return async (req: Request, res: Response) => {
@@ -79,6 +79,9 @@ async function runMigrations() {
   try {
     await prisma.$executeRawUnsafe(
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sessionVersion" INTEGER NOT NULL DEFAULT 0`,
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "invoices" ADD COLUMN IF NOT EXISTS "dueDate" TEXT`,
     );
     log.boot('  Auth schema        ✓  sessionVersion ready');
   } catch (e: any) {
@@ -151,6 +154,7 @@ async function registerRoutes() {
   const contracts    = await import('./api/contracts.js');
   const invoices     = await import('./api/invoices.js');
   const expenses     = await import('./api/expenses.js');
+  const financeReport = await import('./api/finance-report.js');
   const tasks        = await import('./api/tasks.js');
   const maintenance  = await import('./api/maintenance.js');
   const outsourced   = await import('./api/outsourced.js');
@@ -161,6 +165,7 @@ async function registerRoutes() {
   const contractAmendments = await import('./api/contract-amendments.js');
   const backup             = await import('./api/backup.js');
   const uploadImage        = await import('./api/upload-image.js');
+  const uploadPaymentProof = await import('./api/upload-payment-proof.js');
   const logoProxy          = await import('./api/logo-proxy.js');
 
   app.all('/api/billboards',            adapt(billboards,          'billboards'));
@@ -175,12 +180,14 @@ async function registerRoutes() {
   const quotationEvents = await import('./api/quotation-events.js');
   app.all('/api/quotation-events',       adapt(quotationEvents,     'quotation-events'));
   app.all('/api/expenses',              adapt(expenses,            'expenses'));
+  app.all('/api/finance-report',         adapt(financeReport,       'finance-report'));
   app.all('/api/tasks',                 adapt(tasks,               'tasks'));
   app.all('/api/maintenance',           adapt(maintenance,         'maintenance'));
   app.all('/api/outsourced',            adapt(outsourced,          'outsourced'));
   app.all('/api/printing-jobs',         adapt(printingJobs,        'printing-jobs'));
   app.all('/api/company-profile',       adapt(companyProf,         'company-profile'));
   app.all('/api/upload-image',          adapt(uploadImage,         'upload-image'));
+  app.all('/api/upload-payment-proof',  adapt(uploadPaymentProof,  'upload-payment-proof'));
   app.all('/api/logo-proxy',            adapt(logoProxy,           'logo-proxy'));
   app.all('/api/users',                 adapt(users,               'users'));
   app.all('/api/ai',                    adapt(ai,                  'ai'));

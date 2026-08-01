@@ -2,7 +2,7 @@
  * Server-side PDF generation for invoices, quotations, receipts, and contracts.
  *
  * Returns a Buffer that can be attached to Resend emails as `attachments[].content`.
- * Uses pdfkit (pure-JS) so it runs in Vercel/Node serverless environments without
+ * Uses pdfkit (pure-JS) so it runs in deployment platform/Node serverless environments without
  * headless-browser overhead.
  */
 import PDFDocument from 'pdfkit';

@@ -1,7 +1,7 @@
 /**
- * Neon Sync Deleted-Queue Filter Tests
+ * application database Sync Deleted-Queue Filter Tests
  *
- * Validates that pullAllFromNeon() correctly filters out records whose IDs
+ * Validates that pullAllFromDatabase() correctly filters out records whose IDs
  * appear in the persisted db_deleted_queue, preventing deleted invoices
  * (and other records) from being re-imported when the remote DELETE failed.
  *
@@ -9,7 +9,7 @@
  *   1. User deletes an invoice → deleteInvoice() removes it locally and adds
  *      its {table, id} to db_deleted_queue
  *   2. The remote DELETE call fails (network blip, server error, etc.)
- *   3. On the next 30s sync cycle, pullAllFromNeon() fetches ALL records from
+ *   3. On the next 30s sync cycle, pullAllFromDatabase() fetches ALL records from
  *      the API — including the one that was supposed to be deleted
  *   4. Before writing to localStorage, it reads the deleted queue and filters
  *      out any records whose IDs match
@@ -147,7 +147,7 @@ function setupAuth(): void {
 /**
  * Setup the deleted queue in localStorage with the given entries.
  * Entries automatically get a recent timestamp so the purge logic
- * in pullAllFromNeon() doesn't remove them as stale.
+ * in pullAllFromDatabase() doesn't remove them as stale.
  */
 function setupDeletedQueue(entries: { table: string; id: string }[]): void {
   const now = Date.now();
@@ -184,7 +184,7 @@ function setupFetchMock(overrides: Record<string, any[]>): void {
 // Tests
 // ============================================================
 
-describe('Neon Sync: Deleted Queue Filter', () => {
+describe('application database Sync: Deleted Queue Filter', () => {
   beforeEach(() => {
     localStorageMock.clear();
     vi.resetModules();
@@ -207,10 +207,10 @@ describe('Neon Sync: Deleted Queue Filter', () => {
     });
 
     // Import the module (no token present at import time → no auto-sync)
-    const mod = await import('../services/neonSyncManager');
+    const mod = await import('../services/databaseSyncManager');
 
     // Invoke the pull cycle
-    const result = await mod.pullAllFromNeon();
+    const result = await mod.pullAllFromDatabase();
 
     // Should succeed
     expect(result.success).toBe(true);
@@ -240,8 +240,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       ],
     });
 
-    const mod = await import('../services/neonSyncManager');
-    await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    await mod.pullAllFromDatabase();
 
     const storedInvoices: any[] = JSON.parse(
       localStorage.getItem(STORAGE_KEYS.INVOICES) || '[]',
@@ -271,8 +271,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       ],
     });
 
-    const mod = await import('../services/neonSyncManager');
-    await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    await mod.pullAllFromDatabase();
 
     // Invoices: INV-002 filtered out
     const storedInvoices: any[] = JSON.parse(
@@ -310,8 +310,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       ],
     });
 
-    const mod = await import('../services/neonSyncManager');
-    await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    await mod.pullAllFromDatabase();
 
     const storedInvoices: any[] = JSON.parse(
       localStorage.getItem(STORAGE_KEYS.INVOICES) || '[]',
@@ -337,8 +337,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       ],
     });
 
-    const mod = await import('../services/neonSyncManager');
-    await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    await mod.pullAllFromDatabase();
 
     const storedInvoices: any[] = JSON.parse(
       localStorage.getItem(STORAGE_KEYS.INVOICES) || '[]',
@@ -359,8 +359,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       ],
     });
 
-    const mod = await import('../services/neonSyncManager');
-    const result = await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    const result = await mod.pullAllFromDatabase();
 
     // Should succeed (best-effort: catch block handles parse error)
     expect(result.success).toBe(true);
@@ -399,8 +399,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       ],
     });
 
-    const mod = await import('../services/neonSyncManager');
-    const result = await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    const result = await mod.pullAllFromDatabase();
 
     expect(result.success).toBe(true);
 
@@ -451,8 +451,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       ],
     });
 
-    const mod = await import('../services/neonSyncManager');
-    await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    await mod.pullAllFromDatabase();
 
     // INV-002 should be filtered out, INV-LOCAL-001 should be merged in
     const storedInvoices: any[] = JSON.parse(
@@ -464,7 +464,7 @@ describe('Neon Sync: Deleted Queue Filter', () => {
   });
 
   // ------------------------------------------------------------------
-  // 9. Not authenticated: pullAllFromNeon returns early (no filtering performed)
+  // 9. Not authenticated: pullAllFromDatabase returns early (no filtering performed)
   // ------------------------------------------------------------------
   it('returns early when not authenticated without corrupting data', async () => {
     // No auth token set
@@ -476,8 +476,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       makeInvoiceData('INV-001'),
     ]);
 
-    const mod = await import('../services/neonSyncManager');
-    const result = await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    const result = await mod.pullAllFromDatabase();
 
     // Should return without doing anything
     expect(result.success).toBe(false);
@@ -505,8 +505,8 @@ describe('Neon Sync: Deleted Queue Filter', () => {
       ],
     });
 
-    const mod = await import('../services/neonSyncManager');
-    await mod.pullAllFromNeon();
+    const mod = await import('../services/databaseSyncManager');
+    await mod.pullAllFromDatabase();
 
     // Should not crash, INV-001 should be present
     const storedInvoices: any[] = JSON.parse(

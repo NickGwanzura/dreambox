@@ -1,6 +1,6 @@
 -- ============================================================
 -- User Management Enhancement Migration
--- Run this against your Neon/PostgreSQL database
+-- Run this against the active PostgreSQL database
 -- ============================================================
 
 -- 1. Add Inactive to UserStatus enum

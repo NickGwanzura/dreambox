@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from './http';
 import { log } from './serverLogger.js';
 import { prisma } from './prisma.js';
 
@@ -28,7 +28,7 @@ export function verifyToken(token: string): JWTPayload | null {
   }
 }
 
-export function getTokenFromRequest(req: VercelRequest): string | null {
+export function getTokenFromRequest(req: HttpRequest): string | null {
   const auth = req.headers.authorization;
   if (auth?.startsWith('Bearer ')) return auth.slice(7);
   return null;
@@ -58,8 +58,8 @@ export function invalidateUserCache(_userId: string): void {
  * role/status in the DB. Returns the payload or sends 401/403.
  */
 export async function requireAuth(
-  req: VercelRequest,
-  res: VercelResponse
+  req: HttpRequest,
+  res: HttpResponse
 ): Promise<JWTPayload | null> {
   const token = getTokenFromRequest(req);
   if (!token) {
@@ -111,8 +111,8 @@ export async function requireAuth(
 }
 
 export async function requireAdmin(
-  req: VercelRequest,
-  res: VercelResponse
+  req: HttpRequest,
+  res: HttpResponse
 ): Promise<JWTPayload | null> {
   const payload = await requireAuth(req, res);
   if (!payload) return null;
@@ -130,7 +130,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
 ];
 
-export function cors(res: VercelResponse, req?: VercelRequest): void {
+export function cors(res: HttpResponse, req?: HttpRequest): void {
   const origin = req?.headers?.origin;
   const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   res.setHeader('Access-Control-Allow-Origin', allowed);
@@ -140,8 +140,8 @@ export function cors(res: VercelResponse, req?: VercelRequest): void {
 }
 
 export async function requireManagerOrAdmin(
-  req: VercelRequest,
-  res: VercelResponse
+  req: HttpRequest,
+  res: HttpResponse
 ): Promise<JWTPayload | null> {
   const payload = await requireAuth(req, res);
   if (!payload) return null;
@@ -152,6 +152,42 @@ export async function requireManagerOrAdmin(
   return payload;
 }
 
+export async function requireFeatureWrite(
+  req: HttpRequest,
+  res: HttpResponse,
+  feature: 'invoices' | 'expenses',
+): Promise<JWTPayload | null> {
+  const payload = await requireAuth(req, res);
+  if (!payload) return null;
+  if (payload.role === 'Admin' || payload.role === 'Manager') return payload;
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { permissions: true },
+  });
+  const permissions = user?.permissions as Record<string, unknown> | null;
+  if (permissions?.[feature] === 'write') return payload;
+
+  log.warn(`Finance write rejected — user=${payload.email} role=${payload.role} feature=${feature}`);
+  res.status(403).json({ error: `${feature === 'invoices' ? 'Invoice' : 'Expense'} write permission required.` });
+  return null;
+}
+
+export async function requireFeatureRead(
+  req: HttpRequest,
+  res: HttpResponse,
+  feature: 'invoices' | 'expenses',
+): Promise<JWTPayload | null> {
+  const payload = await requireAuth(req, res);
+  if (!payload) return null;
+  if (payload.role === 'Admin' || payload.role === 'Manager') return payload;
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { permissions: true } });
+  const permissions = user?.permissions as Record<string, unknown> | null;
+  if (permissions?.[feature] !== 'none') return payload;
+  res.status(403).json({ error: `${feature === 'invoices' ? 'Invoice' : 'Expense'} read permission required.` });
+  return null;
+}
+
 export const SYSTEM_ADMIN_EMAIL = (process.env.SYSTEM_ADMIN_EMAIL || '').toLowerCase();
 
 export function isSystemAdmin(email: string | null | undefined): boolean {
@@ -159,8 +195,8 @@ export function isSystemAdmin(email: string | null | undefined): boolean {
 }
 
 export async function requireDeletePermission(
-  req: VercelRequest,
-  res: VercelResponse
+  req: HttpRequest,
+  res: HttpResponse
 ): Promise<JWTPayload | null> {
   const payload = await requireAuth(req, res);
   if (!payload) return null;
@@ -180,8 +216,8 @@ export async function requireDeletePermission(
  * Staff can read only.
  */
 export async function requireQuotationWritePermission(
-  req: VercelRequest,
-  res: VercelResponse
+  req: HttpRequest,
+  res: HttpResponse
 ): Promise<JWTPayload | null> {
   const payload = await requireAuth(req, res);
   if (!payload) return null;
@@ -200,8 +236,8 @@ export async function requireQuotationWritePermission(
  * Only Admin and Manager can approve/convert.
  */
 export async function requireQuotationApprovePermission(
-  req: VercelRequest,
-  res: VercelResponse
+  req: HttpRequest,
+  res: HttpResponse
 ): Promise<JWTPayload | null> {
   const payload = await requireAuth(req, res);
   if (!payload) return null;

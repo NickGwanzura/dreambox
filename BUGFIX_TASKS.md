@@ -6,7 +6,7 @@ catalogued below. Read this whole file before changing anything.
 ## Context you need
 
 - **Stack:** React + Vite frontend, Express server (`server.ts`, run via `tsx`) adapting
-  Vercel-style handlers in `api/`, Prisma + PostgreSQL (Neon), Cloudflare R2 for images.
+  deployment platform-style handlers in `api/`, Prisma + PostgreSQL (application database), Cloudflare R2 for images.
 - **Data model:** The app is offline-first. `services/mockData.ts` holds in-memory arrays
   mirrored to localStorage, synced to the server via `services/apiClient.ts`.
   `reloadAllFromApi()` hydrates from the server on login/startup and merges with

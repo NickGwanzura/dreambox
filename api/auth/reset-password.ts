@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../../lib/http';
 import crypto from 'crypto';
 import { Resend } from 'resend';
 import { z } from 'zod';
@@ -14,7 +14,7 @@ const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 const GENERIC_MESSAGE = 'If that email exists, a reset link has been sent';
 const resetSchema = z.object({ email: z.string().trim().email() });
 
-function getIp(req: VercelRequest): string {
+function getIp(req: HttpRequest): string {
   return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req as any).socket?.remoteAddress || 'unknown';
 }
 
@@ -22,7 +22,7 @@ function hashResetToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

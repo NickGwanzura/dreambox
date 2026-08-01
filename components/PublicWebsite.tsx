@@ -1301,7 +1301,7 @@ export const PublicWebsite: React.FC = () => {
                 },
                 {
                   heading: '5. Data sharing',
-                  body: 'We do not sell, rent, or share your personal data with third parties except where required by Zimbabwean law or a court order. Our website infrastructure is operated by Railway (cloud hosting) and Cloudflare (storage). Both process data only on our behalf and under confidentiality obligations.',
+                  body: 'We do not sell, rent, or share your personal data with third parties except where required by Zimbabwean law or a court order. Our website infrastructure is operated by hosting platform (cloud hosting) and Cloudflare (storage). Both process data only on our behalf and under confidentiality obligations.',
                 },
                 {
                   heading: '6. Data retention',

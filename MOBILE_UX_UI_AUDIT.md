@@ -250,7 +250,7 @@ Empty state messages could be more prominent on mobile with larger touch targets
 
 ### ✅ Invoice Editing
 - **Financials.tsx**: Added full edit capability for invoices, quotations, and receipts. Opens the existing modal pre-filled with document data. Supports editing client, dates, line items, discount, and VAT settings.
-- **mockData.ts**: Added `updateInvoice()` function with proper storage sync, cloud mirror, and Neon sync.
+- **mockData.ts**: Added `updateInvoice()` function with proper storage sync, cloud mirror, and application database sync.
 
 ## Recommended Action Items
 

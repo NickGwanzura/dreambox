@@ -19,39 +19,14 @@ import { Invoice, Client, Billboard } from '../types';
  * For now, we estimate based on contract structure.
  */
 export function classifyInvoiceRevenue(invoice: Invoice): { recurring: number; oneTime: number } {
-    // Find contracts that match this invoice (by clientId and date range)
-    const contracts = getContracts().filter(c => c.clientId === invoice.clientId);
-
-    // Estimate: if invoice date falls within contract dates, a portion is recurring
-    // For simplicity: we check if invoice total matches any contract's first month + fees
-    // This is a heuristic — proper implementation would need invoice line items
-
-    let recurring = 0;
-    let oneTime = 0;
-
-    // If invoice total is close to (monthlyRate + installation + printing + production),
-    // we can reasonably split it
-    for (const contract of contracts) {
-        const expectedTotal = contract.monthlyRate +
-                              (contract.installationCost || 0) +
-                              (contract.printingCost || 0) +
-                              (contract.productionCost || 0);
-
-        if (Math.abs((invoice.total ?? 0) - expectedTotal) < 0.01) {
-            recurring = contract.monthlyRate;
-            oneTime = (contract.installationCost || 0) +
-                      (contract.printingCost || 0) +
-                      (contract.productionCost || 0);
-            break;
-        }
-    }
-
-    // Fallback: if we can't match, assume all is recurring (conservative)
-    if (recurring === 0 && oneTime === 0) {
-        recurring = invoice.total ?? 0;
-    }
-
-    return { recurring, oneTime };
+    const netRevenue = Number(invoice.subtotal) || 0;
+    const gross = Number(invoice.total) || 0;
+    const netFactor = gross > 0 ? netRevenue / gross : 1;
+    const oneTimeGross = (invoice.items || [])
+        .filter(item => /install|print|production|setup|once-off|one-time/i.test(item.description || ''))
+        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const oneTime = Math.min(netRevenue, oneTimeGross * netFactor);
+    return { recurring: Math.max(0, netRevenue - oneTime), oneTime };
 }
 
 /**
@@ -114,15 +89,16 @@ export function getTotalCOGS(): number {
     const productionCosts = contracts.reduce((sum, c) =>
         sum + (c.productionCost || 0), 0);
 
-    // 4. Outsourced payouts: actual monthly payouts × 12 (annualized)
-    // TODO: refine to active months only
-    const outsourcedCosts = outsourcedBillboards.reduce((sum, b) =>
-        sum + (b.monthlyPayout * 12), 0);
+    // 4. Outsourced payouts for the recorded contract period, not an arbitrary annualization.
+    const outsourcedCosts = outsourcedBillboards.reduce((sum, b) => {
+        const start = new Date(b.contractStart);
+        const end = new Date(b.contractEnd);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return sum;
+        const months = Math.max(1, (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth() + 1);
+        return sum + (Number(b.monthlyPayout) || 0) * months;
+    }, 0);
 
-    // 5. Operational expenses (overhead not directly tied to contracts)
-    const operationalExpenses = getExpenses().reduce((sum, e) => sum + e.amount, 0);
-
-    return installationCosts + printingCosts + productionCosts + outsourcedCosts + operationalExpenses;
+    return installationCosts + printingCosts + productionCosts + outsourcedCosts;
 }
 
 /**
@@ -133,7 +109,7 @@ export function getTotalCOGS(): number {
 export function getGrossProfit(): { grossProfit: number; grossMargin: number; revenue: number } {
     const totalRevenue = getInvoices()
         .filter(i => String(i.type || '').toLowerCase() === 'invoice')
-        .reduce((sum, i) => sum + (i.total ?? 0), 0);
+        .reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
 
     const cogs = getTotalCOGS();
     const grossProfit = totalRevenue - cogs;
@@ -154,9 +130,10 @@ export function getGrossProfit(): { grossProfit: number; grossMargin: number; re
 export function getNetProfit(): number {
     const totalRevenue = getInvoices()
         .filter(i => String(i.type || '').toLowerCase() === 'invoice')
-        .reduce((sum, i) => sum + (i.total ?? 0), 0);
+        .reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
     const totalCOGS = getTotalCOGS();
-    return totalRevenue - totalCOGS;
+    const operatingExpenses = getExpenses().reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+    return totalRevenue - totalCOGS - operatingExpenses;
 }
 
 // ============================================
@@ -183,7 +160,7 @@ export function getClientProfitability(): ClientProfitability[] {
         const clientInvoices = invoices.filter(i => i.clientId === client.id);
 
         // Revenue from invoices for this client
-        const revenue = clientInvoices.reduce((sum, inv) => sum + (inv.total ?? 0), 0);
+        const revenue = clientInvoices.reduce((sum, inv) => sum + (Number(inv.subtotal) || 0), 0);
 
         // COGS from client's contracts (installation, printing, production, outsourced share)
         const cogs = clientContracts.reduce((sum, c) => {
@@ -321,7 +298,11 @@ export function getMonthlyProfitTrends(): MonthlyProfitData[] {
             sum + (c.installationCost || 0) + (c.printingCost || 0) + (c.productionCost || 0), 0);
 
         // Add outsourced payouts for this month (actual monthly payouts, not annualized)
-        const outsourcedMonthly = outsourcedBillboards.reduce((sum, b) => sum + (b.monthlyPayout || 0), 0);
+        const monthStart = new Date(Date.UTC(year, monthIndex, 1));
+        const monthEnd = new Date(Date.UTC(year, monthIndex + 1, 0));
+        const outsourcedMonthly = outsourcedBillboards
+            .filter(b => new Date(b.contractStart) <= monthEnd && new Date(b.contractEnd) >= monthStart)
+            .reduce((sum, b) => sum + (Number(b.monthlyPayout) || 0), 0);
 
         // Add operational expenses for this month
         const operationalMonthly = getExpenses().filter(e => {
@@ -329,9 +310,9 @@ export function getMonthlyProfitTrends(): MonthlyProfitData[] {
             return d.getMonth() === monthIndex && d.getFullYear() === year;
         }).reduce((sum, e) => sum + e.amount, 0);
 
-        const totalCOGS = monthCOGS + outsourcedMonthly + operationalMonthly;
+        const totalCOGS = monthCOGS + outsourcedMonthly;
         const grossProfit = recurringRevenue + oneTimeRevenue - totalCOGS;
-        const netProfit = grossProfit; // In this simple model, net = gross (no additional overhead)
+        const netProfit = grossProfit - operationalMonthly;
 
         results.push({
             month: monthName,

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { generateId } from '../utils/sanitizers';
-import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, markInvoiceAsPaid, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType } from '../services/mockData';
+import { getInvoices, getContracts, getClients, getBillboards, addInvoice, updateInvoice, deleteInvoice, addContract, getCompanyProfile, getCompanyLogo, subscribe, convertInvoiceType } from '../services/mockData';
 import { calculateContractMonths } from '../utils/contractDate';
 import { generateInvoicePDF, generateStatementPDF } from '../services/pdfGenerator';
 import { sendDocumentEmail } from '../services/documentEmail';
@@ -10,8 +10,9 @@ import { Download, Plus, X, Save, Link2, CreditCard, Search, Trash2, FileText, B
 import { Invoice, Contract, BillboardType, QuoteStatus } from '../types';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
-import { canDelete } from '../utils/settingsAccess';
+import { canDelete, canWriteFinance } from '../utils/settingsAccess';
 import { getCurrentUser } from '../services/authServiceSecure';
+import { uploadPaymentProof, isBankPaymentMethod } from '../services/paymentProof';
 
 type InvoiceLineItem = Invoice['items'][number];
 
@@ -39,13 +40,18 @@ const MinimalSelect = ({ label, value, onChange, options, disabled = false }: an
 interface FinancialsProps { initialTab?: 'Invoices' | 'Receipts' | 'Statements'; }
 
 export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' }) => {
+  const currentUser = getCurrentUser();
+  const canUserWrite = canWriteFinance(currentUser, 'invoices');
+  const defaultReceiver = currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : '';
   const [activeTab, setActiveTab] = useState<'Invoices' | 'Receipts' | 'Statements'>(initialTab);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>(getInvoices());
   const [allClients, setAllClients] = useState(getClients());
   const [searchTerm, setSearchTerm] = useState('');
   const [newItem, setNewItem] = useState({ description: '', amount: 0 });
-  const [formData, setFormData] = useState<Partial<Invoice>>({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '' });
+  const [formData, setFormData] = useState<Partial<Invoice>>({ clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: '', paymentMethod: 'Bank Transfer', paymentReference: '', receivedBy: defaultReceiver, receivingAccount: '' });
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
   const [selectedInvoiceToPay, setSelectedInvoiceToPay] = useState('');
   const [hasVat, setHasVat] = useState(false);
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
@@ -67,7 +73,9 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     status: 'Pending',
     contractId: '',
     paymentMethod: 'Bank Transfer',
-    paymentReference: ''
+    paymentReference: '',
+    receivedBy: defaultReceiver,
+    receivingAccount: ''
   });
   const resetQuoteFields = () => {
     setExpiryDate('');
@@ -81,7 +89,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
     setAllClients(getClients());
   }, [activeTab, isModalOpen]);
 
-  // Subscribe to live data changes (Neon sync)
+  // Subscribe to live data changes (application database sync)
   useEffect(() => {
     const unsubscribe = subscribe(() => {
       setInvoices(getInvoices());
@@ -100,7 +108,11 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   const handleInvoiceSelect = (invoiceId: string) => {
       setSelectedInvoiceToPay(invoiceId);
       const invoice = getInvoices().find(i => i.id === invoiceId);
-      if (invoice) { setFormData({ ...formData, clientId: invoice.clientId, contractId: invoice.contractId, items: [{ description: `Payment for Invoice #${invoice.id}`, amount: invoice.total }] }); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); }
+      if (invoice) {
+          const paid = getInvoices().filter(i => i.type === 'Receipt' && !i.isVoided && i.linkedInvoiceId === invoice.id).reduce((sum, receipt) => sum + Number(receipt.total || 0), 0);
+          const balance = Math.max(0, Math.round((Number(invoice.total) - paid) * 100) / 100);
+          setFormData({ ...formData, clientId: invoice.clientId, contractId: invoice.contractId, items: [{ description: `Payment for Invoice #${invoice.id}`, amount: balance }] }); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription('');
+      }
   };
   const addItem = () => {
       const trimmedDescription = newItem.description.trim();
@@ -194,6 +206,23 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       if (isSubmittingRef.current) return;
       isSubmittingRef.current = true;
       try {
+      let proof = editingInvoice?.proofPaymentUrl ? {
+          url: editingInvoice.proofPaymentUrl,
+          originalName: editingInvoice.proofOriginalName || 'Existing proof',
+          mimeType: editingInvoice.proofMimeType || 'application/pdf',
+          uploadedAt: editingInvoice.proofUploadedAt || new Date().toISOString(),
+      } : null;
+      if (activeTab === 'Receipts') {
+          if (!String(formData.receivedBy || '').trim()) { alert('Who received the payment is required.'); return; }
+          if (!String(formData.paymentReference || '').trim()) { alert('Payment reference is required.'); return; }
+          if (isBankPaymentMethod(formData.paymentMethod) && !String(formData.receivingAccount || '').trim()) { alert('Receiving bank account is required for bank payments.'); return; }
+          if (paymentProofFile) {
+              setProofUploading(true);
+              try { proof = await uploadPaymentProof(paymentProofFile); }
+              finally { setProofUploading(false); }
+          }
+          if (isBankPaymentMethod(formData.paymentMethod) && !proof) { alert('Attach proof of payment before posting a bank payment.'); return; }
+      }
       if (editingInvoice) {
           // Edit mode: update existing invoice
           const updatedDoc: Invoice = {
@@ -210,6 +239,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
               contractId: formData.contractId,
               paymentMethod: editingInvoice.type === 'Receipt' ? formData.paymentMethod : undefined,
               paymentReference: editingInvoice.type === 'Receipt' ? formData.paymentReference : undefined,
+              receivedBy: editingInvoice.type === 'Receipt' ? formData.receivedBy : undefined,
+              receivingAccount: editingInvoice.type === 'Receipt' ? formData.receivingAccount : undefined,
+              proofPaymentUrl: proof?.url,
+              proofOriginalName: proof?.originalName,
+              proofMimeType: proof?.mimeType,
+              proofUploadedAt: proof?.uploadedAt,
               expiryDate: editingInvoice.type === 'Quotation' ? (expiryDate || undefined) : undefined,
               terms: editingInvoice.type === 'Quotation' ? (terms || undefined) : undefined,
               notes: editingInvoice.type === 'Quotation' ? (notes || undefined) : undefined,
@@ -224,6 +259,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           setIsModalOpen(false);
           setEditingInvoice(null);
           setFormData(getEmptyFormData());
+          setPaymentProofFile(null);
           setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription('');
           setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch('');
           resetQuoteFields();
@@ -244,6 +280,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
             contractId: formData.contractId,
             paymentMethod: activeTab === 'Receipts' ? formData.paymentMethod : undefined,
             paymentReference: activeTab === 'Receipts' ? formData.paymentReference : undefined,
+            receivedBy: activeTab === 'Receipts' ? formData.receivedBy?.trim() : undefined,
+            receivingAccount: activeTab === 'Receipts' ? formData.receivingAccount?.trim() : undefined,
+            proofPaymentUrl: activeTab === 'Receipts' ? proof?.url : undefined,
+            proofOriginalName: activeTab === 'Receipts' ? proof?.originalName : undefined,
+            proofMimeType: activeTab === 'Receipts' ? proof?.mimeType : undefined,
+            proofUploadedAt: activeTab === 'Receipts' ? proof?.uploadedAt : undefined,
             linkedInvoiceId: activeTab === 'Receipts' && selectedInvoiceToPay ? selectedInvoiceToPay : undefined,
             expiryDate: isQuote ? (expiryDate || undefined) : undefined,
             terms: isQuote ? (terms || undefined) : undefined,
@@ -252,19 +294,11 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           } as Invoice;
           try {
               await addInvoice(newDoc);
-              if (activeTab === 'Receipts' && selectedInvoiceToPay) {
-                  try {
-                      await markInvoiceAsPaid(selectedInvoiceToPay);
-                  } catch (err: any) {
-                      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
-                      return;
-                  }
-              }
           } catch (err: any) {
               alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
               return;
           }
-          setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setSelectedInvoiceToPay(''); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+          setInvoices(getInvoices()); setIsModalOpen(false); setFormData(getEmptyFormData()); setPaymentProofFile(null); setSelectedInvoiceToPay(''); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setNewItem({ description: '', amount: 0 }); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); alert(`${activeTab.slice(0, -1)} Created Successfully!`);
       }
       } finally {
           isSubmittingRef.current = false;
@@ -304,7 +338,9 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           status: doc.status,
           contractId: doc.contractId || '',
           paymentMethod: doc.paymentMethod || 'Bank Transfer',
-          paymentReference: doc.paymentReference || ''
+          paymentReference: doc.paymentReference || '',
+          receivedBy: doc.receivedBy || defaultReceiver,
+          receivingAccount: doc.receivingAccount || ''
       });
       setHasVat(doc.vatAmount > 0);
       if (doc.discountAmount && doc.discountAmount > 0) {
@@ -326,9 +362,10 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
   };
 
   const handleDelete = async (doc: Invoice) => {
-      if(window.confirm(`Are you sure you want to delete ${doc.type} #${doc.id}? This action cannot be undone.`)) {
+      const reason = window.prompt(`Void ${doc.type} #${doc.id}? The original record will be preserved. Enter the audit reason:`);
+      if(reason) {
           try {
-              await deleteInvoice(doc.id);
+              await deleteInvoice(doc.id, reason);
               setInvoices(getInvoices());
           } catch (err: any) {
               alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
@@ -399,7 +436,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">{activeTab === 'Receipts' ? 'Receipts & Payments' : activeTab === 'Statements' ? 'Client Statements' : 'Invoices'}</h2><p className="text-slate-900 font-medium">{activeTab === 'Statements' ? 'Account balances, outstanding amounts, and statement PDFs per client' : activeTab === 'Receipts' ? 'Payment receipts and collection history' : 'Create invoices, manage VAT, and track payment history'}</p></div>
-          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div><button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button></div>)}
+          {activeTab !== 'Statements' && (<div className="flex gap-4 w-full sm:w-auto justify-end"><div className="relative group w-full sm:w-64"><Search className="absolute left-3 top-3 text-slate-900 group-focus-within:text-slate-800 transition-colors" size={18} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search ID, Client, Ref..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"/></div>{canUserWrite && <button onClick={() => { setSelectedInvoiceToPay(''); setFormData(getEmptyFormData()); setNewItem({ description: '', amount: 0 }); setHasVat(false); setDiscountType('amount'); setDiscountValue(0); setDiscountDescription(''); setBillboardSelections({}); setBillboardSearch(''); resetQuoteFields(); setIsModalOpen(true); }} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"><Plus size={16} /> <span className="hidden sm:inline">New {activeTab.slice(0, -1)}</span><span className="sm:hidden">New</span></button>}</div>)}
         </div>
 
         {/* Tabs — Quotations and Proformas moved to dedicated Quotations page */}
@@ -409,12 +446,12 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
           const company = getCompanyProfile();
           const logo = getCompanyLogo();
           // Use React state (invoices) so re-renders trigger on subscribe updates
-          // Normalize total to number and type to lowercase for Neon compatibility
+          // Normalize total to number and type to lowercase for application database compatibility
           const inv = (inv: any) => Number(inv.total) || Number(inv.subtotal) || 0;
           const isInvoiceType = (i: any) => String(i.type || '').toLowerCase() === 'invoice';
           const isReceiptType = (i: any) => String(i.type || '').toLowerCase() === 'receipt';
           const isOverdueStatus = (i: any) => String(i.status || '').toLowerCase() === 'overdue';
-          // clientId might come back as client_id from Neon depending on schema
+          // clientId might come back as client_id from application database depending on schema
           const getClientId = (i: any) => i.clientId || i.client_id || '';
 
           const allContracts = getContracts();
@@ -556,8 +593,8 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                   <div className="flex flex-wrap gap-2 pt-2">
                     <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl" title="Download PDF"><Download size={16} /></button>
                     <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 bg-indigo-50 hover:bg-indigo-100 rounded-xl" title="Send Email"><Send size={16} /></button>
-                    <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-xl" title="Edit"><Edit size={16} /></button>
-                    {activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (
+                    {canUserWrite && <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-xl" title="Edit"><Edit size={16} /></button>}
+                    {canUserWrite && activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (
                       <button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-xl" title="Record Payment"><CreditCard size={16} /></button>
                     )}
                     {(activeTab as string) === 'Quotations' && (
@@ -596,7 +633,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                       }`}>{doc.quoteStatus}</span>
                     ) : (
                       <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${String(doc.status || '').toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : String(doc.status || '').toLowerCase() === 'overdue' ? 'bg-red-100 text-red-700 animate-pulse' : String(doc.status || '').toLowerCase() === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-900'}`}>{doc.status}</span>
-                    )}</td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-xl transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{activeTab === 'Invoices' && String(doc.status || '').toLowerCase() === 'paid' && (<button onClick={async () => { try { const receiptId = `RCT-${Date.now().toString().slice(-4)}`; await addInvoice({ clientId: doc.clientId, date: new Date().toISOString().split('T')[0], items: [{ description: `Payment for Invoice #${doc.id}`, amount: doc.total }], linkedInvoiceId: doc.id, subtotal: doc.subtotal, vatAmount: 0, total: doc.total, status: 'Paid', type: 'Receipt', paymentMethod: 'Bank Transfer', paymentReference: `REF-${Date.now().toString().slice(-4)}` } as any); await markInvoiceAsPaid(doc.id); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Generate Receipt"><Receipt size={16} /></button>)}{(activeTab as string) === 'Quotations' && (<><button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{(activeTab as string) === 'Proformas' && (<button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className={`p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors ${!canDelete(getCurrentUser()) ? 'hidden' : ''}`} title="Delete"><Trash2 size={16} /></button></td></tr>
+                    )}</td><td className="px-6 py-4 flex justify-center gap-2">                            <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl transition-colors" title="Download PDF"><Download size={16} /></button><button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Send via Email"><Send size={16} /></button><button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors" title="Edit"><Edit size={16} /></button>{activeTab === 'Invoices' && ['pending', 'overdue'].includes(String(doc.status || '').toLowerCase()) && (<button onClick={() => initiatePayment(doc)} className="p-2 text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-xl transition-colors" title="Record Payment"><CreditCard size={16} /></button>)}{(activeTab as string) === 'Quotations' && (<><button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button><button onClick={() => { setConvertingQuotation(doc); setConvertForm({ billboardId: '', startDate: '', endDate: '' }); }} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Convert to Contract"><FileText size={16} /></button></>)}{(activeTab as string) === 'Proformas' && (<button onClick={async () => { try { await convertInvoiceType(doc.id, 'Invoice'); setInvoices(getInvoices()); } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); } }} className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><ArrowRight size={16} /></button>)}<button onClick={() => handleDelete(doc)} className={`p-2 text-slate-900 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-colors ${!canDelete(getCurrentUser()) ? 'hidden' : ''}`} title="Delete"><Trash2 size={16} /></button></td></tr>
                 )) : (<tr><td colSpan={activeTab === 'Receipts' ? 8 : 6} className="px-6 py-12 text-center text-slate-900 italic">No documents found.</td></tr>)}
               </tbody>
             </table>
@@ -616,7 +653,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                         {activeTab === 'Receipts' && (<div className="p-4 bg-green-50 rounded-xl border border-green-100 mb-2"><MinimalSelect label="Link to Pending Invoice" value={selectedInvoiceToPay} onChange={(e: any) => handleInvoiceSelect(e.target.value)} options={[{value: '', label: 'Select Invoice to Pay...'}, ...getInvoices().filter(i => String(i.status || '').toLowerCase() === 'pending' && String(i.type || '').toLowerCase() === 'invoice').map(i => ({ value: i.id, label: `Inv #${i.id} - $${i.total} (${allClients.find(c => c.id === i.clientId)?.companyName})`}))]}/></div>)}
                         {activeTab !== 'Receipts' && (<div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 mb-2"><MinimalSelect label="Link to Active Rental (Optional)" value={formData.contractId} onChange={(e: any) => handleRentalSelect(e.target.value)} options={[{value: '', label: 'Select Rental to Auto-fill...'}, ...getContracts().map(c => { const cl = allClients.find(x => x.id === c.clientId); const billboard = getBillboards().find(b => b.id === c.billboardId); return {value: c.id, label: `${cl?.companyName} - ${billboard?.name} (${c.details})`};})]}/></div>)}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"><MinimalSelect label="Client" value={formData.clientId} onChange={(e: any) => setFormData({...formData, clientId: e.target.value})} options={[{value: '', label: 'Select Client...'}, ...allClients.map(c => ({value: c.id, label: c.companyName}))]}/><MinimalInput label="Date" type="date" value={formData.date} onChange={(e: any) => setFormData({...formData, date: e.target.value})} /></div>
-                        {activeTab === 'Receipts' && (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"><MinimalSelect label="Payment Method" value={formData.paymentMethod} onChange={(e: any) => setFormData({...formData, paymentMethod: e.target.value})} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash'},{value: 'Other', label: 'Other'}]}/><MinimalInput label="Reference Number" value={formData.paymentReference} onChange={(e: any) => setFormData({...formData, paymentReference: e.target.value})} /></div>)}
+                        {activeTab === 'Receipts' && (<div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 space-y-4"><h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800">Payment audit trail</h4><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><MinimalSelect label="Payment Method" value={formData.paymentMethod} onChange={(e: any) => setFormData({...formData, paymentMethod: e.target.value})} options={[{value: 'Bank Transfer', label: 'Bank Transfer'},{value: 'Cash', label: 'Cash'},{value: 'EcoCash', label: 'EcoCash'},{value: 'Other', label: 'Other'}]}/><MinimalInput label="Reference Number *" required value={formData.paymentReference} onChange={(e: any) => setFormData({...formData, paymentReference: e.target.value})} /><MinimalInput label="Received By *" required value={formData.receivedBy} onChange={(e: any) => setFormData({...formData, receivedBy: e.target.value})} />{isBankPaymentMethod(formData.paymentMethod) && <MinimalInput label="Receiving Bank Account *" required value={formData.receivingAccount} onChange={(e: any) => setFormData({...formData, receivingAccount: e.target.value})} />}</div><div><label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Proof of Payment {isBankPaymentMethod(formData.paymentMethod) ? '*' : '(Optional)'}</label><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={isBankPaymentMethod(formData.paymentMethod) && !editingInvoice?.proofPaymentUrl} onChange={e => setPaymentProofFile(e.target.files?.[0] || null)} className="block w-full text-sm text-slate-700 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-xs file:font-bold file:text-white"/><p className="mt-2 text-[10px] text-slate-600">PDF/JPEG/PNG/WebP, maximum 7 MB. The recorder identity and upload time are captured automatically.</p>{editingInvoice?.proofPaymentUrl && <a href={editingInvoice.proofPaymentUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-indigo-600">View existing proof</a>}</div></div>)}
                         <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 space-y-3 border border-slate-100">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Line Items</h4>
                             {(() => {
@@ -763,7 +800,7 @@ export const Financials: React.FC<FinancialsProps> = ({ initialTab = 'Invoices' 
                                 <span className="text-xl font-black">${total.toLocaleString()}</span>
                             </div>
                         </div>
-                        <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all"><Save size={18} /> {editingInvoice ? `Update ${editingInvoice.type}` : `Create ${activeTab.slice(0, -1)}`}</button>
+                        <button type="submit" disabled={proofUploading} className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all"><Save size={18} /> {proofUploading ? 'Uploading proof…' : editingInvoice ? `Update ${editingInvoice.type}` : `Create ${activeTab.slice(0, -1)}`}</button>
                     </form>
                 </div>
             </div>

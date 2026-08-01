@@ -1,6 +1,6 @@
 /**
- * Neon Database Helpers
- * Generic fetch/query utilities using the API client backed by Neon PostgreSQL.
+ * Application Database Helpers
+ * Generic fetch/query utilities using the API client backed by application PostgreSQL.
  */
 
 import { api, isConfigured } from '../apiClient';
@@ -31,7 +31,7 @@ export interface RealtimeCallbacks {
 // CONNECTION & HEALTH CHECKS
 // ============================================================
 
-export const checkNeonHealth = async (): Promise<{
+export const checkDatabaseHealth = async (): Promise<{
   configured: boolean;
   connected: boolean;
   error?: string;
@@ -47,16 +47,16 @@ export const checkNeonHealth = async (): Promise<{
   }
 };
 
-export const waitForNeon = async (
+export const waitForDatabase = async (
   maxRetries = 5,
   delayMs = 1000
 ): Promise<boolean> => {
   for (let i = 0; i < maxRetries; i++) {
-    const health = await checkNeonHealth();
+    const health = await checkDatabaseHealth();
     if (health.connected) return true;
     if (i < maxRetries - 1) {
       logger.info(
-        `Neon connection attempt ${i + 1}/${maxRetries} failed, retrying...`
+        `application database connection attempt ${i + 1}/${maxRetries} failed, retrying...`
       );
       await new Promise(r => setTimeout(r, delayMs));
     }
@@ -209,6 +209,6 @@ export const exportAllData = async (): Promise<{
   }
 };
 
-// Legacy compatibility aliases (deprecated — use Neon names)
-export const checkSupabaseHealth = checkNeonHealth;
-export const waitForSupabase = waitForNeon;
+// Legacy compatibility aliases (deprecated — use application database names)
+export const checkSupabaseHealth = checkDatabaseHealth;
+export const waitForSupabase = waitForDatabase;

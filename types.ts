@@ -144,6 +144,7 @@ export interface Invoice {
   contractId?: string;
   clientId: string;
   date: string;
+  dueDate?: string;
   items: { description: string; amount: number; billboardId?: string; contractLineId?: string; side?: 'A' | 'B'; slots?: number; quantity?: number; unitPrice?: number }[];
   subtotal: number;
   discountAmount?: number;
@@ -156,6 +157,19 @@ export interface Invoice {
   // Audit Trail
   paymentMethod?: 'Cash' | 'Bank Transfer' | 'EcoCash' | 'Other';
   paymentReference?: string;
+  receivedBy?: string;
+  receivedByUserId?: string;
+  receivingAccount?: string;
+  proofPaymentUrl?: string;
+  proofOriginalName?: string;
+  proofMimeType?: string;
+  proofUploadedAt?: string;
+  recordedAt?: string;
+  postedAt?: string;
+  isVoided?: boolean;
+  voidReason?: string;
+  voidedAt?: string;
+  voidedBy?: string;
   /** Receipt→invoice link; legacy receipts fall back to parsing the description */
   linkedInvoiceId?: string;
   

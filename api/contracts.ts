@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../lib/http';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
@@ -22,7 +22,7 @@ const contractSchema = z.object({
   monthlyRate: z.number({ error: 'Monthly rate is required' }),
 }).refine(d => d.startDate <= d.endDate, { message: 'End date must be on or after start date', path: ['endDate'] });
 
-// Full schema for PUT (update) — validates ALL fields that come through syncToNeon
+// Full schema for PUT (update) — validates ALL fields that come through syncToDatabase
 const contractUpdateSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
   billboardId: z.string().min(1, 'Billboard ID is required'),
@@ -45,7 +45,7 @@ const contractUpdateSchema = z.object({
   masterContractId: z.string().optional().nullable(),
 }).refine(d => d.startDate <= d.endDate, { message: 'End date must be on or after start date', path: ['endDate'] });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   const payload = await requireAuth(req, res);

@@ -1,11 +1,13 @@
 import { prisma } from './prisma';
 import { uploadFile, deleteFile, s3 } from './storage';
-import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
 const BUCKET = process.env.R2_BUCKET_NAME || '';
 const PUBLIC_URL = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
 const MANIFEST_KEY = 'backups/manifest.json';
+const DATABASE_BACKUP_PREFIX = (process.env.DATABASE_BACKUP_PREFIX || 'dreambox-postgres-db-9cy1yw/database-backups/dreambox-production')
+  .replace(/^\/+|\/+$/g, '');
 
 export interface BackupManifest {
   version: string;
@@ -33,6 +35,15 @@ export interface BackupManifestEntry {
   tables: string[];
 }
 
+export interface DatabaseBackupEntry {
+  id: string;
+  key: string;
+  fileName: string;
+  createdAt: string;
+  size: number;
+  source: 'database';
+}
+
 export type BackupRecord = Record<string, any[]>;
 
 const BACKUP_TABLES = [
@@ -45,6 +56,7 @@ const BACKUP_TABLES = [
   { name: 'contracts', model: 'contract' as const, key: 'contracts' as const },
   { name: 'contract_amendments', model: 'contractAmendment' as const, key: 'contractAmendments' as const },
   { name: 'invoices', model: 'invoice' as const, key: 'invoices' as const },
+  { name: 'payment_allocations', model: 'paymentAllocation' as const, key: 'paymentAllocations' as const },
   { name: 'expenses', model: 'expense' as const, key: 'expenses' as const },
   { name: 'tasks', model: 'task' as const, key: 'tasks' as const },
   { name: 'maintenance_logs', model: 'maintenanceLog' as const, key: 'maintenanceLogs' as const },
@@ -101,6 +113,65 @@ async function saveManifest(entries: BackupManifestEntry[]): Promise<void> {
 export async function listBackups(): Promise<BackupManifestEntry[]> {
   const manifest = await getManifest();
   return manifest.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+/** List infrastructure-level PostgreSQL snapshots created by the deployment backup job. */
+export async function listDatabaseBackups(): Promise<DatabaseBackupEntry[]> {
+  if (!s3 || !BUCKET) return [];
+
+  const prefix = `${DATABASE_BACKUP_PREFIX}/`;
+  const entries: DatabaseBackupEntry[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const page = await s3.send(new ListObjectsV2Command({
+      Bucket: BUCKET,
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    }));
+
+    for (const object of page.Contents ?? []) {
+      if (!object.Key || object.Key.endsWith('/')) continue;
+      entries.push({
+        id: Buffer.from(object.Key).toString('base64url'),
+        key: object.Key,
+        fileName: object.Key.split('/').pop() || 'dreambox-database-backup.sql.gz',
+        createdAt: object.LastModified?.toISOString() || new Date(0).toISOString(),
+        size: object.Size || 0,
+        source: 'database',
+      });
+    }
+
+    continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export async function getApplicationBackupObject(id: string) {
+  const entry = (await getManifest()).find(backup => backup.id === id);
+  if (!entry) throw new Error('Backup not found');
+  return getBackupObject(entry.key, entry.key.split('/').pop() || `dreambox-backup-${id}.json`);
+}
+
+export async function getDatabaseBackupObject(key: string) {
+  const allowedPrefix = `${DATABASE_BACKUP_PREFIX}/`;
+  if (!key.startsWith(allowedPrefix) || key.includes('..')) {
+    throw new Error('Invalid database backup key');
+  }
+  return getBackupObject(key, key.split('/').pop() || 'dreambox-database-backup.sql.gz');
+}
+
+async function getBackupObject(key: string, fileName: string) {
+  if (!s3 || !BUCKET) throw new Error('Backup storage is not configured');
+  const object = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  if (!object.Body) throw new Error('Backup file is empty');
+  return {
+    body: object.Body as Readable,
+    fileName: fileName.replace(/[^a-zA-Z0-9._-]/g, '_'),
+    contentType: object.ContentType || 'application/octet-stream',
+    contentLength: object.ContentLength,
+  };
 }
 
 export async function createBackup(createdBy = 'system'): Promise<BackupResult> {
@@ -228,6 +299,7 @@ async function restoreFromData(data: BackupRecord): Promise<{ restored: number; 
     'contracts',
     'contractAmendments',
     'invoices',
+    'paymentAllocations',
     'expenses',
     'tasks',
     'maintenanceLogs',

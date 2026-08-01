@@ -40,7 +40,7 @@ const inv = (overrides: Partial<Invoice> = {}): Invoice => ({
 describe('classifyInvoiceRevenue', () => {
   it('falls back to all-recurring when no matching contract exists', () => {
     const result = classifyInvoiceRevenue(inv({ total: 999 }));
-    expect(result.recurring).toBe(999);
+    expect(result.recurring).toBe(1000);
     expect(result.oneTime).toBe(0);
   });
 
@@ -50,9 +50,9 @@ describe('classifyInvoiceRevenue', () => {
     expect(result.oneTime).toBeGreaterThanOrEqual(0);
   });
 
-  it('recurring + oneTime always equals total when no contract match', () => {
+  it('recurring + oneTime equals net revenue excluding VAT', () => {
     const invoice = inv({ total: 1500 });
     const { recurring, oneTime } = classifyInvoiceRevenue(invoice);
-    expect(recurring + oneTime).toBe(1500);
+    expect(recurring + oneTime).toBe(invoice.subtotal);
   });
 });

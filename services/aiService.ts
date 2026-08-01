@@ -51,7 +51,7 @@ async function callAI(
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   // Abort if the server takes longer than 15s — prevents UI from hanging when
-  // Groq is slow or Railway cold-starting.
+  // Groq is slow or hosting platform cold-starting.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
 

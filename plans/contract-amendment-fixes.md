@@ -52,9 +52,9 @@ const openAmendmentModal = (contract: Contract) => {
 
 **Severity:** 🔴 High  
 **File:** [`components/ContractAmendmentModal.tsx`](components/ContractAmendmentModal.tsx)  
-**Current Behavior:** Lines 231-238 catch contract update failure but the rollback `try/catch` block is empty. If the contract update fails after the amendment is saved locally + synced to Neon, the amendment becomes an orphan record.
+**Current Behavior:** Lines 231-238 catch contract update failure but the rollback `try/catch` block is empty. If the contract update fails after the amendment is saved locally + synced to application database, the amendment becomes an orphan record.
 
-**Root Cause:** The comment explains the strategy (apply amendment first, then contract), but the rollback has no mechanism to rewind the local amendment or the Neon sync.
+**Root Cause:** The comment explains the strategy (apply amendment first, then contract), but the rollback has no mechanism to rewind the local amendment or the application database sync.
 
 **Fix Strategy:** Use a snapshot-based rollback approach.
 
@@ -78,7 +78,7 @@ try {
 try {
     updateContract(updatedContract);
 } catch (contractErr) {
-    // Rollback: undo the amendment by deleting it from local state + Neon queue
+    // Rollback: undo the amendment by deleting it from local state + application database queue
     console.error('Contract update failed. Rolling back amendment...');
     try {
         // Delete the amendment locally

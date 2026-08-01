@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 // Same hardcoded recipient snapshot used by the previous announce — Prisma adapter
-// keeps dropping the Neon connection on cold starts during these one-off sends.
+// keeps dropping the application database connection on cold starts during these one-off sends.
 const RECIPIENTS: { email: string; firstName: string }[] = [
   { email: 'chiduroobc@gmail.com', firstName: 'Brian' },
   { email: 'chiduurobc@gmail.com', firstName: 'Brian' },

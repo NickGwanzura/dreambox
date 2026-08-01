@@ -26,7 +26,7 @@ Object.defineProperty(globalThis, 'window', {
   writable: true,
 });
 
-// Mock global fetch for syncToNeon / syncToCloudMirror
+// Mock global fetch for syncToDatabase / syncToCloudMirror
 globalThis.fetch = vi.fn().mockResolvedValue({
   json: vi.fn().mockResolvedValue({}),
   ok: true,

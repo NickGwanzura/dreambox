@@ -81,8 +81,8 @@ Go to **Authentication** → **URL Configuration**
 
 | Setting | Value |
 |---------|-------|
-| **Site URL** | `https://dreambox-kappa.vercel.app` |
-| **Redirect URLs** | `https://dreambox-kappa.vercel.app/auth/callback`<br>`https://dreambox-kappa.vercel.app/auth/verify`<br>`https://dreambox-kappa.vercel.app/auth/reset-password` |
+| **Site URL** | `https://dreambox-kappa.deployment.app` |
+| **Redirect URLs** | `https://dreambox-kappa.deployment.app/auth/callback`<br>`https://dreambox-kappa.deployment.app/auth/verify`<br>`https://dreambox-kappa.deployment.app/auth/reset-password` |
 
 ---
 

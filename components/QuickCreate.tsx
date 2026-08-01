@@ -123,8 +123,9 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
   const gross = items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
   const vatRate = getEffectiveVatRate();
   const afterDiscount = Math.max(0, gross - (Number(discountAmount) || 0));
-  const vatAmount = hasVat ? afterDiscount * vatRate : 0;
-  const total = afterDiscount + vatAmount;
+  const total = afterDiscount;
+  const subtotal = hasVat ? afterDiscount / (1 + vatRate) : afterDiscount;
+  const vatAmount = hasVat ? total - subtotal : 0;
 
   const addItem = () => setItems(prev => [...prev, { description: '', amount: 0 }]);
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
@@ -176,7 +177,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
           unitPrice: Number(i.amount) || 0,
           amount: Number(i.amount) || 0,
         })),
-        subtotal: afterDiscount,
+        subtotal,
         discountAmount: discountAmount > 0 ? discountAmount : undefined,
         vatAmount,
         total,
@@ -211,7 +212,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
     } finally {
       setSaving(false);
     }
-  }, [docType, expenseCategory, expenseDescription, expenseAmount, expenseReference, selectedClient, items, date, expiryDate, afterDiscount, discountAmount, vatAmount, total, hasVat, notes, currentUser, onClose]);
+  }, [docType, expenseCategory, expenseDescription, expenseAmount, expenseReference, selectedClient, items, date, expiryDate, subtotal, discountAmount, vatAmount, total, hasVat, notes, currentUser, onClose]);
 
   if (!open) return null;
 
@@ -257,7 +258,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
 
         {/* Type Selector */}
         <div className="flex gap-1.5 px-6 py-4 border-b border-slate-100 shrink-0 bg-slate-50">
-          {(['Quotation', 'Invoice', 'Receipt', 'Expense'] as DocType[]).map(t => {
+          {(['Quotation', 'Invoice', 'Expense'] as DocType[]).map(t => {
             const cfg = typeConfig[t];
             const Icon = cfg.icon;
             const active = docType === t;

@@ -1,5 +1,5 @@
 /**
- * Auth Service — JWT auth via /api/auth/* endpoints (Neon PostgreSQL)
+ * Auth Service — JWT auth via /api/auth/* endpoints (application PostgreSQL)
  * Uses custom JWT auth via /api/auth/* endpoints.
  */
 

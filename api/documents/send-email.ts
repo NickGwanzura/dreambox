@@ -5,7 +5,7 @@
  *
  * Body: { documentType: 'contract' | 'invoice' | 'quotation' | 'receipt', documentId: string }
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../../lib/http';
 import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, cors, requireQuotationWritePermission } from '../../lib/auth';
@@ -28,7 +28,7 @@ function buildFromAddress(company: any): string {
   return DEFAULT_FROM;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -154,10 +154,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const summaryRows: [string, string][] = [
         ['Subtotal', `$${invoice.subtotal.toLocaleString()}`],
       ];
-      if (invoice.discountAmount && invoice.discountAmount > 0) {
+      if (invoice.discountAmount && Number(invoice.discountAmount) > 0) {
         summaryRows.push(['Discount', `-$${invoice.discountAmount.toLocaleString()}`]);
       }
-      if (invoice.vatAmount > 0) {
+      if (Number(invoice.vatAmount) > 0) {
         summaryRows.push([`VAT (${vatPctLabel})`, `$${invoice.vatAmount.toLocaleString()}`]);
       }
       summaryRows.push(['Total', `$${invoice.total.toLocaleString()}`]);

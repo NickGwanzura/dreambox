@@ -1,9 +1,9 @@
-import { api } from './apiClient';
+import { api, getToken } from './apiClient';
 
 export interface BackupManifestEntry {
   id: string;
   key: string;
-  url: string;
+  url?: string;
   createdAt: string;
   createdBy: string;
   size: number;
@@ -13,6 +13,16 @@ export interface BackupManifestEntry {
 
 export interface BackupListResponse {
   backups: BackupManifestEntry[];
+  databaseBackups: DatabaseBackupEntry[];
+}
+
+export interface DatabaseBackupEntry {
+  id: string;
+  key: string;
+  fileName: string;
+  createdAt: string;
+  size: number;
+  source: 'database';
 }
 
 export interface BackupCreateResponse {
@@ -29,6 +39,44 @@ export interface BackupRestoreResponse {
 export async function listBackups(): Promise<BackupManifestEntry[]> {
   const res = await api.get<BackupListResponse>('/api/backup');
   return res.backups || [];
+}
+
+export async function listBackupInventory(): Promise<BackupListResponse> {
+  const res = await api.get<BackupListResponse>('/api/backup');
+  return { backups: res.backups || [], databaseBackups: res.databaseBackups || [] };
+}
+
+export async function downloadBackup(
+  backup: BackupManifestEntry | DatabaseBackupEntry,
+  source: 'application' | 'database',
+): Promise<string> {
+  const token = getToken();
+  const params = new URLSearchParams({ action: 'download', source });
+  if (source === 'database') params.set('key', (backup as DatabaseBackupEntry).key);
+  else params.set('id', backup.id);
+
+  const response = await fetch(`/api/backup?${params.toString()}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Download failed' }));
+    throw new Error(error.error || 'Download failed');
+  }
+
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const quoted = disposition.match(/filename="([^"]+)"/i)?.[1];
+  const fileName = encoded ? decodeURIComponent(encoded) : quoted || `dreambox-${source}-backup`;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  return fileName;
 }
 
 export async function createBackup(): Promise<BackupManifestEntry> {

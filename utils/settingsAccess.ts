@@ -25,6 +25,15 @@ export function canDelete(user: { email?: string | null; role?: string | null } 
   return isPrivileged(user);
 }
 
+export function canWriteFinance(
+  user: { email?: string | null; role?: string | null; permissions?: { invoices?: unknown; expenses?: unknown } | null } | null | undefined,
+  feature: 'invoices' | 'expenses',
+): boolean {
+  if (!user) return false;
+  if (user.role === 'Admin' || user.role === 'Manager') return true;
+  return user.permissions?.[feature] === 'write' || isPrivileged(user);
+}
+
 export function isSystemAdmin(user: { email?: string | null } | null | undefined): boolean {
   return user?.email?.trim()?.toLowerCase() === SYSTEM_ADMIN_EMAIL;
 }

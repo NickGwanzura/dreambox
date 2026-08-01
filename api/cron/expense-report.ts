@@ -5,9 +5,9 @@
  *
  * Can be called by:
  * - Internal scheduler (server.ts setInterval)
- * - External cron service (Railway cron, cron-job.org, etc.)
+ * - External cron service (hosting platform cron, cron-job.org, etc.)
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../../lib/http';
 import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
@@ -18,7 +18,7 @@ const CRON_SECRET = process.env.CRON_SECRET || '';
 const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
 const BRIAN_EMAILS = ['chiduroobc@gmail.com', 'chiduurobc@gmail.com'];
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -51,10 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!byCategory[exp.category]) {
         byCategory[exp.category] = { total: 0, count: 0, items: [] };
       }
-      byCategory[exp.category].total += exp.amount;
+      byCategory[exp.category].total += Number(exp.amount);
       byCategory[exp.category].count += 1;
       byCategory[exp.category].items.push(exp);
-      grandTotal += exp.amount;
+      grandTotal += Number(exp.amount);
     }
 
     const catColors: Record<string, string> = {

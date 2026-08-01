@@ -3,10 +3,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LayoutDashboard, Map, Users, FileText, CreditCard, Receipt, Settings as SettingsIcon,
   Menu, X, Bell, LogOut, Printer, PieChart, Wallet, ChevronRight, CheckSquare, Wrench,
-  Database, RefreshCw, Target, FileSignature, BarChart2, Plus, Zap
+  Database, RefreshCw, Target, FileSignature, BarChart2, Plus, Zap, ShieldCheck
 } from 'lucide-react';
 import { getCurrentUser, signOut } from '../services/authService';
-import { isConfigured as isNeonConfigured, checkConnection as checkNeonConnection } from '../services/apiClient';
+import { isConfigured as isDatabaseConfigured, checkConnection as checkDatabaseConnection } from '../services/apiClient';
 import { useToast } from './ToastProvider';
 import {
   getSystemAlertCount,
@@ -20,7 +20,7 @@ import {
   onSyncError
 } from '../services/mockData';
 import { logger } from '../utils/logger';
-import { startAutoSync, useSync, forceSyncNow } from '../services/neonSyncManager';
+import { startAutoSync, useSync, forceSyncNow } from '../services/databaseSyncManager';
 import {
   ALERT_CHECK_INTERVAL_MS,
   BACKUP_INTERVAL_MS,
@@ -89,6 +89,7 @@ const ALL_SECTIONS: Section[] = [
     items: [
       { id: 'analytics',    label: 'Profit & Analytics',    icon: PieChart,  roles: ['Admin', 'Manager'] },
       { id: 'intelligence', label: 'Business Intelligence', icon: BarChart2, roles: ['Admin', 'Manager'] },
+      { id: 'director-finance', label: 'Director Finance', icon: ShieldCheck, roles: ['Admin', 'Manager'] },
     ],
   },
   {
@@ -150,12 +151,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   useEffect(() => {
     const handler = (e: Event) => {
       const { type } = (e as CustomEvent).detail as { type: DocType };
+      if (type === 'Receipt') {
+        onNavigate('payments');
+        setSidebarOpen(false);
+        return;
+      }
       setQuickCreateType(type || 'Quotation');
       setQuickCreateOpen(true);
     };
     window.addEventListener('quick-create', handler);
     return () => window.removeEventListener('quick-create', handler);
-  }, []);
+  }, [onNavigate]);
 
   // Body scroll lock when sidebar is open on mobile
   useEffect(() => {
@@ -233,14 +239,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     runMaintenanceCheck();
 
     const initializeDatabaseState = async () => {
-      if (!isNeonConfigured()) {
+      if (!isDatabaseConfigured()) {
         if (isMounted) setDbConnected(false);
         return;
       }
-      const connected = await checkNeonConnection();
+      const connected = await checkDatabaseConnection();
       if (!isMounted) return;
       setDbConnected(connected);
-      if (!connected) logger.warn('Neon is configured but not reachable; running in offline mode');
+      if (!connected) logger.warn('The application database is configured but not reachable.');
     };
 
     initializeDatabaseState();

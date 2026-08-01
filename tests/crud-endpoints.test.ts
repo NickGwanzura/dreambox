@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../lib/http';
 
 // ─── Shared mocks ────────────────────────────────────────────────────────────
 
@@ -52,11 +52,11 @@ process.env.AWS_SECRET_ACCESS_KEY = 'test';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function mockReq(overrides: Partial<VercelRequest> = {}): VercelRequest {
+function mockReq(overrides: Partial<HttpRequest> = {}): HttpRequest {
   return { method: 'POST', headers: {}, body: {}, query: {}, cookies: {}, ...overrides } as any;
 }
 
-function mockRes(): VercelResponse & { _status: number; _json: any } {
+function mockRes(): HttpResponse & { _status: number; _json: any } {
   let _status = 0, _json: any = null;
   const res: any = {
     get _status() { return _status; },

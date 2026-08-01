@@ -4,8 +4,8 @@
 --
 -- Apply this BEFORE deploying code that adds linkedInvoiceId to
 -- prisma/schema.prisma, e.g.:
---   railway run npx prisma db execute --file prisma/migrations/add_linked_invoice_id.sql --schema prisma/schema.prisma
--- or run the ALTER below directly in the Railway Postgres console.
+--   npx prisma db execute --file prisma/migrations/add_linked_invoice_id.sql --schema prisma/schema.prisma
+-- or run the ALTER below directly in the active PostgreSQL console.
 
 ALTER TABLE "invoices"
   ADD COLUMN IF NOT EXISTS "linkedInvoiceId" TEXT;

@@ -5,7 +5,7 @@
  * Triggered by the internal scheduler in server.ts at the MAINTENANCE_END time.
  * Secured by CRON_SECRET header.
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../../lib/http';
 import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
@@ -14,7 +14,7 @@ import { log } from '../../lib/serverLogger.js';
 const resend = new Resend(process.env.RESEND_API_KEY);
 const CRON_SECRET = process.env.CRON_SECRET || '';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

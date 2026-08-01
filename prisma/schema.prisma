@@ -200,16 +200,31 @@ model Invoice {
   contractId          String?
   clientId            String
   date                String
+  dueDate             String?
   items               Json
-  subtotal            Float
-  discountAmount      Float?
+  subtotal            Decimal       @db.Decimal(18, 2)
+  discountAmount      Decimal?      @db.Decimal(18, 2)
   discountDescription String?
-  vatAmount           Float
-  total               Float
+  vatAmount           Decimal       @db.Decimal(18, 2)
+  total               Decimal       @db.Decimal(18, 2)
   status              InvoiceStatus @default(Pending)
   type                InvoiceType   @default(Invoice)
   paymentMethod       String?
   paymentReference    String?
+  // Forensic payment evidence (required by API for newly posted receipts)
+  receivedBy          String?
+  receivedByUserId    String?
+  receivingAccount    String?
+  proofPaymentUrl     String?
+  proofOriginalName   String?
+  proofMimeType       String?
+  proofUploadedAt     DateTime?
+  recordedAt          DateTime?
+  postedAt            DateTime?
+  isVoided            Boolean       @default(false)
+  voidReason          String?
+  voidedAt            DateTime?
+  voidedBy            String?
   // Receipt→invoice link (replaces parsing the line-item description)
   linkedInvoiceId     String?
   // Quotation-specific fields
@@ -234,14 +249,37 @@ model Invoice {
   @@index([quoteStatus])
   @@index([createdBy])
   @@index([linkedInvoiceId])
+  @@index([isVoided])
+  @@index([paymentReference])
   @@map("invoices")
+}
+
+// Allocation journal. It is separate from the legacy Receipt document so the
+// same payment can eventually be allocated across multiple invoices without
+// rewriting either source document.
+model PaymentAllocation {
+  id          String   @id @default(uuid())
+  receiptId   String
+  invoiceId   String
+  amount      Decimal  @db.Decimal(18, 2)
+  allocatedBy String
+  allocatedAt DateTime @default(now())
+  isReversed  Boolean  @default(false)
+  reversedAt  DateTime?
+  reversedBy  String?
+  reason      String?
+
+  @@unique([receiptId, invoiceId])
+  @@index([receiptId])
+  @@index([invoiceId])
+  @@map("payment_allocations")
 }
 
 model Expense {
   id          String          @id @default(uuid())
   category    ExpenseCategory
   description String
-  amount      Float
+  amount      Decimal         @db.Decimal(18, 2)
   date        String
   reference   String?
   createdAt   DateTime        @default(now())
@@ -508,6 +546,11 @@ model AuditLog {
   userEmail String?
   tableName String?
   recordId  String?
+  beforeData Json?
+  afterData  Json?
+  requestId  String?
+  ipAddress  String?
+  userAgent  String?
   createdAt DateTime @default(now())
 
   @@index([tableName])

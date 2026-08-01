@@ -1,6 +1,6 @@
 /**
- * Neon Sync Manager
- * Handles pulling remote data into localStorage while respecting the deleted queue.
+ * Database Sync Manager
+ * Handles pulling API data into localStorage while respecting the deleted queue.
  * Individual CRUD functions in mockData.ts push changes to the API directly;
  * this module handles the reverse — importing remote records on each sync cycle.
  */
@@ -23,18 +23,18 @@ export const getLastSyncTime = () => lastSyncTime;
 export const getPendingSyncCount = () => 0;
 export const isCurrentlySyncing = () => isSyncing;
 
-export const syncRecordToNeon = async (): Promise<{ success: boolean; error?: string }> => {
+export const syncRecordToDatabase = async (): Promise<{ success: boolean; error?: string }> => {
   return { success: true };
 };
 
-export const pushAllToNeon = async (): Promise<{
+export const pushAllToDatabase = async (): Promise<{
   success: boolean;
   results: Record<string, { synced: number; failed: number; errors: string[] }>;
 }> => {
   return { success: true, results: {} };
 };
 
-export const pullAllFromNeon = async (): Promise<{
+export const pullAllFromDatabase = async (): Promise<{
   success: boolean;
   results: Record<string, { count: number; error?: string }>;
 }> => {
@@ -136,7 +136,7 @@ export const stopAutoSync = () => {
 export const forceSyncNow = async (): Promise<boolean> => {
   if (!isConfigured()) return true;
   try {
-    await pullAllFromNeon();
+    await pullAllFromDatabase();
   } catch (e) {
     logger.error('Force sync failed:', e);
   }

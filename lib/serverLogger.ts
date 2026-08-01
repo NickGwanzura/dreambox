@@ -1,5 +1,5 @@
 /**
- * Server-side logger for Railway/Node.js
+ * Server-side logger for hosting platform/Node.js
  * Structured, colorful console output with timestamps and log levels.
  */
 

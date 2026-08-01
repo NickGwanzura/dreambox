@@ -5,7 +5,7 @@ import { generateExpensesPDF } from '../services/pdfGenerator';
 import { Printer, TrendingDown, Plus, BarChart3, Scissors, Droplets, Zap, User, X, Save, Download, Trash2, AlertTriangle, Search } from 'lucide-react';
 import { PrintingJob, Expense } from '../types';
 import { getCurrentUser } from '../services/authServiceSecure';
-import { canDelete } from '../utils/settingsAccess';
+import { canDelete, canWriteFinance } from '../utils/settingsAccess';
 
 const MinimalInput = ({ label, value, onChange, type = "text", placeholder }: any) => (
   <div className="group relative">
@@ -24,6 +24,7 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
 
 export const Expenses: React.FC = () => {
   const canUserDelete = canDelete(getCurrentUser());
+  const canUserWrite = canWriteFinance(getCurrentUser(), 'expenses');
   const [activeTab, setActiveTab] = useState<'General' | 'Printing' | 'Reports'>('General');
   const [generalExpenses, setGeneralExpenses] = useState<Expense[]>(getExpenses());
   const [isAddJobModalOpen, setIsAddJobModalOpen] = useState(false);
@@ -116,11 +117,11 @@ export const Expenses: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div><h2 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 mb-2">Expenses & Production</h2><p className="text-slate-900 font-medium">Internal cost tracking, printing jobs, and profitability analysis</p></div>
           <div className="flex gap-2">
-              {activeTab === 'Printing' && (<button onClick={() => setIsAddJobModalOpen(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"><Plus size={16} /> New Print Job</button>)}
+              {activeTab === 'Printing' && canUserWrite && (<button onClick={() => setIsAddJobModalOpen(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"><Plus size={16} /> New Print Job</button>)}
               {activeTab === 'General' && (
                   <div className="flex gap-2">
                       <button onClick={() => generateExpensesPDF(generalExpenses)} className="bg-slate-100 text-slate-900 px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-200 transition-all flex items-center gap-2"><Download size={16} /> PDF Report</button>
-                      <button onClick={() => setIsAddExpenseModalOpen(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"><Plus size={16} /> New Expense</button>
+                      {canUserWrite && <button onClick={() => setIsAddExpenseModalOpen(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"><Plus size={16} /> New Expense</button>}
                   </div>
               )}
               {activeTab === 'Reports' && (<button onClick={exportExpenseReport} className="bg-slate-100 text-slate-900 px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-200 transition-all flex items-center gap-2"><Download size={16} /> Export CSV</button>)}

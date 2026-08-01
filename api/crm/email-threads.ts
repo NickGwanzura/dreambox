@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { HttpRequest, HttpResponse } from '../../lib/http';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
@@ -18,7 +18,7 @@ const emailThreadSchema = z.object({
   replyCount: z.number().int().optional(),
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   const payload = await requireAuth(req, res);

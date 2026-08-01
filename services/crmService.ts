@@ -135,7 +135,7 @@ const storageKeyMap: Record<keyof CRMState, string> = {
   callLogs: STORAGE_KEYS.CRM_CALL_LOGS,
 };
 
-// Persist to storage and optionally sync to Neon
+// Persist to storage and optionally sync to application database
 const persist = (key: keyof CRMState, data: any[], changedRecord?: any) => {
   const storageKey = storageKeyMap[key];
   if (storageKey) {

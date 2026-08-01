@@ -1,13 +1,13 @@
 /**
  * Storage & Sync Module
- * Centralized exports for storage and Neon API sync functionality
+ * Centralized exports for storage and application database API sync functionality
  */
 
-// Core Neon API helpers
+// Core application database API helpers
 export {
   // Connection
-  checkNeonHealth,
-  waitForNeon,
+  checkDatabaseHealth,
+  waitForDatabase,
 
   // Legacy aliases (deprecated)
   checkSupabaseHealth,
@@ -27,7 +27,7 @@ export {
   type SyncOptions,
   type SyncResult,
   type RealtimeCallbacks,
-} from './neonHelpers';
+} from './databaseHelpers';
 
 // Local storage helpers
 export {
@@ -41,8 +41,8 @@ export {
 
 // Re-export API client
 export {
-  isConfigured as isNeonConfigured,
-  checkConnection as checkNeonConnection,
+  isConfigured as isDatabaseConfigured,
+  checkConnection as checkDatabaseConnection,
   // Legacy aliases (deprecated)
   isConfigured as isSupabaseConfigured,
   checkConnection as checkSupabaseConnection,

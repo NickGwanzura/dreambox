@@ -16,27 +16,31 @@ import {
   Archive,
   Trash2,
   RotateCcw,
+  FileArchive,
+  LockKeyhole,
 } from 'lucide-react';
 import { useToast } from './ToastProvider';
 import {
-  checkNeonHealth,
+  checkDatabaseHealth,
   getDatabaseStats,
   exportAllData,
 } from '../services/storage';
 import {
   useSync,
   forceSyncNow,
-  pullAllFromNeon,
-  pushAllToNeon,
-} from '../services/neonSyncManager';
+  pullAllFromDatabase,
+  pushAllToDatabase,
+} from '../services/databaseSyncManager';
 import {
-  listBackups,
+  listBackupInventory,
   createBackup,
   deleteBackup,
   restoreBackup,
+  downloadBackup,
   formatBytes,
   formatBackupDate,
   type BackupManifestEntry,
+  type DatabaseBackupEntry,
 } from '../services/backupService';
 import { logger } from '../utils/logger';
 
@@ -51,6 +55,9 @@ export const DataSyncManager: React.FC = () => {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isRestoringFromCloud, setIsRestoringFromCloud] = useState(false);
   const [backups, setBackups] = useState<BackupManifestEntry[]>([]);
+  const [databaseBackups, setDatabaseBackups] = useState<DatabaseBackupEntry[]>([]);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [backupsLoading, setBackupsLoading] = useState(true);
   const [dbStats, setDbStats] = useState<{ tables: Record<string, number>; totalRecords: number } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<{ configured: boolean; connected: boolean; error?: string } | null>(null);
 
@@ -61,16 +68,21 @@ export const DataSyncManager: React.FC = () => {
   }, []);
 
   const loadBackups = useCallback(async () => {
+    setBackupsLoading(true);
     try {
-      const list = await listBackups();
-      setBackups(list);
+      const inventory = await listBackupInventory();
+      setBackups(inventory.backups);
+      setDatabaseBackups(inventory.databaseBackups);
     } catch (e: any) {
       logger.error('[DataSyncManager] Failed to load backups', e.message);
+      showToast('Backup inventory could not be loaded: ' + (e.message || 'Unknown error'), 'error');
+    } finally {
+      setBackupsLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   const checkConnection = async () => {
-    const health = await checkNeonHealth();
+    const health = await checkDatabaseHealth();
     setConnectionStatus(health);
   };
 
@@ -92,12 +104,12 @@ export const DataSyncManager: React.FC = () => {
 
   const handlePullFromCloud = async () => {
     setIsPulling(true);
-    showToast('Pulling data from Neon...', 'info');
+    showToast('Pulling data from the application database...', 'info');
 
-    const result = await pullAllFromNeon();
+    const result = await pullAllFromDatabase();
 
     if (result.success) {
-      showToast('Pulled data from Neon. Reloading...', 'success');
+      showToast('Pulled data from the application database. Reloading...', 'success');
       window.location.reload();
     } else {
       const failedTables = Object.entries(result.results)
@@ -114,13 +126,13 @@ export const DataSyncManager: React.FC = () => {
 
   const handlePushToCloud = async () => {
     setIsPushing(true);
-    showToast('Pushing all local data to Neon...', 'info');
+    showToast('Pushing local data to the application database...', 'info');
 
-    const result = await pushAllToNeon();
+    const result = await pushAllToDatabase();
 
     if (result.success) {
       const totalSynced = Object.values(result.results).reduce((a, b) => a + b.synced, 0);
-      showToast(`Pushed ${totalSynced} records to Neon`, 'success');
+      showToast(`Pushed ${totalSynced} records to the application database`, 'success');
     } else {
       const totalFailed = Object.values(result.results).reduce((a, b) => a + b.failed, 0);
       showToast(`Push completed with ${totalFailed} failure(s). Check logs.`, 'error');
@@ -178,22 +190,18 @@ export const DataSyncManager: React.FC = () => {
     }
   };
 
-  const handleDownloadBackup = async (backup: BackupManifestEntry) => {
+  const handleDownloadBackup = async (
+    backup: BackupManifestEntry | DatabaseBackupEntry,
+    source: 'application' | 'database',
+  ) => {
+    setDownloadingId(backup.id);
     try {
-      const res = await fetch(backup.url);
-      if (!res.ok) throw new Error('Download failed');
-      const json = await res.text();
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = backup.key.split('/').pop() || `dreambox-backup-${backup.id}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const fileName = await downloadBackup(backup, source);
+      showToast(`${fileName} downloaded`, 'success');
     } catch (e: any) {
       showToast('Download failed: ' + (e.message || 'Unknown error'), 'error');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -261,14 +269,14 @@ export const DataSyncManager: React.FC = () => {
           <h3 className={`text-lg font-bold ${
             connectionStatus?.connected ? 'text-emerald-800' : 'text-amber-800'
           }`}>
-            {connectionStatus?.connected ? 'Neon Database Connected' : 'Neon Database Disconnected'}
+            {connectionStatus?.connected ? 'Application Database Connected' : 'Application Database Disconnected'}
           </h3>
           <p className={`text-sm ${
             connectionStatus?.connected ? 'text-emerald-600' : 'text-amber-600'
           }`}>
             {connectionStatus?.connected
               ? '100% persistence active. Data syncs every 30 seconds.'
-              : connectionStatus?.error || 'Check your Neon database configuration'}
+              : connectionStatus?.error || 'Check your application database configuration'}
           </p>
         </div>
         {connectionStatus?.connected && (
@@ -342,8 +350,8 @@ export const DataSyncManager: React.FC = () => {
         >
           <Download className={`w-5 h-5 text-indigo-500 ${isPulling ? 'animate-bounce' : ''}`} />
           <div className="text-left">
-            <div className="text-sm font-bold">Pull from Neon</div>
-            <div className="text-xs text-slate-900">Neon &rarr; Local</div>
+            <div className="text-sm font-bold">Pull from Database</div>
+            <div className="text-xs text-slate-900">Database &rarr; Local</div>
           </div>
         </button>
 
@@ -354,8 +362,8 @@ export const DataSyncManager: React.FC = () => {
         >
           <Upload className={`w-5 h-5 text-indigo-500 ${isPushing ? 'animate-bounce' : ''}`} />
           <div className="text-left">
-            <div className="text-sm font-bold">Push to Neon</div>
-            <div className="text-xs text-slate-900">Local &rarr; Neon</div>
+            <div className="text-sm font-bold">Push to Database</div>
+            <div className="text-xs text-slate-900">Local &rarr; Database</div>
           </div>
         </button>
 
@@ -383,7 +391,7 @@ export const DataSyncManager: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Database className="w-5 h-5 text-slate-900" />
-            <h3 className="text-lg font-bold text-slate-800">Neon Database Statistics</h3>
+            <h3 className="text-lg font-bold text-slate-800">Database Statistics</h3>
           </div>
           <button
             onClick={loadStats}
@@ -451,15 +459,15 @@ export const DataSyncManager: React.FC = () => {
           <ul className="text-sm text-slate-300 space-y-3">
             <li className="flex items-start gap-3">
               <span className="text-indigo-400 mt-1">&bull;</span>
-              <span><strong className="text-white">Neon is the source of truth</strong> &mdash; All data is stored permanently in your Neon PostgreSQL database</span>
+              <span><strong className="text-white">The application database is the source of truth</strong> &mdash; Financial records are stored server-side in PostgreSQL.</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-indigo-400 mt-1">&bull;</span>
-              <span><strong className="text-white">Auto-sync every 30 seconds</strong> &mdash; Local changes are automatically pushed to Neon</span>
+              <span><strong className="text-white">Auto-refresh</strong> &mdash; The interface periodically refreshes server-authoritative records.</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-indigo-400 mt-1">&bull;</span>
-              <span><strong className="text-white">Prisma ORM</strong> &mdash; Type-safe database access via Vercel API functions</span>
+              <span><strong className="text-white">Prisma ORM</strong> &mdash; Type-safe database access via deployment platform API functions</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-indigo-400 mt-1">&bull;</span>
@@ -469,90 +477,200 @@ export const DataSyncManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Cloud Backups */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Cloud className="w-5 h-5 text-blue-500" />
-            <h3 className="text-lg font-bold text-slate-800">Cloud Backups (R2)</h3>
+      {/* Backup Center */}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="backup-center-title">
+        <div className="border-b border-slate-200 bg-slate-950 px-5 py-5 text-white sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-blue-500/15 p-2.5 text-blue-300">
+                <LockKeyhole className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <h3 id="backup-center-title" className="text-lg font-bold">Backup Center</h3>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-300">
+                  Download human-readable application exports or full PostgreSQL recovery snapshots. Every download is recorded in the audit log.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={loadBackups}
+                disabled={backupsLoading}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${backupsLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                Refresh
+              </button>
+              <button
+                onClick={handleCreateBackup}
+                disabled={isBackingUp}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Archive className={`h-4 w-4 ${isBackingUp ? 'animate-pulse' : ''}`} aria-hidden="true" />
+                {isBackingUp ? 'Creating…' : 'Create application backup'}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={loadBackups}
-              className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-50"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-            <button
-              onClick={handleCreateBackup}
-              disabled={isBackingUp}
-              className="flex items-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-medium px-4 py-1.5 rounded-lg transition-all"
-            >
-              <Archive className={`w-4 h-4 ${isBackingUp ? 'animate-pulse' : ''}`} />
-              {isBackingUp ? 'Creating...' : 'Create Backup'}
-            </button>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Application exports</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums">{backups.length}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Database snapshots</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums">{databaseBackups.length}</p>
+            </div>
+            <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">Access</p>
+              <p className="mt-1 text-sm font-bold text-emerald-100">Administrator only</p>
+            </div>
           </div>
         </div>
 
-        {backups.length === 0 ? (
-          <div className="text-center text-slate-900 py-8 bg-slate-50 rounded-xl border border-slate-100">
-            No cloud backups yet. Click "Create Backup" to store a full snapshot in R2.
+        <div className="space-y-8 p-5 sm:p-6">
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <FileArchive className="h-5 w-5 text-blue-600" aria-hidden="true" />
+              <div>
+                <h4 className="font-bold text-slate-900">Database recovery snapshots</h4>
+                <p className="text-xs text-slate-600">Compressed PostgreSQL backups for disaster recovery and independent custody.</p>
+              </div>
+            </div>
+            <BackupTableEmptyOrLoading
+              loading={backupsLoading}
+              empty={databaseBackups.length === 0}
+              emptyMessage="No database snapshot is visible yet. The scheduled backup job will place snapshots here."
+            >
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="min-w-[680px] w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Snapshot</th>
+                      <th className="px-4 py-3">Created</th>
+                      <th className="px-4 py-3">Size</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 text-right">Download</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {databaseBackups.map(backup => (
+                      <tr key={backup.id} className="transition-colors hover:bg-slate-50">
+                        <td className="max-w-[280px] truncate px-4 py-3 font-mono text-xs font-semibold text-slate-800" title={backup.fileName}>{backup.fileName}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">{formatBackupDate(backup.createdAt)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700">{formatBytes(backup.size)}</td>
+                        <td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Available</span></td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleDownloadBackup(backup, 'database')}
+                            disabled={downloadingId === backup.id}
+                            aria-label={`Download database snapshot ${backup.fileName}`}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
+                          >
+                            <Download className="h-4 w-4" aria-hidden="true" />
+                            {downloadingId === backup.id ? 'Downloading…' : 'Download'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </BackupTableEmptyOrLoading>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-900 border-b border-slate-100">
-                  <th className="pb-3 font-medium">Date</th>
-                  <th className="pb-3 font-medium">Records</th>
-                  <th className="pb-3 font-medium">Size</th>
-                  <th className="pb-3 font-medium">Created By</th>
-                  <th className="pb-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {backups.map(backup => (
-                  <tr key={backup.id} className="group">
-                    <td className="py-3 text-slate-800">{formatBackupDate(backup.createdAt)}</td>
-                    <td className="py-3 text-slate-800">{backup.recordCount.toLocaleString()}</td>
-                    <td className="py-3 text-slate-800">{formatBytes(backup.size)}</td>
-                    <td className="py-3 text-slate-800">{backup.createdBy}</td>
-                    <td className="py-3 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100">
-                        <button
-                          onClick={() => handleDownloadBackup(backup)}
-                          title="Download"
-                          className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleRestoreBackup(backup)}
-                          disabled={isRestoringFromCloud}
-                          title="Restore"
-                          className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg disabled:opacity-40"
-                        >
-                          <RotateCcw className={`w-4 h-4 ${isRestoringFromCloud ? 'animate-spin' : ''}`} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteBackup(backup)}
-                          title="Delete"
-                          className="p-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <Database className="h-5 w-5 text-indigo-600" aria-hidden="true" />
+              <div>
+                <h4 className="font-bold text-slate-900">Application data exports</h4>
+                <p className="text-xs text-slate-600">Readable JSON exports with record counts and the staff member who created them.</p>
+              </div>
+            </div>
+            <BackupTableEmptyOrLoading
+              loading={backupsLoading}
+              empty={backups.length === 0}
+              emptyMessage="No application exports yet. Create one to capture the current business records."
+            >
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="min-w-[760px] w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Created</th>
+                      <th className="px-4 py-3">Records</th>
+                      <th className="px-4 py-3">Size</th>
+                      <th className="px-4 py-3">Created by</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {backups.map(backup => (
+                      <tr key={backup.id} className="transition-colors hover:bg-slate-50">
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-800">{formatBackupDate(backup.createdAt)}</td>
+                        <td className="px-4 py-3 tabular-nums text-slate-700">{backup.recordCount.toLocaleString()}</td>
+                        <td className="px-4 py-3 tabular-nums text-slate-700">{formatBytes(backup.size)}</td>
+                        <td className="px-4 py-3 text-slate-700">{backup.createdBy}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleDownloadBackup(backup, 'application')}
+                              disabled={downloadingId === backup.id}
+                              aria-label={`Download application backup from ${formatBackupDate(backup.createdAt)}`}
+                              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
+                            >
+                              <Download className="h-4 w-4" aria-hidden="true" />
+                              Download
+                            </button>
+                            <button
+                              onClick={() => handleRestoreBackup(backup)}
+                              disabled={isRestoringFromCloud}
+                              aria-label={`Restore application backup from ${formatBackupDate(backup.createdAt)}`}
+                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-40"
+                              title="Restore"
+                            >
+                              <RotateCcw className={`h-4 w-4 ${isRestoringFromCloud ? 'animate-spin' : ''}`} aria-hidden="true" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBackup(backup)}
+                              aria-label={`Delete application backup from ${formatBackupDate(backup.createdAt)}`}
+                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </BackupTableEmptyOrLoading>
           </div>
-        )}
-      </div>
+        </div>
+      </section>
     </div>
   );
+};
+
+const BackupTableEmptyOrLoading: React.FC<{
+  loading: boolean;
+  empty: boolean;
+  emptyMessage: string;
+  children: React.ReactNode;
+}> = ({ loading, empty, emptyMessage, children }) => {
+  if (loading) {
+    return (
+      <div className="flex min-h-28 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-600" role="status">
+        <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+        Loading backups…
+      </div>
+    );
+  }
+  if (empty) {
+    return <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm text-slate-600">{emptyMessage}</div>;
+  }
+  return <>{children}</>;
 };
 
 export default DataSyncManager;

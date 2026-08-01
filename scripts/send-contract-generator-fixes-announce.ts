@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-// Snapshot of active users taken via psql (Prisma adapter was dropping the Neon
+// Snapshot of active users taken via psql (Prisma adapter was dropping the application database
 // connection on cold starts this session — bypassing the ORM for this send).
 const RECIPIENTS: { email: string; firstName: string }[] = [
   { email: 'chiduroobc@gmail.com', firstName: 'Brian' },

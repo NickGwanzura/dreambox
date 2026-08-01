@@ -55,8 +55,8 @@ export const CRM: React.FC = () => {
   const [showPdfMenu, setShowPdfMenu] = useState(false);
   
   const { showToast } = useToast();
-  // Load shared data from Neon on mount, then subscribe to local changes
-  // Subscribe to local changes; cloud sync happens automatically every 30s via neonSyncManager
+  // Load shared data from application database on mount, then subscribe to local changes
+  // Subscribe to local changes; cloud sync happens automatically every 30s via databaseSyncManager
   useEffect(() => {
     const unsubscribe = subscribe(() => {
       setRefreshKey(k => k + 1);

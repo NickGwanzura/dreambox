@@ -1,5 +1,5 @@
 /**
- * API Client — Neon PostgreSQL via /api/* Vercel functions with JWT auth.
+ * API Client — application PostgreSQL via /api/* deployment platform functions with JWT auth.
  * Handles token storage, 401 detection, and automatic sign-out on expiry.
  */
 

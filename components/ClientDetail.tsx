@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Client, Contract, Invoice } from '../types';
 import {
-  getInvoices, getContracts, getBillboards, addInvoice, subscribe, markInvoiceAsPaid, deleteInvoice, getEffectiveVatRate,
+  getInvoices, getContracts, getBillboards, addInvoice, subscribe, deleteInvoice, getEffectiveVatRate,
 } from '../services/mockData';
 import { generateInvoicePDF } from '../services/pdfGenerator';
 import { splitInclusiveVat, formatVatPercent } from '../services/constants';
@@ -271,12 +271,12 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
                           <Download size={14} />
                         </button>
                         {doc.type === 'Invoice' && doc.status !== 'Paid' && (
-                          <button onClick={async () => { try { await markInvoiceAsPaid(doc.id); } catch (e: any) { alert(`Failed: ${e?.message || 'Server error. Please try again.'}`); } }} title="Mark as paid" className="p-2 text-slate-900 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors">
+                          <button onClick={() => alert('Open Payments to record this receipt. Receiver, reference, receiving account and bank proof must be captured there.')} title="Record payment with audit evidence" className="p-2 text-slate-900 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors">
                             <CheckCircle size={14} />
                           </button>
                         )}
                         {canUserDelete && (
-                          <button onClick={async () => { if (confirm(`Delete ${doc.type} ${doc.id}?`)) { try { await deleteInvoice(doc.id); } catch (e: any) { alert(`Failed: ${e?.message || 'Server error. Please try again.'}`); } } }} title="Delete" className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
+                          <button onClick={async () => { const reason = prompt(`Void ${doc.type} ${doc.id}? Enter the audit reason:`); if (reason) { try { await deleteInvoice(doc.id, reason); } catch (e: any) { alert(`Failed: ${e?.message || 'Server error. Please try again.'}`); } } }} title="Void with audit trail" className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
                             <Trash2 size={14} />
                           </button>
                         )}

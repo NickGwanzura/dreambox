@@ -24,4 +24,4 @@ View your app in AI Studio: https://ai.studio/apps/drive/1ywfDf4-VW_WND9-XAilYdd
 
 ## AI Setup
 
-The app's AI features call the server-side proxy at [`api/ai.ts`](/Users/itai/Desktop/SYS/dreambox/api/ai.ts), which expects `GROQ_API_KEY` to be available in the environment. On Vercel, add `GROQ_API_KEY` to your production environment before deploying.
+The app's AI features call the server-side proxy at `api/ai.ts`, which expects `GROQ_API_KEY` to be available in the active deployment environment.

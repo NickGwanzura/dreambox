@@ -1,5 +1,5 @@
 /**
- * Supabase → Neon migration script
+ * Supabase → application database migration script
  * Run with: npx tsx scripts/migrate-from-supabase.ts
  */
 import 'dotenv/config';
@@ -616,7 +616,7 @@ async function migrateCRMCallLogs(): Promise<number> {
 
 async function main() {
   console.log('='.repeat(60));
-  console.log('Dreambox: Supabase → Neon Migration');
+  console.log('Dreambox: Supabase → application database Migration');
   console.log('='.repeat(60));
 
   if (!process.env.DATABASE_URL) {

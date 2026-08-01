@@ -182,7 +182,7 @@ export const Dashboard: React.FC = () => {
     }).length;
 
     // Total Revenue (all invoices)
-    const totalRevenue = invoices.filter(i => typeIs(i.type, 'Invoice')).reduce((s, i) => s + (i.total ?? 0), 0);
+    const totalRevenue = invoices.filter(i => typeIs(i.type, 'Invoice')).reduce((s, i) => s + (Number(i.subtotal) || 0), 0);
 
     // Gross Profit & COGS from profit analytics
     const gp = getGrossProfit();

@@ -17,19 +17,19 @@ The anon key looks like:
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpcGhpaWdha3N5c2hpb25qaG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTIzNDU2NzgsImV4cCI6MjAyNzkyMTY3OH0.xxxxxxxx
 ```
 
-### Step 2: Update Environment Variable in Vercel
+### Step 2: Update Environment Variable in deployment platform
 
 ```bash
 # Remove the old key
-npx vercel env rm NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY production
+npx deployment env rm NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY production
 
 # Add the correct anon key
-npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
+npx deployment env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
 # Paste the eyJhbGciOiJIUzI1Ni... key when prompted
 ```
 
-Or via Vercel Dashboard:
-1. https://vercel.com/dashboard
+Or via deployment platform Dashboard:
+1. https://deployment.com/dashboard
 2. Select your project
 3. Settings → Environment Variables
 4. Delete `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
@@ -38,7 +38,7 @@ Or via Vercel Dashboard:
 ### Step 3: Redeploy
 
 ```bash
-npx vercel --prod
+npx deployment --prod
 ```
 
 ## Where to Find the Anon Key
@@ -114,12 +114,12 @@ CREATE POLICY "Allow all" ON company_profile FOR ALL USING (true) WITH CHECK (tr
 
 ```bash
 # Check current env vars
-npx vercel env ls
+npx deployment env ls
 
 # Fix the key
-npx vercel env rm NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY production -y
-npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
+npx deployment env rm NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY production -y
+npx deployment env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
 
 # Redeploy
-npx vercel --prod
+npx deployment --prod
 ```

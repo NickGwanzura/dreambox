@@ -1,6 +1,6 @@
 /**
  * Database-backed rate limiter (Postgres via Prisma).
- * Works across Vercel serverless invocations.
+ * Works across deployment platform serverless invocations.
  */
 
 import { prisma } from './prisma.js';
