@@ -2,6 +2,14 @@ import type { HttpRequest, HttpResponse } from '../lib/http';
 import { prisma } from '../lib/prisma';
 import { requireAuth, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { z } from 'zod';
+
+const clientEventSchema = z.object({
+  action: z.string().trim().min(1).max(120),
+  details: z.string().trim().min(1).max(2000),
+  tableName: z.string().trim().max(120).optional().nullable(),
+  recordId: z.string().trim().max(200).optional().nullable(),
+});
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
@@ -20,18 +28,20 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     }
 
     if (req.method === 'POST') {
-      const { action, details, tableName, recordId } = req.body ?? {};
-      if (!action || !details) {
-        return res.status(400).json({ error: 'action and details are required' });
-      }
+      const parsed = clientEventSchema.safeParse(req.body ?? {});
+      if (!parsed.success) return res.status(400).json({ error: 'Valid action and details are required' });
+      const { action, details, tableName, recordId } = parsed.data;
       const row = await prisma.auditLog.create({
         data: {
-          action,
+          action: `CLIENT_REPORTED: ${action}`,
           details,
           userId: payload.userId,
           userEmail: payload.email,
           tableName: tableName || null,
           recordId: recordId || null,
+          source: 'CLIENT_REPORTED',
+          ipAddress: req.ip || null,
+          userAgent: req.headers['user-agent'] || null,
         },
       });
       return res.status(201).json(row);

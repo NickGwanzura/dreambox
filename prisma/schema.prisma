@@ -242,6 +242,8 @@ model Invoice {
   assignedTo          String?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+  receiptAllocations  PaymentAllocation[] @relation("ReceiptAllocations")
+  invoiceAllocations  PaymentAllocation[] @relation("InvoiceAllocations")
 
   @@index([clientId])
   @@index([contractId])
@@ -268,6 +270,8 @@ model PaymentAllocation {
   reversedAt  DateTime?
   reversedBy  String?
   reason      String?
+  receipt     Invoice  @relation("ReceiptAllocations", fields: [receiptId], references: [id], onDelete: Restrict)
+  invoice     Invoice  @relation("InvoiceAllocations", fields: [invoiceId], references: [id], onDelete: Restrict)
 
   @@unique([receiptId, invoiceId])
   @@index([receiptId])
@@ -551,11 +555,15 @@ model AuditLog {
   requestId  String?
   ipAddress  String?
   userAgent  String?
+  source    String   @default("SERVER")
+  previousHash String?
+  eventHash String?
   createdAt DateTime @default(now())
 
   @@index([tableName])
   @@index([recordId])
   @@index([createdAt])
+  @@index([source])
   @@map("audit_logs")
 }
 

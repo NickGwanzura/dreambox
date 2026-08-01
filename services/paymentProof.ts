@@ -1,4 +1,4 @@
-import { api } from './apiClient';
+import { api, getToken } from './apiClient';
 
 export interface UploadedPaymentProof {
   url: string;
@@ -30,6 +30,21 @@ export async function uploadPaymentProof(file: File): Promise<UploadedPaymentPro
     dataUrl: await readAsDataUrl(file),
     originalName: file.name,
   });
+}
+
+export async function openPaymentProof(receiptId: string): Promise<void> {
+  const token = getToken();
+  const response = await fetch(`/api/payment-proof?receiptId=${encodeURIComponent(receiptId)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Could not open proof of payment' }));
+    throw new Error(error.error || 'Could not open proof of payment');
+  }
+  const objectUrl = URL.createObjectURL(await response.blob());
+  const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+  if (!opened) URL.revokeObjectURL(objectUrl);
+  else window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
 export function isBankPaymentMethod(method: unknown): boolean {

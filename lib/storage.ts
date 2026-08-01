@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const bucket = process.env.R2_BUCKET_NAME || '';
 const publicUrl = process.env.R2_PUBLIC_URL || '';
@@ -80,3 +80,18 @@ export async function deleteFile(key: string): Promise<void> {
   );
 }
 
+export function storageKeyFromUrl(value: string, requiredPrefix?: string): string {
+  const parsed = new URL(value);
+  let key = decodeURIComponent(parsed.pathname).replace(/^\/+/, '');
+  if (key.startsWith(`${bucket}/`)) key = key.slice(bucket.length + 1);
+  if (!key || key.includes('..') || (requiredPrefix && !key.startsWith(`${requiredPrefix}/`))) {
+    throw new Error('Invalid storage object path');
+  }
+  return key;
+}
+
+export async function getStoredFile(key: string) {
+  if (!s3 || !bucket) throw new Error('Object storage is not configured');
+  if (!key || key.includes('..')) throw new Error('Invalid storage object path');
+  return s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+}

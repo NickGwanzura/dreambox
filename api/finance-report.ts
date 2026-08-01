@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { cors, requireManagerOrAdmin } from '../lib/auth';
 import { buildForensicFinanceReport } from '../services/forensicFinance';
+import { createHash, randomUUID } from 'node:crypto';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const querySchema = z.object({
@@ -29,7 +30,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     const expenses = expenseRows.map(row => ({ ...row, amount: Number(row.amount) })) as any;
     const report = buildForensicFinanceReport(invoices, clientRows as any, expenses, new Date(`${parsed.data.endDate}T23:59:59Z`));
     const inPeriod = (date: string) => date >= parsed.data.startDate && date <= parsed.data.endDate;
-    return res.status(200).json({
+    const generatedAt = new Date().toISOString();
+    const reportId = randomUUID();
+    const response = {
       ...report,
       period: {
         startDate: parsed.data.startDate,
@@ -40,7 +43,36 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         cashCollected: report.receipts.filter(receipt => inPeriod(receipt.date)).reduce((sum, receipt) => sum + Number(receipt.total), 0),
       },
       generatedBy: payload.email,
+      generatedAt,
+      reportId,
+      basis: {
+        revenue: 'Accrual basis from active posted invoices; VAT shown separately.',
+        collections: 'Cash basis from active posted receipts.',
+        expenses: 'Expense-date basis within the selected period.',
+        aging: `Outstanding balances as at ${parsed.data.endDate}.`,
+      },
+    };
+    const reportHash = createHash('sha256').update(JSON.stringify(response)).digest('hex');
+    await prisma.auditLog.create({
+      data: {
+        action: 'FINANCE_REPORT_GENERATED',
+        details: `Forensic director report ${reportId} generated for ${parsed.data.startDate} to ${parsed.data.endDate}; SHA-256 ${reportHash}`,
+        userId: payload.userId,
+        userEmail: payload.email,
+        tableName: 'finance_reports',
+        recordId: reportId,
+        afterData: {
+          reportHash,
+          startDate: parsed.data.startDate,
+          endDate: parsed.data.endDate,
+          totals: response.totals,
+          exceptionCount: response.exceptions.length,
+        },
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+      },
     });
+    return res.status(200).json({ ...response, reportHash });
   } catch (error: any) {
     return res.status(500).json({ error: 'Could not generate the forensic financial report.', detail: process.env.NODE_ENV === 'development' ? error?.message : undefined });
   }

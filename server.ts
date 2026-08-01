@@ -166,6 +166,7 @@ async function registerRoutes() {
   const backup             = await import('./api/backup.js');
   const uploadImage        = await import('./api/upload-image.js');
   const uploadPaymentProof = await import('./api/upload-payment-proof.js');
+  const paymentProof       = await import('./api/payment-proof.js');
   const logoProxy          = await import('./api/logo-proxy.js');
 
   app.all('/api/billboards',            adapt(billboards,          'billboards'));
@@ -188,6 +189,7 @@ async function registerRoutes() {
   app.all('/api/company-profile',       adapt(companyProf,         'company-profile'));
   app.all('/api/upload-image',          adapt(uploadImage,         'upload-image'));
   app.all('/api/upload-payment-proof',  adapt(uploadPaymentProof,  'upload-payment-proof'));
+  app.all('/api/payment-proof',         adapt(paymentProof,        'payment-proof'));
   app.all('/api/logo-proxy',            adapt(logoProxy,           'logo-proxy'));
   app.all('/api/users',                 adapt(users,               'users'));
   app.all('/api/ai',                    adapt(ai,                  'ai'));

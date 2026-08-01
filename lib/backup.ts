@@ -4,7 +4,6 @@ import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-s
 import { Readable } from 'stream';
 
 const BUCKET = process.env.R2_BUCKET_NAME || '';
-const PUBLIC_URL = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
 const MANIFEST_KEY = 'backups/manifest.json';
 const DATABASE_BACKUP_PREFIX = (process.env.DATABASE_BACKUP_PREFIX || 'dreambox-postgres-db-9cy1yw/database-backups/dreambox-production')
   .replace(/^\/+|\/+$/g, '');
@@ -47,10 +46,9 @@ export interface DatabaseBackupEntry {
 export type BackupRecord = Record<string, any[]>;
 
 const BACKUP_TABLES = [
-  { name: 'users', model: 'user' as const, key: 'users' as const },
-  { name: 'login_history', model: 'loginHistory' as const, key: 'loginHistory' as const },
-  { name: 'password_reset_tokens', model: 'passwordResetToken' as const, key: 'passwordResetTokens' as const },
-  { name: 'rate_limits', model: 'rateLimit' as const, key: 'rateLimits' as const },
+  // Human-readable exports intentionally exclude credentials, password-reset
+  // tokens, login history and rate-limit internals. Full database snapshots
+  // remain available separately for disaster recovery.
   { name: 'billboards', model: 'billboard' as const, key: 'billboards' as const },
   { name: 'clients', model: 'client' as const, key: 'clients' as const },
   { name: 'contracts', model: 'contract' as const, key: 'contracts' as const },
@@ -70,7 +68,6 @@ const BACKUP_TABLES = [
   { name: 'crm_tasks', model: 'cRMTask' as const, key: 'crmTasks' as const },
   { name: 'crm_email_threads', model: 'cRMEmailThread' as const, key: 'crmEmailThreads' as const },
   { name: 'crm_call_logs', model: 'cRMCallLog' as const, key: 'crmCallLogs' as const },
-  { name: 'audit_logs', model: 'auditLog' as const, key: 'auditLogs' as const },
   { name: 'product_services', model: 'productService' as const, key: 'productServices' as const },
   { name: 'quotation_events', model: 'quotationEvent' as const, key: 'quotationEvents' as const },
 ];
@@ -105,7 +102,6 @@ async function saveManifest(entries: BackupManifestEntry[]): Promise<void> {
       Key: MANIFEST_KEY,
       Body: Buffer.from(JSON.stringify(entries, null, 2)),
       ContentType: 'application/json',
-      ACL: 'public-read',
     })
   );
 }
@@ -289,10 +285,6 @@ async function restoreFromData(data: BackupRecord): Promise<{ restored: number; 
 
   // Order matters for referential integrity: dependencies before dependants.
   const order = [
-    'users',
-    'loginHistory',
-    'passwordResetTokens',
-    'rateLimits',
     'billboards',
     'clients',
     'companyProfile',
@@ -314,7 +306,6 @@ async function restoreFromData(data: BackupRecord): Promise<{ restored: number; 
     'crmCallLogs',
     'productServices',
     'quotationEvents',
-    'auditLogs',
   ];
 
   for (const key of order) {
