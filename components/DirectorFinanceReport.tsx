@@ -60,6 +60,14 @@ const recordIdsForException = (recordId: unknown) =>
     .map((value) => value.trim())
     .filter(Boolean);
 
+type DisplayInvoiceStatus = "Paid" | "Unpaid" | "Overdue";
+
+const displayInvoiceStatus = (row: any, asOf: string): DisplayInvoiceStatus => {
+  if (Number(row?.balance || 0) <= 0.01) return "Paid";
+  const dueDate = String(row?.invoice?.dueDate || row?.invoice?.date || "");
+  return dueDate && dueDate < asOf ? "Overdue" : "Unpaid";
+};
+
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const csv = rows
     .map((row) =>
@@ -500,6 +508,16 @@ export const DirectorFinanceReport: React.FC = () => {
     return { findings, invoiceFindings };
   }, [data.report]);
 
+  const invoiceStatusSummary = useMemo(() => {
+    const summary = { Paid: 0, Unpaid: 0, Overdue: 0, overdueBalance: 0 };
+    for (const row of data.report.invoices || []) {
+      const status = displayInvoiceStatus(row, endDate);
+      summary[status] += 1;
+      if (status === "Overdue") summary.overdueBalance += Number(row.balance || 0);
+    }
+    return summary;
+  }, [data.report.invoices, endDate]);
+
   const clients = useMemo(() => {
     const map = new Map<
       string,
@@ -584,7 +602,7 @@ export const DirectorFinanceReport: React.FC = () => {
         row.balance,
         row.lastPaymentDate || "",
         row.agingBucket,
-        row.invoice.status,
+        displayInvoiceStatus(row, endDate),
       ]),
       [],
       ["EXCEPTIONS"],
@@ -708,6 +726,30 @@ export const DirectorFinanceReport: React.FC = () => {
           included until reviewed.
         </p>
       </div>
+
+      <section aria-label="Invoice status alerts" className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-900">
+          <AlertTriangle size={17} className="text-red-600" aria-hidden="true" />
+          Invoice status alerts
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+            <span className="font-black">{invoiceStatusSummary.Overdue} overdue</span>
+            <span className="block mt-1">{fmt(invoiceStatusSummary.overdueBalance)} requires collection or documented correction.</span>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <span className="font-black">{invoiceStatusSummary.Unpaid} unpaid</span>
+            <span className="block mt-1">Open balance not yet past its due date.</span>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+            <span className="font-black">{invoiceStatusSummary.Paid} paid</span>
+            <span className="block mt-1">Balance is fully settled by valid linked receipts.</span>
+          </div>
+        </div>
+        <p className="mt-3 text-[11px] leading-4 text-slate-500">
+          Alerts do not delete invoices or change revenue. If an overdue invoice is erroneous, void or correct it with an approved reason so the audit trail remains intact.
+        </p>
+      </section>
 
       {verification.findings.length > 0 && (
         <section
@@ -886,6 +928,9 @@ export const DirectorFinanceReport: React.FC = () => {
                         <span className="font-bold flex gap-2 items-center flex-wrap">
                           <FileSearch size={14} />
                           {row.invoice.id}
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${displayInvoiceStatus(row, endDate) === "Paid" ? "bg-emerald-100 text-emerald-800" : displayInvoiceStatus(row, endDate) === "Overdue" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>
+                            {displayInvoiceStatus(row, endDate)}
+                          </span>
                           {verification.invoiceFindings.has(row.invoice.id) && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">
                               <AlertTriangle size={11} aria-hidden="true" />
