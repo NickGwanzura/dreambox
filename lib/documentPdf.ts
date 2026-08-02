@@ -6,6 +6,16 @@
  * headless-browser overhead.
  */
 import PDFDocument from 'pdfkit';
+import path from 'path';
+
+const GEIST_FONT_DIR = path.join(process.cwd(), 'public', 'fonts');
+function configureGeist(doc: PDFKit.PDFDocument): void {
+  doc.registerFont('Geist Sans', path.join(GEIST_FONT_DIR, 'Geist-Regular.ttf'));
+  doc.registerFont('Geist Sans Bold', path.join(GEIST_FONT_DIR, 'Geist-Bold.ttf'));
+  doc.registerFont('Geist Sans Italic', path.join(GEIST_FONT_DIR, 'Geist-Italic.ttf'));
+  doc.registerFont('Geist Sans SemiBold', path.join(GEIST_FONT_DIR, 'Geist-SemiBold.ttf'));
+  doc.font('Geist Sans');
+}
 
 export type CompanyProfileLite = {
   name?: string | null;
@@ -118,7 +128,7 @@ function drawHeader(doc: PDFKit.PDFDocument, company: CompanyProfileLite, title:
     try { doc.image(logoBuf, left, top, { fit: [150, 70] }); } catch { /* ignore broken logo */ }
   }
 
-  doc.fillColor(INK).font('Helvetica-Bold').fontSize(18)
+  doc.fillColor(INK).font('Geist Sans Bold').fontSize(18)
     .text(company.name || 'Company', left + (logoBuf ? 164 : 0), top + 4);
 
   const lines = [
@@ -131,11 +141,11 @@ function drawHeader(doc: PDFKit.PDFDocument, company: CompanyProfileLite, title:
     company.regNumber ? `Reg: ${company.regNumber}` : null,
   ].filter(Boolean) as string[];
 
-  doc.font('Helvetica').fontSize(9).fillColor(MUTE);
+  doc.font('Geist Sans').fontSize(9).fillColor(MUTE);
   lines.forEach((l, i) => doc.text(l, left + (logoBuf ? 164 : 0), top + 26 + i * 11));
 
   // Title on the right
-  doc.font('Helvetica-Bold').fontSize(22).fillColor(ACCENT)
+  doc.font('Geist Sans Bold').fontSize(22).fillColor(ACCENT)
     .text(title.toUpperCase(), 350, top, { width: 210, align: 'right' });
 
   // Divider
@@ -147,7 +157,7 @@ function drawHeader(doc: PDFKit.PDFDocument, company: CompanyProfileLite, title:
 function drawFooter(doc: PDFKit.PDFDocument, company: CompanyProfileLite) {
   const bottom = 770;
   doc.strokeColor(LINE).lineWidth(0.5).moveTo(50, bottom).lineTo(560, bottom).stroke();
-  doc.font('Helvetica').fontSize(8).fillColor(SOFT)
+  doc.font('Geist Sans').fontSize(8).fillColor(SOFT)
     .text(
       `${company.name || 'Company'}${company.website ? ' · ' + company.website : ''}${company.supportEmail ? ' · ' + company.supportEmail : ''}`,
       50, bottom + 6, { width: 510, align: 'center' }
@@ -155,8 +165,8 @@ function drawFooter(doc: PDFKit.PDFDocument, company: CompanyProfileLite) {
 }
 
 function kvRow(doc: PDFKit.PDFDocument, label: string, value: string, y: number) {
-  doc.font('Helvetica').fontSize(9).fillColor(MUTE).text(label, 50, y);
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(INK).text(value, 150, y);
+  doc.font('Geist Sans').fontSize(9).fillColor(MUTE).text(label, 50, y);
+  doc.font('Geist Sans Bold').fontSize(10).fillColor(INK).text(value, 150, y);
 }
 
 // ── Invoice / Quotation / Receipt PDF ───────────────────────────────────────
@@ -168,15 +178,16 @@ export async function buildInvoicePdf(
 ): Promise<Buffer> {
   const typeLabel = String(invoice.type || 'Invoice');
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  configureGeist(doc);
   const done = collect(doc);
 
   drawHeader(doc, company, typeLabel);
 
   // Meta panel (left: bill-to; right: doc details)
   const metaY = doc.y;
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(MUTE).text('BILL TO', 50, metaY);
-  doc.font('Helvetica-Bold').fontSize(12).fillColor(INK).text(client.companyName, 50, metaY + 14);
-  doc.font('Helvetica').fontSize(9).fillColor(MUTE);
+  doc.font('Geist Sans Bold').fontSize(10).fillColor(MUTE).text('BILL TO', 50, metaY);
+  doc.font('Geist Sans Bold').fontSize(12).fillColor(INK).text(client.companyName, 50, metaY + 14);
+  doc.font('Geist Sans').fontSize(9).fillColor(MUTE);
   const billLines = [client.contactPerson, client.email, client.phone, client.address].filter(Boolean) as string[];
   billLines.forEach((l, i) => doc.text(l, 50, metaY + 30 + i * 11));
 
@@ -192,14 +203,14 @@ export async function buildInvoicePdf(
   // Items table
   const tableTop = doc.y;
   const col = { desc: 50, amount: 480 };
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(MUTE)
+  doc.font('Geist Sans Bold').fontSize(9).fillColor(MUTE)
     .text('DESCRIPTION', col.desc, tableTop)
     .text('AMOUNT', col.amount, tableTop, { width: 80, align: 'right' });
   doc.moveTo(50, tableTop + 14).lineTo(560, tableTop + 14).strokeColor(LINE).stroke();
 
   const items: any[] = Array.isArray(invoice.items) ? invoice.items : [];
   let y = tableTop + 22;
-  doc.font('Helvetica').fontSize(10).fillColor(INK);
+  doc.font('Geist Sans').fontSize(10).fillColor(INK);
   items.forEach(item => {
     const desc = String(item.description ?? '');
     const amt = Number(item.amount ?? 0);
@@ -214,10 +225,10 @@ export async function buildInvoicePdf(
 
   // Totals
   const totalRow = (label: string, value: string, bold = false) => {
-    doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 12 : 10)
+    doc.font(bold ? 'Geist Sans Bold' : 'Geist Sans').fontSize(bold ? 12 : 10)
       .fillColor(bold ? INK : MUTE)
       .text(label, 370, y, { width: 100, align: 'right' });
-    doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 12 : 10).fillColor(INK)
+    doc.font(bold ? 'Geist Sans Bold' : 'Geist Sans').fontSize(bold ? 12 : 10).fillColor(INK)
       .text(value, 480, y, { width: 80, align: 'right' });
     y += bold ? 18 : 14;
   };
@@ -233,9 +244,9 @@ export async function buildInvoicePdf(
   // Payment method (for receipts / paid invoices)
   if (invoice.paymentMethod) {
     y += 10;
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(MUTE).text('PAYMENT', 50, y);
+    doc.font('Geist Sans Bold').fontSize(10).fillColor(MUTE).text('PAYMENT', 50, y);
     y += 14;
-    doc.font('Helvetica').fontSize(9).fillColor(INK).text(`Method: ${invoice.paymentMethod}`, 50, y);
+    doc.font('Geist Sans').fontSize(9).fillColor(INK).text(`Method: ${invoice.paymentMethod}`, 50, y);
     if (invoice.paymentReference) { y += 12; doc.text(`Reference: ${invoice.paymentReference}`, 50, y); }
     y += 14;
   }
@@ -243,9 +254,9 @@ export async function buildInvoicePdf(
   // Banking / payment terms (skip for receipts)
   if (typeLabel.toLowerCase() !== 'receipt' && (company.bankName || company.bankAccountNumber || company.paymentTerms)) {
     y += 14;
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(MUTE).text('PAYMENT DETAILS', 50, y);
+    doc.font('Geist Sans Bold').fontSize(10).fillColor(MUTE).text('PAYMENT DETAILS', 50, y);
     y += 14;
-    doc.font('Helvetica').fontSize(9).fillColor(INK);
+    doc.font('Geist Sans').fontSize(9).fillColor(INK);
     const bankLines = [
       company.bankName ? `Bank: ${company.bankName}` : null,
       company.bankAccountName ? `Account Name: ${company.bankAccountName}` : null,
@@ -256,7 +267,7 @@ export async function buildInvoicePdf(
     bankLines.forEach(l => { doc.text(l, 50, y); y += 12; });
     if (company.paymentTerms) {
       y += 4;
-      doc.font('Helvetica-Oblique').fontSize(9).fillColor(MUTE).text(company.paymentTerms, 50, y, { width: 510 });
+      doc.font('Geist Sans Italic').fontSize(9).fillColor(MUTE).text(company.paymentTerms, 50, y, { width: 510 });
     }
   }
 
@@ -275,14 +286,15 @@ export async function buildContractPdf(
   company: CompanyProfileLite
 ): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  configureGeist(doc);
   const done = collect(doc);
 
   drawHeader(doc, company, 'Contract');
 
   const metaY = doc.y;
-  doc.font('Helvetica-Bold').fontSize(10).fillColor(MUTE).text('CLIENT', 50, metaY);
-  doc.font('Helvetica-Bold').fontSize(12).fillColor(INK).text(client.companyName, 50, metaY + 14);
-  doc.font('Helvetica').fontSize(9).fillColor(MUTE);
+  doc.font('Geist Sans Bold').fontSize(10).fillColor(MUTE).text('CLIENT', 50, metaY);
+  doc.font('Geist Sans Bold').fontSize(12).fillColor(INK).text(client.companyName, 50, metaY + 14);
+  doc.font('Geist Sans').fontSize(9).fillColor(MUTE);
   const billLines = [client.contactPerson, client.email, client.phone, client.address].filter(Boolean) as string[];
   billLines.forEach((l, i) => doc.text(l, 50, metaY + 30 + i * 11));
 
@@ -307,16 +319,16 @@ export async function buildContractPdf(
 
   let y = doc.y;
   rows.forEach(([k, v]) => {
-    doc.font('Helvetica').fontSize(10).fillColor(MUTE).text(k, 50, y);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(INK).text(v, 200, y);
+    doc.font('Geist Sans').fontSize(10).fillColor(MUTE).text(k, 50, y);
+    doc.font('Geist Sans Bold').fontSize(10).fillColor(INK).text(v, 200, y);
     y += 18;
   });
 
   y += 10;
   doc.moveTo(50, y).lineTo(560, y).strokeColor(LINE).stroke();
   y += 12;
-  doc.font('Helvetica-Bold').fontSize(14).fillColor(INK).text('TOTAL CONTRACT VALUE', 50, y);
-  doc.font('Helvetica-Bold').fontSize(14).fillColor(ACCENT).text(money(contract.totalContractValue), 400, y, { width: 160, align: 'right' });
+  doc.font('Geist Sans Bold').fontSize(14).fillColor(INK).text('TOTAL CONTRACT VALUE', 50, y);
+  doc.font('Geist Sans Bold').fontSize(14).fillColor(ACCENT).text(money(contract.totalContractValue), 400, y, { width: 160, align: 'right' });
 
   drawFooter(doc, company);
   doc.end();

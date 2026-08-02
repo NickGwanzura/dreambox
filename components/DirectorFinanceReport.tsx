@@ -22,11 +22,43 @@ import type { Invoice } from "../types";
 import { api } from "../services/apiClient";
 import { openPaymentProof } from "../services/paymentProof";
 import { jsPDF } from "jspdf";
+import { useGeistSans } from "../services/pdfFonts";
 
 const fmt = (value: number) =>
   `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = new Date().toISOString().slice(0, 10);
 const yearStart = `${new Date().getFullYear()}-01-01`;
+
+const verificationLabels: Record<string, string> = {
+  ORPHAN_PAYMENT: "Orphan payment",
+  FALSE_PAID_STATUS: "False-paid invoice",
+  EXACT_DUPLICATE: "Exact duplicate invoice candidate",
+  EXACT_DUPLICATE_INVOICE: "Exact duplicate invoice candidate",
+  PROBABLE_DUPLICATE: "Probable duplicate invoice candidate",
+  PROBABLE_DUPLICATE_INVOICE: "Probable duplicate invoice candidate",
+  MISSING_RECEIVER: "Missing receiver evidence",
+  MISSING_REFERENCE: "Missing payment reference",
+  MISSING_BANK_PROOF: "Missing payment proof",
+  MISSING_BANK_ACCOUNT: "Missing receiving account",
+  PENDING_RECEIPT_REVIEW: "Unverified payment awaiting review",
+  REJECTED_RECEIPT: "Rejected payment",
+};
+
+const verificationLabel = (code: unknown) => {
+  const normalized = String(code || "").toUpperCase();
+  return (
+    verificationLabels[normalized] ||
+    (normalized.includes("DUPLICATE")
+      ? `${normalized.startsWith("EXACT") ? "Exact" : "Probable"} duplicate invoice candidate`
+      : "Ledger exception requiring verification")
+  );
+};
+
+const recordIdsForException = (recordId: unknown) =>
+  String(recordId || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const csv = rows
@@ -89,7 +121,7 @@ type DirectorFinancePdfArgs = {
  * intentionally assembled from the already-loaded data; it does not fetch,
  * mutate, or expose payment proof URLs.
  */
-function downloadDirectorFinancePdf({
+async function downloadDirectorFinancePdf({
   report,
   clients,
   startDate,
@@ -100,6 +132,7 @@ function downloadDirectorFinancePdf({
   periodCollected,
 }: DirectorFinancePdfArgs) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  await useGeistSans(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = { left: 12, right: 12, top: 14, bottom: 18 };
@@ -125,7 +158,7 @@ function downloadDirectorFinancePdf({
 
   const sectionHeading = (title: string) => {
     ensureRoom(18);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Geist Sans", "bold");
     doc.setFontSize(11);
     doc.setTextColor(15, 23, 42);
     doc.text(title, margin.left, cursorY);
@@ -146,7 +179,7 @@ function downloadDirectorFinancePdf({
       body: body.length ? body : [["No records"]],
       theme: "grid",
       styles: {
-        font: "helvetica",
+        font: "Geist Sans",
         fontSize: 7,
         cellPadding: 1.7,
         overflow: "linebreak",
@@ -168,12 +201,12 @@ function downloadDirectorFinancePdf({
 
   // Cover metadata: these fields are also present in the CSV export and are
   // retained here so an offline/local report is explicit about its provenance.
-  doc.setFont("helvetica", "bold");
+  doc.setFont("Geist Sans", "bold");
   doc.setFontSize(19);
   doc.setTextColor(15, 23, 42);
   doc.text("Director Financial Report", margin.left, cursorY);
   cursorY += 7;
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Geist Sans", "normal");
   doc.setFontSize(9);
   doc.setTextColor(71, 85, 105);
   doc.text(`Reporting period: ${startDate} – ${endDate}`, margin.left, cursorY);
@@ -182,11 +215,11 @@ function downloadDirectorFinancePdf({
   cursorY += 5;
   doc.text(`As of: ${reportAsOf}`, margin.left, cursorY);
   cursorY += 5;
-  doc.setFont("helvetica", "bold");
+  doc.setFont("Geist Sans", "bold");
   doc.setTextColor(15, 23, 42);
   doc.text(`Report ID: ${reportId}`, margin.left, cursorY);
   cursorY += 5;
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Geist Sans", "normal");
   doc.text(`SHA-256: ${reportHash}`, margin.left, cursorY);
   cursorY += 10;
 
@@ -347,7 +380,7 @@ function downloadDirectorFinancePdf({
     doc.setPage(page);
     doc.setDrawColor(203, 213, 225);
     doc.line(margin.left, pageHeight - 12, pageWidth - margin.right, pageHeight - 12);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Geist Sans", "normal");
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
     doc.text("Dreambox · Director Financial Report", margin.left, pageHeight - 7);
@@ -415,6 +448,57 @@ export const DirectorFinanceReport: React.FC = () => {
     );
     return { report, periodInvoices, periodReceipts };
   }, [version, startDate, endDate, remoteReport]);
+
+  const verification = useMemo(() => {
+    const exceptions = Array.isArray(data.report?.exceptions)
+      ? data.report.exceptions
+      : [];
+    const invoiceRows = Array.isArray(data.report?.invoices)
+      ? data.report.invoices
+      : [];
+    const invoiceIds = new Set(
+      invoiceRows.map((row: any) => String(row?.invoice?.id || "")),
+    );
+    const receiptToInvoice = new Map<string, string>();
+    const receiptRows = [
+      ...(Array.isArray(data.report?.receipts) ? data.report.receipts : []),
+      ...(Array.isArray(data.report?.reviewReceipts)
+        ? data.report.reviewReceipts
+        : []),
+    ];
+    receiptRows.forEach((receipt: any) => {
+      const receiptId = String(receipt?.id || "");
+      const linkedInvoiceId = String(receipt?.linkedInvoiceId || "");
+      if (receiptId && linkedInvoiceId) {
+        receiptToInvoice.set(receiptId, linkedInvoiceId);
+      }
+    });
+    const invoiceFindings = new Map<string, any[]>();
+
+    const findings = exceptions.map((item: any) => {
+      const recordIds = recordIdsForException(item?.recordId);
+      const relatedInvoiceIds = [
+        ...new Set(
+          recordIds.flatMap((recordId) => {
+            if (invoiceIds.has(recordId)) return [recordId];
+            const linkedInvoiceId = receiptToInvoice.get(recordId);
+            return linkedInvoiceId && invoiceIds.has(linkedInvoiceId)
+              ? [linkedInvoiceId]
+              : [];
+          }),
+        ),
+      ];
+      relatedInvoiceIds.forEach((invoiceId) => {
+        invoiceFindings.set(invoiceId, [
+          ...(invoiceFindings.get(invoiceId) || []),
+          item,
+        ]);
+      });
+      return { item, recordIds, relatedInvoiceIds };
+    });
+
+    return { findings, invoiceFindings };
+  }, [data.report]);
 
   const clients = useMemo(() => {
     const map = new Map<
@@ -565,7 +649,7 @@ export const DirectorFinanceReport: React.FC = () => {
             <Download size={15} /> CSV
           </button>
           <button
-            onClick={() =>
+            onClick={async () =>
               downloadDirectorFinancePdf({
                 report: data.report,
                 clients,
@@ -609,6 +693,87 @@ export const DirectorFinanceReport: React.FC = () => {
           </div>
         ))}
       </div>
+
+      <div
+        aria-label="Outstanding balance methodology"
+        className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600"
+      >
+        <p>
+          <span className="font-black text-slate-800">
+            How outstanding is calculated:
+          </span>{" "}
+          Outstanding is the gross balance on active invoices as of the report
+          date. Valid linked receipts reduce that balance; orphan or unverified
+          payments are not auto-applied, and duplicate candidates remain
+          included until reviewed.
+        </p>
+      </div>
+
+      {verification.findings.length > 0 && (
+        <section
+          aria-labelledby="director-finance-verification-heading"
+          className="rounded-2xl border border-amber-200 bg-amber-50/60 overflow-hidden"
+        >
+          <div className="p-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-amber-800">
+                <AlertTriangle size={18} aria-hidden="true" />
+                <h2
+                  id="director-finance-verification-heading"
+                  className="font-black"
+                >
+                  Verification required
+                </h2>
+              </div>
+              <p className="text-xs text-amber-900/80 mt-1 max-w-3xl">
+                These invoice and payment records need a human check before
+                they can be treated as settled or removed as duplicates.
+              </p>
+            </div>
+            <span className="rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-xs font-black whitespace-nowrap">
+              {verification.findings.length} finding
+              {verification.findings.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="border-t border-amber-200 divide-y divide-amber-200/70">
+            {verification.findings.map(
+              ({ item, recordIds, relatedInvoiceIds }: any, index: number) => (
+                <div
+                  key={`${item?.code || "finding"}-${item?.recordId || index}-${index}`}
+                  className="px-5 py-3 text-xs text-slate-800"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={
+                        item?.severity === "critical"
+                          ? "font-black uppercase text-red-700"
+                          : "font-black uppercase text-amber-800"
+                      }
+                    >
+                      {String(item?.severity || "warning")}
+                    </span>
+                    <span className="rounded-full bg-white/80 border border-amber-200 px-2 py-0.5 font-bold text-amber-900">
+                      {verificationLabel(item?.code)}
+                    </span>
+                    {relatedInvoiceIds.map((invoiceId: string) => (
+                      <span
+                        key={invoiceId}
+                        className="rounded-full bg-amber-100 px-2 py-0.5 font-mono text-amber-900"
+                      >
+                        Invoice {invoiceId}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-1">
+                    <b>{recordIds.join(", ") || "Unidentified record"}</b>
+                    {item?.message ? ` — ${item.message}` : ""}
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
+        </section>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
@@ -702,7 +867,11 @@ export const DirectorFinanceReport: React.FC = () => {
                   {client.invoices.map((row) => (
                     <div
                       key={row.invoice.id}
-                      className="bg-white border rounded-xl"
+                      className={`bg-white border rounded-xl ${
+                        verification.invoiceFindings.has(row.invoice.id)
+                          ? "border-amber-300 ring-1 ring-amber-200"
+                          : ""
+                      }`}
                     >
                       <button
                         onClick={() =>
@@ -714,9 +883,15 @@ export const DirectorFinanceReport: React.FC = () => {
                         }
                         className="w-full grid grid-cols-[1fr_repeat(4,120px)] gap-2 p-3 text-left text-xs"
                       >
-                        <span className="font-bold flex gap-2 items-center">
+                        <span className="font-bold flex gap-2 items-center flex-wrap">
                           <FileSearch size={14} />
                           {row.invoice.id}
+                          {verification.invoiceFindings.has(row.invoice.id) && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                              <AlertTriangle size={11} aria-hidden="true" />
+                              Verification required
+                            </span>
+                          )}
                         </span>
                         <span>{row.invoice.date}</span>
                         <span>Due {row.invoice.dueDate || "—"}</span>

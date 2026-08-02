@@ -22,6 +22,7 @@ import {
 } from './crmService';
 import { scoreAllLeads, getScoringSummary } from './leadScoring';
 import { formatCurrency } from '../utils/sanitizers';
+import { useGeistSans } from './pdfFonts';
 
 // ==========================================
 // PDF CONFIGURATION
@@ -62,6 +63,7 @@ export const generatePipelineReport = async (): Promise<void> => {
   const metrics = getCRMPipelineMetrics();
   
   const doc = new jsPDF();
+  await useGeistSans(doc);
   let y = PDF_CONFIG.margins.top;
   
   // Header
@@ -88,9 +90,9 @@ export const generatePipelineReport = async (): Promise<void> => {
     doc.setTextColor(PDF_CONFIG.colors.slate);
     doc.text(label, PDF_CONFIG.margins.left, y);
     doc.setTextColor(PDF_CONFIG.colors.dark);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont("Geist Sans", 'bold');
     doc.text(value, PDF_CONFIG.margins.left + 50, y);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont("Geist Sans", 'normal');
     y += 7;
   });
   
@@ -151,11 +153,11 @@ export const generatePipelineReport = async (): Promise<void> => {
       
       doc.setFontSize(PDF_CONFIG.fonts.body);
       doc.setTextColor(PDF_CONFIG.colors.primary);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont("Geist Sans", 'bold');
       doc.text(`${index + 1}. ${company?.name || 'Unknown Company'}`, PDF_CONFIG.margins.left, y);
       y += 6;
       
-      doc.setFont('helvetica', 'normal');
+      doc.setFont("Geist Sans", 'normal');
       doc.setTextColor(PDF_CONFIG.colors.dark);
       doc.setFontSize(PDF_CONFIG.fonts.small);
       
@@ -177,9 +179,9 @@ export const generatePipelineReport = async (): Promise<void> => {
     if (opportunities.length > 20) {
       doc.setFontSize(PDF_CONFIG.fonts.small);
       doc.setTextColor(PDF_CONFIG.colors.slate);
-      doc.setFont('helvetica', 'italic');
+      doc.setFont("Geist Sans", 'italic');
       doc.text(`... and ${opportunities.length - 20} more opportunities`, PDF_CONFIG.margins.left, y);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont("Geist Sans", 'normal');
     }
   }
   
@@ -200,6 +202,7 @@ export const generateLeadScoringReport = async (): Promise<void> => {
   const summary = getScoringSummary();
   
   const doc = new jsPDF();
+  await useGeistSans(doc);
   let y = PDF_CONFIG.margins.top;
   
   // Header
@@ -225,9 +228,9 @@ export const generateLeadScoringReport = async (): Promise<void> => {
     doc.setTextColor(PDF_CONFIG.colors.slate);
     doc.text(label, PDF_CONFIG.margins.left, y);
     doc.setTextColor(PDF_CONFIG.colors.dark);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont("Geist Sans", 'bold');
     doc.text(value, PDF_CONFIG.margins.left + 50, y);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont("Geist Sans", 'normal');
     y += 7;
   });
   
@@ -334,6 +337,7 @@ export const generateOutreachReport = async (): Promise<void> => {
   const metrics = getCRMPipelineMetrics();
   
   const doc = new jsPDF();
+  await useGeistSans(doc);
   let y = PDF_CONFIG.margins.top;
   
   // Header
@@ -360,9 +364,9 @@ export const generateOutreachReport = async (): Promise<void> => {
     doc.setTextColor(PDF_CONFIG.colors.slate);
     doc.text(label, PDF_CONFIG.margins.left, y);
     doc.setTextColor(PDF_CONFIG.colors.dark);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont("Geist Sans", 'bold');
     doc.text(value, PDF_CONFIG.margins.left + 50, y);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont("Geist Sans", 'normal');
     y += 7;
   });
   
@@ -434,6 +438,7 @@ export const generateOpportunityReport = async (opportunityId: string): Promise<
   const tasks = getTasksByOpportunity(opportunityId);
   
   const doc = new jsPDF();
+  await useGeistSans(doc);
   let y = PDF_CONFIG.margins.top;
   
   // Header
@@ -493,9 +498,9 @@ export const generateOpportunityReport = async (opportunityId: string): Promise<
     doc.setTextColor(PDF_CONFIG.colors.slate);
     doc.text(label, PDF_CONFIG.margins.left, y);
     doc.setTextColor(PDF_CONFIG.colors.dark);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont("Geist Sans", 'bold');
     doc.text(value, PDF_CONFIG.margins.left + 40, y);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont("Geist Sans", 'normal');
     y += 6;
   });
   
@@ -524,9 +529,9 @@ export const generateOpportunityReport = async (opportunityId: string): Promise<
       doc.text(date, PDF_CONFIG.margins.left, y);
       
       doc.setTextColor(PDF_CONFIG.colors.primary);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont("Geist Sans", 'bold');
       doc.text(tp.type.replace(/_/g, ' ').toUpperCase(), PDF_CONFIG.margins.left + 25, y);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont("Geist Sans", 'normal');
       
       if (tp.outcome) {
         doc.setTextColor(PDF_CONFIG.colors.dark);
@@ -566,10 +571,10 @@ function addHeader(doc: jsPDF, title: string, y: number): number {
   
   doc.setFontSize(PDF_CONFIG.fonts.header);
   doc.setTextColor(PDF_CONFIG.colors.dark);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("Geist Sans", 'bold');
   doc.text('Dreambox', PDF_CONFIG.margins.left + 15, y);
   
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("Geist Sans", 'normal');
   doc.setTextColor(PDF_CONFIG.colors.slate);
   doc.setFontSize(PDF_CONFIG.fonts.small);
   doc.text('Billboard Advertising Platform', PDF_CONFIG.margins.left + 15, y + 5);
@@ -577,13 +582,13 @@ function addHeader(doc: jsPDF, title: string, y: number): number {
   // Title
   doc.setFontSize(PDF_CONFIG.fonts.header);
   doc.setTextColor(PDF_CONFIG.colors.dark);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("Geist Sans", 'bold');
   doc.text(title, PDF_CONFIG.margins.left, y + 20);
   
   // Date
   doc.setFontSize(PDF_CONFIG.fonts.small);
   doc.setTextColor(PDF_CONFIG.colors.slate);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("Geist Sans", 'normal');
   doc.text(`Generated: ${new Date().toLocaleString()}`, PDF_CONFIG.margins.left, y + 28);
   
   // Line
@@ -597,14 +602,14 @@ function addHeader(doc: jsPDF, title: string, y: number): number {
 function addSectionHeader(doc: jsPDF, title: string, y: number): number {
   doc.setFontSize(PDF_CONFIG.fonts.subheader);
   doc.setTextColor(PDF_CONFIG.colors.primary);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("Geist Sans", 'bold');
   doc.text(title, PDF_CONFIG.margins.left, y);
   
   doc.setDrawColor(PDF_CONFIG.colors.primary);
   doc.setLineWidth(0.5);
   doc.line(PDF_CONFIG.margins.left, y + 2, PDF_CONFIG.margins.left + doc.getTextWidth(title), y + 2);
   
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("Geist Sans", 'normal');
   doc.setTextColor(PDF_CONFIG.colors.dark);
   
   return y;
@@ -616,7 +621,7 @@ function addTableHeader(doc: jsPDF, headers: string[], y: number): number {
   
   doc.setFontSize(PDF_CONFIG.fonts.small);
   doc.setTextColor(PDF_CONFIG.colors.dark);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("Geist Sans", 'bold');
   
   let x = PDF_CONFIG.margins.left;
   headers.forEach((header, index) => {
@@ -625,7 +630,7 @@ function addTableHeader(doc: jsPDF, headers: string[], y: number): number {
     x += colWidths[index] || 40;
   });
   
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("Geist Sans", 'normal');
   return y + 8;
 }
 
@@ -680,6 +685,7 @@ function addFooter(doc: jsPDF): void {
 
 export const generateFullCRMReport = async (): Promise<void> => {
   const doc = new jsPDF();
+  await useGeistSans(doc);
   let y = PDF_CONFIG.margins.top;
   
   // Cover Page
@@ -688,13 +694,13 @@ export const generateFullCRMReport = async (): Promise<void> => {
   
   doc.setFontSize(16);
   doc.setTextColor(PDF_CONFIG.colors.primary);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont("Geist Sans", 'bold');
   doc.text('Comprehensive Business Intelligence', PDF_CONFIG.margins.left, y);
   y += 15;
   
   doc.setFontSize(PDF_CONFIG.fonts.body);
   doc.setTextColor(PDF_CONFIG.colors.dark);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont("Geist Sans", 'normal');
   doc.text('This report includes:', PDF_CONFIG.margins.left, y);
   y += 10;
   

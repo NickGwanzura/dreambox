@@ -6,6 +6,7 @@ import { getCompanyProfile, getCompanyLogo, getContracts, getEffectiveVatRate, g
 import { api } from './apiClient';
 import { formatVatPercent } from './constants';
 import { buildTemplateData, resolveContractTemplate, substituteTemplate, TemplateData } from '../utils/contractTemplate';
+import { useGeistSans } from './pdfFonts';
 
 type RGB = [number, number, number];
 
@@ -178,12 +179,12 @@ const addCompanyHeader = (doc: jsPDF, logoInfo?: LogoInfo | null): number => {
 
     // Company Details (Top Right aligned)
     doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Geist Sans", "bold");
     doc.setTextColor(15, 23, 42); // Slate 900
     doc.text(profile.name, pageWidth - 14, startY, { align: 'right' });
 
     doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Geist Sans", "normal");
     doc.setTextColor(100);
     
     const lineHeight = 4;
@@ -239,7 +240,7 @@ const addContactFooter = (doc: jsPDF) => {
         doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
 
         doc.setFontSize(7.5);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setTextColor(150);
 
         if (contactLine) {
@@ -255,17 +256,18 @@ const addContactFooter = (doc: jsPDF) => {
 export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
   try {
     const doc = new jsPDF();
+    await useGeistSans(doc);
     const branding = await getPdfBranding();
     let currentY = addCompanyHeader(doc, branding);
     const isQuotation = invoice.type === 'Quotation';
     
     doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Geist Sans", "bold");
     doc.setTextColor(15, 23, 42);
     doc.text(isQuotation ? 'QUOTATION' : invoice.type === 'Receipt' ? 'RECEIPT' : 'INVOICE', 14, currentY);
     
     doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Geist Sans", "normal");
     doc.setTextColor(100);
     if (isQuotation && invoice.quoteNumber) {
       doc.text(`Quote #${invoice.quoteNumber}`, 14, currentY + 6);
@@ -276,16 +278,16 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     const metaY = currentY + 15;
     
     doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Geist Sans", "bold");
     doc.setTextColor(150);
     doc.text('BILL TO', 14, metaY);
     
     doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Geist Sans", "bold");
     doc.setTextColor(15, 23, 42);
     doc.text(client.companyName || 'Unknown Company', 14, metaY + 6);
     
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Geist Sans", "normal");
     doc.setFontSize(10);
     doc.setTextColor(50);
     doc.text(client.contactPerson || '', 14, metaY + 11);
@@ -293,13 +295,13 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.text(client.phone || '', 14, metaY + 21);
 
     doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Geist Sans", "bold");
     doc.setTextColor(150);
     doc.text('DETAILS', 120, metaY);
 
     doc.setFontSize(10);
     doc.setTextColor(50);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Geist Sans", "normal");
     
     let detailRow = 0;
     doc.text('Date Issued:', 120, metaY + 6 + detailRow * 5);
@@ -375,7 +377,7 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
 
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Geist Sans", "bold");
     doc.text(`Total:`, totalsX, finalY + 31);
     doc.text(`$${(invoice.total || 0).toFixed(2)}`, 195, finalY + 31, { align: 'right' });
 
@@ -401,11 +403,11 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
       doc.line(14, runY, 195, runY);
       runY += 6;
       doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
+      doc.setFont("Geist Sans", "bold");
       doc.setTextColor(100);
       doc.text('TERMS & CONDITIONS', 14, runY);
       runY += 8;
-      doc.setFont("helvetica", "normal");
+      doc.setFont("Geist Sans", "normal");
       doc.setFontSize(9);
       doc.setTextColor(50);
       doc.text(termsLines, 14, runY);
@@ -419,11 +421,11 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
       ensureSpace(notesHeight + 8);
       runY += 2;
       doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
+      doc.setFont("Geist Sans", "bold");
       doc.setTextColor(100);
       doc.text('INTERNAL NOTES', 14, runY);
       runY += 8;
-      doc.setFont("helvetica", "normal");
+      doc.setFont("Geist Sans", "normal");
       doc.setFontSize(9);
       doc.setTextColor(50);
       doc.text(noteLines, 14, runY);
@@ -441,11 +443,11 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
         doc.line(14, runY, 195, runY);
         runY += 6;
         doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.setTextColor(15, 23, 42);
         doc.text('Payment Terms', 14, runY);
         runY += 7;
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setFontSize(9);
         doc.setTextColor(50);
         ptLines.forEach(line => {
@@ -472,12 +474,12 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
         runY += 6;
 
         doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.setTextColor(15, 23, 42);
         doc.text(isQuotation ? 'Banking Details' : 'Payment Details', 14, runY);
         runY += 8;
 
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setFontSize(9);
         doc.setTextColor(50);
         bankLines.forEach((line) => {
@@ -511,7 +513,7 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
 
         // ── LEFT: Prepared By ──
         doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.setTextColor(15, 23, 42);
         doc.text('Prepared By', 14, runY);
 
@@ -520,7 +522,7 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
         runY += 7;
 
         // Preparer details
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setFontSize(9);
         doc.setTextColor(50);
         doc.text(preparerName, 14, runY);
@@ -542,11 +544,11 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
         // Header row
         doc.rect(boxX, boxStartY, boxW, rowH, 'FD');
         doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.setTextColor(80);
         doc.text('Client Acceptance', boxX + boxW / 2, boxStartY + 6, { align: 'center' });
         // Data rows
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setTextColor(100);
         acceptRows.forEach((label, i) => {
             const ry = boxStartY + rowH + i * rowH;
@@ -582,6 +584,7 @@ export const generateLegalContractPDF = async (
     const body = substituteTemplate(template, data);
 
     const doc = new jsPDF();
+    await useGeistSans(doc);
     const branding = await getPdfBranding();
 
     const PAGE_W = 210;
@@ -605,7 +608,7 @@ export const generateLegalContractPDF = async (
       if (!text.trim()) { y += 3; return; }
       const isHeading = opts.heading || false;
       const isBullet = opts.bullet || false;
-      doc.setFont('helvetica', isHeading ? 'bold' : 'normal');
+      doc.setFont("Geist Sans", isHeading ? 'bold' : 'normal');
       doc.setFontSize(isHeading ? 11 : 10);
       doc.setTextColor(isHeading ? 15 : 50, isHeading ? 23 : 50, isHeading ? 42 : 50);
 
@@ -658,7 +661,7 @@ export const generateLegalContractPDF = async (
 
       // First paragraph is the document title — centered, bold, 16pt. Wraps if long.
       if (idx === 0) {
-        doc.setFont('helvetica', 'bold');
+        doc.setFont("Geist Sans", 'bold');
         doc.setFontSize(16);
         doc.setTextColor(15, 23, 42);
         const titleLines = doc.splitTextToSize(para.replace(/\n+/g, ' '), CONTENT_W);
@@ -715,14 +718,14 @@ export const generateLegalContractPDF = async (
         const x = MARGIN_L + colIdx * (colW + SIG_GAP);
         let yy = baseY + rowIdx * (blockHeight + 4);
 
-        doc.setFont('helvetica', 'bold');
+        doc.setFont("Geist Sans", 'bold');
         doc.setFontSize(10);
         doc.setTextColor(15, 23, 42);
         const headingLines = doc.splitTextToSize(group.heading + ':', colW);
         doc.text(headingLines, x, yy);
         yy += SIG_TITLE_H + Math.max(0, headingLines.length - 1) * 4.6;
 
-        doc.setFont('helvetica', 'normal');
+        doc.setFont("Geist Sans", 'normal');
         doc.setFontSize(9.5);
         doc.setTextColor(50);
         for (const row of group.rows) {
@@ -756,17 +759,18 @@ export const generateLegalContractPDF = async (
 export const generateStatementPDF = async (client: Client, transactions: Invoice[], activeRentals: Contract[], billboardNameGetter: (id: string) => string) => {
     try {
         const doc = new jsPDF();
+        await useGeistSans(doc);
         const branding = await getPdfBranding();
         let currentY = addCompanyHeader(doc, branding);
 
         doc.setFontSize(20);
         doc.setTextColor(15, 23, 42);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.text('STATEMENT OF ACCOUNT', 14, currentY);
         
         currentY += 8;
         doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setTextColor(100);
         doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, currentY);
         
@@ -776,9 +780,9 @@ export const generateStatementPDF = async (client: Client, transactions: Invoice
         doc.rect(14, currentY, 90, 25, 'F');
         doc.setFontSize(10);
         doc.setTextColor(15, 23, 42);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.text(client.companyName, 18, currentY + 6);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setTextColor(50);
         doc.text(client.contactPerson, 18, currentY + 12);
         doc.text(client.email, 18, currentY + 18);
@@ -793,7 +797,7 @@ export const generateStatementPDF = async (client: Client, transactions: Invoice
         doc.text("Amount Due:", 125, currentY + 8);
         doc.setFontSize(16);
         doc.setTextColor(balance > 0 ? 220 : 22, balance > 0 ? 38 : 163, balance > 0 ? 38 : 74); 
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.text(`$${balance.toFixed(2)}`, 190, currentY + 18, { align: 'right' });
 
         currentY += 35;
@@ -854,7 +858,8 @@ export const generateStatementPDF = async (client: Client, transactions: Invoice
 
 export const generateExpensesPDF = async (expenses: Expense[]) => {
     try {
-        const doc = new jsPDF();
+       const doc = new jsPDF();
+        await useGeistSans(doc);
         const branding = await getPdfBranding();
         let y = addCompanyHeader(doc, branding);
         
@@ -888,6 +893,7 @@ export const generateExpensesPDF = async (expenses: Expense[]) => {
 export const generatePaymentSchedulePDF = async (schedule: any[]) => {
     try {
         const doc = new jsPDF();
+        await useGeistSans(doc);
         const branding = await getPdfBranding();
         let y = addCompanyHeader(doc, branding);
         
@@ -921,6 +927,7 @@ export const generatePaymentSchedulePDF = async (schedule: any[]) => {
 export const generateActiveContractsPDF = async (contracts: Contract[], getClientName: (id: string) => string, getBillboardName: (id: string) => string) => {
     try {
         const doc = new jsPDF('l'); // Landscape for more data
+        await useGeistSans(doc);
         const branding = await getPdfBranding();
         let y = addCompanyHeader(doc, branding);
         
@@ -967,6 +974,7 @@ export const generateActiveContractsPDF = async (contracts: Contract[], getClien
 export const generateClientDirectoryPDF = async (clients: Client[]) => {
     try {
         const doc = new jsPDF();
+        await useGeistSans(doc);
         const branding = await getPdfBranding();
         let y = addCompanyHeader(doc, branding);
         
@@ -1005,6 +1013,7 @@ export const generateClientDirectoryPDF = async (clients: Client[]) => {
 export const generateOutsourcedInventoryPDF = async (billboards: OutsourcedBillboard[]) => {
     try {
         const doc = new jsPDF();
+        await useGeistSans(doc);
         const branding = await getPdfBranding();
         let y = addCompanyHeader(doc, branding);
         
@@ -1063,6 +1072,7 @@ const formatCompactNumber = (n: number): string => {
 export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
     try {
         const doc = new jsPDF('l');
+        await useGeistSans(doc);
         const pageWidth = doc.internal.pageSize.width;
         const palette = await getPdfBranding();
         const primary: RGB = palette?.primary || [15, 23, 42];
@@ -1142,12 +1152,12 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         doc.rect(14, y - 5, 4, 24, 'F');
 
         doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
+        doc.setFont("Geist Sans", 'bold');
         doc.setTextColor(255, 255, 255);
         doc.text('AVAILABLE INVENTORY', 24, y + 5);
 
         doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont("Geist Sans", 'normal');
         doc.setTextColor(203, 213, 225);
         doc.text('Unoccupied Sites & Monthly Rates', 24, y + 12);
 
@@ -1184,11 +1194,11 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
             doc.setFillColor(accent[0], accent[1], accent[2]);
             doc.rect(x, y, 2, 18, 'F');
             doc.setFontSize(6.5);
-            doc.setFont('helvetica', 'bold');
+            doc.setFont("Geist Sans", 'bold');
             doc.setTextColor(primary[0], primary[1], primary[2]);
             doc.text(kpi.label, x + 4, y + 6);
             doc.setFontSize(13);
-            doc.setFont('helvetica', 'bold');
+            doc.setFont("Geist Sans", 'bold');
             doc.setTextColor(primary[0], primary[1], primary[2]);
             doc.text(kpi.value, x + 4, y + 14);
         });
@@ -1196,7 +1206,7 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
 
         if (rows.length === 0) {
             doc.setFontSize(12);
-            doc.setFont('helvetica', 'italic');
+            doc.setFont("Geist Sans", 'italic');
             doc.setTextColor(100, 116, 139);
             doc.text('All sites are currently booked. No inventory to list.', pageWidth / 2, y + 20, { align: 'center' });
         } else {
@@ -1245,7 +1255,7 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         doc.line(14, finalY + 8, pageWidth - 14, finalY + 8);
 
         doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
+        doc.setFont("Geist Sans", 'italic');
         doc.setTextColor(100, 116, 139);
         doc.text(
             `Rates shown are monthly and exclude VAT (${formatVatPercent(getEffectiveVatRate())}) and production/printing. To reserve, contact us using the details below.`,
@@ -1286,12 +1296,12 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         }
 
         doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
+        doc.setFont("Geist Sans", 'bold');
         doc.setTextColor(255, 255, 255);
         doc.text('CONTACT US', 24, contactY + 9);
 
         doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
+        doc.setFont("Geist Sans", 'bold');
         doc.setTextColor(accent[0], accent[1], accent[2]);
         doc.text('OUR OFFICES', 24, contactY + 16);
 
@@ -1299,26 +1309,26 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         const officeAddress = [contactProfile.address, contactProfile.city, contactProfile.country].filter(Boolean).join(', ');
 
         doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont("Geist Sans", 'normal');
         doc.setTextColor(226, 232, 240);
         if (officeAddress) doc.text(officeAddress, 24, contactY + 22);
 
         const col2X = 24 + (pageWidth - 28) * 0.45;
         doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
+        doc.setFont("Geist Sans", 'bold');
         doc.setTextColor(accent[0], accent[1], accent[2]);
         doc.text('CALL US', col2X, contactY + 16);
         doc.text('EMAIL US', col2X + 55, contactY + 16);
 
         doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont("Geist Sans", 'normal');
         doc.setTextColor(226, 232, 240);
         if (contactProfile.phone) doc.text(contactProfile.phone, col2X, contactY + 22);
         if (contactProfile.email) doc.text(contactProfile.email, col2X + 55, contactY + 22);
 
         if (contactProfile.website) {
             doc.setFontSize(8);
-            doc.setFont('helvetica', 'italic');
+            doc.setFont("Geist Sans", 'italic');
             doc.setTextColor(203, 213, 225);
             doc.text(contactProfile.website, 24, contactY + 29);
         }
@@ -1334,16 +1344,17 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
 export const generateAppFeaturesPDF = async () => {
     try {
         const doc = new jsPDF();
+        await useGeistSans(doc);
         const branding = await getPdfBranding();
         let y = addCompanyHeader(doc, branding);
 
         doc.setFontSize(22);
         doc.setTextColor(15, 23, 42);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.text("Platform Features Guide", 14, y);
 
         doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setTextColor(100);
         doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, y + 6);
 
@@ -1379,6 +1390,7 @@ export const generateAppFeaturesPDF = async () => {
 export const generateUserManualPDF = async () => {
      try {
         const doc = new jsPDF();
+        await useGeistSans(doc);
         const branding = await getPdfBranding();
         let y = addCompanyHeader(doc, branding);
 
@@ -1389,30 +1401,30 @@ export const generateUserManualPDF = async () => {
         y += 15;
         doc.setFontSize(12);
         doc.setTextColor(15, 23, 42);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.text("1. Getting Started", 14, y);
         
         doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setTextColor(50);
         doc.text("Log in using your assigned credentials. The Dashboard provides an immediate overview of active contracts and revenue.", 14, y + 6, { maxWidth: 180 });
 
         y += 20;
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.setFontSize(12);
         doc.setTextColor(15, 23, 42);
         doc.text("2. Managing Inventory", 14, y);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setFontSize(10);
         doc.setTextColor(50);
         doc.text("Navigate to 'Billboards' to add new assets. Use the 'Map' view to visualize locations. Click 'Edit' to update pricing or details.", 14, y + 6, { maxWidth: 180 });
 
         y += 20;
-        doc.setFont("helvetica", "bold");
+        doc.setFont("Geist Sans", "bold");
         doc.setFontSize(12);
         doc.setTextColor(15, 23, 42);
         doc.text("3. Creating Rentals", 14, y);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("Geist Sans", "normal");
         doc.setFontSize(10);
         doc.setTextColor(50);
         doc.text("Go to 'Rentals' > 'New Rental'. Select a Client and Billboard. The system automatically checks availability for the selected dates.", 14, y + 6, { maxWidth: 180 });
