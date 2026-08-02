@@ -88,6 +88,49 @@ async function runMigrations() {
     log.boot(`  Auth schema        ⚠  ${e?.message?.slice(0, 200) || 'sessionVersion check failed'}`);
   }
 
+  // Older production databases may have incomplete migration history. Keep
+  // finance reads/writes available by adding the forensic control columns and
+  // journals idempotently; this never rewrites existing financial records.
+  try {
+    const financeColumns = [
+      ['receivedBy', 'TEXT'], ['receivedByUserId', 'TEXT'], ['receivingAccount', 'TEXT'],
+      ['proofPaymentUrl', 'TEXT'], ['proofOriginalName', 'TEXT'], ['proofMimeType', 'TEXT'],
+      ['proofUploadedAt', 'TIMESTAMP(3)'], ['recordedAt', 'TIMESTAMP(3)'], ['postedAt', 'TIMESTAMP(3)'],
+      ['approvalStatus', 'TEXT NOT NULL DEFAULT \'NotRequired\''], ['approvedBy', 'TEXT'],
+      ['approvedAt', 'TIMESTAMP(3)'], ['approvalNote', 'TEXT'], ['isVoided', 'BOOLEAN NOT NULL DEFAULT FALSE'],
+      ['voidReason', 'TEXT'], ['voidedAt', 'TIMESTAMP(3)'], ['voidedBy', 'TEXT'], ['linkedInvoiceId', 'TEXT'],
+    ];
+    for (const [column, type] of financeColumns) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "invoices" ADD COLUMN IF NOT EXISTS "${column}" ${type}`);
+    }
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "payment_allocations" (
+        "id" TEXT PRIMARY KEY, "receiptId" TEXT NOT NULL, "invoiceId" TEXT NOT NULL,
+        "amount" DECIMAL(18,2) NOT NULL, "allocatedBy" TEXT NOT NULL,
+        "allocatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "isReversed" BOOLEAN NOT NULL DEFAULT FALSE, "reversedAt" TIMESTAMP(3),
+        "reversedBy" TEXT, "reason" TEXT
+      )`);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "accounting_periods" (
+        "id" TEXT PRIMARY KEY, "startDate" TEXT NOT NULL, "endDate" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'Open', "closedAt" TIMESTAMP(3), "closedBy" TEXT,
+        "reopenedAt" TIMESTAMP(3), "reopenedBy" TEXT, "reason" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "payment_reviews" (
+        "id" TEXT PRIMARY KEY, "receiptId" TEXT UNIQUE NOT NULL, "status" TEXT NOT NULL DEFAULT 'Open',
+        "assignedTo" TEXT, "resolvedBy" TEXT, "resolvedAt" TIMESTAMP(3), "resolutionNote" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+    log.boot('  Finance schema     ✓  forensic columns/journals ready');
+  } catch (e: any) {
+    log.boot(`  Finance schema     ⚠  ${e?.message?.slice(0, 200) || 'finance schema check failed'}`);
+  }
+
   // Bootstrap: ensure InvoiceType enum includes all values from Prisma schema.
   // The production DB enum may be missing newer values (e.g. 'Proforma').
   // The QuoteStatus enum is now handled by prisma/migrations/20260619043336_add_quotestatus_enum

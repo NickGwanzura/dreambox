@@ -164,6 +164,7 @@ export interface Invoice {
   proofOriginalName?: string;
   proofMimeType?: string;
   proofUploadedAt?: string;
+  hasPaymentProof?: boolean;
   recordedAt?: string;
   postedAt?: string;
   isVoided?: boolean;
