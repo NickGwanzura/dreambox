@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import autoTable from "jspdf-autotable";
 import {
   AlertTriangle,
   Banknote,
@@ -20,6 +21,7 @@ import { buildForensicFinanceReport } from "../services/forensicFinance";
 import type { Invoice } from "../types";
 import { api } from "../services/apiClient";
 import { openPaymentProof } from "../services/paymentProof";
+import { jsPDF } from "jspdf";
 
 const fmt = (value: number) =>
   `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -44,6 +46,319 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * jspdf-autotable is published in both function and plugin forms depending on
+ * the bundler. Keep the export resilient to either shape (the same approach is
+ * used by the other PDF exports in this application).
+ */
+function runAutoTable(doc: jsPDF, options: Record<string, any>) {
+  const table = autoTable as any;
+  if (typeof table === "function") {
+    table(doc, options);
+    return;
+  }
+  if (typeof (doc as any).autoTable === "function") {
+    (doc as any).autoTable(options);
+    return;
+  }
+  if (typeof table?.default === "function") {
+    table.default(doc, options);
+    return;
+  }
+  throw new Error("PDF table renderer is unavailable.");
+}
+
+type DirectorFinancePdfArgs = {
+  report: any;
+  clients: Array<{
+    name: string;
+    billed: number;
+    paid: number;
+    balance: number;
+  }>;
+  startDate: string;
+  endDate: string;
+  periodBilled: number;
+  periodNet: number;
+  periodVat: number;
+  periodCollected: number;
+};
+
+/**
+ * Build and download a self-contained director finance report. The report is
+ * intentionally assembled from the already-loaded data; it does not fetch,
+ * mutate, or expose payment proof URLs.
+ */
+function downloadDirectorFinancePdf({
+  report,
+  clients,
+  startDate,
+  endDate,
+  periodBilled,
+  periodNet,
+  periodVat,
+  periodCollected,
+}: DirectorFinancePdfArgs) {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = { left: 12, right: 12, top: 14, bottom: 18 };
+  const tableWidth = pageWidth - margin.left - margin.right;
+  let cursorY = margin.top;
+
+  const reportGeneratedAt = report?.generatedAt
+    ? new Date(report.generatedAt)
+    : new Date();
+  const generatedLabel = Number.isNaN(reportGeneratedAt.getTime())
+    ? String(report?.generatedAt || new Date().toISOString())
+    : reportGeneratedAt.toLocaleString();
+  const reportId = String(report?.reportId || "Local fallback");
+  const reportHash = String(report?.reportHash || "Not available offline");
+  const reportAsOf = report?.asOf ? String(report.asOf).slice(0, 10) : endDate;
+
+  const ensureRoom = (minimumHeight = 20) => {
+    if (cursorY > pageHeight - margin.bottom - minimumHeight) {
+      doc.addPage();
+      cursorY = margin.top;
+    }
+  };
+
+  const sectionHeading = (title: string) => {
+    ensureRoom(18);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text(title, margin.left, cursorY);
+    cursorY += 5;
+  };
+
+  const table = (
+    head: string[][],
+    body: (string | number)[][],
+    options: Record<string, any> = {},
+  ) => {
+    ensureRoom(22);
+    runAutoTable(doc, {
+      startY: cursorY,
+      margin: { left: margin.left, right: margin.right, bottom: margin.bottom },
+      tableWidth,
+      head,
+      body: body.length ? body : [["No records"]],
+      theme: "grid",
+      styles: {
+        font: "helvetica",
+        fontSize: 7,
+        cellPadding: 1.7,
+        overflow: "linebreak",
+        textColor: [15, 23, 42],
+        lineColor: [226, 232, 240],
+        lineWidth: 0.15,
+      },
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      ...options,
+    });
+    const finalY = Number((doc as any).lastAutoTable?.finalY);
+    cursorY = Number.isFinite(finalY) ? finalY + 7 : cursorY + 16;
+  };
+
+  // Cover metadata: these fields are also present in the CSV export and are
+  // retained here so an offline/local report is explicit about its provenance.
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(19);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Director Financial Report", margin.left, cursorY);
+  cursorY += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Reporting period: ${startDate} – ${endDate}`, margin.left, cursorY);
+  cursorY += 5;
+  doc.text(`Generated: ${generatedLabel}`, margin.left, cursorY);
+  cursorY += 5;
+  doc.text(`As of: ${reportAsOf}`, margin.left, cursorY);
+  cursorY += 5;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Report ID: ${reportId}`, margin.left, cursorY);
+  cursorY += 5;
+  doc.setFont("helvetica", "normal");
+  doc.text(`SHA-256: ${reportHash}`, margin.left, cursorY);
+  cursorY += 10;
+
+  sectionHeading("Control totals");
+  table(
+    [["Metric", "Amount"]],
+    [
+      ["Gross billed (period)", fmt(periodBilled)],
+      ["Net revenue (period)", fmt(periodNet)],
+      ["VAT billed (period)", fmt(periodVat)],
+      ["Cash collected (period)", fmt(periodCollected)],
+      ["Outstanding as of date", fmt(Number(report?.totals?.outstanding || 0))],
+      ["Operating expenses", fmt(Number(report?.totals?.expenses || 0))],
+      ["Net less expenses", fmt(periodNet - Number(report?.totals?.expenses || 0))],
+      ["Exceptions", String(report?.exceptions?.length || 0)],
+    ],
+    { columnStyles: { 1: { halign: "right", fontStyle: "bold" } } },
+  );
+
+  sectionHeading(`Accounts receivable aging (as of ${endDate})`);
+  const agingBuckets = ["Current", "1–30", "31–60", "61–90", "90+"];
+  table(
+    [["Bucket", "Outstanding"]],
+    agingBuckets.map((bucket) => [
+      bucket,
+      fmt(Number(report?.aging?.[bucket] || 0)),
+    ]),
+    { columnStyles: { 1: { halign: "right", fontStyle: "bold" } } },
+  );
+
+  sectionHeading("Forensic exceptions");
+  table(
+    [["Severity", "Code", "Record", "Finding"]],
+    (report?.exceptions || []).map((item: any) => [
+      String(item?.severity || "—").toUpperCase(),
+      String(item?.code || "—"),
+      String(item?.recordId || "—"),
+      String(item?.message || "—"),
+    ]),
+    {
+      columnStyles: {
+        0: { cellWidth: 22, fontStyle: "bold" },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 46 },
+      },
+    },
+  );
+
+  sectionHeading("Client drill-down");
+  table(
+    [["Client", "Billed", "Collected", "Balance"]],
+    clients.map((client) => [
+      client.name,
+      fmt(client.billed),
+      fmt(client.paid),
+      fmt(client.balance),
+    ]),
+    {
+      columnStyles: {
+        1: { halign: "right" },
+        2: { halign: "right" },
+        3: { halign: "right", fontStyle: "bold" },
+      },
+    },
+  );
+
+  sectionHeading("Invoice drill-down");
+  table(
+    [[
+      "Client",
+      "Invoice ID",
+      "Invoice date",
+      "Due date",
+      "Gross",
+      "Collected",
+      "Balance",
+      "Aging",
+      "Status",
+    ]],
+    (report?.invoices || []).map((row: any) => [
+      String(row?.clientName || "Unknown client"),
+      String(row?.invoice?.id || "—"),
+      String(row?.invoice?.date || "—"),
+      String(row?.invoice?.dueDate || "—"),
+      fmt(Number(row?.invoice?.total || 0)),
+      fmt(Number(row?.paid || 0)),
+      fmt(Number(row?.balance || 0)),
+      String(row?.agingBucket || "—"),
+      String(row?.invoice?.status || "—"),
+    ]),
+    {
+      columnStyles: {
+        0: { cellWidth: 34 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 22 },
+        4: { halign: "right" },
+        5: { halign: "right" },
+        6: { halign: "right", fontStyle: "bold" },
+      },
+    },
+  );
+
+  sectionHeading("Payment drill-down");
+  const clientByInvoice = new Map<string, string>(
+    (report?.invoices || []).map((row: any) => [
+      String(row?.invoice?.id || ""),
+      String(row?.clientName || "Unknown client"),
+    ]),
+  );
+  table(
+    [[
+      "Client",
+      "Invoice ID",
+      "Receipt ID",
+      "Payment date",
+      "Amount",
+      "Method",
+      "Reference",
+      "Received by",
+      "Recorded by",
+      "Account",
+      "Proof",
+    ]],
+    (report?.receipts || []).map((receipt: any) => {
+      const invoiceId = String(receipt?.linkedInvoiceId || "Unallocated");
+      return [
+        clientByInvoice.get(invoiceId) || "Unknown client",
+        invoiceId,
+        String(receipt?.id || "—"),
+        String(receipt?.date || "—"),
+        fmt(Number(receipt?.total || 0)),
+        String(receipt?.paymentMethod || "—"),
+        String(receipt?.paymentReference || "MISSING"),
+        String(receipt?.receivedBy || "MISSING"),
+        String(
+          receipt?.receivedByUserId || receipt?.createdBy || "Legacy/unknown",
+        ),
+        String(receipt?.receivingAccount || "—"),
+        receipt?.proofPaymentUrl ? "Attached" : "Missing",
+      ];
+    }),
+    {
+      columnStyles: {
+        0: { cellWidth: 28 },
+        1: { cellWidth: 26 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 21 },
+        4: { halign: "right" },
+      },
+    },
+  );
+
+  // Add a stable footer after all tables have paginated. No proof URL is ever
+  // written to the document; only the evidence status is shown above.
+  const totalPages = doc.getNumberOfPages();
+  for (let page = 1; page <= totalPages; page += 1) {
+    doc.setPage(page);
+    doc.setDrawColor(203, 213, 225);
+    doc.line(margin.left, pageHeight - 12, pageWidth - margin.right, pageHeight - 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Dreambox · Director Financial Report", margin.left, pageHeight - 7);
+    doc.text(`Page ${page} of ${totalPages}`, pageWidth - margin.right, pageHeight - 7, {
+      align: "right",
+    });
+  }
+
+  doc.save(`director-finance-${startDate}-to-${endDate}.pdf`);
+}
+
 export const DirectorFinanceReport: React.FC = () => {
   const [version, setVersion] = useState(0);
   const [startDate, setStartDate] = useState(yearStart);
@@ -57,6 +372,9 @@ export const DirectorFinanceReport: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     setReportError("");
+    // Never let a report ID/hash from the previous period be exported while
+    // the newly requested period is still loading.
+    setRemoteReport(null);
     api
       .get("/api/finance-report", { startDate, endDate })
       .then((result) => {
@@ -240,7 +558,18 @@ export const DirectorFinanceReport: React.FC = () => {
             <Download size={15} /> CSV
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={() =>
+              downloadDirectorFinancePdf({
+                report: data.report,
+                clients,
+                startDate,
+                endDate,
+                periodBilled,
+                periodNet,
+                periodVat,
+                periodCollected,
+              })
+            }
             className="h-10 px-4 rounded-xl bg-slate-900 text-white text-sm font-bold flex items-center gap-2"
           >
             <Printer size={15} /> Print / PDF
