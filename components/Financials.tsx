@@ -1591,7 +1591,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                         accept="application/pdf,image/jpeg,image/png,image/webp"
                         required={
                           isBankPaymentMethod(formData.paymentMethod) &&
-                          !editingInvoice?.proofPaymentUrl
+                          !(editingInvoice?.hasPaymentProof ?? Boolean(editingInvoice?.proofPaymentUrl))
                         }
                         onChange={(e) =>
                           setPaymentProofFile(e.target.files?.[0] || null)
@@ -1602,7 +1602,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                         PDF/JPEG/PNG/WebP, maximum 7 MB. The recorder identity
                         and upload time are captured automatically.
                       </p>
-                      {editingInvoice?.proofPaymentUrl && (
+                      {(editingInvoice?.hasPaymentProof ?? Boolean(editingInvoice?.proofPaymentUrl)) && (
                         <button
                           type="button"
                           onClick={() => openPaymentProof(editingInvoice.id).catch(error => alert(error.message))}

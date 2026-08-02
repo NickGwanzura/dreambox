@@ -326,7 +326,7 @@ function downloadDirectorFinancePdf({
           receipt?.receivedByUserId || receipt?.createdBy || "Legacy/unknown",
         ),
         String(receipt?.receivingAccount || "—"),
-        receipt?.proofPaymentUrl ? "Attached" : "Missing",
+        (receipt?.hasPaymentProof ?? Boolean(receipt?.proofPaymentUrl)) ? "Attached" : "Missing",
       ];
     }),
     {
@@ -643,12 +643,12 @@ export const DirectorFinanceReport: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <dt>Operating expenses</dt>
-              <dd className="font-bold">{fmt(data.report.totals.expenses)}</dd>
+              <dd className="font-bold">{fmt(data.report.period.expenses)}</dd>
             </div>
             <div className="flex justify-between border-t pt-2">
               <dt>Net less expenses</dt>
               <dd className="font-black">
-                {fmt(periodNet - data.report.totals.expenses)}
+                {fmt(data.report.period.operatingResult)}
               </dd>
             </div>
             <div className="flex justify-between">
@@ -848,7 +848,7 @@ const InvoiceEvidence: React.FC<{ invoice: Invoice; receipts: Invoice[] }> = ({
           {receipt.receivingAccount && (
             <p>Receiving account: {receipt.receivingAccount}</p>
           )}
-          {receipt.proofPaymentUrl ? (
+          {(receipt.hasPaymentProof ?? Boolean(receipt.proofPaymentUrl)) ? (
             <button
               type="button"
               onClick={() => openPaymentProof(receipt.id).catch(error => alert(error.message))}

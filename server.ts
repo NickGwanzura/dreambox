@@ -155,6 +155,7 @@ async function registerRoutes() {
   const invoices     = await import('./api/invoices.js');
   const expenses     = await import('./api/expenses.js');
   const financeReport = await import('./api/finance-report.js');
+  const financeReconciliation = await import('./api/finance-reconciliation.js');
   const tasks        = await import('./api/tasks.js');
   const maintenance  = await import('./api/maintenance.js');
   const outsourced   = await import('./api/outsourced.js');
@@ -184,6 +185,7 @@ async function registerRoutes() {
   app.all('/api/quotation-events',       adapt(quotationEvents,     'quotation-events'));
   app.all('/api/expenses',              adapt(expenses,            'expenses'));
   app.all('/api/finance-report',         adapt(financeReport,       'finance-report'));
+  app.all('/api/finance-reconciliation', adapt(financeReconciliation, 'finance-reconciliation'));
   app.all('/api/tasks',                 adapt(tasks,               'tasks'));
   app.all('/api/maintenance',           adapt(maintenance,         'maintenance'));
   app.all('/api/outsourced',            adapt(outsourced,          'outsourced'));

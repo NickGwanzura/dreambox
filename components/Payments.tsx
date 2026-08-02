@@ -882,7 +882,7 @@ export const Payments: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 text-xs">
-                        {receipt.proofPaymentUrl ? (
+                        {(receipt.hasPaymentProof ?? Boolean(receipt.proofPaymentUrl)) ? (
                           <button
                             type="button"
                             onClick={() => openPaymentProof(receipt.id).catch(error => alert(error.message))}

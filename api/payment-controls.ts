@@ -24,7 +24,7 @@ class PaymentIntegrityError extends Error {
 function withoutProofUrl<T>(value: T): T {
   if (!value || typeof value !== 'object') return value;
   const { proofPaymentUrl: _proofPaymentUrl, ...safe } = value as Record<string, unknown>;
-  return safe as T;
+  return { ...safe, hasPaymentProof: Boolean(_proofPaymentUrl) } as T;
 }
 
 function isBankPayment(method: unknown): boolean {
@@ -145,6 +145,9 @@ async function approveReceipt(tx: any, receipt: any, payload: any, note: string)
   }
 
   const proposedTotal = roundMoney([...proposedByInvoice.values()].reduce((sum, amount) => sum + amount, 0));
+  if (invoiceIds.length === 0 || proposedByInvoice.size === 0) {
+    throw new PaymentIntegrityError('Receipt has no linked invoice or allocation. Resolve the payment remediation before approval.');
+  }
   if (allocations.length > 0 && Math.abs(proposedTotal - Number(receipt.total)) > 0.01) {
     throw new PaymentIntegrityError('Receipt allocation total does not match the receipt total. Resolve the payment remediation before approval.');
   }
@@ -216,13 +219,23 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
             { receivedBy: null },
             { receivedByUserId: null },
             { paymentReference: null },
+            { receivingAccount: null },
+            { proofPaymentUrl: null },
+            { proofOriginalName: null },
+            { proofMimeType: null },
+            { proofUploadedAt: null },
             { approvalStatus: { in: ['Pending', 'Rejected'] } },
           ],
         },
         orderBy: { createdAt: 'asc' },
         take: 500,
       });
-      return res.status(200).json(receipts.map(withoutProofUrl));
+      const reviews = await prisma.paymentReview.findMany({
+        where: { receiptId: { in: receipts.map(receipt => receipt.id) }, status: { in: ['Resolved', 'Closed'] } },
+        select: { receiptId: true },
+      });
+      const resolved = new Set(reviews.map(review => review.receiptId));
+      return res.status(200).json(receipts.filter(receipt => !resolved.has(receipt.id)).map(withoutProofUrl));
     } catch {
       return res.status(500).json({ error: 'Could not load payment controls.' });
     }

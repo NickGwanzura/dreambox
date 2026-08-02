@@ -181,6 +181,7 @@ export async function createBackup(createdBy = 'system'): Promise<BackupResult> 
 
   const data: BackupRecord = {};
   const tableCounts: Record<string, number> = {};
+  const exportErrors: string[] = [];
 
   await Promise.all(
     BACKUP_TABLES.map(async ({ name, model, key }) => {
@@ -191,11 +192,18 @@ export async function createBackup(createdBy = 'system'): Promise<BackupResult> 
         tableCounts[name] = rows.length;
       } catch (e: any) {
         console.warn(`[backup] Failed to export ${name}:`, e.message);
+        exportErrors.push(`${name}: ${e.message}`);
         data[key] = [];
         tableCounts[name] = 0;
       }
     })
   );
+
+  const requiredFinanceTables = new Set(['invoices', 'payment_allocations', 'expenses', 'accounting_periods', 'payment_reviews', 'audit_logs']);
+  const requiredFailures = exportErrors.filter(error => [...requiredFinanceTables].some(table => error.startsWith(`${table}:`)));
+  if (requiredFailures.length > 0) {
+    throw new Error(`Backup aborted; required finance tables could not be exported: ${requiredFailures.join('; ')}`);
+  }
 
   const manifest: BackupManifest = {
     version: '1.0',
@@ -328,7 +336,7 @@ async function restoreFromData(data: BackupRecord): Promise<{ restored: number; 
     try {
       const ids = records.map((r: any) => r.id).filter(Boolean);
       // @ts-ignore
-      if (ids.length > 0) await prisma[def.model].deleteMany({ where: { id: { in: ids } } });
+      if (ids.length > 0 && key !== 'auditLogs') await prisma[def.model].deleteMany({ where: { id: { in: ids } } });
       // @ts-ignore
       await prisma[def.model].createMany({ data: records, skipDuplicates: true });
       restored += records.length;

@@ -77,7 +77,7 @@ class PaymentIntegrityError extends Error {
 function withoutProofUrl<T>(value: T): T {
   if (!value || typeof value !== 'object') return value;
   const { proofPaymentUrl: _proofPaymentUrl, ...safe } = value as Record<string, unknown>;
-  return safe as T;
+  return { ...safe, hasPaymentProof: Boolean(_proofPaymentUrl) } as T;
 }
 
 async function lockInvoice(tx: any, invoiceId: string): Promise<void> {

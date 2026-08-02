@@ -5,7 +5,7 @@ const authPayload = { userId: 'user-1', email: 'finance@dreambox.co.zw', role: '
 const mockPrisma: any = {
   invoice: { create: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), delete: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
   companyProfile: { findUnique: vi.fn() },
-  paymentAllocation: { create: vi.fn(), updateMany: vi.fn() },
+  paymentAllocation: { create: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
   auditLog: { create: vi.fn() },
   $transaction: vi.fn(async (callback: any) => callback(mockPrisma)),
 };
@@ -41,6 +41,7 @@ beforeEach(async () => {
   mockPrisma.invoice.findFirst.mockResolvedValue(null);
   mockPrisma.invoice.findMany.mockResolvedValue([]);
   mockPrisma.invoice.count.mockResolvedValue(0);
+  mockPrisma.paymentAllocation.findMany.mockResolvedValue([]);
   mockPrisma.invoice.create.mockImplementation(async ({ data }: any) => ({ id: data.type === 'Receipt' ? 'receipt-1' : 'invoice-1', createdAt: new Date(), ...data }));
   mockPrisma.invoice.update.mockImplementation(async ({ where, data }: any) => ({ id: where.id, ...data }));
   handler = (await import('../api/invoices')).default;
@@ -83,13 +84,13 @@ describe('payment audit controls', () => {
     const response = res(); await handler(req({ body: bankReceipt({ paymentMethod: 'Cash', receivingAccount: undefined, proofPaymentUrl: undefined, proofOriginalName: undefined, proofMimeType: undefined, proofUploadedAt: undefined }) }), response); expect(response._status).toBe(201);
   });
 
-  it('posts receipt, allocation, status and audit atomically', async () => {
+  it('posts receipt pending approval without allocating cash', async () => {
     mockPrisma.invoice.findUnique.mockResolvedValue({ id: 'invoice-1', clientId: 'client-1', contractId: 'contract-1', total: 115.5, type: 'Invoice' });
     const response = res(); await handler(req({ body: bankReceipt() }), response);
     expect(response._status).toBe(201);
     expect(mockPrisma.$transaction).toHaveBeenCalledOnce();
-    expect(mockPrisma.paymentAllocation.create).toHaveBeenCalledWith({ data: expect.objectContaining({ receiptId: 'receipt-1', invoiceId: 'invoice-1', amount: 115.5, allocatedBy: 'user-1' }) });
-    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'Finance: Payment Posted', userId: 'user-1' }) });
+    expect(mockPrisma.paymentAllocation.create).not.toHaveBeenCalled();
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'Finance: Payment Recorded Pending Approval', userId: 'user-1' }) });
     expect(mockPrisma.invoice.create.mock.calls[0][0].data).toEqual(expect.objectContaining({ receivedBy: 'Jane Doe', receivedByUserId: 'user-1', createdBy: 'finance@dreambox.co.zw' }));
   });
 
@@ -116,11 +117,15 @@ describe('forensic visibility and reversals', () => {
   });
 
   it('voids and reverses a receipt without deleting its evidence', async () => {
-    mockPrisma.invoice.findUnique.mockResolvedValueOnce({ id: 'receipt-1', ...bankReceipt(), isVoided: false }).mockResolvedValueOnce({ id: 'invoice-1', total: 115.5 });
+    mockPrisma.paymentAllocation.findMany.mockResolvedValue([{ id: 'alloc-1', invoiceId: 'invoice-1', amount: 115.5 }]);
+    mockPrisma.invoice.findUnique
+      .mockResolvedValueOnce({ id: 'receipt-1', ...bankReceipt(), isVoided: false })
+      .mockResolvedValueOnce({ id: 'receipt-1', ...bankReceipt(), isVoided: false })
+      .mockResolvedValueOnce({ id: 'invoice-1', total: 115.5, type: 'Invoice', isVoided: false });
     const response = res(); await handler(req({ method: 'DELETE', query: { id: 'receipt-1', reason: 'Duplicate bank payment captured in error' } }), response);
     expect(response._status).toBe(200); expect(response._json.voided).toBe(true);
     expect(mockPrisma.invoice.delete).not.toHaveBeenCalled();
-    expect(mockPrisma.paymentAllocation.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ isReversed: true, reason: 'Duplicate bank payment captured in error' }) }));
+    expect(mockPrisma.paymentAllocation.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ isReversed: true, reason: 'Voided: Duplicate bank payment captured in error' }) }));
     expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'Finance: Receipt Voided', beforeData: expect.any(Object), afterData: expect.any(Object) }) });
   });
 });

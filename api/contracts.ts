@@ -225,6 +225,13 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         });
       }
 
+      const linkedInvoiceCount = await prisma.invoice.count({ where: { contractId: id as string } });
+      if (linkedInvoiceCount > 0) {
+        return res.status(409).json({
+          error: 'Contracts with linked invoices cannot be permanently deleted. Void or retain the financial records for the audit trail.',
+        });
+      }
+
       // Cascade-delete ALL linked data in a single transaction so partial deletion is impossible.
       const [invoicesRes, amendmentsRes] = await prisma.$transaction([
         prisma.invoice.deleteMany({ where: { contractId: id as string } }),
