@@ -1,11 +1,12 @@
 import type { HttpRequest, HttpResponse } from '../lib/http';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, requireFeatureRead, requireFeatureWrite, requireQuotationWritePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 import { pickInvoiceData } from '../lib/whitelist';
-import { assertPeriodOpen } from '../lib/accountingPeriod';
+import { assertPeriodOpen, assertPeriodsOpen } from '../lib/accountingPeriod';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_VAT_RATE = 0.155;
@@ -64,6 +65,71 @@ const invoiceSchema = z.object({
 });
 
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+const EFFECTIVE_RECEIPT_APPROVALS = ['Approved', 'NotRequired'];
+
+class PaymentIntegrityError extends Error {
+  constructor(message: string, readonly status = 409, readonly existingId?: string) {
+    super(message);
+    this.name = 'PaymentIntegrityError';
+  }
+}
+
+function withoutProofUrl<T>(value: T): T {
+  if (!value || typeof value !== 'object') return value;
+  const { proofPaymentUrl: _proofPaymentUrl, ...safe } = value as Record<string, unknown>;
+  return safe as T;
+}
+
+async function lockInvoice(tx: any, invoiceId: string): Promise<void> {
+  if (typeof tx.$queryRaw !== 'function') return;
+  await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "invoices" WHERE "id" = ${invoiceId} FOR UPDATE`);
+}
+
+async function lockPaymentReference(tx: any, paymentMethod: unknown, paymentReference: unknown): Promise<void> {
+  if (typeof tx.$queryRaw !== 'function') return;
+  const key = `${String(paymentMethod || '').trim().toLocaleLowerCase()}\u0000${String(paymentReference || '').trim().toLocaleLowerCase()}`;
+  await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`);
+}
+
+async function duplicatePaymentReference(tx: any, paymentMethod: string, paymentReference: string, excludeId?: string): Promise<{ id: string } | null> {
+  return tx.invoice.findFirst({
+    where: {
+      type: 'Receipt',
+      isVoided: false,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+      paymentMethod: { equals: paymentMethod, mode: 'insensitive' },
+      paymentReference: { equals: paymentReference, mode: 'insensitive' },
+    },
+    select: { id: true },
+  });
+}
+
+async function activeAllocationsForRecord(tx: any, recordId: string): Promise<Array<{ invoiceId: string }>> {
+  return (await tx.paymentAllocation.findMany({
+    where: { OR: [{ receiptId: recordId }, { invoiceId: recordId }], isReversed: false },
+    select: { invoiceId: true },
+  })) || [];
+}
+
+async function effectiveAllocatedTotal(tx: any, invoiceId: string): Promise<number> {
+  const allocations = await tx.paymentAllocation.findMany({
+    where: {
+      invoiceId,
+      isReversed: false,
+      receipt: { is: { type: 'Receipt', isVoided: false, approvalStatus: { in: EFFECTIVE_RECEIPT_APPROVALS } } },
+    },
+    select: { amount: true },
+  });
+  return roundMoney((allocations || []).reduce((sum: number, allocation: any) => sum + Number(allocation.amount), 0));
+}
+
+async function recalculateInvoiceStatus(tx: any, invoiceId: string): Promise<void> {
+  await lockInvoice(tx, invoiceId);
+  const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
+  if (!invoice || invoice.type !== 'Invoice' || invoice.isVoided) return;
+  const paid = await effectiveAllocatedTotal(tx, invoiceId);
+  await tx.invoice.update({ where: { id: invoiceId }, data: { status: Number(invoice.total) - paid <= 0.01 ? 'Paid' : 'Pending' } });
+}
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00.000Z`);
@@ -148,12 +214,13 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const { id } = req.query;
       if (id) {
         const row = await prisma.invoice.findUnique({ where: { id: id as string } });
-        return row ? res.status(200).json(row) : res.status(404).json({ error: 'Not found' });
+        return row ? res.status(200).json(withoutProofUrl(row)) : res.status(404).json({ error: 'Not found' });
       }
       const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
       const skip = Math.max(0, Number(req.query.skip) || 0);
       const includeVoided = String(req.query.includeVoided || '').toLowerCase() === 'true' && ['Admin', 'Manager'].includes(payload.role);
-      return res.status(200).json(await prisma.invoice.findMany({ where: includeVoided ? undefined : { isVoided: false }, orderBy: { createdAt: 'asc' }, take: limit, skip }));
+      const rows = await prisma.invoice.findMany({ where: includeVoided ? undefined : { isVoided: false }, orderBy: { createdAt: 'asc' }, take: limit, skip });
+      return res.status(200).json(rows.map(withoutProofUrl));
     } catch (e: any) { handlePrismaError(e, res, 'GET'); return; }
   }
 
@@ -176,6 +243,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
       if (data.type === 'Receipt') {
         data.receivedBy = data.receivedBy.trim();
+        data.paymentMethod = data.paymentMethod.trim();
         data.paymentReference = data.paymentReference.trim();
         data.receivingAccount = data.receivingAccount?.trim() || null;
         data.receivedByUserId = payload.userId;
@@ -184,11 +252,10 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         data.postedAt = new Date();
         data.isVoided = false;
         data.approvalStatus = 'Pending';
-        const duplicateReference = await prisma.invoice.findFirst({
-          where: { type: 'Receipt', isVoided: false, paymentMethod: data.paymentMethod, paymentReference: { equals: data.paymentReference, mode: 'insensitive' } },
-          select: { id: true },
-        });
-        if (duplicateReference) return res.status(409).json({ error: `Payment reference already exists on receipt ${duplicateReference.id}.`, existingId: duplicateReference.id });
+        // Receipt status follows approval, not merely data entry.  Its financial
+        // effect is represented by a PaymentAllocation only after approval.
+        data.status = 'Pending';
+        if (!data.linkedInvoiceId) return res.status(400).json({ error: 'A receipt must be linked to an invoice before it can be recorded.' });
       }
 
       if (data.type === 'Quotation' && !data.quoteNumber) {
@@ -204,34 +271,34 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (duplicate) return res.status(409).json({ error: 'Monthly invoice already exists for this contract and month', existingId: duplicate.id });
       }
 
-      if (data.type === 'Receipt' && data.linkedInvoiceId) {
+      if (data.type === 'Receipt') {
         const result = await prisma.$transaction(async tx => {
+          await assertPeriodOpen(data.date, payload.email, tx);
+          await lockPaymentReference(tx, data.paymentMethod, data.paymentReference);
+          const duplicateReference = await duplicatePaymentReference(tx, data.paymentMethod, data.paymentReference);
+          if (duplicateReference) throw new PaymentIntegrityError(`Payment reference already exists on receipt ${duplicateReference.id}.`, 409, duplicateReference.id);
           const invoice = await tx.invoice.findUnique({ where: { id: data.linkedInvoiceId } });
-          if (!invoice || invoice.type !== 'Invoice') throw new Error('Linked invoice not found');
-          if (invoice.clientId !== data.clientId) throw new Error('Receipt client must match the linked invoice');
-          const prior = await tx.invoice.findMany({ where: { type: 'Receipt', linkedInvoiceId: invoice.id, isVoided: false }, select: { total: true } });
-          const paid = roundMoney(prior.reduce((sum, receipt) => sum + Number(receipt.total), 0));
-          const remaining = roundMoney(Number(invoice.total) - paid);
-          if (data.total <= 0 || data.total - remaining > 0.01) throw new Error(`Receipt exceeds the outstanding balance of $${remaining.toFixed(2)}`);
+          if (!invoice || invoice.type !== 'Invoice' || invoice.isVoided) throw new PaymentIntegrityError('Linked invoice not found');
+          if (invoice.clientId !== data.clientId) throw new PaymentIntegrityError('Receipt client must match the linked invoice');
           data.contractId = invoice.contractId;
           const receipt = await tx.invoice.create({ data });
-          await tx.paymentAllocation.create({ data: { receiptId: receipt.id, invoiceId: invoice.id, amount: data.total, allocatedBy: payload.userId } });
-          const newRemaining = roundMoney(remaining - data.total);
-          await tx.invoice.update({ where: { id: invoice.id }, data: { status: newRemaining <= 0.01 ? 'Paid' : 'Pending' } });
-          await tx.auditLog.create({ data: { action: 'Finance: Payment Posted', details: `Receipt ${receipt.id} allocated $${data.total.toFixed(2)} to invoice ${invoice.id}; received by ${data.receivedBy}`, userId: payload.userId, userEmail: payload.email, tableName: 'invoices', recordId: receipt.id, beforeData: undefined, afterData: receipt as any, ...audit } });
+          await tx.auditLog.create({ data: { action: 'Finance: Payment Recorded Pending Approval', details: `Receipt ${receipt.id} for $${data.total.toFixed(2)} linked to invoice ${invoice.id}; received by ${data.receivedBy}`, userId: payload.userId, userEmail: payload.email, tableName: 'invoices', recordId: receipt.id, beforeData: undefined, afterData: receipt as any, ...audit } });
           return receipt;
-        });
-        return res.status(201).json(result);
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        return res.status(201).json(withoutProofUrl(result));
       }
 
       const row = await prisma.$transaction(async tx => {
+        await assertPeriodOpen(data.date, payload.email, tx);
         const created = await tx.invoice.create({ data });
         await tx.auditLog.create({ data: { action: `Finance: ${created.type} Created`, details: `${created.type} ${created.id} ($${created.total})`, userId: payload.userId, userEmail: payload.email, tableName: 'invoices', recordId: created.id, afterData: created as any, ...audit } });
         return created;
       });
-      return res.status(201).json(row);
+      return res.status(201).json(withoutProofUrl(row));
     } catch (e: any) {
+      if (e instanceof PaymentIntegrityError) return res.status(e.status).json({ error: e.message, ...(e.existingId ? { existingId: e.existingId } : {}) });
       if (/Discount cannot|Linked invoice|Receipt client|Receipt exceeds|Accounting period/.test(e?.message || '')) return res.status(409).json({ error: e.message });
+      if (e?.code === 'P2002' || e?.code === 'P2034') return res.status(409).json({ error: 'Payment record changed concurrently. Refresh and retry.' });
       handlePrismaError(e, res, 'POST'); return;
     }
   }
@@ -250,7 +317,6 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!payload) return;
 
       const body = req.body ?? {};
-      await assertPeriodOpen(existing.date, authenticated.email);
       if (body.type && body.type !== existing.type && !(['Quotation', 'Proforma'].includes(existing.type) && body.type === 'Invoice')) {
         return res.status(400).json({ error: 'Document type cannot be changed this way' });
       }
@@ -275,15 +341,21 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
 
       const data = canonicalInvoiceData(parsed.data, await getVatRate());
+      // A date move affects both the original and destination period.  The
+      // transaction repeats this check so the write and lock check share a DB
+      // boundary; a database trigger protects direct/competing writes too.
+      await assertPeriodsOpen([existing.date, data.date], authenticated.email);
       const audit = auditContext(req);
       const row = await prisma.$transaction(async tx => {
+        await assertPeriodsOpen([existing.date, data.date], payload.email, tx);
         const updated = await tx.invoice.update({ where: { id: id as string }, data });
         await tx.auditLog.create({ data: { action: `Finance: ${updated.type} Updated`, details: `${updated.type} ${updated.id} updated`, userId: payload.userId, userEmail: payload.email, tableName: 'invoices', recordId: updated.id, beforeData: existing as any, afterData: updated as any, ...audit } });
         return updated;
       });
-      return res.status(200).json(row);
+      return res.status(200).json(withoutProofUrl(row));
     } catch (e: any) {
       if (/Discount cannot/.test(e?.message || '')) return res.status(400).json({ error: e.message });
+      if (/Accounting period/.test(e?.message || '')) return res.status(409).json({ error: e.message });
       handlePrismaError(e, res, 'PUT'); return;
     }
   }
@@ -302,20 +374,35 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (reason.length < 10) return res.status(400).json({ error: 'A void reason of at least 10 characters is required.' });
       const audit = auditContext(req);
       await prisma.$transaction(async tx => {
-        const voided = await tx.invoice.update({ where: { id: target.id }, data: { isVoided: true, voidReason: reason, voidedAt: new Date(), voidedBy: payload.userId } });
-        if (target.type === 'Receipt' && target.linkedInvoiceId) {
-          await tx.paymentAllocation.updateMany({ where: { receiptId: target.id, isReversed: false }, data: { isReversed: true, reversedAt: new Date(), reversedBy: payload.userId, reason } });
-          const linked = await tx.invoice.findUnique({ where: { id: target.linkedInvoiceId } });
-          if (linked) {
-            const remainingReceipts = await tx.invoice.findMany({ where: { type: 'Receipt', linkedInvoiceId: linked.id, isVoided: false }, select: { total: true } });
-            const paid = remainingReceipts.reduce((sum, receipt) => sum + Number(receipt.total), 0);
-            await tx.invoice.update({ where: { id: linked.id }, data: { status: Number(linked.total) - paid <= 0.01 ? 'Paid' : 'Pending' } });
-          }
+        await lockInvoice(tx, target.id);
+        const current = await tx.invoice.findUnique({ where: { id: target.id } });
+        if (!current) throw new PaymentIntegrityError('Invoice not found', 404);
+        if (current.isVoided) throw new PaymentIntegrityError('This financial record is already voided.');
+        await assertPeriodOpen(current.date, payload.email, tx);
+
+        // Reverse before voiding.  The database trigger rejects an isVoided
+        // transition with any active allocation, so a successful transaction
+        // cannot persist a voided document with live payment allocations.
+        const activeAllocations = await activeAllocationsForRecord(tx, current.id);
+        const affectedInvoiceIds = [...new Set(activeAllocations.map(allocation => allocation.invoiceId).filter(invoiceId => invoiceId !== current.id))].sort();
+        for (const invoiceId of affectedInvoiceIds) await lockInvoice(tx, invoiceId);
+        if (activeAllocations.length > 0) {
+          await tx.paymentAllocation.updateMany({
+            where: { OR: [{ receiptId: current.id }, { invoiceId: current.id }], isReversed: false },
+            data: { isReversed: true, reversedAt: new Date(), reversedBy: payload.userId, reason: `Voided: ${reason}` },
+          });
         }
-        await tx.auditLog.create({ data: { action: `Finance: ${target.type} Voided`, details: `${target.type} ${target.id} ($${target.total}); reason: ${reason}`, userId: payload.userId, userEmail: payload.email, tableName: 'invoices', recordId: target.id, beforeData: target as any, afterData: voided as any, ...audit } });
-      });
+        const voided = await tx.invoice.update({ where: { id: current.id }, data: { isVoided: true, voidReason: reason, voidedAt: new Date(), voidedBy: payload.userId } });
+        for (const invoiceId of affectedInvoiceIds) await recalculateInvoiceStatus(tx, invoiceId);
+        await tx.auditLog.create({ data: { action: `Finance: ${current.type} Voided`, details: `${current.type} ${current.id} ($${current.total}); ${activeAllocations.length} allocation(s) reversed; reason: ${reason}`, userId: payload.userId, userEmail: payload.email, tableName: 'invoices', recordId: current.id, beforeData: current as any, afterData: voided as any, ...audit } });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
       return res.status(200).json({ success: true, voided: true });
-    } catch (e: any) { handlePrismaError(e, res, 'DELETE'); return; }
+    } catch (e: any) {
+      if (e instanceof PaymentIntegrityError) return res.status(e.status).json({ error: e.message });
+      if (/Accounting period/.test(e?.message || '')) return res.status(409).json({ error: e.message });
+      if (e?.code === 'P2034') return res.status(409).json({ error: 'Payment state changed concurrently. Refresh and retry.' });
+      handlePrismaError(e, res, 'DELETE'); return;
+    }
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

@@ -1,5 +1,6 @@
 import type { HttpRequest, HttpResponse } from '../lib/http';
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma';
 import { requireFeatureRead, requireDeletePermission, requireFeatureWrite, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
@@ -13,6 +14,15 @@ const expenseSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD'),
   reference: z.string().trim().max(200, 'Reference too long').optional(),
 });
+
+function auditContext(req: HttpRequest) {
+  const forwarded = req.headers['x-forwarded-for'];
+  return {
+    requestId: String(req.headers['x-request-id'] || randomUUID()),
+    ipAddress: String(Array.isArray(forwarded) ? forwarded[0] : forwarded || (req as any).socket?.remoteAddress || '').split(',')[0].trim() || null,
+    userAgent: String(req.headers['user-agent'] || '').slice(0, 500) || null,
+  };
+}
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
@@ -41,9 +51,22 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const data = pickExpenseData(parsed.data);
       await assertPeriodOpen(data.date, payload.email);
+      const audit = auditContext(req);
       const row = await prisma.$transaction(async tx => {
         const created = await tx.expense.create({ data });
-        await tx.auditLog.create({ data: { action: 'Finance: Expense Created', details: `${created.category}: ${created.description} ($${created.amount})`, userId: payload.userId, userEmail: payload.email, tableName: 'expenses', recordId: created.id } });
+        await tx.auditLog.create({
+          data: {
+            action: 'Finance: Expense Created',
+            details: `${created.category}: ${created.description} ($${created.amount})`,
+            userId: payload.userId,
+            userEmail: payload.email,
+            tableName: 'expenses',
+            recordId: created.id,
+            beforeData: undefined,
+            afterData: created as any,
+            ...audit,
+          },
+        });
         return created;
       });
       return res.status(201).json(row);
@@ -60,9 +83,25 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const existing = await prisma.expense.findUnique({ where: { id: id as string } });
       if (!existing) return res.status(404).json({ error: 'Expense not found' });
       await assertPeriodOpen(existing.date, payload.email);
+      // A date edit can move a transaction into a closed period; protect both
+      // the original posting period and the destination period.
+      await assertPeriodOpen(data.date, payload.email);
+      const audit = auditContext(req);
       const row = await prisma.$transaction(async tx => {
         const updated = await tx.expense.update({ where: { id: id as string }, data });
-        await tx.auditLog.create({ data: { action: 'Finance: Expense Updated', details: `${updated.category}: ${updated.description} ($${updated.amount})`, userId: payload.userId, userEmail: payload.email, tableName: 'expenses', recordId: updated.id } });
+        await tx.auditLog.create({
+          data: {
+            action: 'Finance: Expense Updated',
+            details: `${existing.category}: ${existing.description} ($${existing.amount}) → ${updated.category}: ${updated.description} ($${updated.amount})`,
+            userId: payload.userId,
+            userEmail: payload.email,
+            tableName: 'expenses',
+            recordId: updated.id,
+            beforeData: existing as any,
+            afterData: updated as any,
+            ...audit,
+          },
+        });
         return updated;
       });
       return res.status(200).json(row);
@@ -75,9 +114,22 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const target = await prisma.expense.findUnique({ where: { id: id as string } });
       if (!target) return res.status(404).json({ error: 'Expense not found' });
       await assertPeriodOpen(target.date, payload.email);
+      const audit = auditContext(req);
       await prisma.$transaction(async tx => {
         await tx.expense.delete({ where: { id: id as string } });
-        await tx.auditLog.create({ data: { action: 'Finance: Expense Deleted', details: `${target.category}: ${target.description} ($${target.amount})`, userId: payload.userId, userEmail: payload.email, tableName: 'expenses', recordId: target.id } });
+        await tx.auditLog.create({
+          data: {
+            action: 'Finance: Expense Deleted',
+            details: `${target.category}: ${target.description} ($${target.amount})`,
+            userId: payload.userId,
+            userEmail: payload.email,
+            tableName: 'expenses',
+            recordId: target.id,
+            beforeData: target as any,
+            afterData: { id: target.id, deleted: true },
+            ...audit,
+          },
+        });
       });
       return res.status(200).json({ success: true });
     }

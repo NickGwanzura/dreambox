@@ -403,8 +403,9 @@ export const DirectorFinanceReport: React.FC = () => {
       buildForensicFinanceReport(
         invoices,
         getClients(),
-        getExpenses().filter((e) => inPeriod(e.date)),
+        getExpenses().filter((e) => throughEnd(e.date)),
         new Date(`${endDate}T23:59:59Z`),
+        { startDate, endDate },
       );
     const periodInvoices = report.invoices.filter((row) =>
       inPeriod(row.invoice.date),
@@ -789,7 +790,7 @@ export const DirectorFinanceReport: React.FC = () => {
           {data.report.generatedAt
             ? new Date(data.report.generatedAt).toLocaleString()
             : new Date().toLocaleString()}{" "}
-          · Reporting period {startDate}–{endDate} · Cash totals use receipts;
+          · Reporting period {startDate}–{endDate} · Cash totals use approved receipts;
           revenue uses invoice net amounts excluding VAT.
         </p>
         {data.report.reportId && (

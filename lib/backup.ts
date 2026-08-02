@@ -56,6 +56,11 @@ const BACKUP_TABLES = [
   { name: 'invoices', model: 'invoice' as const, key: 'invoices' as const },
   { name: 'payment_allocations', model: 'paymentAllocation' as const, key: 'paymentAllocations' as const },
   { name: 'expenses', model: 'expense' as const, key: 'expenses' as const },
+  // Finance controls are part of the accounting record.  Keeping these with
+  // application exports preserves period locks, payment-review queues and the
+  // immutable audit trail alongside their source transactions.
+  { name: 'accounting_periods', model: 'accountingPeriod' as const, key: 'accountingPeriods' as const },
+  { name: 'payment_reviews', model: 'paymentReview' as const, key: 'paymentReviews' as const },
   { name: 'tasks', model: 'task' as const, key: 'tasks' as const },
   { name: 'maintenance_logs', model: 'maintenanceLog' as const, key: 'maintenanceLogs' as const },
   { name: 'outsourced_billboards', model: 'outsourcedBillboard' as const, key: 'outsourcedBillboards' as const },
@@ -70,6 +75,7 @@ const BACKUP_TABLES = [
   { name: 'crm_call_logs', model: 'cRMCallLog' as const, key: 'crmCallLogs' as const },
   { name: 'product_services', model: 'productService' as const, key: 'productServices' as const },
   { name: 'quotation_events', model: 'quotationEvent' as const, key: 'quotationEvents' as const },
+  { name: 'audit_logs', model: 'auditLog' as const, key: 'auditLogs' as const },
 ];
 
 async function streamToString(stream: Readable): Promise<string> {
@@ -293,6 +299,8 @@ async function restoreFromData(data: BackupRecord): Promise<{ restored: number; 
     'invoices',
     'paymentAllocations',
     'expenses',
+    'accountingPeriods',
+    'paymentReviews',
     'tasks',
     'maintenanceLogs',
     'outsourcedBillboards',
@@ -306,6 +314,9 @@ async function restoreFromData(data: BackupRecord): Promise<{ restored: number; 
     'crmCallLogs',
     'productServices',
     'quotationEvents',
+    // Restore the audit trail last: it records the earlier control records
+    // without needing to participate in their restore ordering.
+    'auditLogs',
   ];
 
   for (const key of order) {

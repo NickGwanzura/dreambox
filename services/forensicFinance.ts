@@ -5,6 +5,15 @@ const money = (value: number) => value / 100;
 const active = (doc: Invoice) => !doc.isVoided;
 const dayMs = 86_400_000;
 
+// Receipt approval was added after the legacy ledger existed. Legacy rows carry
+// `NotRequired` (or no field in offline snapshots) and remain posted, while all
+// newly recorded receipts must be explicitly approved before they affect cash
+// or receivables.
+function isPostedReceipt(receipt: Invoice): boolean {
+  const approvalStatus = (receipt as any).approvalStatus;
+  return approvalStatus === 'Approved' || approvalStatus === 'NotRequired' || approvalStatus == null;
+}
+
 export interface InvoiceForensicRow {
   invoice: Invoice;
   clientName: string;
@@ -27,6 +36,15 @@ export interface DuplicateInvoiceGroup {
   key: string;
   invoices: Invoice[];
   suggestedSurvivorId: string;
+}
+
+/**
+ * An optional P&L window.  Ledger balances and aging remain as-of controls,
+ * while this scope determines which activity is included in the period P&L.
+ */
+export interface FinanceReportPeriod {
+  startDate: string;
+  endDate: string;
 }
 
 function agingBucket(days: number): InvoiceForensicRow['agingBucket'] {
@@ -71,10 +89,19 @@ export function detectDuplicateInvoices(invoices: Invoice[]): DuplicateInvoiceGr
   return [...exact, ...probable];
 }
 
-export function buildForensicFinanceReport(invoices: Invoice[], clients: Client[], expenses: Expense[], asOf = new Date()) {
+export function buildForensicFinanceReport(
+  invoices: Invoice[],
+  clients: Client[],
+  expenses: Expense[],
+  asOf = new Date(),
+  period?: FinanceReportPeriod,
+) {
   const clientNames = new Map(clients.map(c => [c.id, c.companyName]));
   const postedInvoices = invoices.filter(i => active(i) && i.type === 'Invoice');
-  const receipts = invoices.filter(i => active(i) && i.type === 'Receipt');
+  // Only approved receipts affect cash and receivables. Pending receipts stay
+  // visible as exceptions but must not settle invoices in the report.
+  const receipts = invoices.filter(i => active(i) && i.type === 'Receipt' && isPostedReceipt(i));
+  const reviewReceipts = invoices.filter(i => active(i) && i.type === 'Receipt' && !receipts.some(posted => posted.id === i.id));
   const receiptsByInvoice = new Map<string, Invoice[]>();
   for (const receipt of receipts) {
     if (!receipt.linkedInvoiceId) continue;
@@ -100,6 +127,17 @@ export function buildForensicFinanceReport(invoices: Invoice[], clients: Client[
   });
 
   const exceptions: FinanceException[] = [];
+  for (const receipt of reviewReceipts) {
+    const approvalStatus = String((receipt as any).approvalStatus || 'Pending');
+    exceptions.push({
+      severity: 'warning',
+      code: approvalStatus === 'Rejected' ? 'REJECTED_RECEIPT' : 'PENDING_RECEIPT_REVIEW',
+      recordId: receipt.id,
+      message: approvalStatus === 'Rejected'
+        ? 'Rejected payment is excluded from cash and receivables.'
+        : 'Payment is awaiting approval and is excluded from cash and receivables.',
+    });
+  }
   for (const receipt of receipts) {
     if (!receipt.receivedBy) exceptions.push({ severity: 'critical', code: 'MISSING_RECEIVER', recordId: receipt.id, message: 'Payment has no named receiver.' });
     if (!receipt.paymentReference) exceptions.push({ severity: 'critical', code: 'MISSING_REFERENCE', recordId: receipt.id, message: 'Payment has no reference.' });
@@ -124,10 +162,21 @@ export function buildForensicFinanceReport(invoices: Invoice[], clients: Client[
   const expensesCents = expenses.reduce((sum, e) => sum + cents(e.amount), 0);
   const aging = rows.reduce((acc, row) => { acc[row.agingBucket] += row.balance; return acc; }, { Current: 0, '1–30': 0, '31–60': 0, '61–90': 0, '90+': 0 } as Record<InvoiceForensicRow['agingBucket'], number>);
 
+  const isInPeriod = (date: string) => !!period && date >= period.startDate && date <= period.endDate;
+  const periodInvoices = period ? postedInvoices.filter(invoice => isInPeriod(invoice.date)) : [];
+  const periodReceipts = period ? receipts.filter(receipt => isInPeriod(receipt.date)) : [];
+  const periodExpenses = period ? expenses.filter(expense => isInPeriod(expense.date)) : [];
+  const periodBilledCents = periodInvoices.reduce((sum, invoice) => sum + cents(invoice.total), 0);
+  const periodNetRevenueCents = periodInvoices.reduce((sum, invoice) => sum + cents(invoice.subtotal), 0);
+  const periodVatCents = periodInvoices.reduce((sum, invoice) => sum + cents(invoice.vatAmount), 0);
+  const periodCollectedCents = periodReceipts.reduce((sum, receipt) => sum + cents(receipt.total), 0);
+  const periodExpensesCents = periodExpenses.reduce((sum, expense) => sum + cents(expense.amount), 0);
+
   return {
     asOf: asOf.toISOString(),
     invoices: rows,
     receipts,
+    reviewReceipts,
     exceptions,
     duplicateGroups,
     aging,
@@ -140,5 +189,20 @@ export function buildForensicFinanceReport(invoices: Invoice[], clients: Client[
       expenses: money(expensesCents),
       operatingResult: money(netRevenueCents - expensesCents),
     },
+    // Keep the as-of ledger controls above intact, but expose an explicitly
+    // period-scoped P&L whenever the caller supplies a reporting window.
+    // This prevents invoices from before the selected start date from being
+    // included in a period operating result merely because they are needed for
+    // end-date receivables aging.
+    period: period ? {
+      startDate: period.startDate,
+      endDate: period.endDate,
+      invoiceGross: money(periodBilledCents),
+      invoiceNet: money(periodNetRevenueCents),
+      vat: money(periodVatCents),
+      cashCollected: money(periodCollectedCents),
+      expenses: money(periodExpensesCents),
+      operatingResult: money(periodNetRevenueCents - periodExpensesCents),
+    } : undefined,
   };
 }

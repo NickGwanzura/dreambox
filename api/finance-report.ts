@@ -24,30 +24,33 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     const [invoiceRows, clientRows, expenseRows] = await Promise.all([
       prisma.invoice.findMany({ where: { date: { lte: parsed.data.endDate } }, orderBy: [{ date: 'asc' }, { createdAt: 'asc' }] }),
       prisma.client.findMany(),
-      prisma.expense.findMany({ where: { date: { gte: parsed.data.startDate, lte: parsed.data.endDate } } }),
+      // Expenses through the end date are retained for as-of controls; the
+      // forensic service applies the requested P&L window separately.
+      prisma.expense.findMany({ where: { date: { lte: parsed.data.endDate } } }),
     ]);
     const invoices = invoiceRows.map(row => ({ ...row, subtotal: Number(row.subtotal), discountAmount: row.discountAmount == null ? undefined : Number(row.discountAmount), vatAmount: Number(row.vatAmount), total: Number(row.total), proofUploadedAt: row.proofUploadedAt?.toISOString(), recordedAt: row.recordedAt?.toISOString(), postedAt: row.postedAt?.toISOString(), voidedAt: row.voidedAt?.toISOString() })) as any;
     const expenses = expenseRows.map(row => ({ ...row, amount: Number(row.amount) })) as any;
-    const report = buildForensicFinanceReport(invoices, clientRows as any, expenses, new Date(`${parsed.data.endDate}T23:59:59Z`));
-    const inPeriod = (date: string) => date >= parsed.data.startDate && date <= parsed.data.endDate;
+    const report = buildForensicFinanceReport(
+      invoices,
+      clientRows as any,
+      expenses,
+      new Date(`${parsed.data.endDate}T23:59:59Z`),
+      parsed.data,
+    );
+    if (!report.period) throw new Error('Period-scoped finance report was not generated.');
     const generatedAt = new Date().toISOString();
     const reportId = randomUUID();
     const response = {
       ...report,
-      period: {
-        startDate: parsed.data.startDate,
-        endDate: parsed.data.endDate,
-        invoiceGross: report.invoices.filter(row => inPeriod(row.invoice.date)).reduce((sum, row) => sum + Number(row.invoice.total), 0),
-        invoiceNet: report.invoices.filter(row => inPeriod(row.invoice.date)).reduce((sum, row) => sum + Number(row.invoice.subtotal), 0),
-        vat: report.invoices.filter(row => inPeriod(row.invoice.date)).reduce((sum, row) => sum + Number(row.invoice.vatAmount), 0),
-        cashCollected: report.receipts.filter(receipt => inPeriod(receipt.date)).reduce((sum, receipt) => sum + Number(receipt.total), 0),
-      },
+      // `totals` are as-of ledger controls for aging; `period` is the only
+      // P&L window and therefore cannot accidentally include prior invoices.
+      period: report.period,
       generatedBy: payload.email,
       generatedAt,
       reportId,
       basis: {
-        revenue: 'Accrual basis from active posted invoices; VAT shown separately.',
-        collections: 'Cash basis from active posted receipts.',
+        revenue: 'Accrual basis from active, non-void invoices dated within the selected period; VAT shown separately.',
+        collections: 'Cash basis from approved, active, non-void receipts dated within the selected period.',
         expenses: 'Expense-date basis within the selected period.',
         aging: `Outstanding balances as at ${parsed.data.endDate}.`,
       },
@@ -65,7 +68,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
           reportHash,
           startDate: parsed.data.startDate,
           endDate: parsed.data.endDate,
-          totals: response.totals,
+          asOfTotals: response.totals,
+          period: response.period,
           exceptionCount: response.exceptions.length,
         },
         ipAddress: req.ip || null,
