@@ -47,13 +47,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const cronSecret = process.env.CRON_SECRET;
-  const suppliedCronSecret = req.headers['x-cron-secret'] || req.headers.authorization;
-  const cronAuthorized = Boolean(cronSecret && (suppliedCronSecret === cronSecret || suppliedCronSecret === `Bearer ${cronSecret}`));
-  if (!cronAuthorized) {
-    const actor = await requireManagerOrAdmin(req, res);
-    if (!actor) return;
-  }
+  const actor = await requireManagerOrAdmin(req, res);
+  if (!actor) return;
 
   try {
     const [documentRows, clients, expenseRows] = await Promise.all([
