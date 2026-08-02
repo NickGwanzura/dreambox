@@ -195,7 +195,7 @@ export const DirectorFinanceReport: React.FC = () => {
     ]);
 
   return (
-    <div className="space-y-6 print:bg-white">
+    <div className="space-y-6 text-slate-900 print:bg-white">
       {reportError && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 print:hidden">
           {reportError}
