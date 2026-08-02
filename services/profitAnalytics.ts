@@ -48,7 +48,7 @@ export function getTotalMonthlyRecurringRevenue(): number {
  * captured in the initial invoices.
  */
 export function getTotalOneTimeRevenue(): number {
-    const invoices = getInvoices().filter(i => String(i.type || '').toLowerCase() === 'invoice');
+    const invoices = getInvoices().filter(i => String(i.type || '').toLowerCase() === 'invoice' && !i.isVoided);
     let oneTimeTotal = 0;
 
     for (const invoice of invoices) {
@@ -108,7 +108,7 @@ export function getTotalCOGS(): number {
  */
 export function getGrossProfit(): { grossProfit: number; grossMargin: number; revenue: number } {
     const totalRevenue = getInvoices()
-        .filter(i => String(i.type || '').toLowerCase() === 'invoice')
+        .filter(i => String(i.type || '').toLowerCase() === 'invoice' && !i.isVoided)
         .reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
 
     const cogs = getTotalCOGS();
@@ -129,7 +129,7 @@ export function getGrossProfit(): { grossProfit: number; grossMargin: number; re
  */
 export function getNetProfit(): number {
     const totalRevenue = getInvoices()
-        .filter(i => String(i.type || '').toLowerCase() === 'invoice')
+        .filter(i => String(i.type || '').toLowerCase() === 'invoice' && !i.isVoided)
         .reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
     const totalCOGS = getTotalCOGS();
     const operatingExpenses = getExpenses().reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
@@ -153,7 +153,7 @@ export interface ClientProfitability {
 export function getClientProfitability(): ClientProfitability[] {
     const clients = getClients();
     const contracts = getContracts();
-    const invoices = getInvoices().filter(i => String(i.type || '').toLowerCase() === 'invoice');
+    const invoices = getInvoices().filter(i => String(i.type || '').toLowerCase() === 'invoice' && !i.isVoided);
 
     return clients.map(client => {
         const clientContracts = contracts.filter(c => c.clientId === client.id);
@@ -213,18 +213,28 @@ export function getContractProfitability(): ContractProfitability[] {
     const getBillboardName = (id: string) => billboards.find(b => b.id === id)?.name || 'Unknown';
 
     return contracts.map(contract => {
+        // Profitability must be invoice-led. A contract's full term is a
+        // forecast, not realized revenue; multiplying MRR by the term was
+        // producing inflated values (for example, $5m on a long contract).
+        const contractInvoices = getInvoices().filter(i =>
+            String(i.type || '').toLowerCase() === 'invoice' &&
+            !i.isVoided &&
+            i.contractId === contract.id,
+        );
         const termMonths = Math.max(1, Math.ceil((new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
-        const recurringRevenue = contract.monthlyRate * termMonths;
-        const oneTimeRevenue = (contract.installationCost || 0) +
-                               (contract.printingCost || 0) +
-                               (contract.productionCost || 0);
+        const revenueSplit = contractInvoices.reduce((sum, invoice) => {
+            const split = classifyInvoiceRevenue(invoice);
+            return { recurring: sum.recurring + split.recurring, oneTime: sum.oneTime + split.oneTime };
+        }, { recurring: 0, oneTime: 0 });
+        const recurringRevenue = revenueSplit.recurring;
+        const oneTimeRevenue = revenueSplit.oneTime;
         const totalRevenue = recurringRevenue + oneTimeRevenue;
 
         // For COGS, we match one-time costs. Monthly rate revenue has no COGS in current model
         // (assuming monthly rate is pure gross profit after overhead)
         // More accurate: allocate overhead per month, but for gross profit we treat monthly as pure
         const cogs = oneTimeRevenue; // simplification: one-time costs = COGS for those line items
-        const grossProfit = recurringRevenue + (oneTimeRevenue - cogs); // = recurringRevenue only
+        const grossProfit = totalRevenue - cogs;
         const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
         return {
@@ -275,6 +285,7 @@ export function getMonthlyProfitTrends(): MonthlyProfitData[] {
         const monthInvoices = getInvoices().filter(inv => {
             const d = new Date(inv.date);
             return String(inv.type || '').toLowerCase() === 'invoice' &&
+                   !inv.isVoided &&
                    d.getMonth() === monthIndex && d.getFullYear() === year;
         });
 

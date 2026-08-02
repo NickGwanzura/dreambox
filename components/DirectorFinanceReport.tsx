@@ -538,7 +538,10 @@ export const DirectorFinanceReport: React.FC = () => {
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                setRemoteReport(null);
+                setStartDate(e.target.value);
+              }}
               className="block mt-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900"
             />
           </label>
@@ -547,7 +550,10 @@ export const DirectorFinanceReport: React.FC = () => {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                setRemoteReport(null);
+                setEndDate(e.target.value);
+              }}
               className="block mt-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900"
             />
           </label>

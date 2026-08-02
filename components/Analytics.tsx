@@ -11,8 +11,8 @@ import { getTotalMonthlyRecurringRevenue, getTotalOneTimeRevenue, getTotalCOGS, 
 export const Analytics: React.FC = () => {
     // 1. Calculate Revenue with proper classification
     const totalRevenue = getInvoices()
-        .filter(i => String(i.type || '').toLowerCase() === 'invoice')
-        .reduce((acc, curr) => acc + (curr.total ?? 0), 0);
+        .filter(i => String(i.type || '').toLowerCase() === 'invoice' && !i.isVoided)
+        .reduce((acc, curr) => acc + (curr.subtotal ?? 0), 0);
 
     const recurringRevenue = getTotalMonthlyRecurringRevenue() * 6; // Approximate 6-month MRR total for comparison
     const oneTimeRevenue = getTotalOneTimeRevenue();
@@ -102,17 +102,17 @@ export const Analytics: React.FC = () => {
             {/* Scorecards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Total Revenue (All Invoices)</p>
+                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Net Invoiced Revenue</p>
                     <h3 className="text-4xl font-extrabold text-slate-900 tracking-tight">${totalRevenue.toLocaleString()}</h3>
                     <p className="text-xs text-slate-900 mt-2 font-medium">
-                        Includes one-time fees (installation, printing, production)
+                        VAT excluded; voided invoices excluded
                     </p>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Estimated COGS</p>
+                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Direct COGS Estimate</p>
                     <h3 className="text-4xl font-extrabold text-red-600 tracking-tight">${totalCOGS.toLocaleString()}</h3>
                     <p className="text-xs text-slate-900 mt-2 font-medium">
-                        Installation + Printing + Production + Outsourced + Operational
+                        Installation + printing + production + outsourced costs
                     </p>
                 </div>
                 <div className="bg-slate-900 p-6 rounded-2xl shadow-lg border border-slate-800 text-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
