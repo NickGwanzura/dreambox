@@ -14,6 +14,16 @@ function isPostedReceipt(receipt: Invoice): boolean {
   return approvalStatus === 'Approved' || approvalStatus === 'NotRequired' || approvalStatus == null;
 }
 
+// Legacy receipts predate linkedInvoiceId and stored the invoice reference in
+// the first line-item description (for example, "Payment for Invoice #INV-1").
+// Resolve that linkage in memory so historical cash is not falsely reported as
+// orphaned or left out of the invoice balance.
+function resolvedLinkedInvoiceId(receipt: Invoice): string | null {
+  if (receipt.linkedInvoiceId) return receipt.linkedInvoiceId;
+  const description = String(receipt.items?.[0]?.description || '');
+  return description.match(/Invoice #([A-Za-z0-9-]+)/)?.[1] || null;
+}
+
 export interface InvoiceForensicRow {
   invoice: Invoice;
   clientName: string;
@@ -100,12 +110,17 @@ export function buildForensicFinanceReport(
   const postedInvoices = invoices.filter(i => active(i) && i.type === 'Invoice');
   // Only approved receipts affect cash and receivables. Pending receipts stay
   // visible as exceptions but must not settle invoices in the report.
-  const receipts = invoices.filter(i => active(i) && i.type === 'Receipt' && isPostedReceipt(i));
-  const reviewReceipts = invoices.filter(i => active(i) && i.type === 'Receipt' && !receipts.some(posted => posted.id === i.id));
+  const postedReceiptRows = invoices.filter(i => active(i) && i.type === 'Receipt' && isPostedReceipt(i));
+  const receipts = postedReceiptRows.map(receipt => {
+    const linkedInvoiceId = resolvedLinkedInvoiceId(receipt);
+    return linkedInvoiceId && !receipt.linkedInvoiceId ? { ...receipt, linkedInvoiceId } : receipt;
+  });
+  const reviewReceipts = invoices.filter(i => active(i) && i.type === 'Receipt' && !postedReceiptRows.some(posted => posted.id === i.id));
   const receiptsByInvoice = new Map<string, Invoice[]>();
   for (const receipt of receipts) {
-    if (!receipt.linkedInvoiceId) continue;
-    receiptsByInvoice.set(receipt.linkedInvoiceId, [...(receiptsByInvoice.get(receipt.linkedInvoiceId) || []), receipt]);
+    const linkedInvoiceId = resolvedLinkedInvoiceId(receipt);
+    if (!linkedInvoiceId) continue;
+    receiptsByInvoice.set(linkedInvoiceId, [...(receiptsByInvoice.get(linkedInvoiceId) || []), receipt]);
   }
 
   const rows: InvoiceForensicRow[] = postedInvoices.map(invoice => {
@@ -141,7 +156,8 @@ export function buildForensicFinanceReport(
   for (const receipt of receipts) {
     if (!receipt.receivedBy) exceptions.push({ severity: 'critical', code: 'MISSING_RECEIVER', recordId: receipt.id, message: 'Payment has no named receiver.' });
     if (!receipt.paymentReference) exceptions.push({ severity: 'critical', code: 'MISSING_REFERENCE', recordId: receipt.id, message: 'Payment has no reference.' });
-    if (!receipt.linkedInvoiceId || !postedInvoices.some(i => i.id === receipt.linkedInvoiceId)) exceptions.push({ severity: 'critical', code: 'ORPHAN_PAYMENT', recordId: receipt.id, message: 'Payment is not allocated to a valid posted invoice.' });
+    const linkedInvoiceId = resolvedLinkedInvoiceId(receipt);
+    if (!linkedInvoiceId || !postedInvoices.some(i => i.id === linkedInvoiceId)) exceptions.push({ severity: 'critical', code: 'ORPHAN_PAYMENT', recordId: receipt.id, message: 'Payment is not allocated to a valid posted invoice.' });
     if (/bank|transfer|rtgs|swift|wire/i.test(String(receipt.paymentMethod || '')) && !receipt.proofPaymentUrl) exceptions.push({ severity: 'critical', code: 'MISSING_BANK_PROOF', recordId: receipt.id, message: 'Bank payment has no proof of payment.' });
     if (/bank|transfer|rtgs|swift|wire/i.test(String(receipt.paymentMethod || '')) && !receipt.receivingAccount) exceptions.push({ severity: 'warning', code: 'MISSING_BANK_ACCOUNT', recordId: receipt.id, message: 'Bank payment has no receiving account.' });
   }

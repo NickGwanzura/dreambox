@@ -16,6 +16,17 @@ describe('forensic finance end-to-end invariants', () => {
     expect(report.exceptions).toHaveLength(0);
   });
 
+  it('resolves legacy receipt linkage from the line-item description', () => {
+    const legacyReceipt = receipt({
+      linkedInvoiceId: undefined,
+      items: [{ description: 'Payment for Invoice #invoice-1', amount: 115.5 }],
+    });
+    const report = buildForensicFinanceReport([invoice(), legacyReceipt], [client], [], new Date('2026-08-01T00:00:00Z'));
+    expect(report.totals.outstanding).toBe(0);
+    expect(report.exceptions.some(item => item.code === 'ORPHAN_PAYMENT')).toBe(false);
+    expect(report.receipts[0].linkedInvoiceId).toBe('invoice-1');
+  });
+
   it('finds legacy payment evidence gaps and false paid statuses', () => {
     const report = buildForensicFinanceReport([invoice({ status: 'Paid' }), receipt({ receivedBy: undefined, proofPaymentUrl: undefined, linkedInvoiceId: undefined })], [client], [], new Date('2026-08-01T00:00:00Z'));
     expect(report.exceptions.map(item => item.code)).toEqual(expect.arrayContaining(['MISSING_RECEIVER', 'MISSING_BANK_PROOF', 'ORPHAN_PAYMENT', 'FALSE_PAID_STATUS']));
