@@ -106,7 +106,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   } catch (error: any) {
     return res.status(500).json({
       error: 'Could not reconcile the finance ledger.',
-      detail: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+      detail: cronAuthorized || process.env.NODE_ENV === 'development' ? error?.message : undefined,
     });
   }
 }
