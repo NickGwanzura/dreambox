@@ -55,6 +55,20 @@ function adapt(handlerModule: { default: Function }, routeName: string) {
 
 // ─── Apply pending migrations on startup via Prisma Migrate ──────────────────
 
+/** True when a given table exists in the connected database (schema-agnostic). */
+async function tableExists(table: string): Promise<boolean> {
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ count: string }[]>(
+      `SELECT COUNT(*)::text AS count FROM information_schema.tables
+       WHERE table_schema = ANY (current_schemas(false)) AND table_name = $1`,
+      table,
+    );
+    return Number(rows?.[0]?.count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function runMigrations() {
   if (!process.env.DATABASE_URL) {
     log.boot('  Migrations         —  skipped (DATABASE_URL not set)');
@@ -129,6 +143,33 @@ async function runMigrations() {
     log.boot('  Finance schema     ✓  forensic columns/journals ready');
   } catch (e: any) {
     log.boot(`  Finance schema     ⚠  ${e?.message?.slice(0, 200) || 'finance schema check failed'}`);
+  }
+
+  // Keep audit_logs usable for reads and the transaction writes used across the
+  // app. The initial table (migrations/add_audit_logs.sql) predates several
+  // columns the Prisma AuditLog model now references — beforeData/afterData
+  // snapshots, request triage fields, and the forensic source/hash chain. Old
+  // databases missing these cause every audited insert (e.g. recording an
+  // expense) to fail with a generic 500. This always runs before routes are
+  // registered so no written record ever hits a missing column.
+  try {
+    if (await tableExists('audit_logs')) {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "beforeData" JSONB,
+        ADD COLUMN IF NOT EXISTS "afterData" JSONB,
+        ADD COLUMN IF NOT EXISTS "requestId" TEXT,
+        ADD COLUMN IF NOT EXISTS "ipAddress" TEXT,
+        ADD COLUMN IF NOT EXISTS "userAgent" TEXT,
+        ADD COLUMN IF NOT EXISTS "source" TEXT NOT NULL DEFAULT 'SERVER',
+        ADD COLUMN IF NOT EXISTS "previousHash" TEXT,
+        ADD COLUMN IF NOT EXISTS "eventHash" TEXT
+      `);
+      log.boot('  Audit schema       ✓  audit_logs columns ready');
+    } else {
+      log.boot('  Audit schema       —  audit_logs table not present, skipping');
+    }
+  } catch (e: any) {
+    log.boot(`  Audit schema       ⚠  ${e?.message?.slice(0, 200) || 'audit_logs schema check failed'}`);
   }
 
   // Bootstrap: ensure InvoiceType enum includes all values from Prisma schema.
@@ -214,6 +255,8 @@ async function registerRoutes() {
   const paymentControls    = await import('./api/payment-controls.js');
   const accountingPeriods  = await import('./api/accounting-periods.js');
   const logoProxy          = await import('./api/logo-proxy.js');
+  const today              = await import('./api/today.js');
+  const fieldReports       = await import('./api/field-reports.js');
 
   app.all('/api/billboards',            adapt(billboards,          'billboards'));
   app.all('/api/backup',                adapt(backup,              'backup'));
@@ -242,7 +285,9 @@ async function registerRoutes() {
   app.all('/api/logo-proxy',            adapt(logoProxy,           'logo-proxy'));
   app.all('/api/users',                 adapt(users,               'users'));
   app.all('/api/ai',                    adapt(ai,                  'ai'));
-  log.boot('  Core routes        ✓  (billboards, clients, contracts, contract-amendments, invoices, expenses, tasks, maintenance, outsourced, printing-jobs, company-profile, users, ai)');
+  app.all('/api/today',                 adapt(today,                'today'));
+  app.all('/api/field-reports',         adapt(fieldReports,         'field-reports'));
+  log.boot('  Core routes        ✓  (billboards, clients, contracts, contract-amendments, invoices, expenses, tasks, maintenance, outsourced, printing-jobs, company-profile, users, ai, today, field-reports)');
 
   // CRM
   const crmCompanies     = await import('./api/crm/companies.js');
@@ -252,6 +297,7 @@ async function registerRoutes() {
   const crmTasks         = await import('./api/crm/tasks.js');
   const crmEmailThreads  = await import('./api/crm/email-threads.js');
   const crmCallLogs      = await import('./api/crm/call-logs.js');
+  const crmAutomation    = await import('./api/crm/automation.js');
 
   app.all('/api/crm/companies',      adapt(crmCompanies,     'crm/companies'));
   app.all('/api/crm/contacts',       adapt(crmContacts,      'crm/contacts'));
@@ -260,7 +306,8 @@ async function registerRoutes() {
   app.all('/api/crm/tasks',          adapt(crmTasks,         'crm/tasks'));
   app.all('/api/crm/email-threads',  adapt(crmEmailThreads,  'crm/email-threads'));
   app.all('/api/crm/call-logs',      adapt(crmCallLogs,      'crm/call-logs'));
-  log.boot('  CRM routes         ✓  (companies, contacts, opportunities, touchpoints, tasks, email-threads, call-logs)');
+  app.all('/api/crm/automation',     adapt(crmAutomation,    'crm/automation'));
+  log.boot('  CRM routes         ✓  (companies, contacts, opportunities, touchpoints, tasks, email-threads, call-logs, automation)');
 
   // Documents
   const sendDocEmail = await import('./api/documents/send-email.js');
