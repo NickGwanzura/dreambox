@@ -3,7 +3,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LayoutDashboard, Map, Users, FileText, CreditCard, Receipt, Settings as SettingsIcon,
   Menu, X, Bell, LogOut, Printer, PieChart, Wallet, ChevronRight, CheckSquare, Wrench,
-  Database, RefreshCw, Target, FileSignature, BarChart2, Plus, Zap, ShieldCheck
+  Database, RefreshCw, Target, FileSignature, BarChart2, Plus, Zap, ShieldCheck,
+  CalendarCheck, MapPinned
 } from 'lucide-react';
 import { getCurrentUser, signOut } from '../services/authService';
 import { isConfigured as isDatabaseConfigured, checkConnection as checkDatabaseConnection } from '../services/apiClient';
@@ -55,6 +56,7 @@ const ALL_SECTIONS: Section[] = [
   {
     label: null,
     items: [
+      { id: 'today', label: 'Today', icon: CalendarCheck, roles: null },
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
     ],
   },
@@ -80,6 +82,7 @@ const ALL_SECTIONS: Section[] = [
     label: 'Operations',
     items: [
       { id: 'billboards',  label: 'Billboards',  icon: Map,         roles: null },
+      { id: 'field-operations', label: 'Field Operations', icon: MapPinned, roles: ['Admin', 'Manager', 'Staff'] },
       { id: 'maintenance', label: 'Maintenance', icon: Wrench,      roles: ['Admin', 'Manager', 'Staff'] },
       { id: 'tasks',       label: 'Tasks',        icon: CheckSquare, roles: ['Admin', 'Manager', 'Staff'] },
     ],

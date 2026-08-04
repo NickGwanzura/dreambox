@@ -535,6 +535,8 @@ export interface CRMTouchpoint {
 export interface CRMTask {
   id: string;
   opportunityId: string;
+  /** Stable idempotency key for automation-generated follow-up tasks. */
+  automationKey?: string;
   
   type: CRMTaskType;
   title: string;
@@ -551,6 +553,65 @@ export interface CRMTask {
   
   createdAt: string;
   createdBy: string;
+}
+
+// ==========================================
+// FIELD OPERATIONS
+// ==========================================
+
+export type FieldReportType = 'CheckIn' | 'CampaignProof' | 'Issue';
+export type FieldReportStatus = 'Pending' | 'Submitted' | 'Resolved';
+
+/** A durable, server-confirmed field report. All dates are ISO-8601 strings at the client boundary. */
+export interface FieldReport {
+  id: string;
+  type: FieldReportType;
+  billboardId: string;
+  contractId?: string;
+  note?: string;
+  photoUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  status: FieldReportStatus;
+  reportedBy: string;
+  reportedByEmail?: string;
+  capturedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * The device-side evidence captured before a report can be uploaded. photoDataUrl
+ * is intentionally a data URL, never a browser blob/object URL, so it can survive
+ * an offline page reload when local storage has room for it.
+ */
+export interface FieldReportDraft {
+  id: string;
+  type: FieldReportType;
+  billboardId: string;
+  contractId?: string;
+  note?: string;
+  photoUrl?: string;
+  photoDataUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  capturedAt: string;
+}
+
+export type FieldReportQueueStatus = 'queued' | 'failed';
+
+export interface FieldReportQueueItem {
+  id: string;
+  draft: FieldReportDraft;
+  status: FieldReportQueueStatus;
+  retryCount: number;
+  queuedAt: string;
+  lastAttemptAt?: string;
+  lastError?: string;
+  /** 4xx/auth failures need user correction and are not retried automatically. */
+  terminal?: boolean;
 }
 
 // CSV Import/Export Row Structure

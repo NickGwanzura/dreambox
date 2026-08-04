@@ -484,6 +484,7 @@ model CRMTouchpoint {
 model CRMTask {
   id              String   @id @default(uuid())
   opportunityId   String
+  automationKey   String?  @unique
   type            String
   title           String
   description     String?
@@ -500,6 +501,33 @@ model CRMTask {
 
   @@index([opportunityId])
   @@map("crm_tasks")
+}
+
+// Field activity is intentionally relation-free. The core Billboard and Contract
+// models predate Prisma relations, so these identifiers are validated by the API
+// without introducing a mixed relation strategy into the existing schema.
+model FieldReport {
+  id              String            @id @default(uuid())
+  type            FieldReportType
+  billboardId     String
+  contractId      String?
+  note            String?
+  photoUrl        String?
+  latitude        Float?
+  longitude       Float?
+  accuracy        Float?
+  status          FieldReportStatus @default(Submitted)
+  reportedBy      String
+  reportedByEmail String?
+  capturedAt      DateTime
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([billboardId])
+  @@index([contractId])
+  @@index([status])
+  @@index([capturedAt])
+  @@map("field_reports")
 }
 
 model CRMEmailThread {
@@ -709,4 +737,16 @@ enum MaintenanceType {
 enum OutsourcedStatus {
   Active
   Inactive
+}
+
+enum FieldReportType {
+  CheckIn
+  CampaignProof
+  Issue
+}
+
+enum FieldReportStatus {
+  Pending
+  Submitted
+  Resolved
 }

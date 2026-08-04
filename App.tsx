@@ -158,6 +158,8 @@ const DirectorFinanceReport = lazyWithRetry(() => import('./components/DirectorF
 const Payments = lazyWithRetry(() => import('./components/Payments').then(m => ({ default: m.Payments })));
 const Tasks = lazyWithRetry(() => import('./components/Tasks').then(m => ({ default: m.Tasks })));
 const Maintenance = lazyWithRetry(() => import('./components/Maintenance').then(m => ({ default: m.Maintenance })));
+const TodayOperations = lazyWithRetry(() => import('./components/TodayOperations').then(m => ({ default: m.TodayOperations })));
+const FieldOperations = lazyWithRetry(() => import('./components/FieldOperations').then(m => ({ default: m.FieldOperations })));
 const ClientPortal = lazyWithRetry(() => import('./components/ClientPortal').then(m => ({ default: m.ClientPortal })));
 const PublicView = lazyWithRetry(() => import('./components/PublicView').then(m => ({ default: m.PublicView })));
 const PublicWebsite = lazyWithRetry(() => import('./components/PublicWebsite').then(m => ({ default: m.PublicWebsite })));
@@ -238,7 +240,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 }
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState('today');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try { return !!localStorage.getItem('db_auth_token'); } catch { return false; }
   });
@@ -320,6 +322,12 @@ const App: React.FC = () => {
 
     try {
       switch (currentPage) {
+        case 'today':
+          return (
+            <FeatureErrorBoundary featureName="Today Operations" onReset={() => setPageError(null)}>
+              <TodayOperations onNavigate={handlePageChange} />
+            </FeatureErrorBoundary>
+          );
         case 'dashboard': 
           return (
             <FeatureErrorBoundary featureName="Dashboard" onReset={() => setPageError(null)}>
@@ -387,6 +395,12 @@ const App: React.FC = () => {
               <Maintenance />
             </FeatureErrorBoundary>
           );
+        case 'field-operations':
+          return (
+            <FeatureErrorBoundary featureName="Field Operations" onReset={() => setPageError(null)}>
+              <FieldOperations />
+            </FeatureErrorBoundary>
+          );
         case 'financials': 
           return (
             <FeatureErrorBoundary featureName="Financials" onReset={() => setPageError(null)}>
@@ -425,10 +439,10 @@ const App: React.FC = () => {
             </FeatureErrorBoundary>
           );
         }
-        default: 
+        default:
           return (
-            <FeatureErrorBoundary featureName="Dashboard" onReset={() => setPageError(null)}>
-              <Dashboard />
+            <FeatureErrorBoundary featureName="Today Operations" onReset={() => setPageError(null)}>
+              <TodayOperations onNavigate={handlePageChange} />
             </FeatureErrorBoundary>
           );
       }

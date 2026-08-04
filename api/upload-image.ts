@@ -15,12 +15,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   if (!dataUrl || typeof dataUrl !== 'string') {
     return res.status(400).json({ error: 'dataUrl is required' });
   }
-  if (!['logos', 'billboards', 'gallery'].includes(folder)) {
+  if (!['logos', 'billboards', 'gallery', 'field-reports'].includes(folder)) {
     return res.status(400).json({ error: 'Invalid folder' });
   }
 
   try {
-    const url = await uploadBase64Image(folder as 'logos' | 'billboards' | 'gallery', dataUrl, null);
+    const url = await uploadBase64Image(folder as 'logos' | 'billboards' | 'gallery' | 'field-reports', dataUrl, null);
     if (!url) return res.status(400).json({ error: 'No data URL provided' });
     return res.status(200).json({ url });
   } catch (e: any) {
