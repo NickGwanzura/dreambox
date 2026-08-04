@@ -216,6 +216,46 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         const row = await prisma.invoice.findUnique({ where: { id: id as string } });
         return row ? res.status(200).json(withoutProofUrl(row)) : res.status(404).json({ error: 'Not found' });
       }
+      // Review queue: invoices with no payment logged at all (non-voided,
+      // Pending/Overdue). A payment counts as logged when a non-voided receipt
+      // is linked to the invoice or an active allocation references it.
+      if (String(req.query.reviewQueue || '').toLowerCase() === 'true') {
+        // Pending/Overdue invoices with no payment, plus Paid invoices with no
+        // payment evidence at all — both are anomalies worth reviewing.
+        const unpaidRows = await prisma.invoice.findMany({
+          where: { type: 'Invoice', isVoided: false, status: { in: ['Pending', 'Overdue', 'Paid'] } },
+          select: { id: true },
+        });
+        const invoiceIds = unpaidRows.map(row => row.id);
+        if (invoiceIds.length === 0) return res.status(200).json([]);
+        const [linkedReceipts, allocations] = await Promise.all([
+          prisma.invoice.findMany({
+            where: { type: 'Receipt', isVoided: false, linkedInvoiceId: { in: invoiceIds } },
+            select: { id: true, linkedInvoiceId: true, total: true },
+          }),
+          prisma.paymentAllocation.findMany({
+            where: { invoiceId: { in: invoiceIds }, isReversed: false },
+            select: { invoiceId: true, amount: true },
+          }),
+        ]);
+        const paidByInvoice = new Map<string, number>();
+        for (const receipt of linkedReceipts) {
+          if (!receipt.linkedInvoiceId) continue;
+          paidByInvoice.set(receipt.linkedInvoiceId, roundMoney((paidByInvoice.get(receipt.linkedInvoiceId) || 0) + Number(receipt.total || 0)));
+        }
+        for (const allocation of allocations) {
+          paidByInvoice.set(allocation.invoiceId, roundMoney((paidByInvoice.get(allocation.invoiceId) || 0) + Number(allocation.amount || 0)));
+        }
+        const flaggedIds = invoiceIds.filter(invoiceId => (paidByInvoice.get(invoiceId) || 0) <= 0.01);
+        if (flaggedIds.length === 0) return res.status(200).json([]);
+        const flagged = await prisma.invoice.findMany({ where: { id: { in: flaggedIds } }, orderBy: { date: 'asc' } });
+        return res.status(200).json(flagged.map(row => withoutProofUrl({
+          ...row,
+          hasPaymentLogged: false,
+          outstanding: Number(row.total || 0),
+          flaggedForReview: true,
+        })));
+      }
       const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
       const skip = Math.max(0, Number(req.query.skip) || 0);
       const includeVoided = String(req.query.includeVoided || '').toLowerCase() === 'true' && ['Admin', 'Manager'].includes(payload.role);

@@ -1511,6 +1511,35 @@ export const getContracts = () => contracts || [];
 export const getContractAmendments = () => contractAmendments || [];
 export const getInvoices = () => invoices || [];
 export const getExpenses = () => expenses || [];
+
+/**
+ * Invoices with no payment logged at all, for the payment review queue.
+ * Server-computed when connected; the local fallback mirrors the same rule:
+ * non-voided Pending/Overdue invoices with no non-voided linked receipt.
+ */
+export const getInvoicesReviewQueue = async (): Promise<Invoice[]> => {
+  if (isConfigured()) {
+    try {
+      return await api.get<Invoice[]>('/api/invoices', { reviewQueue: 'true' });
+    } catch {
+      // Fall back to the local computation below.
+    }
+  }
+  const flagged = (invoices || []).filter((inv: Invoice) => {
+    if (String(inv.type || '').toLowerCase() !== 'invoice' || inv.isVoided) return false;
+    if (!['Pending', 'Overdue', 'Paid'].includes(String(inv.status || ''))) return false;
+    const hasReceipt = (invoices || []).some(r =>
+      String(r.type || '').toLowerCase() === 'receipt' && !r.isVoided && r.linkedInvoiceId === inv.id,
+    );
+    return !hasReceipt;
+  });
+  return flagged.map(inv => ({
+    ...inv,
+    hasPaymentLogged: false,
+    outstanding: Number(inv.total || 0),
+    flaggedForReview: true,
+  }));
+};
 export const getAuditLogs = () => auditLogs || [];
 export const getUsers = () => users || [];
 export const getClients = () => clients || [];

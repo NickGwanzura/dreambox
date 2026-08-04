@@ -82,3 +82,88 @@ describe('expense audit evidence', () => {
     });
   });
 });
+
+describe('expense submission (POST)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    state.auth.requireFeatureWrite.mockResolvedValue(manager);
+    state.auth.requireFeatureRead.mockResolvedValue(manager);
+    state.prisma.accountingPeriod.findFirst.mockResolvedValue(null);
+    state.expense.create.mockImplementation(async ({ data }: any) => ({ id: 'expense-new', ...data }));
+  });
+
+  it('creates an expense and writes a Finance: Expense Created audit log', async () => {
+    const res = response();
+    await handler(
+      request({
+        method: 'POST',
+        query: {},
+        body: { category: 'Electricity', description: 'Power bill', amount: 250, date: '2026-08-01', reference: 'ZESA-1' },
+      }),
+      res,
+    );
+
+    expect(res.statusCode).toBe(201);
+    expect(state.expense.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        category: 'Electricity',
+        description: 'Power bill',
+        amount: 250,
+        date: '2026-08-01',
+        reference: 'ZESA-1',
+      }),
+    });
+    expect(state.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'Finance: Expense Created',
+        tableName: 'expenses',
+        recordId: 'expense-new',
+        requestId: 'request-1',
+      }),
+    });
+  });
+
+  it('rejects an expense with an empty description', async () => {
+    const res = response();
+    await handler(
+      request({ method: 'POST', query: {}, body: { category: 'Other', description: '', amount: 10, date: '2026-08-01' } }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+    expect(state.expense.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an expense with a zero amount', async () => {
+    const res = response();
+    await handler(
+      request({ method: 'POST', query: {}, body: { category: 'Other', description: 'Test', amount: 0, date: '2026-08-01' } }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+    expect(state.expense.create).not.toHaveBeenCalled();
+  });
+
+  it('does not forward client-generated ids or unknown fields to Prisma', async () => {
+    const res = response();
+    await handler(
+      request({
+        method: 'POST',
+        query: {},
+        body: { id: 'EXP-999', category: 'Labor', description: 'Install crew', amount: 75, date: '2026-08-02', injected: 'x' },
+      }),
+      res,
+    );
+    expect(res.statusCode).toBe(201);
+    expect(state.expense.create).toHaveBeenCalledWith({
+      data: expect.not.objectContaining({ id: 'EXP-999', injected: 'x' }),
+    });
+  });
+
+  it('lists expenses for a read request', async () => {
+    state.expense.findMany.mockResolvedValue([{ id: 'expense-1', category: 'Other', description: 'Old cost', amount: 75, date: '2026-07-01' }]);
+    const res = response();
+    await handler(request({ method: 'GET', query: {} }), res);
+    expect(res.statusCode).toBe(200);
+    expect(state.expense.findMany).toHaveBeenCalled();
+  });
+});

@@ -77,7 +77,7 @@ export const Expenses: React.FC = () => {
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
     try {
-    const expense: Expense = { id: `EXP-${Date.now()}`, category: newExpense.category as any, description: newExpense.description || '', amount: newExpense.amount || 0, date: newExpense.date || new Date().toISOString(), reference: newExpense.reference };
+    const expense: Expense = { id: `EXP-${Date.now()}`, category: newExpense.category as any, description: newExpense.description || '', amount: newExpense.amount || 0, date: newExpense.date || new Date().toISOString().split('T')[0], reference: newExpense.reference };
     try {
       await addExpense(expense);
       setGeneralExpenses(getExpenses());

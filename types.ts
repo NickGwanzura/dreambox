@@ -173,6 +173,11 @@ export interface Invoice {
   voidedBy?: string;
   /** Receipt→invoice link; legacy receipts fall back to parsing the description */
   linkedInvoiceId?: string;
+
+  // Payment review flags (server-computed via GET /api/invoices?reviewQueue=true)
+  hasPaymentLogged?: boolean;
+  outstanding?: number;
+  flaggedForReview?: boolean;
   
   // Quotation-specific fields
   quoteNumber?: string;

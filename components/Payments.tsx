@@ -9,6 +9,7 @@ import {
   addInvoice,
   getUpcomingBillings,
   deleteInvoice,
+  getInvoicesReviewQueue,
   logAction,
 } from "../services/mockData";
 import {
@@ -34,6 +35,7 @@ import {
   Trash2,
   ReceiptText,
   Send,
+  Flag,
 } from "lucide-react";
 import { getCurrentUser } from "../services/authServiceSecure";
 import { canDelete } from "../utils/settingsAccess";
@@ -123,10 +125,11 @@ export const Payments: React.FC = () => {
     ? `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim()
     : "";
   const [activeTab, setActiveTab] = useState<
-    "Monthly" | "Invoices" | "History" | "Statements" | "Schedule"
+    "Monthly" | "Invoices" | "Review" | "History" | "Statements" | "Schedule"
   >("Monthly");
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
   const [allReceipts, setAllReceipts] = useState<Invoice[]>([]);
+  const [reviewQueue, setReviewQueue] = useState<Invoice[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "All" | "Paid" | "Pending" | "Overdue"
@@ -192,6 +195,23 @@ export const Payments: React.FC = () => {
   useEffect(() => {
     refreshInvoices();
   }, [activeTab, selectedInvoice, monthlyContract]);
+
+  // Keep the payment review queue fresh whenever the invoices change (e.g.
+  // after logging a payment) while the Review tab is open.
+  useEffect(() => {
+    if (activeTab !== "Review") return;
+    let cancelled = false;
+    getInvoicesReviewQueue()
+      .then((queue) => {
+        if (!cancelled) setReviewQueue(queue);
+      })
+      .catch(() => {
+        if (!cancelled) setReviewQueue([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, allInvoices]);
 
   const getClientName = (id: string) =>
     clients.find((c) => c.id === id)?.companyName || "Unknown";
@@ -560,6 +580,7 @@ export const Payments: React.FC = () => {
               [
                 "Monthly",
                 "Invoices",
+                "Review",
                 "History",
                 "Statements",
                 "Schedule",
@@ -676,6 +697,105 @@ export const Payments: React.FC = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── Payment Review Tab ── */}
+        {activeTab === "Review" && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-start gap-3">
+              <div className="p-2.5 bg-red-100 rounded-xl text-red-600 shrink-0">
+                <Flag size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-red-900 flex items-center gap-2">
+                  Payment Review Queue
+                  {reviewQueue.length > 0 && (
+                    <span className="px-2 py-0.5 bg-red-600 text-white rounded-full text-[10px] font-bold">
+                      {reviewQueue.length}
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-red-700 mt-1">
+                  Invoices flagged here have no payment logged. Logging a
+                  payment — or linking an existing receipt — removes an invoice
+                  from this queue automatically.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {reviewQueue.map((invoice) => {
+                const paidNoEvidence =
+                  String(invoice.status || "").toLowerCase() === "paid";
+                return (
+                  <div
+                    key={invoice.id}
+                    className="bg-white rounded-2xl p-6 border border-red-200 shadow-sm hover:shadow-lg transition-all group flex flex-col justify-between hover:-translate-y-1 duration-300"
+                  >
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${paidNoEvidence ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-red-50 text-red-600 border-red-200"}`}
+                        >
+                          <Flag size={11} />{" "}
+                          {paidNoEvidence
+                            ? "Paid — No Payment Evidence"
+                            : "No Payment Logged"}
+                        </span>
+                        <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-700">
+                          {invoice.status}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-1">
+                        {getClientName(invoice.clientId)}
+                      </h3>
+                      <p className="text-sm text-slate-900 mb-4">
+                        Inv #{invoice.id} • {invoice.date}
+                        {invoice.dueDate && (
+                          <span className="text-slate-500"> • Due {invoice.dueDate}</span>
+                        )}
+                      </p>
+                      <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-900 font-medium">
+                            {paidNoEvidence ? "Amount at Issue" : "Amount Due"}
+                          </span>
+                          <span className="font-bold text-slate-900 text-lg">
+                            $
+                            {(invoice.outstanding ?? invoice.total ?? 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs text-slate-900">
+                          <span>Payments logged</span>
+                          <span className="font-bold text-red-500">0</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-5">
+                      {!paidNoEvidence && (
+                        <button
+                          onClick={() => handleOpenPaymentModal(invoice)}
+                          className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all flex items-center justify-center gap-2"
+                        >
+                          <CreditCard size={14} /> Log Payment
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleSendInvoice(invoice)}
+                        className={`py-3 px-4 border border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2 ${paidNoEvidence ? "flex-1" : ""}`}
+                      >
+                        <Send size={14} /> Email
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {reviewQueue.length === 0 && (
+                <div className="col-span-full py-12 text-center text-slate-900 italic bg-white rounded-2xl border border-slate-100 border-dashed">
+                  No flagged invoices — every invoice has a payment logged. 🎉
+                </div>
+              )}
             </div>
           </div>
         )}

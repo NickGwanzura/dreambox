@@ -129,3 +129,76 @@ describe('forensic visibility and reversals', () => {
     expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'Finance: Receipt Voided', beforeData: expect.any(Object), afterData: expect.any(Object) }) });
   });
 });
+
+describe('payment review queue', () => {
+  it('flags only invoices with no payment logged', async () => {
+    // Candidates: two Pending invoices. A receipt is linked to inv-b only.
+    mockPrisma.invoice.findMany
+      .mockResolvedValueOnce([{ id: 'inv-a' }, { id: 'inv-b' }])
+      .mockResolvedValueOnce([{ id: 'receipt-1', linkedInvoiceId: 'inv-b', total: 100 }])
+      .mockResolvedValueOnce([
+        { id: 'inv-a', type: 'Invoice', clientId: 'client-1', date: '2026-08-01', status: 'Pending', subtotal: 200, vatAmount: 0, total: 200, items: [] },
+      ]);
+    mockPrisma.paymentAllocation.findMany.mockResolvedValue([]);
+
+    const response = res();
+    await handler(req({ method: 'GET', query: { reviewQueue: 'true' } }), response);
+
+    expect(response._status).toBe(200);
+    expect(response._json).toHaveLength(1);
+    expect(response._json[0]).toMatchObject({
+      id: 'inv-a',
+      flaggedForReview: true,
+      hasPaymentLogged: false,
+      outstanding: 200,
+    });
+  });
+
+  it('flags a Paid invoice with no payment evidence', async () => {
+    mockPrisma.invoice.findMany
+      .mockResolvedValueOnce([{ id: 'inv-paid' }])
+      .mockResolvedValueOnce([]) // no linked receipts
+      .mockResolvedValueOnce([
+        { id: 'inv-paid', type: 'Invoice', clientId: 'client-1', date: '2026-07-15', status: 'Paid', subtotal: 500, vatAmount: 0, total: 500, items: [] },
+      ]);
+    mockPrisma.paymentAllocation.findMany.mockResolvedValue([]);
+
+    const response = res();
+    await handler(req({ method: 'GET', query: { reviewQueue: 'true' } }), response);
+
+    expect(response._status).toBe(200);
+    expect(response._json).toHaveLength(1);
+    expect(response._json[0]).toMatchObject({ id: 'inv-paid', status: 'Paid', flaggedForReview: true });
+  });
+
+  it('honours active allocations as a logged payment', async () => {
+    mockPrisma.invoice.findMany
+      .mockResolvedValueOnce([{ id: 'inv-a' }, { id: 'inv-c' }])
+      .mockResolvedValueOnce([]) // no linked receipts
+      .mockResolvedValueOnce([
+        { id: 'inv-c', type: 'Invoice', clientId: 'client-1', date: '2026-08-01', status: 'Pending', subtotal: 150, vatAmount: 0, total: 150, items: [] },
+      ]);
+    // Allocation on inv-a means a payment is logged for it.
+    mockPrisma.paymentAllocation.findMany.mockResolvedValue([{ id: 'alloc-1', invoiceId: 'inv-a', amount: 150 }]);
+
+    const response = res();
+    await handler(req({ method: 'GET', query: { reviewQueue: 'true' } }), response);
+
+    expect(response._status).toBe(200);
+    expect(response._json).toHaveLength(1);
+    expect(response._json[0].id).toBe('inv-c');
+  });
+
+  it('returns an empty queue when every invoice has a payment', async () => {
+    mockPrisma.invoice.findMany
+      .mockResolvedValueOnce([{ id: 'inv-a' }])
+      .mockResolvedValueOnce([{ id: 'receipt-1', linkedInvoiceId: 'inv-a', total: 200 }]);
+    mockPrisma.paymentAllocation.findMany.mockResolvedValue([]);
+
+    const response = res();
+    await handler(req({ method: 'GET', query: { reviewQueue: 'true' } }), response);
+
+    expect(response._status).toBe(200);
+    expect(response._json).toEqual([]);
+  });
+});
