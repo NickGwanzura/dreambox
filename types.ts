@@ -220,6 +220,9 @@ export interface Expense {
   amount: number;
   date: string;
   reference?: string;
+  /** Optional linkage so a cost can be attributed to a client and/or contract. */
+  clientId?: string;
+  contractId?: string;
 }
 
 /**

@@ -290,9 +290,15 @@ model Expense {
   amount      Decimal         @db.Decimal(18, 2)
   date        String
   reference   String?
+  // Optional linkage so a cost can be attributed to a client and/or contract.
+  // The API keeps clientId consistent with the linked contract's client.
+  clientId    String?
+  contractId  String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
+  @@index([clientId])
+  @@index([contractId])
   @@map("expenses")
 }
 

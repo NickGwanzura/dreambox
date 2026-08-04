@@ -93,6 +93,10 @@ export function pickExpenseData(body: any) {
     amount:      Number(body.amount),
     date:        body.date,
     reference:   body.reference              ?? undefined,
+    // Preserve undefined (skip on update) but normalise '' to null so an
+    // explicit clear is possible; null is a valid value for the nullable link.
+    clientId:    body.clientId === undefined ? undefined : (body.clientId || null),
+    contractId:  body.contractId === undefined ? undefined : (body.contractId || null),
   };
 }
 

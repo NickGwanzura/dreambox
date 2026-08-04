@@ -13,7 +13,31 @@ const expenseSchema = z.object({
   amount: z.number().positive('Amount must be positive').max(1_000_000_000, 'Amount is too large'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD'),
   reference: z.string().trim().max(200, 'Reference too long').optional(),
+  clientId: z.string().trim().max(200).optional().nullable(),
+  contractId: z.string().trim().max(200).optional().nullable(),
 });
+
+/**
+ * Keep the expense's client consistent with its linked contract. A contract
+ * always wins: its client is authoritative. When only a client is given, the
+ * contract is cleared. Returns an error string when the linkage is invalid.
+ */
+async function resolveExpenseLinkage(data: any): Promise<{ data: any; error?: string }> {
+  if (data.contractId) {
+    const contract = await prisma.contract.findUnique({
+      where: { id: data.contractId },
+      select: { id: true, clientId: true },
+    });
+    if (!contract) return { data, error: 'Linked contract not found.' };
+    if (data.clientId && data.clientId !== contract.clientId) {
+      return { data, error: 'Linked contract belongs to a different client.' };
+    }
+    return { data: { ...data, clientId: contract.clientId, contractId: contract.id } };
+  }
+  // No contract: drop any existing contract link. A client link (if any) is
+  // preserved unless the caller explicitly cleared it with null.
+  return { data: { ...data, contractId: null } };
+}
 
 function auditContext(req: HttpRequest) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -49,7 +73,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const data = pickExpenseData(parsed.data);
+      const { data: resolvedData, error: linkageError } = await resolveExpenseLinkage(pickExpenseData(parsed.data));
+      if (linkageError) return res.status(400).json({ error: linkageError });
+      const data = resolvedData;
       await assertPeriodOpen(data.date, payload.email);
       const audit = auditContext(req);
       const row = await prisma.$transaction(async tx => {
@@ -79,9 +105,13 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const data = pickExpenseData(parsed.data);
       const existing = await prisma.expense.findUnique({ where: { id: id as string } });
       if (!existing) return res.status(404).json({ error: 'Expense not found' });
+      // Resolve linkage against the merged record so an unrelated edit never
+      // silently orphans or contradicts an existing client/contract link.
+      const { data: resolvedData, error: linkageError } = await resolveExpenseLinkage(pickExpenseData({ ...existing, ...parsed.data }));
+      if (linkageError) return res.status(400).json({ error: linkageError });
+      const data = resolvedData;
       await assertPeriodOpen(existing.date, payload.email);
       // A date edit can move a transaction into a closed period; protect both
       // the original posting period and the destination period.

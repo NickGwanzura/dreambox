@@ -1,32 +1,34 @@
 import React from 'react';
-import { getInvoices, getExpenses, printingJobs, outsourcedBillboards, getFinancialTrends, getBillboards, getContracts } from '../services/mockData';
+import { getExpenses, getPrintingJobs, getOutsourcedBillboards, getBillboards, getContracts } from '../services/mockData';
 import {
     AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Wallet, Activity, FileText, Receipt } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { BillboardType } from '../types';
-import { getTotalMonthlyRecurringRevenue, getTotalOneTimeRevenue, getTotalCOGS, getGrossProfit, getNetProfit, getClientProfitability, getContractProfitability, getMonthlyProfitTrends, formatCurrency, formatPercent } from '../services/profitAnalytics';
+import {
+    getTotalMonthlyRecurringRevenue,
+    getClientProfitability,
+    getContractProfitability,
+    getBillboardProfitability,
+    getProfitabilitySummary,
+    getMonthlyProfitTrends,
+    UNASSIGNED_CLIENT_ID,
+} from '../services/profitAnalytics';
 
 export const Analytics: React.FC = () => {
-    // 1. Calculate Revenue with proper classification
-    const totalRevenue = getInvoices()
-        .filter(i => String(i.type || '').toLowerCase() === 'invoice' && !i.isVoided)
-        .reduce((acc, curr) => acc + (curr.subtotal ?? 0), 0);
+    const [activeDrilldown, setActiveDrilldown] = React.useState<'billboard' | 'contract' | 'client'>('billboard');
 
-    const recurringRevenue = getTotalMonthlyRecurringRevenue() * 6; // Approximate 6-month MRR total for comparison
-    const oneTimeRevenue = getTotalOneTimeRevenue();
+    const recurringMonthlyForecast = getTotalMonthlyRecurringRevenue();
 
-    // 2. Calculate COGS properly (includes installation, printing, production, outsourced, operational)
-    const totalCOGS = getTotalCOGS();
+    // Recorded/attributed direct costs intentionally exclude unallocated
+    // operating expenses.  The latter are shown in their own KPI.
+    const profitabilitySummary = getProfitabilitySummary();
 
-    // 3. Profit metrics
-    const grossProfit = getGrossProfit().grossProfit;
-    const grossMargin = getGrossProfit().grossMargin;
-    const netProfit = getNetProfit();
-
-    // 4. Per-client profitability for top clients chart
+    // 4. Per-client profitability for top clients chart (unassigned revenue is
+    //    shown on its own drill-down row, not as a named client bar)
     const clientProfitData = getClientProfitability()
+        .filter(c => c.clientId !== UNASSIGNED_CLIENT_ID)
         .slice(0, 5)
         .map(c => ({
             name: c.clientName.length > 15 ? c.clientName.substring(0, 12) + '...' : c.clientName,
@@ -35,14 +37,17 @@ export const Analytics: React.FC = () => {
             margin: c.grossMargin,
         }));
 
-    // 5. Per-contract profitability for table
+    // 5. Per-contract profitability for table (uncapped so the campaign tab
+    //    reconciles with the billboard and client tabs)
     const contractProfitData = getContractProfitability()
-        .slice(0, 10)
         .map(c => ({
             ...c,
             grossProfit: Math.round(c.grossProfit),
             oneTimeRevenue: Math.round(c.oneTimeRevenue),
             totalRevenue: Math.round(c.totalRevenue),
+            attributedDirectCosts: Math.round(c.attributedDirectCosts),
+            supplementalPrintingCost: Math.round(c.supplementalPrintingCost),
+            linkedExpenseCost: Math.round(c.linkedExpenseCost),
         }));
 
     // 3. Calculate Occupancy Metrics
@@ -71,8 +76,8 @@ export const Analytics: React.FC = () => {
 
     // Expense breakdown (for pie chart)
     const operationalExpenses = getExpenses().reduce((acc, curr) => acc + curr.amount, 0);
-    const printingExpenses = printingJobs.reduce((acc, curr) => acc + curr.totalCost, 0);
-    const outsourcedPayouts = outsourcedBillboards.reduce((acc, curr) => acc + (curr.monthlyPayout * 12), 0);
+    const printingExpenses = getPrintingJobs().reduce((acc, curr) => acc + curr.totalCost, 0);
+    const outsourcedPayouts = getOutsourcedBillboards().reduce((acc, curr) => acc + (curr.monthlyPayout * 12), 0);
 
     const expenseBreakdown = [
         { name: 'Installation', value: getContracts().reduce((s, c) => s + (c.installationCost || 0), 0) },
@@ -90,6 +95,30 @@ export const Analytics: React.FC = () => {
         cogs: m.cogs,
     })).filter(d => !d.month.includes('Proj'));
 
+    const billboardProfitData = getBillboardProfitability().map(b => ({
+        ...b,
+        totalRevenue: Math.round(b.realizedRevenue),
+        grossProfit: Math.round(b.grossProfit),
+        attributedDirectCosts: Math.round(b.attributedDirectCosts),
+        supplementalPrintingCost: Math.round(b.supplementalPrintingCost),
+        linkedExpenseCost: Math.round(b.linkedExpenseCost),
+    }));
+    const clientDrilldownData = getClientProfitability().map(c => ({
+        ...c,
+        totalRevenue: Math.round(c.realizedRevenue),
+        grossProfit: Math.round(c.grossProfit),
+        attributedDirectCosts: Math.round(c.attributedDirectCosts),
+        supplementalPrintingCost: Math.round(c.supplementalPrintingCost),
+        contractLinkedExpenses: Math.round(c.contractLinkedExpenses),
+        clientLinkedExpenses: Math.round(c.clientLinkedExpenses),
+    }));
+
+    const activeRows: any[] = activeDrilldown === 'billboard'
+        ? billboardProfitData
+        : activeDrilldown === 'contract'
+            ? contractProfitData
+            : clientDrilldownData;
+
     const COLORS = ['#ef4444', '#f59e0b', '#3b82f6'];
 
     return (
@@ -99,29 +128,40 @@ export const Analytics: React.FC = () => {
                 <p className="text-slate-900 font-medium">Deep dive into financial health, margins, and expense distribution</p>
             </div>
 
-            {/* Scorecards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Realised attribution scorecards.  Monthly rate is a forecast and
+                is intentionally not mixed into this row. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Net Invoiced Revenue</p>
-                    <h3 className="text-4xl font-extrabold text-slate-900 tracking-tight">${totalRevenue.toLocaleString()}</h3>
+                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Realized Revenue</p>
+                    <h3 className="text-4xl font-extrabold text-slate-900 tracking-tight">${profitabilitySummary.realizedRevenue.toLocaleString()}</h3>
                     <p className="text-xs text-slate-900 mt-2 font-medium">
-                        VAT excluded; voided invoices excluded
+                        Net non-voided invoices; VAT excluded
                     </p>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Direct COGS Estimate</p>
-                    <h3 className="text-4xl font-extrabold text-red-600 tracking-tight">${totalCOGS.toLocaleString()}</h3>
+                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Attributed Direct Costs</p>
+                    <h3 className="text-4xl font-extrabold text-red-600 tracking-tight">${profitabilitySummary.attributedDirectCosts.toLocaleString()}</h3>
                     <p className="text-xs text-slate-900 mt-2 font-medium">
-                        Installation + printing + production + outsourced costs
+                        Recorded contract costs + attributable printing jobs + linked expenses
                     </p>
                 </div>
                 <div className="bg-slate-900 p-6 rounded-2xl shadow-lg border border-slate-800 text-white hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Gross Profit</p>
-                    <h3 className="text-4xl font-extrabold text-white tracking-tight">${grossProfit.toLocaleString()}</h3>
+                    <p className="text-sm font-bold text-white/80 uppercase tracking-wider mb-2">Gross Profit</p>
+                    <h3 className="text-4xl font-extrabold text-white tracking-tight">${profitabilitySummary.grossProfit.toLocaleString()}</h3>
                     <div className="mt-4 flex justify-between items-center">
-                        <span className="text-xs text-slate-900 font-medium">Margin</span>
-                        <span className={`font-bold ${grossMargin >= 0 ? 'text-green-400' : 'text-red-400'}`}>{grossMargin.toFixed(1)}%</span>
+                        <span className="text-xs text-white/70 font-medium">Margin</span>
+                        <span className={`font-bold ${profitabilitySummary.grossMargin >= 0 ? 'text-green-400' : 'text-red-400'}`}>{profitabilitySummary.grossMargin.toFixed(1)}%</span>
                     </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Unallocated Costs</p>
+                    <h3 className="text-4xl font-extrabold text-amber-600 tracking-tight">${profitabilitySummary.unallocatedCosts.toLocaleString()}</h3>
+                    <p className="text-xs text-slate-900 mt-2 font-medium">
+                        Operating expenses + printing jobs not tied to a contract, billboard, or client
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                        MRR forecast: ${recurringMonthlyForecast.toLocaleString()}/mo
+                    </p>
                 </div>
             </div>
 
@@ -209,69 +249,119 @@ export const Analytics: React.FC = () => {
                 </div>
             </div>
 
-            {/* Contract Profitability Table */}
+            {/* Profitability drill-downs */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800">Contract Profitability</h3>
-                        <p className="text-xs text-slate-900 mt-1">Gross profit per contract (revenue − one-time costs)</p>
+                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Profitability drill-down dimensions">
+                        {([
+                            ['billboard', 'Billboard'],
+                            ['contract', 'Campaign / Contract'],
+                            ['client', 'Client'],
+                        ] as const).map(([value, label]) => (
+                            <button
+                                key={value}
+                                type="button"
+                                role="tab"
+                                aria-selected={activeDrilldown === value}
+                                aria-controls="profitability-drilldown-panel"
+                                onClick={() => setActiveDrilldown(value)}
+                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${activeDrilldown === value ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-indigo-50'}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="mt-4">
+                        <h3 className="text-lg font-bold text-slate-800">
+                            {activeDrilldown === 'billboard' ? 'Billboard Profitability' : activeDrilldown === 'contract' ? 'Campaign / Contract Profitability' : 'Client Profitability'}
+                        </h3>
+                        <p className="text-xs text-slate-900 mt-1">
+                            Realized invoice revenue less recorded direct costs, allocated supplemental printing, and linked expenses. Contract-linked expenses roll up to the billboard and client; client-only linked expenses appear on the client tab. The Unassigned row holds invoices with no client; unallocated costs are not assigned here.
+                        </p>
                     </div>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-900">
+                <div id="profitability-drilldown-panel" role="tabpanel" className="overflow-x-auto" aria-label={`${activeDrilldown} profitability rows`}>
+                    <table className="w-full min-w-[680px] text-left text-sm text-slate-900">
                         <thead className="bg-slate-50 border-b border-slate-100">
                             <tr>
-                                <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Contract</th>
-                                <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Client</th>
+                                <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">{activeDrilldown === 'billboard' ? 'Billboard' : activeDrilldown === 'contract' ? 'Campaign / Contract' : 'Client'}</th>
+                                <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">{activeDrilldown === 'contract' ? 'Client / Billboard' : 'Contracts'}</th>
                                 <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Revenue</th>
-                                <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">One-Time Costs</th>
+                                <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Attributed Direct Costs</th>
                                 <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Gross Profit</th>
                                 <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Margin</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {contractProfitData.length > 0 ? contractProfitData.map((c, i) => (
-                                <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 font-mono text-slate-800 text-xs" title={c.contractId}>
-                                        #{c.contractId.substring(0, 8)}
-                                    </td>
-                                    <td className="px-6 py-4 font-medium text-slate-800">
-                                        {c.clientName}
-                                        <div className="text-xs text-slate-900">{c.billboardName}</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-medium">${c.totalRevenue.toLocaleString()}</td>
-                                    <td className="px-6 py-4 text-right text-red-600 font-medium">
-                                        -${c.oneTimeRevenue.toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-bold text-emerald-600">
-                                        ${c.grossProfit.toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${c.grossMargin >= 30 ? 'bg-emerald-100 text-emerald-700' : c.grossMargin >= 15 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                                            {c.grossMargin.toFixed(1)}%
-                                        </span>
-                                    </td>
-                                </tr>
-                            )) : (
-                                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-900">No contract data available.</td></tr>
+                            {activeRows.length > 0 ? activeRows.map((c, i) => {
+                                const identifier = activeDrilldown === 'billboard'
+                                    ? c.billboardName
+                                    : activeDrilldown === 'contract'
+                                        ? `#${String(c.contractId || '').substring(0, 8)}`
+                                        : c.clientName;
+                                const sublabel = activeDrilldown === 'contract'
+                                    ? `${c.clientName} · ${c.billboardName}`
+                                    : `${c.contractCount} contract${c.contractCount === 1 ? '' : 's'}`;
+                                const rowRevenue = Number(c.totalRevenue ?? c.realizedRevenue ?? c.revenue ?? 0);
+                                const rowCost = Number(c.attributedDirectCosts ?? c.cogs ?? 0);
+                                const unassignedRow = activeDrilldown === 'client' && c.clientId === UNASSIGNED_CLIENT_ID;
+                                return (
+                                    <tr key={activeDrilldown === 'contract' ? c.contractId : activeDrilldown === 'billboard' ? c.billboardId : c.clientId || i} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-slate-800">
+                                            {identifier}
+                                            {activeDrilldown === 'billboard' && c.supplementalPrintingCost > 0 && <div className="text-xs text-indigo-600">+{c.supplementalPrintingCost.toLocaleString()} supplemental print</div>}
+                                            {activeDrilldown === 'billboard' && c.linkedExpenseCost > 0 && <div className="text-xs text-amber-600">+{c.linkedExpenseCost.toLocaleString()} linked expense</div>}
+                                            {activeDrilldown === 'contract' && c.supplementalPrintingCost > 0 && <div className="text-xs text-indigo-600">+{c.supplementalPrintingCost.toLocaleString()} supplemental print (allocated)</div>}
+                                            {activeDrilldown === 'contract' && c.linkedExpenseCost > 0 && <div className="text-xs text-amber-600">+{c.linkedExpenseCost.toLocaleString()} linked expense</div>}
+                                            {activeDrilldown === 'client' && c.supplementalPrintingCost > 0 && <div className="text-xs text-indigo-600">+{c.supplementalPrintingCost.toLocaleString()} supplemental print (rolled up)</div>}
+                                            {activeDrilldown === 'client' && c.contractLinkedExpenses > 0 && <div className="text-xs text-amber-600">+{c.contractLinkedExpenses.toLocaleString()} linked campaign expenses</div>}
+                                            {activeDrilldown === 'client' && c.clientLinkedExpenses > 0 && <div className="text-xs text-amber-600">+{c.clientLinkedExpenses.toLocaleString()} client-linked expenses</div>}
+                                            {activeDrilldown === 'client' && c.unlinkedInvoiceRevenue > 0 && <div className="text-xs text-indigo-600">{c.unlinkedInvoiceRevenue.toLocaleString()} unlinked invoice revenue</div>}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-700">{sublabel}</td>
+                                        <td className="px-6 py-4 text-right font-medium">${rowRevenue.toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-right text-red-600 font-medium">{rowCost > 0 ? `-$${rowCost.toLocaleString()}` : '—'}</td>
+                                        <td className="px-6 py-4 text-right font-bold text-emerald-600">${Number(c.grossProfit || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-right">
+                                            {unassignedRow || rowRevenue <= 0 ? (
+                                                <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">—</span>
+                                            ) : (
+                                                <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${c.grossMargin >= 30 ? 'bg-emerald-100 text-emerald-700' : c.grossMargin >= 15 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {Number(c.grossMargin || 0).toFixed(1)}%
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            }) : (
+                                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-900">No {activeDrilldown === 'contract' ? 'campaign / contract' : activeDrilldown} data available.</td></tr>
                             )}
                         </tbody>
                     </table>
+                </div>
+                <div className="px-6 py-3 bg-slate-50/60 border-t border-slate-100">
+                    <p className="text-[11px] text-slate-500">
+                        Supplemental printing jobs on a billboard are allocated across its campaigns (by recorded printing cost share) and roll up to clients. Expenses linked to a contract are attributed to that campaign, billboard, and client; expenses linked only to a client appear on the client tab alone, so the client tab can exceed the billboard and campaign totals by that amount. Billboard and campaign tabs show contract-linked revenue only; unlinked and Unassigned revenue appears on the client tab. Unallocated operating expenses and untied printing jobs are excluded from every row.
+                    </p>
                 </div>
             </div>
 
             {/* Monthly Performance Report */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <h3 className="text-lg font-bold text-slate-800">Monthly Performance Report</h3>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">Monthly Performance Report</h3>
+                        <p className="text-xs text-slate-900 mt-1">Realized invoice revenue and recorded/attributed direct costs; no forecast allocation.</p>
+                    </div>
                     <button className="text-xs font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors uppercase tracking-wider">Download CSV</button>
                 </div>
-                 <table className="w-full text-left text-sm text-slate-900">
+                 <div className="overflow-x-auto" aria-label="Monthly performance report table">
+                 <table className="w-full min-w-[640px] text-left text-sm text-slate-900">
                      <thead className="bg-slate-50 border-b border-slate-100">
                          <tr>
                              <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider">Month</th>
-                             <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Revenue</th>
-                             <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">COGS</th>
+                             <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Realized Revenue</th>
+                             <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Attributed Direct Costs</th>
                              <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Gross Profit</th>
                              <th className="px-6 py-4 font-bold text-xs uppercase text-slate-900 tracking-wider text-right">Margin</th>
                          </tr>
@@ -290,6 +380,7 @@ export const Analytics: React.FC = () => {
                          )}
                      </tbody>
                  </table>
+                 </div>
             </div>
         </div>
     )
