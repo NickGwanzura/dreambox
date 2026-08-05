@@ -159,12 +159,15 @@ model Contract {
   lastModifiedBy     String?
   assignedTo         String?
   masterContractId   String?
+  // Quotation that produced this contract (reverse link of invoice.convertedToContractId)
+  sourceQuotationId  String?
   dbCreatedAt        DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
   @@index([clientId])
   @@index([billboardId])
   @@index([masterContractId])
+  @@index([sourceQuotationId])
   @@index([status])
   @@map("contracts")
 }

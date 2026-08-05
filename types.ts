@@ -114,6 +114,7 @@ export interface Contract {
   lastModifiedBy?: string;
   assignedTo?: string; // User name of the Sales Agent who closed this deal
   masterContractId?: string; // Links additional billboard lines to the primary contract
+  sourceQuotationId?: string; // Quotation this contract was converted from
 }
 
 export interface ContractAmendment {

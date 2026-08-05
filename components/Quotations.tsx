@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   getInvoices, getClients, getBillboards, addInvoice, updateInvoice, deleteInvoice,
   addClient, addContract, subscribe, duplicateQuotation,
-  convertQuotationToInvoice, markQuotationSent, markQuotationStatus
+  convertQuotationToInvoice, markQuotationSent, markQuotationStatus,
+  markExpiredQuotations
 } from '../services/mockData';
 import { calculateContractMonths } from '../utils/contractDate';
 import { generateInvoicePDF } from '../services/pdfGenerator';
@@ -70,6 +71,7 @@ export const Quotations: React.FC = () => {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [docTypeFilter, setDocTypeFilter] = useState<'Quotation' | 'Proforma'>('Quotation');
+  const convertingToContractRef = useRef(false);
 
   const [formData, setFormData] = useState<Partial<Invoice>>({
     clientId: '', items: [], date: new Date().toISOString().split('T')[0], status: 'Pending', contractId: ''
@@ -86,6 +88,17 @@ export const Quotations: React.FC = () => {
 
   useEffect(() => {
     setCurrentUser(getCurrentUser());
+  }, []);
+
+  // Auto-expire quotes whose validity has passed, then reflect updated statuses.
+  // The sweep PUTs full invoice bodies to /api/invoices, which is gated to
+  // approvers server-side — skip it for read-only users (the daily cron and
+  // hydration sweep keep the ledger correct for everyone).
+  useEffect(() => {
+    if (!canApproveQuotations(getCurrentUser())) return;
+    markExpiredQuotations()
+      .then(() => setInvoices(getInvoices()))
+      .catch((e: any) => console.error('[Quotations] expiry check failed:', e?.message || e));
   }, []);
 
   useEffect(() => {
@@ -380,12 +393,28 @@ export const Quotations: React.FC = () => {
       alert('Only Admin or Manager can convert quotations to contracts.');
       return;
     }
+    if (doc.quoteStatus === 'Converted' || doc.convertedToContractId) {
+      alert(`Quotation ${doc.quoteNumber || doc.id} has already been converted.`);
+      return;
+    }
     setConvertingQuotation(doc);
   };
 
   const handleConvertToContractSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!convertingQuotation || !convertForm.billboardId || !convertForm.startDate || !convertForm.endDate) return;
+    // A converted quotation must never become a second contract — re-check
+    // against the freshest local copy, not the snapshot frozen when the modal
+    // opened (another tab/session may have converted it since).
+    const currentQuote = getInvoices().find(inv => inv.id === convertingQuotation.id) || convertingQuotation;
+    if (currentQuote.quoteStatus === 'Converted' || currentQuote.convertedToContractId) {
+      alert(`Quotation ${currentQuote.quoteNumber || currentQuote.id} has already been converted.`);
+      setConvertingQuotation(null);
+      return;
+    }
+    if (convertingToContractRef.current) return;
+    if (!window.confirm(`Create a contract from quotation ${convertingQuotation.quoteNumber || convertingQuotation.id}? The quotation will be preserved and marked Converted.`)) return;
+    convertingToContractRef.current = true;
     const bb = getBillboards().find(b => b.id === convertForm.billboardId);
     const monthlyRate = convertingQuotation.items[0]?.amount || 0;
     let months: number;
@@ -409,23 +438,40 @@ export const Quotations: React.FC = () => {
       status: 'Active',
       details: bb?.type === BillboardType.LED ? 'Slot 1' : 'Side A',
       createdAt: new Date().toISOString(),
+      // Server converts + marks the quotation Converted atomically, rejecting
+      // with 409 if it was already converted elsewhere (cross-device guard).
+      sourceQuotationId: convertingQuotation.id,
     };
     try {
-      await addContract(contract);
+      try {
+        await addContract(contract);
+      } catch (err: any) {
+        // 409 = the quotation was already converted elsewhere — close the stale modal.
+        if (err?.status === 409) setConvertingQuotation(null);
+        console.error('Failed to create contract:', err);
+        alert(`Failed to create contract: ${err?.message || 'Server error. Please try again.'}`);
+        return;
+      }
+      // The contract is live server-side (and the quotation was flipped there
+      // atomically). Syncing the quotation locally cannot fail the conversion —
+      // a PUT failure here is only a local-sync warning.
       const updatedQuotation: Invoice = {
         ...convertingQuotation,
         quoteStatus: QuoteStatus.Converted,
         convertedToContractId: contract.id,
         convertedAt: new Date().toISOString(),
       };
-      await updateInvoice(updatedQuotation);
+      try {
+        await updateInvoice(updatedQuotation);
+      } catch (err: any) {
+        console.warn('[convert-to-contract] Contract created; local quotation sync failed:', err);
+      }
       setInvoices(getInvoices());
       setConvertingQuotation(null);
       setConvertForm({ billboardId: '', startDate: '', endDate: '' });
       alert(`Contract ${contract.id} created. Quotation preserved.`);
-    } catch (err: any) {
-      console.error('Failed to convert:', err);
-      alert(`Failed to create contract: ${err?.message || 'Server error. Please try again.'}`);
+    } finally {
+      convertingToContractRef.current = false;
     }
   };
 
@@ -619,6 +665,57 @@ export const Quotations: React.FC = () => {
         </div>
       )}
 
+      {/* Expired Quotations Banner */}
+      {stats.expired > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <AlertCircle size={18} className="text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-900">
+                {stats.expired} quotation{stats.expired > 1 ? 's have' : ' has'} expired
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5 max-w-md">
+                Validity passed on {stats.expired} quote{stats.expired > 1 ? 's' : ''}. Re-send a fresh quote, extend the expiry date, or mark accepted to keep the deal moving.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            {statusFilter === 'Expired' ? (
+              <button
+                onClick={() => setStatusFilter('All')}
+                className="px-4 py-2 bg-white text-amber-700 border border-amber-200 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-amber-100 transition-all"
+              >
+                Show All
+              </button>
+            ) : (
+              <button
+                onClick={() => setStatusFilter('Expired')}
+                className="px-4 py-2 bg-amber-500 text-white text-xs font-bold uppercase tracking-wider rounded-full hover:bg-amber-600 transition-all shadow-sm"
+              >
+                View Expired
+              </button>
+            )}
+            {canApproveQuotations(getCurrentUser()) && (
+              <button
+                onClick={async () => {
+                  try {
+                    await markExpiredQuotations();
+                    setInvoices(getInvoices());
+                  } catch (err: any) {
+                    alert(`Failed to refresh statuses: ${err?.message || 'Server error.'}`);
+                  }
+                }}
+                className="px-4 py-2 bg-white text-amber-700 border border-amber-200 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-amber-100 transition-all flex items-center gap-1.5"
+              >
+                <RefreshCw size={12} /> Refresh
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-slate-100 p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex gap-4 w-full sm:w-auto">
           <div className="relative group w-full sm:w-64">
@@ -683,6 +780,9 @@ export const Quotations: React.FC = () => {
                 {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
                   <button onClick={() => handleConvertToInvoice(doc)} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl" title="Convert to Invoice"><DollarSign size={16} /></button>
                 )}
+                {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
+                  <button onClick={() => handleConvertToContract(doc)} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl" title="Convert to Contract"><FileText size={16} /></button>
+                )}
                 {canDelete(currentUser) && (
                   <button onClick={() => handleDelete(doc)} className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl" title="Delete"><Trash2 size={16} /></button>
                 )}
@@ -741,6 +841,9 @@ export const Quotations: React.FC = () => {
                         <button onClick={() => handleDuplicate(doc)} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors" title="Duplicate"><Copy size={16} /></button>
                         {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
                           <button onClick={() => handleConvertToInvoice(doc)} className="p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><DollarSign size={16} /></button>
+                        )}
+                        {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
+                          <button onClick={() => handleConvertToContract(doc)} className="p-2 text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors" title="Convert to Contract"><FileText size={16} /></button>
                         )}
                         {canApproveQuotations(currentUser) && doc.quoteStatus !== 'Converted' && (
                           <>

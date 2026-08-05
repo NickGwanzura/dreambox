@@ -1,5 +1,6 @@
 import type { HttpRequest, HttpResponse } from '../lib/http';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
@@ -20,6 +21,7 @@ const contractSchema = z.object({
   startDate: contractDateSchema,
   endDate: contractDateSchema,
   monthlyRate: z.number({ error: 'Monthly rate is required' }),
+  sourceQuotationId: z.string().max(200).optional(),
 }).refine(d => d.startDate <= d.endDate, { message: 'End date must be on or after start date', path: ['endDate'] });
 
 // Full schema for PUT (update) — validates ALL fields that come through syncToDatabase
@@ -43,7 +45,72 @@ const contractUpdateSchema = z.object({
   lastModifiedBy: z.string().optional().nullable(),
   assignedTo: z.string().optional().nullable(),
   masterContractId: z.string().optional().nullable(),
+  sourceQuotationId: z.string().optional().nullable(),
 }).refine(d => d.startDate <= d.endDate, { message: 'End date must be on or after start date', path: ['endDate'] });
+
+class ContractConversionError extends Error {
+  constructor(message: string, readonly status = 409) {
+    super(message);
+    this.name = 'ContractConversionError';
+  }
+}
+
+// Creates a contract from a quotation and marks the quotation Converted in the
+// SAME transaction. The quote row is locked with SELECT ... FOR UPDATE so two
+// concurrent conversions (two devices) serialize: the loser reads the already-
+// Converted quote and is rejected with 409 instead of creating a duplicate.
+// Note: FOR UPDATE is a no-op on SQLite (desktop builds); production runs on
+// Postgres where the lock fully closes the race.
+async function createContractFromQuotation(data: any, sourceQuotationId: string, payload: any) {
+  return prisma.$transaction(async tx => {
+    if (typeof tx.$queryRaw === 'function') {
+      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "invoices" WHERE "id" = ${sourceQuotationId} FOR UPDATE`);
+    }
+    const quote = await tx.invoice.findUnique({ where: { id: sourceQuotationId } });
+    if (!quote || quote.type !== 'Quotation' || quote.isVoided) {
+      throw new ContractConversionError('Source quotation not found', 404);
+    }
+    if (quote.quoteStatus === 'Converted' || quote.convertedToContractId || quote.convertedToInvoiceId) {
+      throw new ContractConversionError(`Quotation ${quote.quoteNumber || quote.id} has already been converted`);
+    }
+    const created = await tx.contract.create({ data });
+    await tx.invoice.update({
+      where: { id: sourceQuotationId },
+      data: { quoteStatus: 'Converted', convertedToContractId: created.id, convertedAt: new Date() },
+    });
+    await tx.auditLog.create({
+      data: {
+        action: 'Contract Created from Quotation',
+        details: `Contract ${created.id} created from quotation ${sourceQuotationId}${quote.quoteNumber ? ` (${quote.quoteNumber})` : ''}`,
+        userId: payload.userId,
+        userEmail: payload.email,
+        tableName: 'contracts',
+        recordId: created.id,
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        action: 'Quotation Converted to Contract',
+        details: `Quotation ${sourceQuotationId} converted to contract ${created.id}`,
+        userId: payload.userId,
+        userEmail: payload.email,
+        tableName: 'invoices',
+        recordId: sourceQuotationId,
+      },
+    });
+    // Timeline parity with the invoice path (convertQuotationToInvoice logs a
+    // 'converted' event) so QuotationTimeline shows the contract conversion.
+    await tx.quotationEvent.create({
+      data: {
+        invoiceId: sourceQuotationId,
+        type: 'converted',
+        actorEmail: payload.email,
+        details: `Converted to Contract ${created.id}`,
+      },
+    });
+    return created;
+  });
+}
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
@@ -76,6 +143,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         installationCost, printingCost, productionCost, hasVat,
         totalContractValue, status, details, slotNumber, side,
         createdAt, lastModifiedDate, lastModifiedBy, assignedTo, masterContractId,
+        sourceQuotationId,
       } = req.body ?? {};
 
       // Server-side availability guard — prevents duplicate slot/side bookings even via direct API calls
@@ -135,8 +203,15 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         lastModifiedBy: lastModifiedBy ?? null,
         assignedTo: assignedTo ?? null,
         masterContractId: masterContractId ?? null,
+        sourceQuotationId: sourceQuotationId ?? null,
       };
-      const row = await prisma.contract.create({ data });
+      // When the contract is being created from a quotation, the quotation's
+      // Converted flip happens server-side and atomically (see
+      // createContractFromQuotation) — this is the guard against cross-device
+      // duplicate conversions.
+      const row = sourceQuotationId
+        ? await createContractFromQuotation(data, sourceQuotationId, payload)
+        : await prisma.contract.create({ data });
       return res.status(201).json(row);
     }
 
@@ -260,6 +335,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
+    if (e instanceof ContractConversionError) {
+      return res.status(e.status).json({ error: e.message });
+    }
     log.error('[contracts]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }

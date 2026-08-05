@@ -13,6 +13,7 @@ import {
   getCompanyLogo,
   subscribe,
   convertInvoiceType,
+  convertQuotationToInvoice,
 } from "../services/mockData";
 import { calculateContractMonths } from "../utils/contractDate";
 import {
@@ -380,6 +381,8 @@ export const Financials: React.FC<FinancialsProps> = ({
   const receiptIsLinkedToInvoice =
     activeTab === "Receipts" && !!selectedInvoiceToPay;
   const isSubmittingRef = useRef(false);
+  const convertingToInvoiceRef = useRef(false);
+  const convertingToContractRef = useRef(false);
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     // A double-click on submit would create the document twice
@@ -660,6 +663,19 @@ export const Financials: React.FC<FinancialsProps> = ({
     }
   };
 
+  // Guards converting a quotation to a contract: a converted quotation must
+  // never become a second contract (double-click or stale modal included).
+  const openConvertToContract = (doc: Invoice) => {
+    if (doc.quoteStatus === "Converted" || doc.convertedToContractId) {
+      alert(
+        `Quotation ${doc.quoteNumber || doc.id} has already been converted.`,
+      );
+      return;
+    }
+    setConvertingQuotation(doc);
+    setConvertForm({ billboardId: "", startDate: "", endDate: "" });
+  };
+
   const handleConvertToContract = async (e: React.FormEvent) => {
     e.preventDefault();
     if (
@@ -669,6 +685,30 @@ export const Financials: React.FC<FinancialsProps> = ({
       !convertForm.endDate
     )
       return;
+    // Re-check at submit against the freshest local copy, not the snapshot
+    // frozen when the modal opened (another tab/session may have converted
+    // this quotation since).
+    const currentQuote =
+      getInvoices().find((inv) => inv.id === convertingQuotation.id) ||
+      convertingQuotation;
+    if (
+      currentQuote.quoteStatus === "Converted" ||
+      currentQuote.convertedToContractId
+    ) {
+      alert(
+        `Quotation ${currentQuote.quoteNumber || currentQuote.id} has already been converted.`,
+      );
+      setConvertingQuotation(null);
+      return;
+    }
+    if (convertingToContractRef.current) return;
+    if (
+      !window.confirm(
+        `Create a contract from quotation ${convertingQuotation.quoteNumber || convertingQuotation.id}? The quotation will be preserved and marked Converted.`,
+      )
+    )
+      return;
+    convertingToContractRef.current = true;
     const bb = getBillboards().find((b) => b.id === convertForm.billboardId);
     const monthlyRate = convertingQuotation.items[0]?.amount || 0;
     let months: number;
@@ -702,26 +742,47 @@ export const Financials: React.FC<FinancialsProps> = ({
       status: "Active",
       details: bb?.type === BillboardType.LED ? "Slot 1" : "Side A",
       createdAt: new Date().toISOString(),
+      // Server converts + marks the quotation Converted atomically, rejecting
+      // with 409 if it was already converted elsewhere (cross-device guard).
+      sourceQuotationId: convertingQuotation.id,
     };
     try {
-      await addContract(contract);
-      // Preserve quotation — mark as Converted instead of deleting
+      try {
+        await addContract(contract);
+      } catch (err: any) {
+        // 409 = the quotation was already converted elsewhere — close the stale modal.
+        if (err?.status === 409) setConvertingQuotation(null);
+        console.error("Failed to create contract:", err);
+        alert(
+          `Failed to create contract: ${err?.message || "Server error. Please try again."}`,
+        );
+        return;
+      }
+      // The contract is live server-side (and the quotation was flipped there
+      // atomically). Syncing the quotation locally cannot fail the conversion —
+      // a PUT failure here is only a local-sync warning.
       const updatedQuotation: Invoice = {
         ...convertingQuotation,
         quoteStatus: QuoteStatus.Converted,
         convertedToContractId: contract.id,
         convertedAt: new Date().toISOString(),
       };
-      await updateInvoice(updatedQuotation);
+      try {
+        await updateInvoice(updatedQuotation);
+      } catch (err: any) {
+        console.warn(
+          "[convert-to-contract] Contract created; local quotation sync failed:",
+          err,
+        );
+      }
       setInvoices(getInvoices());
       setConvertingQuotation(null);
       setConvertForm({ billboardId: "", startDate: "", endDate: "" });
       alert(
         `Contract ${contract.id} created from Quotation #${convertingQuotation.id}. The quotation has been preserved.`,
       );
-    } catch (err: any) {
-      console.error("Failed to convert quotation to contract:", err);
-      alert(`Failed: ${err?.message || "Server error. Please try again."}`);
+    } finally {
+      convertingToContractRef.current = false;
     }
   };
 
@@ -1154,24 +1215,44 @@ export const Financials: React.FC<FinancialsProps> = ({
                           )}
                         {(activeTab as string) === "Quotations" && (
                           <>
+                            {["Sent", "Accepted"].includes(
+                              doc.quoteStatus || "",
+                            ) && (
+                              <button
+                                onClick={async () => {
+                                  if (convertingToInvoiceRef.current) return;
+                                  if (
+                                    !window.confirm(
+                                      `Convert quotation ${doc.quoteNumber || doc.id} to an invoice? The original quotation will be preserved.`,
+                                    )
+                                  )
+                                    return;
+                                  convertingToInvoiceRef.current = true;
+                                  try {
+                                    const created =
+                                      await convertQuotationToInvoice(doc.id);
+                                    if (created) {
+                                      setInvoices(getInvoices());
+                                      alert(
+                                        `Converted to Invoice ${created.id}`,
+                                      );
+                                    }
+                                  } catch (err: any) {
+                                    alert(
+                                      `Failed: ${err?.message || "Server error. Please try again."}`,
+                                    );
+                                  } finally {
+                                    convertingToInvoiceRef.current = false;
+                                  }
+                                }}
+                                className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl"
+                                title="Convert to Invoice"
+                              >
+                                <ArrowRight size={16} />
+                              </button>
+                            )}
                             <button
-                              onClick={async () => {
-                                try {
-                                  await convertInvoiceType(doc.id, "Invoice");
-                                  setInvoices(getInvoices());
-                                } catch (err: any) {
-                                  alert(
-                                    `Failed: ${err?.message || "Server error. Please try again."}`,
-                                  );
-                                }
-                              }}
-                              className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl"
-                              title="Convert to Invoice"
-                            >
-                              <ArrowRight size={16} />
-                            </button>
-                            <button
-                              onClick={() => setConvertingQuotation(doc)}
+                              onClick={() => openConvertToContract(doc)}
                               className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl"
                               title="Convert to Contract"
                             >
@@ -1345,34 +1426,47 @@ export const Financials: React.FC<FinancialsProps> = ({
                               )}
                             {(activeTab as string) === "Quotations" && (
                               <>
+                                {["Sent", "Accepted"].includes(
+                                  doc.quoteStatus || "",
+                                ) && (
+                                  <button
+                                    onClick={async () => {
+                                      if (convertingToInvoiceRef.current)
+                                        return;
+                                      if (
+                                        !window.confirm(
+                                          `Convert quotation ${doc.quoteNumber || doc.id} to an invoice? The original quotation will be preserved.`,
+                                        )
+                                      )
+                                        return;
+                                      convertingToInvoiceRef.current = true;
+                                      try {
+                                        const created =
+                                          await convertQuotationToInvoice(
+                                            doc.id,
+                                          );
+                                        if (created) {
+                                          setInvoices(getInvoices());
+                                          alert(
+                                            `Converted to Invoice ${created.id}`,
+                                          );
+                                        }
+                                      } catch (err: any) {
+                                        alert(
+                                          `Failed: ${err?.message || "Server error. Please try again."}`,
+                                        );
+                                      } finally {
+                                        convertingToInvoiceRef.current = false;
+                                      }
+                                    }}
+                                    className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors"
+                                    title="Convert to Invoice"
+                                  >
+                                    <ArrowRight size={16} />
+                                  </button>
+                                )}
                                 <button
-                                  onClick={async () => {
-                                    try {
-                                      await convertInvoiceType(
-                                        doc.id,
-                                        "Invoice",
-                                      );
-                                      setInvoices(getInvoices());
-                                    } catch (err: any) {
-                                      alert(
-                                        `Failed: ${err?.message || "Server error. Please try again."}`,
-                                      );
-                                    }
-                                  }}
-                                  className="p-2 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors"
-                                  title="Convert to Invoice"
-                                >
-                                  <ArrowRight size={16} />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setConvertingQuotation(doc);
-                                    setConvertForm({
-                                      billboardId: "",
-                                      startDate: "",
-                                      endDate: "",
-                                    });
-                                  }}
+                                  onClick={() => openConvertToContract(doc)}
                                   className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
                                   title="Convert to Contract"
                                 >

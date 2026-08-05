@@ -97,6 +97,9 @@ async function runMigrations() {
     await prisma.$executeRawUnsafe(
       `ALTER TABLE "invoices" ADD COLUMN IF NOT EXISTS "dueDate" TEXT`,
     );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "sourceQuotationId" TEXT`,
+    );
     log.boot('  Auth schema        ✓  sessionVersion ready');
   } catch (e: any) {
     log.boot(`  Auth schema        ⚠  ${e?.message?.slice(0, 200) || 'sessionVersion check failed'}`);
@@ -318,10 +321,12 @@ async function registerRoutes() {
   const expenseReport = await import('./api/cron/expense-report.js');
   const backupCron    = await import('./api/cron/backup.js');
   const backOnlineCron = await import('./api/cron/back-online.js');
-  app.all('/api/cron/expense-report', adapt(expenseReport, 'cron/expense-report'));
-  app.all('/api/cron/backup',         adapt(backupCron,    'cron/backup'));
-  app.all('/api/cron/back-online',    adapt(backOnlineCron, 'cron/back-online'));
-  log.boot('  Cron routes        ✓  (expense-report, backup, back-online)');
+  const expireQuotations = await import('./api/cron/expire-quotations.js');
+  app.all('/api/cron/expense-report',      adapt(expenseReport,      'cron/expense-report'));
+  app.all('/api/cron/backup',              adapt(backupCron,         'cron/backup'));
+  app.all('/api/cron/back-online',         adapt(backOnlineCron,     'cron/back-online'));
+  app.all('/api/cron/expire-quotations',   adapt(expireQuotations,   'cron/expire-quotations'));
+  log.boot('  Cron routes        ✓  (expense-report, backup, back-online, expire-quotations)');
 
   // 404 handler for unknown /api/* routes
   app.use('/api/{*splat}', (req, res) => {
@@ -404,6 +409,31 @@ function startCronScheduler() {
   // Run expense report once on startup after a short delay, then every 3 days
   setTimeout(fireExpenseReport, 30_000);
   setInterval(fireExpenseReport, THREE_DAYS_MS);
+
+  // ─── Quotation expiry sweep (daily) ──────────────────────────────────────
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const fireQuotationExpiry = async () => {
+    try {
+      log.info('[cron] Triggering expire-quotations...');
+      const res = await fetch(`http://localhost:${PORT}/api/cron/expire-quotations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-cron-secret': process.env.CRON_SECRET || '',
+        },
+      });
+      const data = await res.json();
+      log.info(`[cron] expire-quotations result: ${JSON.stringify(data)}`);
+    } catch (e: any) {
+      log.error(`[cron] expire-quotations failed: ${e?.message}`);
+    }
+  };
+
+  // Run once shortly after boot, then every day
+  setTimeout(fireQuotationExpiry, 45_000);
+  setInterval(fireQuotationExpiry, DAY_MS);
+  log.boot('  Cron scheduler     ✓  expire-quotations daily');
 
   // ─── Back-online notification at maintenance end time ──────────────────────
   const now = Date.now();

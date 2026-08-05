@@ -261,8 +261,9 @@ export const reloadAllFromApi = async (): Promise<void> => {
         }
         hydratedFromApi = true;
         notifyListeners();
-        // Fresh data is in — safe to flag overdue invoices now
+        // Fresh data is in — safe to flag overdue invoices and expired quotations now
         markOverdueInvoices().catch(e => console.error('[reloadAllFromApi] overdue check failed:', e));
+        markExpiredQuotations().catch(e => console.error('[reloadAllFromApi] expired quotations check failed:', e));
     } catch (e) {
         console.error('[mockData] Failed to initialize from API:', e);
     }
@@ -802,6 +803,10 @@ export const duplicateQuotation = async (id: string): Promise<Invoice | null> =>
 export const convertQuotationToInvoice = async (id: string): Promise<Invoice | null> => {
     const quotation = invoices.find(i => i.id === id && String(i.type).toLowerCase() === 'quotation');
     if (!quotation) return null;
+    // A converted quotation must never be cloned again — that would create a
+    // duplicate invoice. Guard here in addition to UI gating so every caller
+    // (Quotations page, Financials) is protected from double-clicks/races.
+    if (quotation.quoteStatus === QuoteStatus.Converted) return null;
     // Omit id — server generates UUID to prevent collisions
     const { id: _origId, quoteNumber: _origQN, ...quotationRest } = quotation;
     const invoicePayload: Omit<Invoice, 'id'> = {
@@ -1662,6 +1667,47 @@ export const markOverdueInvoices = async () => {
     }
     notifyListeners();
   }
+};
+
+// Quotes whose validity period has passed are automatically marked Expired.
+// Terminal states (Rejected/Converted) and Accepted quotes are left alone — an
+// accepted quote is a live negotiation even if its nominal expiry date passed.
+export const markExpiredQuotations = async (): Promise<number> => {
+  // Never flag from stale localStorage: a quote sent elsewhere could still read
+  // as Sent here and get pushed to Expired before the client has seen it.
+  if (isConfigured() && !hydratedFromApi) return 0;
+  // Local calendar date — expiryDate comes from a local <input type="date">, so
+  // matching markOverdueInvoices' local-time convention avoids any UTC off-by-one.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const changed: Invoice[] = [];
+  invoices = invoices.map(inv => {
+    if (String(inv.type || '').toLowerCase() !== 'quotation') return inv;
+    if (!inv.expiryDate) return inv;
+    if (['Rejected', 'Expired', 'Converted'].includes(inv.quoteStatus || '')) return inv;
+    if (inv.expiryDate < today) {
+      const updated = { ...inv, quoteStatus: QuoteStatus.Expired as const };
+      changed.push(updated);
+      return updated;
+    }
+    return inv;
+  });
+  if (changed.length === 0) return 0;
+  persistInvoices();
+  if (isConfigured()) {
+    for (const inv of changed) {
+      // Full invoice body — a partial {status} PUT trips the server
+      // whitelist's required numeric fields
+      try { await api.put('/api/invoices', inv, { id: inv.id }); }
+      catch (e) { console.error('[markExpiredQuotations] API error:', e); }
+    }
+  }
+  for (const inv of changed) {
+    logQuotationEvent(inv.id, 'expired', `Auto-expired on ${today} — validity period passed`);
+    logAction('Quotation Status', `Marked quotation #${inv.id} as Expired (validity passed)`);
+  }
+  notifyListeners();
+  return changed.length;
 };
 
 export const getOverdueInvoices = () => invoices.filter(i => i.status === 'Overdue' && String(i.type || '').toLowerCase() === 'invoice');
