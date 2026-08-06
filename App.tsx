@@ -1,11 +1,11 @@
 
 // ─── Maintenance / Migration Mode ────────────────────────────────────────────
-// Maintenance mode disables automatically at the target end time.
-// Back online: 2026-06-23 16:00:00 CAT (UTC+2)
-const MAINTENANCE_END = new Date('2026-06-23T14:00:00Z');
-const MAINTENANCE_MODE = Date.now() < MAINTENANCE_END.getTime();
-
-function MaintenanceScreen() {
+// Toggled from the backend: set MAINTENANCE_MODE=1 (optionally with
+// MAINTENANCE_UNTIL=<ISO timestamp> for auto-expiry) in the deployment env.
+// The API then returns 503 + X-Maintenance. This screen shows when /health
+// reports maintenance, or when an in-flight request dispatches app:maintenance.
+// The countdown runs only when an end time is known.
+function MaintenanceScreen({ until }: { until?: number | null }) {
   const [now, setNow] = React.useState(() => new Date());
 
   React.useEffect(() => {
@@ -13,10 +13,10 @@ function MaintenanceScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const totalSecs = Math.max(0, Math.floor((MAINTENANCE_END.getTime() - now.getTime()) / 1000));
-  const hrs  = Math.floor(totalSecs / 3600);
-  const mins = Math.floor((totalSecs % 3600) / 60);
-  const secs = totalSecs % 60;
+  const totalSecs = until ? Math.max(0, Math.floor((until - now.getTime()) / 1000)) : null;
+  const hrs  = totalSecs !== null ? Math.floor(totalSecs / 3600) : null;
+  const mins = totalSecs !== null ? Math.floor((totalSecs % 3600) / 60) : null;
+  const secs = totalSecs !== null ? totalSecs % 60 : null;
   const pad  = (n: number) => String(n).padStart(2, '0');
 
   const liveLogo = 'https://pub-14569e32d4434e8d9db6cbdfe16b96f4.r2.dev/logos/image-1781703301263-hrjsyr.avif';
@@ -73,24 +73,35 @@ function MaintenanceScreen() {
 
         {/* Heading */}
         <h1 className="text-4xl font-black leading-[1.06] tracking-tight text-white sm:text-5xl">
-          Back online at{' '}
-          <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent">
-            4:00 PM
-          </span>
+          {until ? (
+            <>
+              Back online in{' '}
+              <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent">
+                {totalSecs !== null ? `${pad(hrs!)}:${pad(mins!)}:${pad(secs!)}` : '…'}
+              </span>
+            </>
+          ) : (
+            <>
+              Back online <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent">shortly</span>
+            </>
+          )}
         </h1>
         <p className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-white/60">
-          The Dreambox platform is briefly offline for a scheduled fix. We&apos;ll be back today at 4:00 PM — all campaign data, contracts, and records are safe and will be ready when we return.
+          {until
+            ? 'The Dreambox platform is briefly offline for maintenance. All campaign data, contracts, and records are safe and will be ready when we return.'
+            : 'The Dreambox platform is currently under maintenance. We are working on it and will be back shortly — all campaign data, contracts, and records are safe.'}
         </p>
         <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-white/40">
           Looking to book a site or request a quote? Reach us directly below and we&apos;ll respond straight away.
         </p>
 
-        {/* Countdown */}
+        {/* Countdown (only when an end time is known) */}
+        {totalSecs !== null && (
         <div className="mx-auto mt-10 flex items-center justify-center gap-3">
           {[
-            { value: pad(hrs),  label: 'Hours' },
-            { value: pad(mins), label: 'Minutes' },
-            { value: pad(secs), label: 'Seconds' },
+            { value: pad(hrs!),  label: 'Hours' },
+            { value: pad(mins!), label: 'Minutes' },
+            { value: pad(secs!), label: 'Seconds' },
           ].map((unit, i) => (
             <React.Fragment key={unit.label}>
               {i > 0 && <span className="mb-5 text-3xl font-black text-white/25">:</span>}
@@ -105,6 +116,7 @@ function MaintenanceScreen() {
             </React.Fragment>
           ))}
         </div>
+        )}
 
         {/* Divider */}
         <div className="mx-auto mt-12 h-px max-w-sm bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -249,6 +261,9 @@ const App: React.FC = () => {
   const [portalMode, setPortalMode] = useState<{active: boolean, clientId: string | null}>({ active: false, clientId: null });
   const [publicMode, setPublicMode] = useState<{active: boolean, type: 'billboard' | 'map', id?: string}>({ active: false, type: 'map' });
   const [pageError, setPageError] = useState<string | null>(null);
+  // Maintenance gate — driven by the backend: /health reports it on load, and
+  // any 503 + X-Maintenance API response (apiClient) dispatches app:maintenance.
+  const [maintenance, setMaintenance] = useState<{ active: boolean; until?: number | null }>({ active: false, until: null });
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -297,6 +312,30 @@ const App: React.FC = () => {
               id: id || undefined
           });
       }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      try {
+        const res = await fetch('/health', { cache: 'no-store' });
+        const data = await res.json();
+        if (!active) return;
+        if (data && data.maintenance === true) {
+          setMaintenance({
+            active: true,
+            until: data.maintenanceUntil ? new Date(data.maintenanceUntil).getTime() : null,
+          });
+        }
+      } catch { /* backend unreachable — keep the normal flow */ }
+    };
+    check();
+    const onMaintenance = () => setMaintenance(prev => ({ ...prev, active: true }));
+    window.addEventListener('app:maintenance', onMaintenance);
+    return () => {
+      active = false;
+      window.removeEventListener('app:maintenance', onMaintenance);
+    };
   }, []);
 
   const handlePageChange = useCallback((page: string) => {
@@ -507,10 +546,10 @@ const App: React.FC = () => {
   }
 
   // ─── Maintenance gate (public website bypasses above) ────────────────────────
-  if (MAINTENANCE_MODE) {
+  if (maintenance.active) {
     return (
       <ErrorBoundary>
-        <MaintenanceScreen />
+        <MaintenanceScreen until={maintenance.until} />
       </ErrorBoundary>
     );
   }

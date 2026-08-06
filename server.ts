@@ -39,6 +39,58 @@ app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false 
 app.use(express.json({ limit: '10mb' }));
 app.use(requestLogger);
 
+// ─── Maintenance mode ─────────────────────────────────────────────────────────
+// Flip the backend into maintenance from the deployment environment:
+//   MAINTENANCE_MODE=1            → logins and API writes are blocked (503)
+//   MAINTENANCE_UNTIL=ISO string  → optional auto-expiry (also powers the
+//                                   countdown on the frontend maintenance screen)
+// The SPA, /health, public endpoints, and cron endpoints stay up so the public
+// site keeps working and the app can render the maintenance screen.
+
+function isMaintenanceActive(): boolean {
+  const flag = (process.env.MAINTENANCE_MODE || '').toLowerCase();
+  if (flag === '1' || flag === 'true' || flag === 'yes' || flag === 'on') return true;
+  const until = process.env.MAINTENANCE_UNTIL;
+  if (until) {
+    const t = Date.parse(until);
+    if (!Number.isNaN(t) && Date.now() < t) return true;
+  }
+  return false;
+}
+
+function maintenanceUntilMs(): number | null {
+  const until = process.env.MAINTENANCE_UNTIL;
+  const t = until ? Date.parse(until) : NaN;
+  return Number.isNaN(t) ? null : t;
+}
+
+app.use((req, res, next) => {
+  if (!isMaintenanceActive()) return next();
+  const path = req.path || '/';
+  const isPublic = req.method === 'OPTIONS'
+    || path === '/health'
+    || path.startsWith('/api/public-')
+    || path === '/api/geocode'
+    || path === '/api/logo-proxy'
+    || path === '/api/public-lead'
+    || path.startsWith('/api/cron/');
+  if (isPublic) return next();
+  if (path.startsWith('/api/')) {
+    res.set('X-Maintenance', '1');
+    const until = maintenanceUntilMs();
+    return res.status(503).json({
+      error: 'The Dreambox platform is currently under maintenance. Please check back shortly.',
+      maintenance: true,
+      ...(until ? { maintenanceUntil: new Date(until).toISOString() } : {}),
+    });
+  }
+  // Non-API (SPA + assets) keep serving so the frontend can show maintenance.
+  return next();
+});
+log.boot(isMaintenanceActive()
+  ? '  Maintenance        ⚠  ACTIVE — logins and API writes blocked'
+  : '  Maintenance        —  inactive');
+
 // ─── Adapt API handler to Express ────────────────────────────────────────────
 
 function adapt(handlerModule: { default: Function }, routeName: string) {
@@ -210,18 +262,22 @@ async function runMigrations() {
 // Health check — tests both process liveness and DB connectivity
 app.get('/health', async (_req, res) => {
   const ts = Date.now();
+  const maintenance = isMaintenanceActive();
+  const maintenanceUntil = maintenance ? maintenanceUntilMs() : null;
+  const maintenanceUntilIso = maintenanceUntil ? new Date(maintenanceUntil).toISOString() : null;
+  const healthBody = { ts, maintenance, ...(maintenanceUntilIso ? { maintenanceUntil: maintenanceUntilIso } : {}) };
   if (!process.env.DATABASE_URL) {
-    return res.status(503).json({ status: 'degraded', db: 'not_configured', ts });
+    return res.status(503).json({ status: 'degraded', db: 'not_configured', ...healthBody });
   }
   try {
     await Promise.race([
       prisma.$queryRaw`SELECT 1`,
       new Promise((_, reject) => setTimeout(() => reject(new Error('DB health timeout')), 5000)),
     ]);
-    return res.json({ status: 'ok', db: 'connected', ts });
+    return res.json({ status: 'ok', db: 'connected', ...healthBody });
   } catch (e: any) {
     log.error(`[health] DB check failed: ${e?.message}`);
-    return res.status(503).json({ status: 'degraded', db: 'unreachable', error: e?.message?.slice(0, 100), ts });
+    return res.status(503).json({ status: 'degraded', db: 'unreachable', error: e?.message?.slice(0, 100), ...healthBody });
   }
 });
 

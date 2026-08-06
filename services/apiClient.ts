@@ -96,6 +96,12 @@ async function request<T = any>(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    // The backend marks maintenance with 503 + X-Maintenance — flip the whole
+    // app to the maintenance screen (App.tsx listens for this event).
+    if (res.status === 503 && res.headers.get('x-maintenance')) {
+      window.dispatchEvent(new Event('app:maintenance'));
+      throw new Error(err.error || 'Platform is under maintenance');
+    }
     // Validation failures come back as { error, details: [...] } — surface the
     // details so the user sees exactly which field failed (e.g. "Amount must be
     // positive") instead of a generic "Validation failed".
