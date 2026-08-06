@@ -15,7 +15,7 @@ import { log } from '../../lib/serverLogger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const CRON_SECRET = process.env.CRON_SECRET || '';
-const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
+const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 const BRIAN_EMAILS = ['chiduroobc@gmail.com', 'chiduurobc@gmail.com'];
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {

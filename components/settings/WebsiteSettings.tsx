@@ -320,9 +320,16 @@ export const WebsiteSettings: React.FC = () => {
     if (!files.length) return;
     setGalleryUploading(true);
     setGalleryError('');
+    setGalleryStatus('idle');
     const { uploaded, errors } = await uploadGalleryFiles(files);
     setGallery(prev => [...prev, ...uploaded]);
-    if (errors.length) setGalleryError(errors.join('; '));
+    // Surface upload failures (validation, R2 unreachable, ...) — the banner
+    // only renders when galleryStatus is 'error', so previously these were
+    // collected but never displayed and the photos just silently vanished.
+    if (errors.length) {
+      setGalleryError(errors.join('; '));
+      setGalleryStatus('error');
+    }
     setGalleryUploading(false);
     e.target.value = '';
   };
@@ -333,9 +340,13 @@ export const WebsiteSettings: React.FC = () => {
     if (!files.length) return;
     setGalleryUploading(true);
     setGalleryError('');
+    setGalleryStatus('idle');
     const { uploaded, errors } = await uploadGalleryFiles(files);
     setGallery(prev => [...prev, ...uploaded]);
-    if (errors.length) setGalleryError(errors.join('; '));
+    if (errors.length) {
+      setGalleryError(errors.join('; '));
+      setGalleryStatus('error');
+    }
     setGalleryUploading(false);
   }, []);
 
@@ -720,7 +731,7 @@ export const WebsiteSettings: React.FC = () => {
               <>
                 <div className="p-4 bg-slate-100 rounded-full"><Upload size={24} /></div>
                 <p className="text-sm font-semibold">Drop photos here or click to upload</p>
-                <p className="text-xs">PNG, JPG, WebP — max 8 MB each — multiple allowed</p>
+                <p className="text-xs">PNG, JPG, WebP — max 5 MB each — multiple allowed</p>
               </>
             )}
           </div>

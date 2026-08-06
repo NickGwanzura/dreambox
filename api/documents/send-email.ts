@@ -14,7 +14,7 @@ import { buildInvoicePdf, buildContractPdf } from '../../lib/documentPdf';
 import { log } from '../../lib/serverLogger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
+const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
 const DEFAULT_FROM = 'Dreambox Advertising <info@dreamboxadvertising.com>';
 
 type DocType = 'contract' | 'invoice' | 'quotation' | 'receipt';

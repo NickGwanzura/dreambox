@@ -4,8 +4,8 @@ import { log } from './serverLogger.js';
 export const SYSTEM_ADMIN_EMAIL = 'rufarod@gmail.com';
 export const SYSTEM_ADMIN_NAME = 'Rufaro';
 
-const FROM = 'Dreambox CRM <noreply@crm.dreamboxadvertising.co.zw>';
-const APP_URL = process.env.APP_URL || 'https://crm.dreamboxadvertising.co.zw';
+const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
+const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 

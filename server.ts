@@ -90,26 +90,42 @@ async function runMigrations() {
   // Authentication depends on this column. Keep an idempotent safeguard here
   // because some older production databases have incomplete Prisma migration
   // history, causing `migrate deploy` to fail while the process continues.
-  try {
-    await prisma.$executeRawUnsafe(
-      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sessionVersion" INTEGER NOT NULL DEFAULT 0`,
-    );
-    await prisma.$executeRawUnsafe(
-      `ALTER TABLE "invoices" ADD COLUMN IF NOT EXISTS "dueDate" TEXT`,
-    );
-    await prisma.$executeRawUnsafe(
-      `ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "sourceQuotationId" TEXT`,
-    );
+  // Authentication depends on these columns. Older production databases have
+  // incomplete Prisma migration history, causing `migrate deploy` to fail while
+  // the process continues. Each guard runs independently so one failure (e.g. a
+  // locked table) can't skip the rest — a skipped campaignGallery guard used to
+  // make the website gallery save 500 with "column campaignGallery does not exist".
+  const authSchemaGuards: Array<{ label: string; sql: string }> = [
+    { label: 'users.sessionVersion',         sql: `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sessionVersion" INTEGER NOT NULL DEFAULT 0` },
+    { label: 'invoices.dueDate',             sql: `ALTER TABLE "invoices" ADD COLUMN IF NOT EXISTS "dueDate" TEXT` },
+    { label: 'contracts.sourceQuotationId',  sql: `ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "sourceQuotationId" TEXT` },
     // Older production DBs may have incomplete migration history, leaving the
     // campaign gallery column missing. Add it idempotently so saving the
     // website gallery doesn't 500 with "column campaignGallery does not exist".
-    await prisma.$executeRawUnsafe(
-      `ALTER TABLE "company_profile" ADD COLUMN IF NOT EXISTS "campaignGallery" TEXT`,
-    );
-    log.boot('  Auth schema        ✓  sessionVersion ready');
-  } catch (e: any) {
-    log.boot(`  Auth schema        ⚠  ${e?.message?.slice(0, 200) || 'sessionVersion check failed'}`);
+    { label: 'company_profile.campaignGallery', sql: `ALTER TABLE "company_profile" ADD COLUMN IF NOT EXISTS "campaignGallery" TEXT` },
+    // Same failure mode for newer columns: expenses are attributed to
+    // clients/contracts and CRM tasks are de-duped by automationKey. These are
+    // missing on DBs where migrate deploy never completed, which makes the
+    // expenses and CRM tasks GET endpoints 500 until the columns exist.
+    { label: 'expenses.clientId',          sql: `ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "clientId" TEXT` },
+    { label: 'expenses.contractId',        sql: `ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "contractId" TEXT` },
+    { label: 'expenses_clientId_idx',      sql: `CREATE INDEX IF NOT EXISTS "expenses_clientId_idx" ON "expenses"("clientId")` },
+    { label: 'expenses_contractId_idx',    sql: `CREATE INDEX IF NOT EXISTS "expenses_contractId_idx" ON "expenses"("contractId")` },
+    { label: 'crm_tasks.automationKey',    sql: `ALTER TABLE "crm_tasks" ADD COLUMN IF NOT EXISTS "automationKey" TEXT` },
+    // Prisma upserts by automationKey generate ON CONFLICT, which needs this
+    // unique index. If it fails (duplicate values), a ⚠ line below is the diagnostic.
+    { label: 'crm_tasks_automationKey_key', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "crm_tasks_automationKey_key" ON "crm_tasks"("automationKey")` },
+  ];
+  let authGuardsReady = 0;
+  for (const step of authSchemaGuards) {
+    try {
+      await prisma.$executeRawUnsafe(step.sql);
+      authGuardsReady += 1;
+    } catch (e: any) {
+      log.boot(`  Auth schema        ⚠  ${step.label}: ${e?.message?.slice(0, 160)}`);
+    }
   }
+  log.boot(`  Auth schema        ✓  ${authGuardsReady}/${authSchemaGuards.length} guards ready`);
 
   // Older production databases may have incomplete migration history. Keep
   // finance reads/writes available by adding the forensic control columns and
