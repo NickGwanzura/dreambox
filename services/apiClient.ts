@@ -96,7 +96,13 @@ async function request<T = any>(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    const error = new Error(err.error || `HTTP ${res.status}`);
+    // Validation failures come back as { error, details: [...] } — surface the
+    // details so the user sees exactly which field failed (e.g. "Amount must be
+    // positive") instead of a generic "Validation failed".
+    const reason = Array.isArray(err.details) && err.details.length
+      ? `${err.error || 'Validation failed'}: ${err.details.join('; ')}`
+      : (err.error || `HTTP ${res.status}`);
+    const error = new Error(reason);
     (error as any).status = res.status;
     throw error;
   }
