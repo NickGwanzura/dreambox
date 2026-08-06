@@ -100,6 +100,12 @@ async function runMigrations() {
     await prisma.$executeRawUnsafe(
       `ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "sourceQuotationId" TEXT`,
     );
+    // Older production DBs may have incomplete migration history, leaving the
+    // campaign gallery column missing. Add it idempotently so saving the
+    // website gallery doesn't 500 with "column campaignGallery does not exist".
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "company_profile" ADD COLUMN IF NOT EXISTS "campaignGallery" TEXT`,
+    );
     log.boot('  Auth schema        ✓  sessionVersion ready');
   } catch (e: any) {
     log.boot(`  Auth schema        ⚠  ${e?.message?.slice(0, 200) || 'sessionVersion check failed'}`);

@@ -8,7 +8,7 @@ import { log } from '../lib/serverLogger.js';
 // A client bug (or future client) can leak a raw base64 data URL into one of
 // these entries; convert any that slip through to R2 so the DB never carries
 // megabytes of inline image data, same protection logo/heroImageUrl already get.
-async function uploadEmbeddedImages(json: string | undefined, existingJson: string | undefined): Promise<string | undefined> {
+export async function uploadEmbeddedImages(json: string | undefined, existingJson: string | undefined): Promise<string | undefined> {
   if (!json) return json;
   let items: any[];
   try {
@@ -25,8 +25,18 @@ async function uploadEmbeddedImages(json: string | undefined, existingJson: stri
     if (!item || typeof item.src !== 'string' || !isBase64DataUrl(item.src)) return item;
     changed = true;
     const existingSrc = existingItems[i]?.src;
-    const url = await uploadBase64Image('gallery', item.src, isBase64DataUrl(existingSrc || '') ? null : existingSrc);
-    return { ...item, src: url ?? item.src };
+    // Re-upload inline base64 to R2 so the DB never carries megabytes of image
+    // data. A single oversized/unsupported/stale entry must not brick the whole
+    // save — if the upload fails (e.g. an old base64 that no longer fits the
+    // 5 MB cap), fall back to the previously-persisted URL, or keep the entry,
+    // and let the save complete instead of surfacing a 500.
+    try {
+      const url = await uploadBase64Image('gallery', item.src, isBase64DataUrl(existingSrc || '') ? null : existingSrc);
+      return { ...item, src: url ?? item.src };
+    } catch (err: any) {
+      log.warn(`[company-profile] skipping gallery image ${i}: ${err?.message || err}`);
+      return existingSrc ? { ...item, src: existingSrc } : item;
+    }
   }));
   return changed ? JSON.stringify(uploaded) : json;
 }
