@@ -456,6 +456,7 @@ async function registerRoutes() {
   const clients      = await import('./api/clients.js');
   const contracts    = await import('./api/contracts.js');
   const invoices     = await import('./api/invoices.js');
+  const paymentLinks = await import('./api/payment-links.js');
   const expenses     = await import('./api/expenses.js');
   const financeReport = await import('./api/finance-report.js');
   const financeReconciliation = await import('./api/finance-reconciliation.js');
@@ -484,6 +485,7 @@ async function registerRoutes() {
   app.all('/api/contracts',             adapt(contracts,           'contracts'));
   app.all('/api/contract-amendments',   adapt(contractAmendments,  'contract-amendments'));
   app.all('/api/invoices',              adapt(invoices,            'invoices'));
+  app.all('/api/payment-links',         adapt(paymentLinks,        'payment-links'));
 
   // Quotation events (activity timeline)
   const quotationEvents = await import('./api/quotation-events.js');

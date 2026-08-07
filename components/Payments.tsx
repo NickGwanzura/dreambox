@@ -18,6 +18,7 @@ import {
 import { sendDocumentEmail } from "../services/documentEmail";
 import { SendDocumentModal } from "./SendDocumentModal";
 import { VoidDocumentModal, VoidDocument } from "./VoidDocumentModal";
+import { LinkPaymentModal } from "./LinkPaymentModal";
 import { Client, Invoice, Contract } from "../types";
 import { splitInclusiveVat } from "../services/constants";
 import {
@@ -36,6 +37,7 @@ import {
   ReceiptText,
   Send,
   Flag,
+  Link2,
 } from "lucide-react";
 import { getCurrentUser } from "../services/authServiceSecure";
 import { canDelete } from "../utils/settingsAccess";
@@ -151,6 +153,8 @@ export const Payments: React.FC = () => {
 
   // Void payment / invoice with mandatory audit reason
   const [voidTarget, setVoidTarget] = useState<VoidDocument | null>(null);
+  // Link an unlinked payment to the invoice it pays
+  const [linkTarget, setLinkTarget] = useState<Invoice | null>(null);
 
   // Monthly payment modal
   const [monthlyContract, setMonthlyContract] = useState<Contract | null>(null);
@@ -1024,6 +1028,15 @@ export const Payments: React.FC = () => {
                         ${(receipt.total ?? 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-right">
+                        {canUserDelete && !receipt.isVoided && !receipt.linkedInvoiceId && (
+                          <button
+                            onClick={() => setLinkTarget(receipt)}
+                            className="p-2 text-slate-900 hover:text-indigo-500 hover:bg-indigo-50 rounded-xl transition-colors"
+                            title="Link this payment to an invoice"
+                          >
+                            <Link2 size={16} />
+                          </button>
+                        )}
                         {canUserDelete && !receipt.isVoided && (
                           <button
                             onClick={() => handleDeleteReceipt(receipt)}
@@ -1651,6 +1664,15 @@ export const Payments: React.FC = () => {
         onClose={() => setVoidTarget(null)}
         onVoided={() => {
           setVoidTarget(null);
+          refreshInvoices();
+        }}
+      />
+      <LinkPaymentModal
+        receipt={linkTarget}
+        invoices={getInvoices()}
+        onClose={() => setLinkTarget(null)}
+        onLinked={() => {
+          setLinkTarget(null);
           refreshInvoices();
         }}
       />
