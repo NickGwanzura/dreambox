@@ -395,23 +395,43 @@ export const PublicWebsite: React.FC = () => {
     () => getAvailableSites(billboards, contracts),
     [billboards, contracts]
   );
+
+  // LED is the flagship product, so anything that showcases a single site on the
+  // homepage leads with digital screens and only falls back to static boards.
+  const digitalAvailability = useMemo(
+    () => availableSites.filter(item => {
+      const type = String(item.board.type || '').toLowerCase();
+      return type.includes('led') || type.includes('digital');
+    }),
+    [availableSites]
+  );
+  const heroSites = digitalAvailability.length ? digitalAvailability : availableSites;
+
   useEffect(() => {
-    if (availableSites.length <= 1) return;
-    const t = setInterval(() => setHeroSlide(s => (s + 1) % availableSites.length), 4500);
+    if (heroSites.length <= 1) return;
+    const t = setInterval(() => setHeroSlide(s => (s + 1) % heroSites.length), 4500);
     return () => clearInterval(t);
-  }, [availableSites.length]);
+  }, [heroSites.length]);
 
   const stats = useMemo(() => {
     const towns = new Set(billboards.map(board => board.town).filter(Boolean));
+    const ledBoards = billboards.filter(board => {
+      const type = String(board.type || '').toLowerCase();
+      return type.includes('led') || type.includes('digital');
+    });
+    const ledTraffic = ledBoards.reduce((sum, board) => sum + (board.dailyTraffic || 0), 0);
     const traffic = billboards.reduce((sum, board) => sum + (board.dailyTraffic || 0), 0);
+    const ledSlotsFree = digitalAvailability
+      .filter(item => item.available)
+      .reduce((sum, item) => sum + item.slotsFree, 0);
 
     return [
-      { label: 'Managed Sites', value: billboards.length || 24 },
+      { label: 'LED Screens', value: ledBoards.length || 6 },
+      { label: 'Open LED Slots', value: ledSlotsFree || 8 },
       { label: 'Active Towns', value: towns.size || 8 },
-      { label: 'Open Placements', value: availableSites.filter(item => item.available).reduce((sum, item) => sum + item.slotsFree, 0) || 12 },
-      { label: 'Daily Reach', value: traffic ? compactNumber(traffic) : '250K+' },
+      { label: 'Daily Reach', value: (ledTraffic || traffic) ? compactNumber(ledTraffic || traffic) : '250K+' },
     ];
-  }, [billboards, availableSites]);
+  }, [billboards, digitalAvailability]);
 
   useEffect(() => {
     const handlePopState = () => setPage(getPageFromPath());
@@ -421,17 +441,13 @@ export const PublicWebsite: React.FC = () => {
 
   useEffect(() => {
     document.title = page === 'home'
-      ? 'Dreambox Advertising | Outdoor Media in Zimbabwe'
+      ? 'Dreambox Advertising | LED Billboards in Zimbabwe'
       : `${PAGE_META[page].title} | Dreambox Advertising`;
   }, [page]);
 
   const phone = profile?.phone || '+263 778 018 909';
   const email = profile?.email || 'info@dreamboxadvertising.com';
   const shownAvailability = availableSites;
-  const digitalAvailability = shownAvailability.filter(item => {
-    const type = String(item.board.type || '').toLowerCase();
-    return type.includes('led') || type.includes('digital');
-  });
   const featuredDigitalSites = digitalAvailability.length
     ? digitalAvailability.slice(0, 3)
     : shownAvailability.filter(item => item.board.type === BillboardType.LED).slice(0, 3);
@@ -543,8 +559,8 @@ export const PublicWebsite: React.FC = () => {
       </select>
       <select name="billboardType" value={form.billboardType} onChange={e => setForm({ ...form, billboardType: e.target.value })} aria-label="Media type" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20">
         <option value="">Media type</option>
-        <option value="Billboard Advertising">Billboard Advertising</option>
-        <option value="Digital Billboard">Digital Billboard</option>
+        <option value="Digital Billboard">LED Digital Billboard</option>
+        <option value="Billboard Advertising">Static Billboard</option>
       </select>
       <input name="campaignDuration" value={form.campaignDuration} onChange={e => setForm({ ...form, campaignDuration: e.target.value })} placeholder="Campaign duration" aria-label="Campaign duration" className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20" />
       {/* Honeypot field — hidden from real users */}
@@ -751,10 +767,10 @@ export const PublicWebsite: React.FC = () => {
             <div className="max-w-3xl">
               <div className="mb-6 inline-flex animate-reveal-up items-center gap-2 rounded-full border border-indigo-400/25 bg-white/[0.07] px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-indigo-200 backdrop-blur-sm">
                 <Sparkles size={11} className="text-indigo-300" />
-                Zimbabwe&apos;s Outdoor Media Partner
+                Zimbabwe&apos;s LED Billboard Network
               </div>
               <h1 className="max-w-3xl text-[2.6rem] font-black leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-[4.5rem]">
-                {'Outdoor media that puts your brand'.split(' ').map((word, index) => (
+                {'LED billboards that put your brand'.split(' ').map((word, index) => (
                   <span
                     key={index}
                     className="inline-block animate-reveal-up"
@@ -771,15 +787,14 @@ export const PublicWebsite: React.FC = () => {
                 </span>
               </h1>
               <p className="mt-6 max-w-lg animate-reveal-up animation-delay-200 text-[15px] leading-7 text-white/70 sm:text-base">
-                Dreambox helps Zimbabwean brands choose visible billboard and digital outdoor placements, with clear pricing and a dedicated team behind every campaign.
+                Dreambox runs Zimbabwe&apos;s digital LED screens at premium traffic points — rotating slots, day-to-night visibility, clear monthly rates, and a dedicated team behind every campaign.
               </p>
               <div className="mt-8 flex animate-reveal-up animation-delay-300 flex-col gap-3 sm:flex-row">
                 <a
-                  href="/site-availability"
-                  onClick={navigate('locations')}
+                  href="#digital-billboards"
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-7 py-3.5 text-sm font-black uppercase tracking-wide text-slate-950 shadow-xl shadow-slate-950/20 transition hover:-translate-y-0.5 hover:bg-indigo-50"
                 >
-                  Explore Locations <MapPin size={15} />
+                  See LED Sites <MapPin size={15} />
                 </a>
                 <a
                   href="/contact"
@@ -790,7 +805,7 @@ export const PublicWebsite: React.FC = () => {
                 </a>
               </div>
               <div className="mt-7 flex animate-reveal-up animation-delay-300 flex-wrap gap-x-6 gap-y-2.5">
-                {['Verified, maintained sites', 'Transparent monthly rates', 'Response within 24 hours'].map(item => (
+                {['Limited slots per screen', 'Transparent per-slot rates', 'Response within 24 hours'].map(item => (
                   <span key={item} className="inline-flex items-center gap-2 text-xs font-semibold text-white/55">
                     <CheckCircle size={13} className="text-emerald-400/80" /> {item}
                   </span>
@@ -807,15 +822,15 @@ export const PublicWebsite: React.FC = () => {
             </div>
 
             <div className="hidden lg:block">
-              {shownAvailability.length > 0 && (() => {
-                const item = shownAvailability[heroSlide % shownAvailability.length];
+              {heroSites.length > 0 && (() => {
+                const item = heroSites[heroSlide % heroSites.length];
                 return (
                   <div className="relative ml-auto" style={{ maxWidth: '400px' }}>
                     {/* Slide indicator dots */}
-                    {shownAvailability.length > 1 && (
+                    {heroSites.length > 1 && (
                       <div className="mb-3 flex justify-center gap-1.5">
-                        {shownAvailability.map((_, i) => (
-                          <button key={i} onClick={() => setHeroSlide(i)} className={`h-[3px] rounded-full transition-all duration-300 ${i === heroSlide % shownAvailability.length ? 'w-6 bg-white/60' : 'w-2 bg-white/20'}`} />
+                        {heroSites.map((_, i) => (
+                          <button key={i} onClick={() => setHeroSlide(i)} className={`h-[3px] rounded-full transition-all duration-300 ${i === heroSlide % heroSites.length ? 'w-6 bg-white/60' : 'w-2 bg-white/20'}`} />
                         ))}
                       </div>
                     )}
@@ -895,46 +910,15 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
-        {(page === 'home') && <section id="partners" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="animate-reveal-up">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Our valued partners</p>
-              <h2 className="mt-2 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
-                Trusted by great Zimbabwean brands.
-              </h2>
-            </div>
-            <p className="animate-reveal-up animation-delay-100 text-sm text-slate-500 sm:max-w-xs sm:text-right">
-              Brands that count on Dreambox for outdoor presence across Zimbabwe.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 sm:grid-cols-3">
-            {partnerLogos.map((partner, index) => (
-              <div
-                key={partner.name}
-                className="group flex h-28 animate-reveal-up items-center justify-center bg-white p-6 transition duration-300 hover:bg-indigo-50/60"
-                style={{ animationDelay: `${index * 60}ms` }}
-              >
-                <img
-                  src={partner.src}
-                  alt={`${partner.name} logo`}
-                  loading="lazy"
-                  decoding="async"
-                  className="max-h-12 max-w-full object-contain transition duration-300 group-hover:scale-110 group-hover:drop-shadow-md"
-                />
-              </div>
-            ))}
-          </div>
-        </section>}
-
-        {(page === 'home' || page === 'services') && <section id="digital-billboards" className="bg-slate-950 py-20 text-white">
+        {(page === 'home' || page === 'services') && <section id="digital-billboards" className="scroll-mt-28 bg-slate-950 py-20 text-white">
           <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8">
             <div className="animate-reveal-up">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-indigo-300">Digital billboards</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-indigo-300">Our flagship — LED digital billboards</p>
               <h2 className="mt-3 max-w-xl text-4xl font-black leading-[1.07] tracking-tight text-white sm:text-5xl">
-                High-impact LED visibility for campaigns that need momentum.
+                The screens brands ask for by name.
               </h2>
               <p className="mt-5 max-w-lg text-[15px] leading-7 text-white/68">
-                Digital billboard slots give your brand motion, frequency, and day-to-night presence at premium traffic points.
+                LED is what Dreambox does best. Rotating slots give your brand motion, frequency, and day-to-night presence at Zimbabwe&apos;s premium traffic points — with only a limited number of advertisers per screen.
               </p>
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
                 {[
@@ -953,7 +937,7 @@ export const PublicWebsite: React.FC = () => {
                 onClick={navigate('locations')}
                 className="mt-8 inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 hover:shadow-indigo-500/40"
               >
-                View Digital Sites <ArrowRight size={15} />
+                View LED Sites &amp; Rates <ArrowRight size={15} />
               </a>
             </div>
 
@@ -998,6 +982,37 @@ export const PublicWebsite: React.FC = () => {
           </div>
         </section>}
 
+        {(page === 'home') && <section id="partners" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="animate-reveal-up">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Our valued partners</p>
+              <h2 className="mt-2 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                Trusted by great Zimbabwean brands.
+              </h2>
+            </div>
+            <p className="animate-reveal-up animation-delay-100 text-sm text-slate-500 sm:max-w-xs sm:text-right">
+              Brands that count on Dreambox for outdoor presence across Zimbabwe.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 sm:grid-cols-3">
+            {partnerLogos.map((partner, index) => (
+              <div
+                key={partner.name}
+                className="group flex h-28 animate-reveal-up items-center justify-center bg-white p-6 transition duration-300 hover:bg-indigo-50/60"
+                style={{ animationDelay: `${index * 60}ms` }}
+              >
+                <img
+                  src={partner.src}
+                  alt={`${partner.name} logo`}
+                  loading="lazy"
+                  decoding="async"
+                  className="max-h-12 max-w-full object-contain transition duration-300 group-hover:scale-110 group-hover:drop-shadow-md"
+                />
+              </div>
+            ))}
+          </div>
+        </section>}
+
         {(page === 'home' || page === 'services') && <section id="services" className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
           <div className="mb-14 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="animate-reveal-up">
@@ -1007,26 +1022,26 @@ export const PublicWebsite: React.FC = () => {
               </h2>
             </div>
             <p className="max-w-md animate-reveal-up animation-delay-100 text-[15px] leading-7 text-slate-500">
-              Dreambox delivers billboard and digital out-of-home placements that put your brand in front of the right audience.
+              LED digital screens lead the way, backed by a national static billboard network — so your brand lands in front of the right audience.
             </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             {[
               {
-                icon: Target,
+                icon: Megaphone,
                 num: '01',
-                title: 'Billboard Advertising',
-                body: 'Highly visual, brand-building outdoor media for campaigns that demand street-level attention across Zimbabwe\'s busiest corridors.',
-                meta: 'Static roadside media',
+                title: 'LED Digital Billboards',
+                body: 'Our flagship format. High-impact LED screens with rotating slots, built for dominant, iconic visibility at premium intersections, day and night.',
+                meta: 'LED & rotating slots',
                 delay: 0,
               },
               {
-                icon: Megaphone,
+                icon: Target,
                 num: '02',
-                title: 'Digital Billboard',
-                body: 'High-impact LED out-of-home placements with rotating slots, built for dominant, iconic visibility at premium intersections.',
-                meta: 'LED & rotating slots',
+                title: 'Static Billboard Advertising',
+                body: 'Highly visual, brand-building outdoor media for campaigns that demand street-level attention across Zimbabwe\'s busiest corridors.',
+                meta: 'Static roadside media',
                 delay: 120,
               },
             ].map((service) => (
