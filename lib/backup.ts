@@ -337,8 +337,21 @@ async function restoreFromData(data: BackupRecord): Promise<{ restored: number; 
       const ids = records.map((r: any) => r.id).filter(Boolean);
       // @ts-ignore
       if (ids.length > 0 && key !== 'auditLogs') await prisma[def.model].deleteMany({ where: { id: { in: ids } } });
+      // The audit hash-chain trigger recomputes eventHash/previousHash on every
+      // insert. During a restore the archived hashes must be preserved verbatim,
+      // so disable the trigger for this batch and re-enable it afterwards.
+      if (key === 'auditLogs') {
+        try {
+          await prisma.$executeRawUnsafe(`ALTER TABLE "audit_logs" DISABLE TRIGGER "audit_logs_prepare_event"`);
+        } catch (e: any) {
+          console.warn('[backup] Could not disable audit chain trigger — restored hashes will re-chain:', e.message);
+        }
+      }
       // @ts-ignore
       await prisma[def.model].createMany({ data: records, skipDuplicates: true });
+      if (key === 'auditLogs') {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "audit_logs" ENABLE TRIGGER "audit_logs_prepare_event"`).catch(() => undefined);
+      }
       restored += records.length;
     } catch (e: any) {
       console.error(`[backup] Restore failed for ${key}:`, e.message);

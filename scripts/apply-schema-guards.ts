@@ -46,6 +46,8 @@ async function main() {
   // ── 1. Columns + indexes (same set as the server.ts boot guards) ──────────
   const columnGuards: Array<[string, string]> = [
     ['users.sessionVersion',            `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sessionVersion" INTEGER NOT NULL DEFAULT 0`],
+    ['users.twoFactorSecret',           `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "twoFactorSecret" TEXT`],
+    ['users.twoFactorEnabled',          `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false`],
     ['invoices.dueDate',                `ALTER TABLE "invoices" ADD COLUMN IF NOT EXISTS "dueDate" TEXT`],
     ['contracts.sourceQuotationId',     `ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "sourceQuotationId" TEXT`],
     ['company_profile.campaignGallery', `ALTER TABLE "company_profile" ADD COLUMN IF NOT EXISTS "campaignGallery" TEXT`],
@@ -190,6 +192,57 @@ async function main() {
     $$ LANGUAGE plpgsql`);
   await run('trigger audit_logs_prepare_event', `DROP TRIGGER IF EXISTS "audit_logs_prepare_event" ON "audit_logs"; CREATE TRIGGER "audit_logs_prepare_event" BEFORE INSERT ON "audit_logs" FOR EACH ROW EXECUTE FUNCTION dreambox_prepare_audit_event()`);
   await run('trigger audit_logs_append_only', `DROP TRIGGER IF EXISTS "audit_logs_append_only" ON "audit_logs"; CREATE TRIGGER "audit_logs_append_only" BEFORE UPDATE OR DELETE ON "audit_logs" FOR EACH ROW EXECUTE FUNCTION dreambox_prevent_audit_mutation()`);
+
+  // ── 9. Receipt-evidence CHECK + payment-allocation constraints (idempotent
+  //        subset of migration 20260801190000 — guarded by pg_constraint so the
+  //        DO blocks can be re-run safely). NOT VALID preserves legacy rows. ──
+  await run('invoices_receipt_evidence_chk', `
+    DO $$ BEGIN
+      IF to_regclass('invoices') IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'invoices_receipt_evidence_chk')
+         AND (SELECT COUNT(DISTINCT column_name) FROM information_schema.columns
+              WHERE table_schema = current_schema() AND table_name = 'invoices'
+                AND column_name IN ('type','isVoided','paymentMethod','paymentReference','receivedBy','receivedByUserId','recordedAt','postedAt','receivingAccount','proofPaymentUrl','proofOriginalName','proofMimeType','proofUploadedAt')) = 13
+      THEN
+        ALTER TABLE "invoices" ADD CONSTRAINT "invoices_receipt_evidence_chk" CHECK (
+          "type" <> 'Receipt' OR "isVoided" = true OR (
+            NULLIF(BTRIM("paymentMethod"), '') IS NOT NULL
+            AND NULLIF(BTRIM("paymentReference"), '') IS NOT NULL
+            AND NULLIF(BTRIM("receivedBy"), '') IS NOT NULL
+            AND NULLIF(BTRIM("receivedByUserId"), '') IS NOT NULL
+            AND "recordedAt" IS NOT NULL
+            AND "postedAt" IS NOT NULL
+            AND (
+              "paymentMethod" !~* '(bank|transfer|rtgs|swift|wire)'
+              OR (
+                NULLIF(BTRIM("receivingAccount"), '') IS NOT NULL
+                AND NULLIF(BTRIM("proofPaymentUrl"), '') IS NOT NULL
+                AND NULLIF(BTRIM("proofOriginalName"), '') IS NOT NULL
+                AND "proofMimeType" IN ('application/pdf', 'image/jpeg', 'image/png', 'image/webp')
+                AND "proofUploadedAt" IS NOT NULL
+              )
+            )
+          )
+        ) NOT VALID;
+      END IF;
+    END $$;`);
+  await run('payment_allocations constraints', `
+    DO $$ BEGIN
+      IF to_regclass('payment_allocations') IS NOT NULL THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payment_allocations_positive_amount_chk') THEN
+          ALTER TABLE "payment_allocations" ADD CONSTRAINT "payment_allocations_positive_amount_chk" CHECK ("amount" > 0) NOT VALID;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payment_allocations_distinct_documents_chk') THEN
+          ALTER TABLE "payment_allocations" ADD CONSTRAINT "payment_allocations_distinct_documents_chk" CHECK ("receiptId" <> "invoiceId") NOT VALID;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payment_allocations_receiptId_fkey') THEN
+          ALTER TABLE "payment_allocations" ADD CONSTRAINT "payment_allocations_receiptId_fkey" FOREIGN KEY ("receiptId") REFERENCES "invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE NOT VALID;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payment_allocations_invoiceId_fkey') THEN
+          ALTER TABLE "payment_allocations" ADD CONSTRAINT "payment_allocations_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "invoices"("id") ON DELETE RESTRICT ON UPDATE CASCADE NOT VALID;
+        END IF;
+      END IF;
+    END $$;`);
 
   console.log(`\nDone: ${ok} ok, ${fail} failed.`);
   await pool.end();

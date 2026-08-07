@@ -180,6 +180,122 @@ function buildWebsiteLeadEmail(lead: WebsiteLeadAlert): string {
   `;
 }
 
+export interface OpsAlertSection {
+  title: string;
+  lines: string[];
+}
+
+/**
+ * Generic operational alert email (health checks, 5xx spikes, boot schema
+ * issues, contract expiries). Fire-and-forget — failures are logged, never
+ * thrown, so an email outage can't break an API response.
+ */
+export function notifyAdminOpsAlert(subject: string, sections: OpsAlertSection[]): void {
+  if (!process.env.RESEND_API_KEY) return;
+  resend.emails
+    .send({
+      from: FROM,
+      to: SYSTEM_ADMIN_EMAIL,
+      subject: `[Dreambox Ops] ${subject}`,
+      html: buildOpsAlertEmail(subject, sections),
+    })
+    .catch(err => log.error(`[notifyAdmin] ops alert email failed: ${err?.message ?? err}`));
+}
+
+function buildOpsAlertEmail(subject: string, sections: OpsAlertSection[]): string {
+  const blocks = sections
+    .map(
+      s => `
+        <tr><td style="padding:20px 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;padding:20px;">
+            <tr><td style="color:#1e293b;font-size:14px;font-weight:700;padding-bottom:8px;">${s.title}</td></tr>
+            ${s.lines.map(l => `<tr><td style="color:#475569;font-size:13px;padding:3px 0;line-height:1.5;word-break:break-word;">${l}</td></tr>`).join('')}
+          </table>
+        </td></tr>`,
+    )
+    .join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <body style="margin:0;padding:0;background:#ffffff;font-family:sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:40px 0;">
+        <tr><td align="center">
+          <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;padding:40px;">
+            <tr><td align="center" style="padding-bottom:24px;">
+              <span style="font-size:24px;font-weight:700;color:#1e293b;">Dreambox</span>
+              <span style="font-size:24px;font-weight:300;color:#6366f1;"> CRM</span>
+            </td></tr>
+            <tr><td style="color:#1e293b;font-size:16px;line-height:1.6;padding-bottom:8px;">
+              Hi ${SYSTEM_ADMIN_NAME},
+            </td></tr>
+            <tr><td style="color:#64748b;font-size:14px;line-height:1.6;padding-bottom:8px;">
+              ${subject}
+            </td></tr>
+            ${blocks}
+            <tr><td style="color:#94a3b8;font-size:12px;line-height:1.6;border-top:1px solid #e2e8f0;padding-top:24px;">
+              Automated operational notification from Dreambox CRM — no reply needed.
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
 export function isSystemAdmin(email: string | null | undefined): boolean {
   return email?.trim()?.toLowerCase() === SYSTEM_ADMIN_EMAIL;
+}
+
+// ── Watched-user login alerts (env-configured: WATCHED_LOGIN_EMAIL + WATCHER_LOGIN_EMAIL) ──
+export interface WatchedLoginUser {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+const WATCHED_EMAIL = (process.env.WATCHED_LOGIN_EMAIL || '').toLowerCase();
+const WATCHER_EMAIL = process.env.WATCHER_LOGIN_EMAIL || '';
+
+/**
+ * Fire-and-forget login alert when a watched user signs in. Used by both the
+ * plain signin path and the two-factor verify path so alerts never regress.
+ */
+export function notifyWatchedLogin(watchedUser: WatchedLoginUser, ip: string, userAgent: string | null): void {
+  if (!process.env.RESEND_API_KEY || !WATCHED_EMAIL || !WATCHER_EMAIL) return;
+  if (watchedUser.email.toLowerCase() !== WATCHED_EMAIL) return;
+
+  const fullName = [watchedUser.firstName, watchedUser.lastName].filter(Boolean).join(' ') || watchedUser.email;
+  const when = new Date().toLocaleString('en-GB', { timeZone: 'Africa/Harare', dateStyle: 'medium', timeStyle: 'short' });
+
+  resend.emails
+    .send({
+      from: FROM,
+      to: WATCHER_EMAIL,
+      subject: `Login alert: ${fullName} signed in to Dreambox CRM`,
+      html: `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#ffffff;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;"><tr><td align="center">
+    <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:32px;">
+      <tr><td style="font-size:20px;font-weight:700;color:#1e293b;padding-bottom:12px;">Login Alert</td></tr>
+      <tr><td style="color:#64748b;font-size:14px;line-height:1.6;padding-bottom:16px;">
+        <strong style="color:#1e293b;">${fullName}</strong> (${watchedUser.email}) just signed in to Dreambox CRM.
+      </td></tr>
+      <tr><td>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;padding:16px;font-size:13px;color:#1e293b;">
+          <tr><td style="padding:4px 0;"><strong>When:</strong> ${when} (CAT)</td></tr>
+          <tr><td style="padding:4px 0;"><strong>IP:</strong> ${ip}</td></tr>
+          <tr><td style="padding:4px 0;word-break:break-all;"><strong>Device:</strong> ${userAgent || 'unknown'}</td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="color:#94a3b8;font-size:11px;padding-top:20px;border-top:1px solid #e2e8f0;margin-top:20px;text-align:center;">
+        Automated notification from Dreambox CRM
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`,
+    })
+    .then(() => log.info(`Watched-login notify sent  watched=${watchedUser.email}  to=${WATCHER_EMAIL}`))
+    .catch((err: any) => log.error(`Watched-login notify failed  ${err?.message}`));
 }

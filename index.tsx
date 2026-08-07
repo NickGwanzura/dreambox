@@ -19,6 +19,15 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 });
 
+// PWA: register the service worker in production only (dev hot-reload fights it).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}
+
 try {
   const rootElement = document.getElementById('root');
   if (!rootElement) {
