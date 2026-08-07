@@ -2,7 +2,7 @@
  * Cron endpoint: POST /api/cron/back-online
  * Sends a "Back Online" notification email to all active users.
  *
- * Triggered by the internal scheduler in server.ts at the MAINTENANCE_END time.
+ * Triggered by the internal scheduler in server.ts at the MAINTENANCE_UNTIL end time (env-driven maintenance window).
  * Secured by CRON_SECRET header.
  */
 import type { HttpRequest, HttpResponse } from '../../lib/http';

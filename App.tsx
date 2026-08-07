@@ -316,24 +316,41 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let active = true;
+    let pollId: ReturnType<typeof setInterval> | undefined;
+    const stopPolling = () => { if (pollId !== undefined) { clearInterval(pollId); pollId = undefined; } };
     const check = async () => {
       try {
         const res = await fetch('/health', { cache: 'no-store' });
         const data = await res.json();
         if (!active) return;
-        if (data && data.maintenance === true) {
-          setMaintenance({
-            active: true,
-            until: data.maintenanceUntil ? new Date(data.maintenanceUntil).getTime() : null,
-          });
+        const next = {
+          active: !!data && data.maintenance === true,
+          until: data && data.maintenanceUntil ? new Date(data.maintenanceUntil).getTime() : null,
+        };
+        // Only set state when the gate actually changed (avoids a full app
+        // re-render every poll), and only poll while maintenance is active —
+        // /health does a DB roundtrip, so we don't want every open client
+        // hitting it every minute forever.
+        setMaintenance(prev => (prev.active === next.active && prev.until === next.until ? prev : next));
+        if (next.active) {
+          if (pollId === undefined) pollId = setInterval(check, 60_000);
+        } else {
+          stopPolling();
         }
       } catch { /* backend unreachable — keep the normal flow */ }
     };
     check();
-    const onMaintenance = () => setMaintenance(prev => ({ ...prev, active: true }));
+    const onMaintenance = () => setMaintenance(prev => {
+      if (prev.active) return prev;
+      // Entering maintenance (503 + X-Maintenance): start polling so the screen
+      // auto-clears the moment /health reports the platform is back.
+      if (pollId === undefined) pollId = setInterval(check, 60_000);
+      return { ...prev, active: true };
+    });
     window.addEventListener('app:maintenance', onMaintenance);
     return () => {
       active = false;
+      stopPolling();
       window.removeEventListener('app:maintenance', onMaintenance);
     };
   }, []);

@@ -8,8 +8,10 @@ import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import { readFileSync } from 'fs';
 import type { Request, Response } from 'express';
 import { log, requestLogger, errorHandler, logStartupInfo } from './lib/serverLogger.js';
+import { splitSqlStatements } from './lib/splitSql.js';
 import { prisma } from './lib/prisma.js';
 
 // ─── Patch global console so all handlers' console.* calls get structured ────
@@ -167,6 +169,7 @@ async function runMigrations() {
     // Prisma upserts by automationKey generate ON CONFLICT, which needs this
     // unique index. If it fails (duplicate values), a ⚠ line below is the diagnostic.
     { label: 'crm_tasks_automationKey_key', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "crm_tasks_automationKey_key" ON "crm_tasks"("automationKey")` },
+    { label: 'contracts_sourceQuotationId_idx', sql: `CREATE INDEX IF NOT EXISTS "contracts_sourceQuotationId_idx" ON "contracts"("sourceQuotationId")` },
   ];
   let authGuardsReady = 0;
   for (const step of authSchemaGuards) {
@@ -194,6 +197,7 @@ async function runMigrations() {
     for (const [column, type] of financeColumns) {
       await prisma.$executeRawUnsafe(`ALTER TABLE "invoices" ADD COLUMN IF NOT EXISTS "${column}" ${type}`);
     }
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "invoices_approvalStatus_idx" ON "invoices"("approvalStatus")`);
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "payment_allocations" (
         "id" TEXT PRIMARY KEY, "receiptId" TEXT NOT NULL, "invoiceId" TEXT NOT NULL,
@@ -248,6 +252,65 @@ async function runMigrations() {
   } catch (e: any) {
     log.boot(`  Audit schema       ⚠  ${e?.message?.slice(0, 200) || 'audit_logs schema check failed'}`);
   }
+
+  // Databases where migration 20260802110000 never completed (incomplete Prisma
+  // migration history) miss the DB-level finance guards: closed-period triggers
+  // on invoices/expenses/printing_jobs/outsourced_billboards, the payment
+  // allocation triggers, and the duplicate-reference queue. The migration file
+  // is fully idempotent (functions replaced, triggers dropped first, queue
+  // upserted), so replaying it at boot is safe. Skip when both markers already
+  // exist so healthy databases never rescan invoices for duplicates each boot.
+  try {
+    const [fnRow, queueRow] = await Promise.all([
+      prisma.$queryRawUnsafe<{ fn: string | null }[]>(`SELECT to_regprocedure('dreambox_guard_closed_financial_period()') AS fn`),
+      prisma.$queryRawUnsafe<{ tbl: string | null }[]>(`SELECT to_regclass('payment_reference_duplicate_queue') AS tbl`),
+    ]);
+    if (fnRow?.[0]?.fn && queueRow?.[0]?.tbl) {
+      log.boot('  Finance guards     ✓  already applied — skipping');
+    } else {
+      const guardPath = path.join(__dirname, 'prisma', 'migrations', '20260802110000_finance_database_guards', 'migration.sql');
+      const guardSql = readFileSync(guardPath, 'utf8');
+      const statements = splitSqlStatements(guardSql);
+      let ready = 0;
+      for (let idx = 0; idx < statements.length; idx++) {
+        try {
+          await prisma.$executeRawUnsafe(statements[idx]);
+          ready += 1;
+        } catch (e: any) {
+          log.boot(`  Finance guards     ⚠  stmt ${idx + 1}/${statements.length}: ${e?.message?.slice(0, 150)}`);
+        }
+      }
+      log.boot(`  Finance guards     ${ready === statements.length ? '✓' : '⚠'}  ${ready}/${statements.length} statements applied`);
+    }
+  } catch (e: any) {
+    log.boot(`  Finance guards     ⚠  ${e?.message?.slice(0, 200) || 'finance guards check failed'}`);
+  }
+
+  // Field Operations reads/writes the field_reports table via the Prisma client.
+  // It arrived in the same migration batch as crm_tasks.automationKey, so
+  // databases with incomplete Prisma history miss the table AND its two enum
+  // types, making /api/field-reports 500 (P2021). Each guard runs independently
+  // (same philosophy as the auth guards) and each statement is its own
+  // $executeRawUnsafe call because the extended protocol rejects multi-statement.
+  const fieldSchemaGuards: Array<{ label: string; sql: string }> = [
+    { label: 'enum FieldReportType', sql: `DO $$ BEGIN CREATE TYPE "FieldReportType" AS ENUM ('CheckIn', 'CampaignProof', 'Issue'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;` },
+    { label: 'enum FieldReportStatus', sql: `DO $$ BEGIN CREATE TYPE "FieldReportStatus" AS ENUM ('Pending', 'Submitted', 'Resolved'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;` },
+    { label: 'field_reports table', sql: `CREATE TABLE IF NOT EXISTS "field_reports" ("id" TEXT NOT NULL, "type" "FieldReportType" NOT NULL, "billboardId" TEXT NOT NULL, "contractId" TEXT, "note" TEXT, "photoUrl" TEXT, "latitude" DOUBLE PRECISION, "longitude" DOUBLE PRECISION, "accuracy" DOUBLE PRECISION, "status" "FieldReportStatus" NOT NULL DEFAULT 'Submitted', "reportedBy" TEXT NOT NULL, "reportedByEmail" TEXT, "capturedAt" TIMESTAMP(3) NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "field_reports_pkey" PRIMARY KEY ("id"))` },
+    { label: 'field_reports_billboardId_idx', sql: `CREATE INDEX IF NOT EXISTS "field_reports_billboardId_idx" ON "field_reports"("billboardId")` },
+    { label: 'field_reports_contractId_idx', sql: `CREATE INDEX IF NOT EXISTS "field_reports_contractId_idx" ON "field_reports"("contractId")` },
+    { label: 'field_reports_status_idx', sql: `CREATE INDEX IF NOT EXISTS "field_reports_status_idx" ON "field_reports"("status")` },
+    { label: 'field_reports_capturedAt_idx', sql: `CREATE INDEX IF NOT EXISTS "field_reports_capturedAt_idx" ON "field_reports"("capturedAt")` },
+  ];
+  let fieldGuardsReady = 0;
+  for (const step of fieldSchemaGuards) {
+    try {
+      await prisma.$executeRawUnsafe(step.sql);
+      fieldGuardsReady += 1;
+    } catch (e: any) {
+      log.boot(`  Field schema        ⚠  ${step.label}: ${e?.message?.slice(0, 160)}`);
+    }
+  }
+  log.boot(`  Field schema        ✓  ${fieldGuardsReady}/${fieldSchemaGuards.length} guards ready`);
 
   // Bootstrap: ensure InvoiceType enum includes all values from Prisma schema.
   // The production DB enum may be missing newer values (e.g. 'Proforma').
@@ -461,7 +524,9 @@ function registerShutdownHandlers() {
 	// ─── Cron Scheduler (runs inside the server process) ─────────────────────────
 
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-const MAINTENANCE_END = new Date('2026-06-19T10:00:00Z'); // 12:00 CAT
+// Back-online notification fires when the *env-driven* maintenance window ends.
+// MAINTENANCE_UNTIL is authoritative when set; the constant is only a fallback.
+const LEGACY_MAINTENANCE_END = new Date('2026-06-19T10:00:00Z'); // 12:00 CAT
 
 function startCronScheduler() {
   // Fire expense report email to Brian every 3 days
@@ -514,15 +579,18 @@ function startCronScheduler() {
   log.boot('  Cron scheduler     ✓  expire-quotations daily');
 
   // ─── Back-online notification at maintenance end time ──────────────────────
+  const maintenanceUntil = process.env.MAINTENANCE_UNTIL;
+  const parsedUntil = maintenanceUntil ? Date.parse(maintenanceUntil) : NaN;
+  const target = Number.isNaN(parsedUntil) ? LEGACY_MAINTENANCE_END : new Date(parsedUntil);
   const now = Date.now();
-  const targetMs = MAINTENANCE_END.getTime();
+  const targetMs = target.getTime();
   const rawDelayMs = targetMs - now;
   const delayMs = rawDelayMs + 5_000; // 5s grace after target
 
   if (rawDelayMs > 0 && delayMs < 86_400_000) {
     // Only schedule if the target is within the next 24 hours
-    const timeoutId = setTimeout(async () => {
-      log.boot(`  Back-online        →  scheduled after maintenance end, notifying users...`);
+    setTimeout(async () => {
+      log.boot(`  Back-online        →  maintenance end reached, notifying users...`);
       try {
         const res = await fetch(`http://localhost:${PORT}/api/cron/back-online`, {
           method: 'POST',
@@ -537,7 +605,7 @@ function startCronScheduler() {
         log.boot(`  Back-online        ⚠  ${e?.message?.slice(0, 120) || 'failed'}`);
       }
     }, delayMs);
-    log.boot(`  Back-online        ✓  scheduled for ${MAINTENANCE_END.toISOString()} (in ${Math.round(delayMs / 1000 / 60)} min)`);
+    log.boot(`  Back-online        ✓  scheduled for ${target.toISOString()} (in ${Math.round(delayMs / 1000 / 60)} min)`);
   } else {
     log.boot(`  Back-online        —  target already passed or too far away`);
   }
