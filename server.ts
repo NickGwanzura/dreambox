@@ -368,12 +368,16 @@ async function registerRoutes() {
   // Public resources
   const publicBillboards = await import('./api/public-billboards.js');
   const publicProfile    = await import('./api/public-profile.js');
+  const publicLead       = await import('./api/public-lead.js');
   const geocode          = await import('./api/geocode.js');
 
   app.all('/api/public-billboards', adapt(publicBillboards, 'public-billboards'));
   app.all('/api/public-profile',    adapt(publicProfile,    'public-profile'));
+  // Website lead form (CRM opportunity + admin email). Kept public so it works
+  // through the maintenance gate — the maintenance middleware already allowlists it.
+  app.all('/api/public-lead',       adapt(publicLead,       'public-lead'));
   app.all('/api/geocode',           adapt(geocode,          'geocode'));
-  log.boot('  Public routes      ✓  (public-billboards, public-profile, geocode)');
+  log.boot('  Public routes      ✓  (public-billboards, public-profile, public-lead, geocode)');
 
   // Core resources
   const auditLogs    = await import('./api/audit-logs.js');
