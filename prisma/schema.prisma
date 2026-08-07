@@ -21,6 +21,9 @@ model User {
   role                 UserRole         @default(Staff)
   status               UserStatus       @default(Pending)
   mustResetPassword    Boolean          @default(false)
+  // Two-factor authentication (TOTP)
+  twoFactorSecret      String?
+  twoFactorEnabled     Boolean          @default(false)
   // Account lockout
   failedLoginAttempts  Int              @default(0)
   lockedUntil          DateTime?

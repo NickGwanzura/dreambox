@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   signIn,
+  verifyTwoFactor,
   sendPasswordReset,
 } from '../services/authService';
 import { useToast } from './ToastProvider';
@@ -19,7 +20,7 @@ interface AuthProps {
     onLogin: () => void;
 }
 
-type AuthMode = 'login' | 'forgot';
+type AuthMode = 'login' | 'forgot' | 'twofactor';
 
 export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     const [mode, setMode] = useState<AuthMode>('login');
@@ -34,6 +35,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     // Form State
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [twoFactorToken, setTwoFactorToken] = useState('');
+    const [twoFactorCode, setTwoFactorCode] = useState('');
 
     useEffect(() => {
         setMounted(true);
@@ -44,6 +47,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             if (mode === 'login') {
                 validators.required(email, 'Email/Username');
                 validators.required(password, 'Password');
+            } else if (mode === 'twofactor') {
+                validators.required(twoFactorCode, 'Verification code');
+                if (!/^\d{6}$/.test(twoFactorCode.trim())) {
+                    throw new ValidationError('Enter the 6-digit code from your authenticator app');
+                }
             } else if (mode === 'forgot') {
                 validators.required(email, 'Email');
                 validators.email(email);
@@ -55,7 +63,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             }
             return false;
         }
-    }, [mode, email, password]);
+    }, [mode, email, password, twoFactorCode]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,7 +80,21 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             const sanitizedEmail = sanitizers.email(email);
 
             if (mode === 'login') {
-                const { user, error } = await signIn(sanitizedEmail, password);
+                const result = await signIn(sanitizedEmail, password);
+                if (result.error) {
+                    setError(result.error.message);
+                    showToast(result.error.message, 'error');
+                } else if (result.twoFactorRequired && result.twoFactorToken) {
+                    setTwoFactorToken(result.twoFactorToken);
+                    setTwoFactorCode('');
+                    setError('');
+                    setMode('twofactor');
+                } else if (result.user) {
+                    showToast('Welcome back!', 'success');
+                    onLogin();
+                }
+            } else if (mode === 'twofactor') {
+                const { user, error } = await verifyTwoFactor(twoFactorToken, twoFactorCode.trim());
                 if (error) {
                     setError(error.message);
                     showToast(error.message, 'error');
@@ -107,6 +129,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         setError('');
         setSuccessMessage('');
         setPassword('');
+        setTwoFactorCode('');
+        setTwoFactorToken('');
     };
 
     const handleEmergencyReset = () => {
@@ -223,10 +247,12 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                         {/* Card Header */}
                         <div className="px-8 pt-8 pb-6 border-b border-white/[0.06]">
                             <h2 className="text-2xl font-bold text-white mb-1">
-                                {mode === 'login' ? 'Welcome back' : 'Reset password'}
+                                {mode === 'login' ? 'Welcome back' :
+                                 mode === 'twofactor' ? 'Two-factor authentication' : 'Reset password'}
                             </h2>
                             <p className="text-sm text-slate-400">
                                 {mode === 'login' ? 'Sign in to access your dashboard' :
+                                 mode === 'twofactor' ? 'Enter the 6-digit code from your authenticator app' :
                                  'Enter your email to receive reset instructions'}
                             </p>
                         </div>
@@ -251,6 +277,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 {/* Email Field */}
+                                {mode !== 'twofactor' && (
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                                         {mode === 'login' ? 'Email or Username' : 'Email Address'}
@@ -262,10 +289,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                             value={email}
                                             onChange={e => setEmail(e.target.value)}
                                             className="w-full bg-[#0a0a0f] border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 rounded-xl pl-12 pr-4 py-3 text-white placeholder-slate-600 outline-none transition-all text-sm"
-                                            placeholder={mode === 'login' ? "you@company.com" : "you@company.com"}
+                                            placeholder="you@company.com"
                                         />
                                     </div>
                                 </div>
+                                )}
 
                                 {/* Password Field */}
                                 {mode === 'login' && (
@@ -304,6 +332,29 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                     </div>
                                 )}
 
+                                {/* Two-Factor Code Field */}
+                                {mode === 'twofactor' && (
+                                    <div className="space-y-2 animate-fade-in">
+                                        <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                            Verification Code
+                                        </label>
+                                        <div className="relative">
+                                            <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                autoFocus
+                                                maxLength={6}
+                                                value={twoFactorCode}
+                                                onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                className="w-full bg-[#0a0a0f] border border-white/10 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 rounded-xl pl-12 pr-4 py-3 text-white placeholder-slate-600 outline-none transition-all text-sm tracking-[0.5em] text-center font-mono"
+                                                placeholder="••••••"
+                                            />
+                                        </div>
+                                        <p className="text-xs text-slate-500">Open your authenticator app and enter the current code.</p>
+                                    </div>
+                                )}
+
                                 {/* Submit Button */}
                                 <LoadingButton 
                                     type="submit"
@@ -314,7 +365,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                                     className="w-full mt-2 !rounded-xl"
                                     spinnerPosition="left"
                                 >
-                                    {mode === 'login' ? 'Sign In' : 
+                                    {mode === 'login' ? 'Sign In' :
+                                     mode === 'twofactor' ? 'Verify & Sign In' :
                                      successMessage ? 'Email Sent' : 'Send Reset Link'}
                                 </LoadingButton>
                             </form>
@@ -328,7 +380,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                             </div>
 
                             <div className="mt-6">
-                                {mode === 'forgot' ? (
+                                {mode === 'forgot' || mode === 'twofactor' ? (
                                     <button
                                         onClick={() => toggleMode('login')}
                                         className="w-full flex items-center justify-center gap-2 py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors"

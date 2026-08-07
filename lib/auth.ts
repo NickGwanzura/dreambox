@@ -20,6 +20,41 @@ export function signToken(payload: JWTPayload): string {
   return jwt.sign(payload, JWT_SECRET as string, { expiresIn: '24h' });
 }
 
+/**
+ * Strip secrets from a user object before it is serialized to the client.
+ * Only setup.ts is allowed to reveal the TOTP secret — every other endpoint
+ * (me, signin, verify, …) must go through this so it never leaks.
+ */
+export function toSafeUser<T extends { passwordHash?: string; twoFactorSecret?: string | null }>(user: T): Omit<T, 'passwordHash' | 'twoFactorSecret'> {
+  const { passwordHash: _, twoFactorSecret: __, ...safe } = user;
+  return safe;
+}
+
+/**
+ * Short-lived single-purpose token that proves the password half of a
+ * two-factor signin. Exchanged for a real session token in
+ * api/auth/two-factor/verify.ts — never usable as a session itself.
+ */
+export function signTwoFactorToken(userId: string, email: string): string {
+  return jwt.sign({ userId, email, purpose: 'twofactor' }, JWT_SECRET as string, {
+    expiresIn: '10m',
+  });
+}
+
+export function verifyTwoFactorToken(token: string): { userId: string; email: string } | null {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET as string) as {
+      userId?: string;
+      email?: string;
+      purpose?: string;
+    };
+    if (!payload.userId || payload.purpose !== 'twofactor') return null;
+    return { userId: payload.userId, email: payload.email ?? '' };
+  } catch {
+    return null;
+  }
+}
+
 export function verifyToken(token: string): JWTPayload | null {
   try {
     return jwt.verify(token, JWT_SECRET as string) as JWTPayload;

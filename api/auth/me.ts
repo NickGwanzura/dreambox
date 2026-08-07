@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponse } from '../../lib/http';
 import { prisma } from '../../lib/prisma';
-import { requireAuth, cors } from '../../lib/auth';
+import { requireAuth, cors, toSafeUser } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
@@ -15,8 +15,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const { passwordHash: _, ...safeUser } = user;
-    return res.status(200).json({ user: safeUser });
+    return res.status(200).json({ user: toSafeUser(user) });
   } catch (e: any) {
     log.error('[auth/me]', e);
     return res.status(500).json({ error: 'Internal server error' });

@@ -9,6 +9,7 @@ import { User as UserType, CompanyProfile, UserPermissions, LoginHistoryEntry } 
 import { DataSyncManager } from './DataSyncManager';
 import { LocationSettings } from './settings/LocationSettings';
 import { WebsiteSettings } from './settings/WebsiteSettings';
+import { TwoFactorSettings } from './settings/TwoFactorSettings';
 
 const ROLE_OPTIONS = [
   { value: 'Admin', label: 'Administrator' },
@@ -581,6 +582,13 @@ export const Settings: React.FC = () => {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500 rounded-full blur-3xl opacity-10"></div>
               </div>
             </div>
+          </div>
+
+          {/* Two-Factor Authentication — Admin/Manager accounts */}
+          <div>
+            {(currentUser?.role === 'Admin' || currentUser?.role === 'Manager') && (
+              <TwoFactorSettings />
+            )}
           </div>
 
           {/* Team Members — full-width row (Admin only) */}

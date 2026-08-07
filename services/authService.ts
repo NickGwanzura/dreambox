@@ -38,14 +38,33 @@ export const signUp = async (
 // SIGN IN
 // ============================================================
 
+export interface SignInResult {
+  user: SessionUser | null;
+  error: Error | null;
+  /** Set when the account has two-factor authentication and needs a TOTP code. */
+  twoFactorRequired?: boolean;
+  /** Short-lived challenge token to present alongside the TOTP code. */
+  twoFactorToken?: string;
+}
+
 export const signIn = async (
   email: string,
   password: string
-): Promise<{ user: SessionUser | null; error: Error | null }> => {
+): Promise<SignInResult> => {
   try {
-    const { token, user } = await api.post<{ token: string; user: SessionUser }>('/api/auth/signin', {
-      email, password,
-    });
+    const res = await api.post<{
+      token?: string;
+      user?: SessionUser;
+      twoFactorRequired?: boolean;
+      twoFactorToken?: string;
+    }>('/api/auth/signin', { email, password });
+
+    if (res.twoFactorRequired && res.twoFactorToken) {
+      logger.info(`2FA challenge for ${email}`);
+      return { user: null, error: null, twoFactorRequired: true, twoFactorToken: res.twoFactorToken };
+    }
+
+    const { token, user } = res as { token: string; user: SessionUser };
     setToken(token);
     saveSession(user);
     reloadAllFromApi();
@@ -55,6 +74,28 @@ export const signIn = async (
   } catch (error: any) {
     logger.warn(`Failed login for ${email}:`, error.message);
     return { user: null, error: new Error(error.message || 'Invalid email or password') };
+  }
+};
+
+/** Complete a two-factor signin by exchanging the challenge token + TOTP code for a session. */
+export const verifyTwoFactor = async (
+  twoFactorToken: string,
+  code: string
+): Promise<SignInResult> => {
+  try {
+    const { token, user } = await api.post<{ token: string; user: SessionUser }>('/api/auth/two-factor/verify', {
+      twoFactorToken,
+      code,
+    });
+    setToken(token);
+    saveSession(user);
+    reloadAllFromApi();
+    reloadCRMFromApi();
+    logger.info('User logged in (2FA)');
+    return { user, error: null };
+  } catch (error: any) {
+    logger.warn('2FA verify failed:', error.message);
+    return { user: null, error: new Error(error.message || 'Invalid verification code') };
   }
 };
 
