@@ -8,7 +8,6 @@ import {
   getBillboards,
   addInvoice,
   getUpcomingBillings,
-  deleteInvoice,
   getInvoicesReviewQueue,
   logAction,
 } from "../services/mockData";
@@ -18,6 +17,7 @@ import {
 } from "../services/pdfGenerator";
 import { sendDocumentEmail } from "../services/documentEmail";
 import { SendDocumentModal } from "./SendDocumentModal";
+import { VoidDocumentModal, VoidDocument } from "./VoidDocumentModal";
 import { Client, Invoice, Contract } from "../types";
 import { splitInclusiveVat } from "../services/constants";
 import {
@@ -148,6 +148,9 @@ export const Payments: React.FC = () => {
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [monthlyProofFile, setMonthlyProofFile] = useState<File | null>(null);
   const [proofUploading, setProofUploading] = useState(false);
+
+  // Void payment / invoice with mandatory audit reason
+  const [voidTarget, setVoidTarget] = useState<VoidDocument | null>(null);
 
   // Monthly payment modal
   const [monthlyContract, setMonthlyContract] = useState<Contract | null>(null);
@@ -499,32 +502,27 @@ export const Payments: React.FC = () => {
     }
   };
 
-  const handleDeleteInvoice = async (invoice: Invoice) => {
-    const reason = window.prompt(
-      `Void Invoice #${invoice.id}? Enter the audit reason:`,
-    );
-    if (reason) {
-      try {
-        await deleteInvoice(invoice.id, reason);
-        refreshInvoices();
-      } catch (err: any) {
-        alert(`Failed: ${err?.message || "Server error. Please try again."}`);
-      }
-    }
+  const handleDeleteInvoice = (invoice: Invoice) => {
+    setVoidTarget({
+      id: invoice.id,
+      type: "Invoice",
+      amount: Number(invoice.total || 0),
+      date: invoice.date || "",
+      clientName: getClientName(invoice.clientId),
+    });
   };
 
-  const handleDeleteReceipt = async (receiptId: string) => {
-    const reason = window.prompt(
-      "Reverse this payment? The original receipt and proof will be preserved. Enter the audit reason:",
-    );
-    if (reason) {
-      try {
-        await deleteInvoice(receiptId, reason);
-        refreshInvoices();
-      } catch (err: any) {
-        alert(`Failed: ${err?.message || "Server error. Please try again."}`);
-      }
-    }
+  const handleDeleteReceipt = (receipt: Invoice) => {
+    setVoidTarget({
+      id: receipt.id,
+      type: "Receipt",
+      amount: Number(receipt.total || 0),
+      date: receipt.date || "",
+      clientName: getClientName(receipt.clientId),
+      paymentMethod: receipt.paymentMethod || null,
+      paymentReference: receipt.paymentReference || null,
+      proofExists: receipt.hasPaymentProof ?? Boolean(receipt.proofPaymentUrl),
+    });
   };
 
   const filteredInvoices = allInvoices.filter((inv) => {
@@ -895,11 +893,11 @@ export const Payments: React.FC = () => {
                     >
                       <Send size={14} /> Email
                     </button>
-                    {canUserDelete && (
+                    {canUserDelete && !invoice.isVoided && (
                       <button
                         onClick={() => handleDeleteInvoice(invoice)}
-                        className={`py-3 px-4 border border-slate-200 text-slate-900 hover:border-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center ${!canUserDelete ? "hidden" : ""}`}
-                        title="Delete invoice"
+                        className="py-3 px-4 border border-slate-200 text-slate-900 hover:border-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center"
+                        title="Void invoice"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -989,9 +987,15 @@ export const Payments: React.FC = () => {
                         {getClientName(receipt.clientId)}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold uppercase">
-                          {receipt.paymentMethod || "N/A"}
-                        </span>
+                        {receipt.isVoided ? (
+                          <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-xl text-xs font-bold uppercase">
+                            Voided
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold uppercase">
+                            {receipt.paymentMethod || "N/A"}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 font-mono text-xs text-slate-900">
                         {receipt.paymentReference || "-"}
@@ -1020,10 +1024,11 @@ export const Payments: React.FC = () => {
                         ${(receipt.total ?? 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        {canUserDelete && (
+                        {canUserDelete && !receipt.isVoided && (
                           <button
-                            onClick={() => handleDeleteReceipt(receipt.id)}
+                            onClick={() => handleDeleteReceipt(receipt)}
                             className="p-2 text-slate-900 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                            title="Reverse this payment"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1639,6 +1644,16 @@ export const Payments: React.FC = () => {
             />
           );
         })()}
+
+      <VoidDocumentModal
+        key={voidTarget?.id ?? "none"}
+        document={voidTarget}
+        onClose={() => setVoidTarget(null)}
+        onVoided={() => {
+          setVoidTarget(null);
+          refreshInvoices();
+        }}
+      />
     </>
   );
 };
