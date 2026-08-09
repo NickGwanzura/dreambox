@@ -770,6 +770,15 @@ export const Quotations: React.FC = () => {
                 <span className="text-slate-900">Total</span>
                 <span className="font-bold">${(doc.total ?? 0).toLocaleString()}</span>
               </div>
+              {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
+                <button
+                  type="button"
+                  onClick={() => handleConvertToInvoice(doc)}
+                  className="w-full min-h-11 px-4 py-2.5 bg-emerald-700 text-white hover:bg-emerald-800 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+                >
+                  <DollarSign size={16} aria-hidden="true" /> Convert to Invoice
+                </button>
+              )}
               <div className="flex flex-wrap gap-2 pt-2">
                 <button onClick={() => handleView(doc)} className="p-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl" title="View Details"><Eye size={16} /></button>
                 <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl" title="Download PDF"><Download size={16} /></button>
@@ -777,9 +786,6 @@ export const Quotations: React.FC = () => {
                 <button onClick={() => handleWhatsAppShare(doc)} className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-xl" title="WhatsApp"><MessageCircle size={16} /></button>
                 <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-xl" title="Edit"><Edit size={16} /></button>
                 <button onClick={() => handleDuplicate(doc)} className="p-2 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-xl" title="Duplicate"><Copy size={16} /></button>
-                {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
-                  <button onClick={() => handleConvertToInvoice(doc)} className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl" title="Convert to Invoice"><DollarSign size={16} /></button>
-                )}
                 {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
                   <button onClick={() => handleConvertToContract(doc)} className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl" title="Convert to Contract"><FileText size={16} /></button>
                 )}
@@ -833,15 +839,22 @@ export const Quotations: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-1 flex-wrap">
+                        {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
+                          <button
+                            type="button"
+                            onClick={() => handleConvertToInvoice(doc)}
+                            className="min-h-10 px-3 text-emerald-950 bg-emerald-100 hover:bg-emerald-200 rounded-xl transition-colors text-xs font-bold inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+                            title="Convert quotation to invoice"
+                          >
+                            <DollarSign size={15} aria-hidden="true" /> Convert to Invoice
+                          </button>
+                        )}
                         <button onClick={() => handleView(doc)} className="p-2 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors" title="View Details"><Eye size={16} /></button>
                         <button onClick={() => downloadPDF(doc)} className="p-2 text-slate-900 hover:text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-xl transition-colors" title="Download PDF"><Download size={16} /></button>
                         <button onClick={() => handleSendDoc(doc)} className="p-2 text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Send via Email"><Send size={16} /></button>
                         <button onClick={() => handleWhatsAppShare(doc)} className="p-2 text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 rounded-xl transition-colors" title="Share via WhatsApp"><MessageCircle size={16} /></button>
                         <button onClick={() => handleEdit(doc)} className="p-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors" title="Edit"><Edit size={16} /></button>
                         <button onClick={() => handleDuplicate(doc)} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors" title="Duplicate"><Copy size={16} /></button>
-                        {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
-                          <button onClick={() => handleConvertToInvoice(doc)} className="p-2 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors" title="Convert to Invoice"><DollarSign size={16} /></button>
-                        )}
                         {(doc.quoteStatus === 'Sent' || doc.quoteStatus === 'Accepted') && (
                           <button onClick={() => handleConvertToContract(doc)} className="p-2 text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors" title="Convert to Contract"><FileText size={16} /></button>
                         )}

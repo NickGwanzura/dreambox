@@ -449,9 +449,9 @@ export const BusinessIntelligence: React.FC = () => {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Business Intelligence</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Forward-looking signals, forecasts, and asset intelligence</p>
+          <p className="text-sm text-slate-700 mt-0.5">Forward-looking signals, forecasts, and asset intelligence</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 rounded-xl px-3 py-1.5">
+        <div className="flex items-center gap-2 text-xs text-slate-700 bg-slate-100 rounded-xl px-3 py-1.5">
           <Clock size={12} />
           <span>Updated now</span>
         </div>
@@ -466,7 +466,7 @@ export const BusinessIntelligence: React.FC = () => {
             className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
               tab === t.id
                 ? 'bg-slate-900 text-white shadow'
-                : 'text-slate-500 hover:text-slate-700'
+                : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             {t.label}
@@ -482,7 +482,7 @@ export const BusinessIntelligence: React.FC = () => {
             {[
               { label: 'Monthly Recurring', value: formatCurrency(totalMRR), sub: `${activeContracts.length} active contracts`, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
               { label: 'Portfolio Occupancy', value: `${occupancyPct}%`, sub: `${rentedStaticSides + rentedLedSlots} of ${totalStaticSides + totalLedSlots} units`, icon: Monitor, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-              { label: 'Pending Collections', value: formatCurrency(pendingInvoiceTotal), sub: `${overdueInvoices.length} overdue`, icon: Clock, color: overdueInvoices.length > 0 ? 'text-amber-600' : 'text-slate-600', bg: overdueInvoices.length > 0 ? 'bg-amber-50' : 'bg-slate-50' },
+              { label: 'Pending Collections', value: formatCurrency(pendingInvoiceTotal), sub: `${overdueInvoices.length} overdue`, icon: Clock, color: overdueInvoices.length > 0 ? 'text-amber-600' : 'text-slate-700', bg: overdueInvoices.length > 0 ? 'bg-amber-50' : 'bg-slate-50' },
               { label: 'Total Collected', value: formatCurrency(paidInvoiceTotal), sub: 'all time (paid invoices)', icon: CheckCircle2, color: 'text-slate-700', bg: 'bg-slate-100' },
             ].map(kpi => (
               <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
@@ -490,8 +490,8 @@ export const BusinessIntelligence: React.FC = () => {
                   <kpi.icon size={16} className={kpi.color} />
                 </div>
                 <div className="text-xl font-black text-slate-900">{kpi.value}</div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{kpi.label}</div>
-                <div className="text-[11px] text-slate-400 mt-1">{kpi.sub}</div>
+                <div className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mt-0.5">{kpi.label}</div>
+                <div className="text-[11px] text-slate-700 mt-1">{kpi.sub}</div>
               </div>
             ))}
           </div>
@@ -504,7 +504,7 @@ export const BusinessIntelligence: React.FC = () => {
                 value: formatCurrency(totalMonthlyExpenses),
                 sub: `${monthlyExpenses.length} recorded`,
                 icon: TrendingDown,
-                color: totalMonthlyExpenses > 0 ? 'text-rose-600' : 'text-slate-500',
+                color: totalMonthlyExpenses > 0 ? 'text-rose-600' : 'text-slate-700',
                 bg: totalMonthlyExpenses > 0 ? 'bg-rose-50' : 'bg-slate-50',
               },
               {
@@ -528,7 +528,7 @@ export const BusinessIntelligence: React.FC = () => {
                 value: topExpenseCategory || 'None',
                 sub: topExpenseCategory ? `${topExpensePct}% of all costs` : 'No expenses recorded',
                 icon: Package,
-                color: 'text-slate-600',
+                color: 'text-slate-700',
                 bg: 'bg-slate-100',
               },
             ].map(kpi => (
@@ -537,8 +537,8 @@ export const BusinessIntelligence: React.FC = () => {
                   <kpi.icon size={16} className={kpi.color} />
                 </div>
                 <div className="text-xl font-black text-slate-900">{kpi.value}</div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{kpi.label}</div>
-                <div className="text-[11px] text-slate-400 mt-1">{kpi.sub}</div>
+                <div className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider mt-0.5">{kpi.label}</div>
+                <div className="text-[11px] text-slate-700 mt-1">{kpi.sub}</div>
               </div>
             ))}
           </div>
@@ -549,7 +549,7 @@ export const BusinessIntelligence: React.FC = () => {
               <div className="flex items-center gap-2 mb-4">
                 <TrendingDown size={14} className="text-rose-500" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Expense Breakdown by Category</h3>
-                <span className="ml-auto text-[11px] text-slate-400">All time · {formatCurrency(totalAllExpenses)} total</span>
+                <span className="ml-auto text-[11px] text-slate-700">All time · {formatCurrency(totalAllExpenses)} total</span>
               </div>
               <div className="space-y-2.5">
                 {expenseByCategory.map(([cat, amt]) => {
@@ -558,7 +558,7 @@ export const BusinessIntelligence: React.FC = () => {
                     <div key={cat}>
                       <div className="flex justify-between text-xs mb-1">
                         <span className="font-semibold text-slate-700">{cat}</span>
-                        <span className="text-slate-500">{formatCurrency(amt)} <span className="text-slate-400">({pct}%)</span></span>
+                        <span className="text-slate-700">{formatCurrency(amt)} <span className="text-slate-700">({pct}%)</span></span>
                       </div>
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
@@ -588,7 +588,7 @@ export const BusinessIntelligence: React.FC = () => {
               </div>
               <div className="divide-y divide-slate-50 max-h-56 overflow-y-auto">
                 {[...expiring30, ...expiring60].length === 0 ? (
-                  <div className="flex items-center gap-2 px-4 py-4 text-xs text-slate-400">
+                  <div className="flex items-center gap-2 px-4 py-4 text-xs text-slate-700">
                     <CheckCircle2 size={14} className="text-emerald-400" /> No contracts expiring in the next 60 days
                   </div>
                 ) : (
@@ -601,7 +601,7 @@ export const BusinessIntelligence: React.FC = () => {
                         <div className={`w-1.5 h-8 rounded-full ${c.urgency === 'high' ? 'bg-red-400' : 'bg-amber-400'}`} />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-slate-800 truncate">{client?.companyName || 'Unknown Client'}</p>
-                          <p className="text-[11px] text-slate-500 truncate">{board?.name || c.billboardId}</p>
+                          <p className="text-[11px] text-slate-700 truncate">{board?.name || c.billboardId}</p>
                         </div>
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${c.urgency === 'high' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}>
                           {days}d
@@ -662,7 +662,7 @@ export const BusinessIntelligence: React.FC = () => {
                     <item.icon size={14} className={item.urgent ? 'text-red-400' : 'text-emerald-400'} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-slate-800">{item.label}</p>
-                      <p className="text-[11px] text-slate-400">{item.desc}</p>
+                      <p className="text-[11px] text-slate-700">{item.desc}</p>
                     </div>
                     <span className={`text-sm font-black ${item.urgent ? 'text-red-500' : 'text-emerald-500'}`}>
                       {item.count}
@@ -706,20 +706,20 @@ export const BusinessIntelligence: React.FC = () => {
                   {kpi.trend === 'up' && <ArrowUpRight size={16} className="text-emerald-500" />}
                 </div>
                 <div className="text-2xl font-black text-slate-900">{kpi.value}</div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mt-1">{kpi.label}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 mt-1">{kpi.label}</div>
               </div>
             ))}
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-sm font-bold text-slate-800 mb-1">4-Month Revenue Forecast</h3>
-            <p className="text-xs text-slate-400 mb-5">Guaranteed from active contracts + 30% probability pipeline weighting</p>
+            <p className="text-xs text-slate-700 mb-5">Guaranteed from active contracts + 30% probability pipeline weighting</p>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={forecastData} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#334155', fontSize: 11 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#334155', fontSize: 11 }} tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
                     formatter={(val: any, name: string) => [`$${Number(val).toLocaleString()}`, name === 'guaranteed' ? 'Guaranteed' : 'Pipeline (weighted)']}
@@ -729,7 +729,7 @@ export const BusinessIntelligence: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex gap-4 mt-3 justify-center text-xs text-slate-500">
+            <div className="flex gap-4 mt-3 justify-center text-xs text-slate-700">
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" />Guaranteed</span>
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-indigo-300 inline-block" />Pipeline</span>
             </div>
@@ -741,7 +741,7 @@ export const BusinessIntelligence: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-800 mb-1 flex items-center gap-2">
                 <AlertTriangle size={14} className="text-red-400" /> Revenue at Risk — Next 30 Days
               </h3>
-              <p className="text-xs text-slate-400 mb-4">Contracts expiring without visible renewal activity</p>
+              <p className="text-xs text-slate-700 mb-4">Contracts expiring without visible renewal activity</p>
               <div className="space-y-2">
                 {expiring30.map(c => {
                   const client = clients.find(cl => cl.id === c.clientId);
@@ -750,7 +750,7 @@ export const BusinessIntelligence: React.FC = () => {
                     <div key={c.id} className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-xl">
                       <div>
                         <p className="text-xs font-semibold text-slate-800">{client?.companyName || '—'}</p>
-                        <p className="text-[11px] text-slate-500">{board?.name || '—'} · expires in {daysUntil(c.endDate)}d</p>
+                        <p className="text-[11px] text-slate-700">{board?.name || '—'} · expires in {daysUntil(c.endDate)}d</p>
                       </div>
                       <span className="text-sm font-bold text-red-600">{formatCurrency(c.monthlyRate)}<span className="text-[10px] text-red-400">/mo</span></span>
                     </div>
@@ -758,7 +758,7 @@ export const BusinessIntelligence: React.FC = () => {
                 })}
               </div>
               <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-500">Monthly revenue at risk</span>
+                <span className="text-xs text-slate-700">Monthly revenue at risk</span>
                 <span className="text-sm font-black text-red-600">{formatCurrency(expiring30.reduce((s, c) => s + c.monthlyRate, 0))}</span>
               </div>
             </div>
@@ -779,7 +779,7 @@ export const BusinessIntelligence: React.FC = () => {
               <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
                 <kpi.icon size={18} className="mx-auto mb-2 text-indigo-500" />
                 <div className="text-2xl font-black text-slate-900">{kpi.value}</div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mt-0.5">{kpi.label}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-700 mt-0.5">{kpi.label}</div>
               </div>
             ))}
           </div>
@@ -792,8 +792,8 @@ export const BusinessIntelligence: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={topBoards.map(b => ({ name: b.name.length > 16 ? b.name.slice(0, 14) + '…' : b.name, value: b.monthlyRevenue }))} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
-                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} width={100} />
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#334155', fontSize: 10 }} tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#334155', fontSize: 10 }} width={100} />
                     <Tooltip formatter={(v: any) => [`$${Number(v).toLocaleString()}/mo`, 'Revenue']} contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                     <Bar dataKey="value" fill="#6366f1" radius={[0, 6, 6, 0]} barSize={14} />
                   </BarChart>
@@ -812,7 +812,7 @@ export const BusinessIntelligence: React.FC = () => {
                 <thead>
                   <tr className="border-b border-slate-100">
                     {['Board', 'Town', 'Type', 'Contracts', 'Occupancy', 'Monthly Rev'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">{h}</th>
+                      <th key={h} className="px-4 py-2.5 text-left font-bold text-slate-700 uppercase tracking-wider text-[10px]">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -820,17 +820,17 @@ export const BusinessIntelligence: React.FC = () => {
                   {assetData.map(a => (
                     <tr key={a.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2.5 font-semibold text-slate-800">{a.name}</td>
-                      <td className="px-4 py-2.5 text-slate-500">{a.town}</td>
+                      <td className="px-4 py-2.5 text-slate-700">{a.town}</td>
                       <td className="px-4 py-2.5">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${a.type === BillboardType.LED ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>{a.type}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${a.type === BillboardType.LED ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'}`}>{a.type}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-slate-600">{a.contracts}</td>
+                      <td className="px-4 py-2.5 text-slate-700">{a.contracts}</td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
                           <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div className={`h-full rounded-full ${a.occupancy >= 75 ? 'bg-emerald-400' : a.occupancy > 0 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${a.occupancy}%` }} />
                           </div>
-                          <span className="text-slate-600">{a.occupancy}%</span>
+                          <span className="text-slate-700">{a.occupancy}%</span>
                         </div>
                       </td>
                       <td className="px-4 py-2.5 font-bold text-slate-800">{a.monthlyRevenue > 0 ? formatCurrency(a.monthlyRevenue) : <span className="text-slate-300">—</span>}</td>
@@ -856,7 +856,7 @@ export const BusinessIntelligence: React.FC = () => {
               <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
                 <kpi.icon size={18} className="mx-auto mb-2 text-indigo-500" />
                 <div className="text-2xl font-black text-slate-900">{kpi.value}</div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mt-0.5">{kpi.label}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-700 mt-0.5">{kpi.label}</div>
               </div>
             ))}
           </div>
@@ -873,11 +873,11 @@ export const BusinessIntelligence: React.FC = () => {
                   <div key={c.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50">
                     <div>
                       <p className="text-xs font-semibold text-slate-800">{c.name}</p>
-                      <p className="text-[11px] text-slate-400">{c.contracts} active contract{c.contracts !== 1 ? 's' : ''} · expires in {c.nextExpiry}d</p>
+                      <p className="text-[11px] text-slate-700">{c.contracts} active contract{c.contracts !== 1 ? 's' : ''} · expires in {c.nextExpiry}d</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs font-bold text-slate-800">{formatCurrency(c.clv)}</p>
-                      <p className="text-[10px] text-slate-400">lifetime value</p>
+                      <p className="text-[10px] text-slate-700">lifetime value</p>
                     </div>
                   </div>
                 ))}
@@ -895,14 +895,14 @@ export const BusinessIntelligence: React.FC = () => {
                 <thead>
                   <tr className="border-b border-slate-100">
                     {['#', 'Client', 'Lifetime Paid', 'Pending', 'Active Contracts', 'Next Expiry'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px]">{h}</th>
+                      <th key={h} className="px-4 py-2.5 text-left font-bold text-slate-700 uppercase tracking-wider text-[10px]">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {topClients.map((c, i) => (
                     <tr key={c.id} className={`hover:bg-slate-50 ${c.atRisk ? 'bg-red-50/40' : ''}`}>
-                      <td className="px-4 py-2.5 text-slate-400 font-bold">{i + 1}</td>
+                      <td className="px-4 py-2.5 text-slate-700 font-bold">{i + 1}</td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-slate-800">{c.name}</span>
@@ -911,8 +911,8 @@ export const BusinessIntelligence: React.FC = () => {
                       </td>
                       <td className="px-4 py-2.5 font-bold text-slate-800">{formatCurrency(c.clv)}</td>
                       <td className="px-4 py-2.5 text-amber-600 font-medium">{c.pending > 0 ? formatCurrency(c.pending) : <span className="text-slate-300">—</span>}</td>
-                      <td className="px-4 py-2.5 text-slate-600">{c.contracts}</td>
-                      <td className="px-4 py-2.5 text-slate-500">
+                      <td className="px-4 py-2.5 text-slate-700">{c.contracts}</td>
+                      <td className="px-4 py-2.5 text-slate-700">
                         {c.nextExpiry !== null
                           ? <span className={c.nextExpiry <= 30 ? 'text-red-500 font-bold' : c.nextExpiry <= 60 ? 'text-amber-600' : ''}>{c.nextExpiry}d</span>
                           : <span className="text-slate-300">—</span>}
@@ -939,7 +939,7 @@ export const BusinessIntelligence: React.FC = () => {
               <div key={kpi.label} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
                 <kpi.icon size={18} className={`mx-auto mb-2 ${i === 3 ? (conversionRate >= 50 ? 'text-emerald-500' : 'text-amber-500') : 'text-indigo-500'}`} />
                 <div className={`text-2xl font-black ${i === 3 ? (conversionRate >= 50 ? 'text-emerald-600' : 'text-amber-500') : 'text-slate-900'}`}>{kpi.value}</div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mt-0.5">{kpi.label}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-700 mt-0.5">{kpi.label}</div>
               </div>
             ))}
           </div>
@@ -955,7 +955,7 @@ export const BusinessIntelligence: React.FC = () => {
                     <div key={stage.name}>
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="font-semibold text-slate-700">{stage.name}</span>
-                        <span className="font-bold text-slate-900">{stage.value} <span className="text-slate-400 font-normal">({pct}%)</span></span>
+                        <span className="font-bold text-slate-900">{stage.value} <span className="text-slate-700 font-normal">({pct}%)</span></span>
                       </div>
                       <div className="h-7 bg-slate-100 rounded-xl overflow-hidden">
                         <div
@@ -972,11 +972,11 @@ export const BusinessIntelligence: React.FC = () => {
 
               <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Avg Deal Size</p>
+                  <p className="text-[10px] text-slate-700 uppercase tracking-wider font-semibold">Avg Deal Size</p>
                   <p className="text-lg font-black text-slate-900">{formatCurrency(avgDealSize)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Pipeline Value</p>
+                  <p className="text-[10px] text-slate-700 uppercase tracking-wider font-semibold">Pipeline Value</p>
                   <p className="text-lg font-black text-slate-900">{formatCurrency(pipelineValue)}</p>
                 </div>
               </div>
@@ -1008,7 +1008,7 @@ export const BusinessIntelligence: React.FC = () => {
                 ].map(s => (
                   <div key={s.from}>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-slate-600">{s.from}</span>
+                      <span className="text-slate-700">{s.from}</span>
                       <span className={`font-black text-base ${s.rate >= s.good ? 'text-emerald-600' : s.rate >= s.good * 0.6 ? 'text-amber-500' : 'text-red-500'}`}>{s.rate}%</span>
                     </div>
                     <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -1017,7 +1017,7 @@ export const BusinessIntelligence: React.FC = () => {
                         style={{ width: `${s.rate}%` }}
                       />
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{s.desc}</p>
+                    <p className="text-[10px] text-slate-700 mt-0.5">{s.desc}</p>
                   </div>
                 ))}
 
@@ -1026,7 +1026,7 @@ export const BusinessIntelligence: React.FC = () => {
                     <p className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
                       <Clock size={12} /> {coldQuotes.length} quotes have gone cold
                     </p>
-                    <span className="text-[10px] text-slate-400">See full report below</span>
+                    <span className="text-[10px] text-slate-700">See full report below</span>
                   </div>
                 )}
               </div>
@@ -1046,9 +1046,9 @@ export const BusinessIntelligence: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex gap-3 text-xs">
-                  <span className="flex items-center gap-1.5 text-slate-500"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />Expired</span>
-                  <span className="flex items-center gap-1.5 text-slate-500"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Sent / Draft</span>
-                  <span className="flex items-center gap-1.5 text-slate-500"><span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />No Status</span>
+                  <span className="flex items-center gap-1.5 text-slate-700"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />Expired</span>
+                  <span className="flex items-center gap-1.5 text-slate-700"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Sent / Draft</span>
+                  <span className="flex items-center gap-1.5 text-slate-700"><span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />No Status</span>
                 </div>
               </div>
 
@@ -1057,7 +1057,7 @@ export const BusinessIntelligence: React.FC = () => {
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50">
                       {['Client', 'Ref', 'Type', 'Status', 'Days Cold', 'Expires', 'Items', 'Value'].map(h => (
-                        <th key={h} className="px-4 py-2.5 text-left font-bold text-slate-500 uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
+                        <th key={h} className="px-4 py-2.5 text-left font-bold text-slate-700 uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1080,20 +1080,20 @@ export const BusinessIntelligence: React.FC = () => {
                           <tr key={q.id} className={`hover:bg-slate-50 ${isExpired ? 'bg-red-50/40' : ''}`}>
                             <td className="px-4 py-3">
                               <p className="font-semibold text-slate-800 whitespace-nowrap">{client?.companyName || '—'}</p>
-                              {q.sentTo && <p className="text-[10px] text-slate-400 mt-0.5">{q.sentTo}</p>}
+                              {q.sentTo && <p className="text-[10px] text-slate-700 mt-0.5">{q.sentTo}</p>}
                             </td>
-                            <td className="px-4 py-3 text-slate-500 whitespace-nowrap font-mono text-[10px]">
+                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap font-mono text-[10px]">
                               {q.quoteNumber || q.id.slice(-6).toUpperCase()}
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${q.type === 'Proforma' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${q.type === 'Proforma' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'}`}>
                                 {q.type}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1.5">
                                 <span className={`w-2 h-2 rounded-full inline-block flex-shrink-0 ${dotColor}`} />
-                                <span className="text-slate-600 whitespace-nowrap">{status}</span>
+                                <span className="text-slate-700 whitespace-nowrap">{status}</span>
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -1103,13 +1103,13 @@ export const BusinessIntelligence: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               {daysToExpiry !== null ? (
-                                <span className={`text-[11px] font-medium ${isExpired ? 'text-red-500' : daysToExpiry <= 7 ? 'text-amber-600' : 'text-slate-500'}`}>
+                                <span className={`text-[11px] font-medium ${isExpired ? 'text-red-500' : daysToExpiry <= 7 ? 'text-amber-600' : 'text-slate-700'}`}>
                                   {isExpired ? `Expired ${Math.abs(daysToExpiry)}d ago` : `${daysToExpiry}d left`}
                                 </span>
                               ) : <span className="text-slate-300">—</span>}
                             </td>
                             <td className="px-4 py-3 max-w-[200px]">
-                              <p className="text-[11px] text-slate-500 truncate">{itemSummary || '—'}</p>
+                              <p className="text-[11px] text-slate-700 truncate">{itemSummary || '—'}</p>
                             </td>
                             <td className="px-4 py-3 font-bold text-slate-800 whitespace-nowrap">
                               {formatCurrency(q.total)}
@@ -1120,7 +1120,7 @@ export const BusinessIntelligence: React.FC = () => {
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-slate-200 bg-slate-50">
-                      <td colSpan={7} className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Total at stake</td>
+                      <td colSpan={7} className="px-4 py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">Total at stake</td>
                       <td className="px-4 py-3 font-black text-slate-900 text-sm whitespace-nowrap">
                         {formatCurrency(coldQuotes.reduce((s, q) => s + q.total, 0))}
                       </td>
@@ -1230,7 +1230,7 @@ export const BusinessIntelligence: React.FC = () => {
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
                 <CheckCircle2 size={40} className="mx-auto text-emerald-400 mb-3" />
                 <h3 className="text-sm font-bold text-slate-800 mb-1">All clear — no action items</h3>
-                <p className="text-xs text-slate-400">Your portfolio is healthy. Check back as new data comes in.</p>
+                <p className="text-xs text-slate-700">Your portfolio is healthy. Check back as new data comes in.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1254,13 +1254,13 @@ export const BusinessIntelligence: React.FC = () => {
                             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${meta.bg} ${meta.color} border ${meta.border}`}>
                               {meta.label}
                             </span>
-                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                            <span className="text-[10px] font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                               <Icon size={10} /> {rec.category}
                             </span>
                           </div>
 
                           <h4 className="text-sm font-bold text-slate-900 mb-1">{rec.title}</h4>
-                          <p className="text-xs text-slate-500 leading-relaxed mb-3">{rec.detail}</p>
+                          <p className="text-xs text-slate-700 leading-relaxed mb-3">{rec.detail}</p>
 
                           {/* Action box */}
                           <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex items-start gap-2.5">
@@ -1275,7 +1275,7 @@ export const BusinessIntelligence: React.FC = () => {
                         {/* Right: impact badge */}
                         <div className={`shrink-0 text-right hidden sm:block`}>
                           <div className={`px-3 py-2 rounded-xl ${meta.bg} border ${meta.border}`}>
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Impact</p>
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-700 mb-0.5">Impact</p>
                             <p className={`text-xs font-black ${meta.color} whitespace-nowrap`}>{rec.impact}</p>
                           </div>
                         </div>
@@ -1287,7 +1287,7 @@ export const BusinessIntelligence: React.FC = () => {
             )}
 
             {/* Footer note */}
-            <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5">
+            <p className="text-[11px] text-slate-700 text-center flex items-center justify-center gap-1.5">
               <Lightbulb size={11} /> Recommendations are generated automatically from live data in your portfolio.
             </p>
           </div>

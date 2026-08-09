@@ -59,6 +59,47 @@ describe('invoice ledger validation', () => {
     expect(data.total).toBe(115.5); expect(data.subtotal).toBe(100); expect(data.vatAmount).toBe(15.5); expect(data.dueDate).toBe('2026-08-31');
   });
 
+  it('defaults an omitted invoice due date to 30 calendar days after the issue date', async () => {
+    const response = res();
+    await handler(req({ body: invoiceBody({ date: '2026-01-31' }) }), response);
+
+    expect(response._status).toBe(201);
+    expect(mockPrisma.invoice.create.mock.calls[0][0].data.dueDate).toBe('2026-03-02');
+  });
+
+  it('preserves an explicit null due-date clear for an invoice', async () => {
+    const response = res();
+    await handler(req({ body: invoiceBody({ dueDate: null }) }), response);
+
+    expect(response._status).toBe(201);
+    expect(mockPrisma.invoice.create.mock.calls[0][0].data.dueDate).toBeNull();
+  });
+
+  it('preserves a manually entered due date when an invoice is updated without changing it', async () => {
+    mockPrisma.invoice.findUnique.mockResolvedValue({
+      id: 'invoice-1',
+      ...invoiceBody({ dueDate: '2026-08-15' }),
+      status: 'Pending',
+      isVoided: false,
+    });
+    const response = res();
+    await handler(req({ method: 'PUT', query: { id: 'invoice-1' }, body: { notes: 'Updated billing note' } }), response);
+
+    expect(response._status).toBe(200);
+    expect(mockPrisma.invoice.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ dueDate: '2026-08-15' }),
+    }));
+  });
+
+  it('rejects an invalid calendar due date before creating an invoice', async () => {
+    const response = res();
+    await handler(req({ body: invoiceBody({ dueDate: '2026-02-30' }) }), response);
+
+    expect(response._status).toBe(400);
+    expect(response._json.details).toContain('Date must be a valid calendar date');
+    expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+  });
+
   it('rejects directly marking an invoice paid', async () => {
     mockPrisma.invoice.findUnique.mockResolvedValue({ id: 'invoice-1', ...invoiceBody(), status: 'Pending' });
     const response = res(); await handler(req({ method: 'PUT', query: { id: 'invoice-1' }, body: { status: 'Paid' } }), response); expect(response._status).toBe(409);

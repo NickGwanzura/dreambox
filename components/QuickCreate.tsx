@@ -290,7 +290,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
           {docType === 'Expense' && (
             <>
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Category *</label>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Category *</label>
                 <select
                   value={expenseCategory}
                   onChange={e => setExpenseCategory(e.target.value as typeof EXPENSE_CATEGORIES[number])}
@@ -301,7 +301,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description *</label>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Description *</label>
                 <input
                   type="text"
                   placeholder="What was the expense for?"
@@ -313,7 +313,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Amount *</label>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Amount *</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 text-sm font-medium">$</span>
                     <input
@@ -328,7 +328,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Date</label>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Date</label>
                   <input
                     type="date"
                     value={date}
@@ -339,7 +339,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Reference (optional)</label>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Reference (optional)</label>
                 <input
                   type="text"
                   placeholder="Receipt #, invoice ref..."
@@ -356,7 +356,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
             <>
               {/* Client */}
               <div className="relative">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Client *</label>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Client *</label>
                 <div className="relative">
                   <button
                     type="button"
@@ -449,7 +449,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                                 className="w-full text-left px-4 py-2.5 hover:bg-indigo-50 transition-colors"
                               >
                                 <p className="text-sm font-semibold text-slate-900">{c.companyName}</p>
-                                <p className="text-xs text-slate-500">{c.contactPerson}{c.phone ? ` · ${c.phone}` : ''}</p>
+                                <p className="text-xs text-slate-700">{c.contactPerson}{c.phone ? ` · ${c.phone}` : ''}</p>
                               </button>
                             )) : (
                               <p className="text-xs text-slate-700 px-4 py-3 text-center">No clients match "{clientSearch}"</p>
@@ -474,7 +474,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
               {/* Dates */}
               <div className={`grid gap-4 ${docType === 'Quotation' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Date</label>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Date</label>
                   <input
                     type="date"
                     value={date}
@@ -484,7 +484,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                 </div>
                 {docType === 'Quotation' && (
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Valid Until</label>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Valid Until</label>
                     <input
                       type="date"
                       value={expiryDate}
@@ -498,7 +498,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
               {/* Quick Add presets + Billboard Catalog toggle */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quick Add</label>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">Quick Add</label>
                   <button
                     type="button"
                     onClick={() => { setShowBillboardCatalog(v => !v); setBillboardSearch(''); }}
@@ -598,7 +598,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
 
               {/* Line Items */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Line Items</label>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2">Line Items</label>
                 <div className="space-y-2">
                   {items.map((item, i) => (
                     <div key={i} className="flex gap-2 items-start">
@@ -650,7 +650,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
               {/* VAT + Discount */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Discount ($)</label>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Discount ($)</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 text-sm">$</span>
                     <input
@@ -665,7 +665,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                   </div>
                 </div>
                 <div className="flex flex-col justify-end pb-0.5">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">VAT ({(vatRate * 100).toFixed(0)}%)</label>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2">VAT ({(vatRate * 100).toFixed(0)}%)</label>
                   <button
                     type="button"
                     onClick={() => setHasVat(v => !v)}
@@ -680,7 +680,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
 
               {/* Notes */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Notes (optional)</label>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">Notes (optional)</label>
                 <textarea
                   rows={2}
                   placeholder="Payment terms, special conditions..."
@@ -704,7 +704,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
           {/* Totals — hidden for Expense */}
           {docType !== 'Expense' && (
             <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 space-y-1">
-              <div className="flex justify-between text-xs text-slate-500">
+              <div className="flex justify-between text-xs text-slate-700">
                 <span>Subtotal</span>
                 <span className="font-medium text-slate-900">${gross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
@@ -715,7 +715,7 @@ export const QuickCreate: React.FC<QuickCreateProps> = ({ open, initialType = 'Q
                 </div>
               )}
               {hasVat && (
-                <div className="flex justify-between text-xs text-slate-500">
+                <div className="flex justify-between text-xs text-slate-700">
                   <span>VAT ({(vatRate * 100).toFixed(0)}%)</span>
                   <span className="font-medium text-slate-900">${vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>

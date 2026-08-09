@@ -120,6 +120,68 @@ const MONTH_NAMES = [
   "December",
 ];
 
+const PaymentEvidenceTimeline: React.FC<{
+  invoice: Invoice;
+  receipts: Invoice[];
+}> = ({ invoice, receipts }) => {
+  const linkedReceipts = receipts
+    .filter((receipt) => !receipt.isVoided && receipt.linkedInvoiceId === invoice.id)
+    .sort((left, right) => String(left.date || "").localeCompare(String(right.date || "")));
+  const hasRecordedPayment = linkedReceipts.length > 0;
+
+  return (
+    <section
+      className="mt-5 border-t border-slate-100 pt-4"
+      aria-label={`Payment and evidence timeline for invoice ${invoice.id}`}
+    >
+      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+        Payment &amp; Evidence Timeline
+      </h4>
+      <ol className="mt-3 space-y-3 border-l-2 border-slate-200 pl-4">
+        <li className="relative text-xs text-slate-900">
+          <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-slate-700 ring-2 ring-white" />
+          <span className="font-bold text-slate-900">Issued</span> · {invoice.date || "Date unavailable"}
+        </li>
+        <li className="relative text-xs text-slate-900">
+          <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-amber-600 ring-2 ring-white" />
+          <span className="font-bold text-slate-900">Due</span> · {invoice.dueDate || "No due date set"}
+        </li>
+        {hasRecordedPayment ? (
+          linkedReceipts.map((receipt) => {
+            const proofPresent = receipt.hasPaymentProof ?? Boolean(receipt.proofPaymentUrl);
+            const approvalStatus = (receipt as Invoice & { approvalStatus?: string }).approvalStatus;
+            const paymentIsEffective = approvalStatus === "Approved" || approvalStatus === "NotRequired";
+            return (
+              <li key={receipt.id} className="relative rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-900">
+                <span className={`absolute -left-[21px] top-3 h-2.5 w-2.5 rounded-full ring-2 ring-white ${paymentIsEffective ? "bg-emerald-700" : "bg-amber-600"}`} />
+                <p className="font-bold text-slate-900">
+                  {paymentIsEffective ? "Payment received" : "Payment recorded"} · {receipt.date || "Date unavailable"}
+                </p>
+                <p className="mt-1 leading-5">
+                  ${Number(receipt.total || 0).toLocaleString()} · {receipt.paymentReference || "No reference recorded"}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 font-medium">
+                  <span className={proofPresent ? "text-emerald-800" : "text-red-700"}>
+                    Proof {proofPresent ? "present" : "missing"}
+                  </span>
+                  <span className={paymentIsEffective ? "text-emerald-800" : "text-amber-800"}>
+                    {approvalStatus ? `Approval: ${approvalStatus}` : "Unverified · approval status unavailable"}
+                  </span>
+                </div>
+              </li>
+            );
+          })
+        ) : (
+          <li className="relative rounded-lg bg-red-50 px-3 py-2 text-xs text-slate-900">
+            <span className="absolute -left-[21px] top-3 h-2.5 w-2.5 rounded-full bg-red-700 ring-2 ring-white" />
+            <p className="font-bold text-slate-900">No payment logged</p>
+          </li>
+        )}
+      </ol>
+    </section>
+  );
+};
+
 export const Payments: React.FC = () => {
   const currentUser = getCurrentUser();
   const canUserDelete = canDelete(currentUser);
@@ -874,6 +936,7 @@ export const Payments: React.FC = () => {
                         </span>
                       </div>
                     </div>
+                    <PaymentEvidenceTimeline invoice={invoice} receipts={allReceipts} />
                   </div>
                   <div className="flex gap-2">
                     {["pending", "overdue"].includes(

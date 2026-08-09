@@ -179,6 +179,7 @@ export const Financials: React.FC<FinancialsProps> = ({
   );
   const [discountValue, setDiscountValue] = useState(0);
   const [discountDescription, setDiscountDescription] = useState("");
+  const [showAdvancedFields, setShowAdvancedFields] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [convertingQuotation, setConvertingQuotation] =
     useState<Invoice | null>(null);
@@ -572,6 +573,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         setDiscountType("amount");
         setDiscountValue(0);
         setDiscountDescription("");
+        setShowAdvancedFields(false);
         setNewItem({ description: "", amount: 0 });
         setBillboardSelections({});
         setBillboardSearch("");
@@ -647,6 +649,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         setDiscountType("amount");
         setDiscountValue(0);
         setDiscountDescription("");
+        setShowAdvancedFields(false);
         setNewItem({ description: "", amount: 0 });
         setBillboardSelections({});
         setBillboardSearch("");
@@ -732,6 +735,9 @@ export const Financials: React.FC<FinancialsProps> = ({
     setExpiryDate(doc.expiryDate || "");
     setTerms(doc.terms || "");
     setNotes(doc.notes || "");
+    setShowAdvancedFields(
+      Boolean(doc.discountAmount || doc.discountDescription || doc.terms || doc.notes),
+    );
     setNewItem({ description: "", amount: 0 });
     setBillboardSelections({});
     setBillboardSearch("");
@@ -941,6 +947,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                     setDiscountType("amount");
                     setDiscountValue(0);
                     setDiscountDescription("");
+                    setShowAdvancedFields(false);
                     setBillboardSelections({});
                     setBillboardSearch("");
                     resetQuoteFields();
@@ -967,7 +974,7 @@ export const Financials: React.FC<FinancialsProps> = ({
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`pb-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === tab ? "text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+                className={`pb-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === tab ? "text-slate-900" : "text-slate-700 hover:text-slate-900"}`}
               >
                 {tab}
                 {activeTab === tab && (
@@ -1837,7 +1844,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                         }
                         className="block w-full text-sm text-slate-700 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-xs file:font-bold file:text-white"
                       />
-                      <p className="mt-2 text-[10px] text-slate-600">
+                      <p className="mt-2 text-[10px] text-slate-700">
                         PDF/JPEG/PNG/WebP, maximum 7 MB. The recorder identity
                         and upload time are captured automatically.
                       </p>
@@ -2130,57 +2137,6 @@ export const Financials: React.FC<FinancialsProps> = ({
                     </div>
                   )}
                 </div>
-                <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                      Discount
-                    </h4>
-                    {receiptIsLinkedToInvoice && (
-                      <span className="text-[11px] font-medium text-slate-900">
-                        Locked for linked invoice receipts
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <MinimalSelect
-                      label="Discount Type"
-                      value={discountType}
-                      disabled={receiptIsLinkedToInvoice}
-                      onChange={(e: any) => setDiscountType(e.target.value)}
-                      options={[
-                        { value: "amount", label: "Fixed Amount" },
-                        { value: "percentage", label: "Percentage %" },
-                      ]}
-                    />
-                    <MinimalInput
-                      label={
-                        discountType === "percentage"
-                          ? "Discount %"
-                          : "Discount Amount ($)"
-                      }
-                      type="number"
-                      disabled={receiptIsLinkedToInvoice}
-                      value={discountValue}
-                      onChange={(e: any) =>
-                        setDiscountValue(Number(e.target.value))
-                      }
-                    />
-                  </div>
-                  <MinimalInput
-                    label="Discount Note (Optional)"
-                    disabled={receiptIsLinkedToInvoice}
-                    value={discountDescription}
-                    onChange={(e: any) =>
-                      setDiscountDescription(e.target.value)
-                    }
-                  />
-                  {receiptIsLinkedToInvoice && (
-                    <p className="text-xs text-slate-900">
-                      To keep balances correct, linked receipts use the invoice
-                      amount exactly.
-                    </p>
-                  )}
-                </div>
                 <div className="flex items-center gap-2">
                   <input
                     id="hasVatCheckbox"
@@ -2200,32 +2156,99 @@ export const Financials: React.FC<FinancialsProps> = ({
                   </label>
                 </div>
                 {(activeTab as string) === "Quotations" && (
-                  <div className="bg-white rounded-2xl p-6 border border-slate-100 space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                      Quotation Details
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <MinimalInput
-                        label="Expiry Date"
-                        type="date"
-                        value={expiryDate}
-                        onChange={(e: any) => setExpiryDate(e.target.value)}
-                      />
-                    </div>
-                    <MinimalTextarea
-                      label="Terms & Conditions"
-                      value={terms}
-                      onChange={(e: any) => setTerms(e.target.value)}
-                      rows={2}
-                    />
-                    <MinimalTextarea
-                      label="Internal Notes"
-                      value={notes}
-                      onChange={(e: any) => setNotes(e.target.value)}
-                      rows={2}
+                  <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100">
+                    <MinimalInput
+                      label="Expiry Date"
+                      type="date"
+                      value={expiryDate}
+                      onChange={(e: any) => setExpiryDate(e.target.value)}
                     />
                   </div>
                 )}
+                <details
+                  className="bg-white rounded-2xl border border-slate-100"
+                  open={showAdvancedFields}
+                  onToggle={(event) => setShowAdvancedFields(event.currentTarget.open)}
+                >
+                  <summary className="min-h-11 cursor-pointer list-none px-4 sm:px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center justify-between gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-inset rounded-2xl">
+                    Advanced options
+                    <span className="normal-case font-medium tracking-normal text-slate-700">
+                      Optional discounts and quotation notes
+                    </span>
+                  </summary>
+                  <div className="border-t border-slate-100 p-4 sm:p-5 space-y-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                          Discount
+                        </h4>
+                        {receiptIsLinkedToInvoice && (
+                          <span className="text-[11px] font-medium text-slate-900">
+                            Locked for linked invoice receipts
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <MinimalSelect
+                          label="Discount Type"
+                          value={discountType}
+                          disabled={receiptIsLinkedToInvoice}
+                          onChange={(e: any) => setDiscountType(e.target.value)}
+                          options={[
+                            { value: "amount", label: "Fixed Amount" },
+                            { value: "percentage", label: "Percentage %" },
+                          ]}
+                        />
+                        <MinimalInput
+                          label={
+                            discountType === "percentage"
+                              ? "Discount %"
+                              : "Discount Amount ($)"
+                          }
+                          type="number"
+                          disabled={receiptIsLinkedToInvoice}
+                          value={discountValue}
+                          onChange={(e: any) =>
+                            setDiscountValue(Number(e.target.value))
+                          }
+                        />
+                      </div>
+                      <MinimalInput
+                        label="Discount Note (Optional)"
+                        disabled={receiptIsLinkedToInvoice}
+                        value={discountDescription}
+                        onChange={(e: any) =>
+                          setDiscountDescription(e.target.value)
+                        }
+                      />
+                      {receiptIsLinkedToInvoice && (
+                        <p className="text-xs text-slate-900">
+                          To keep balances correct, linked receipts use the invoice
+                          amount exactly.
+                        </p>
+                      )}
+                    </div>
+                    {(activeTab as string) === "Quotations" && (
+                      <div className="border-t border-slate-100 pt-5 space-y-4">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                          Quotation Notes
+                        </h4>
+                        <MinimalTextarea
+                          label="Terms & Conditions"
+                          value={terms}
+                          onChange={(e: any) => setTerms(e.target.value)}
+                          rows={2}
+                        />
+                        <MinimalTextarea
+                          label="Internal Notes"
+                          value={notes}
+                          onChange={(e: any) => setNotes(e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </details>
                 <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-300">Subtotal</span>
