@@ -53,6 +53,15 @@ import {
 } from "../services/paymentProof";
 
 type InvoiceLineItem = Invoice["items"][number];
+type DueDateProvenance =
+  | "initial"
+  | "auto"
+  | "existing"
+  | "manual-set"
+  | "manual-cleared";
+
+const getLocalDateInputValue = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const MinimalInput = ({
   label,
@@ -69,6 +78,7 @@ const MinimalInput = ({
       disabled={disabled}
       value={value}
       onChange={onChange}
+      aria-label={label}
       placeholder=" "
       className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-900 disabled:cursor-not-allowed"
     />
@@ -92,6 +102,7 @@ const MinimalTextarea = ({
       disabled={disabled}
       value={value}
       onChange={onChange}
+      aria-label={label}
       placeholder=" "
       className="peer w-full resize-none px-0 py-3 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-900 disabled:cursor-not-allowed"
     />
@@ -112,6 +123,7 @@ const MinimalSelect = ({
       value={value}
       disabled={disabled}
       onChange={onChange}
+      aria-label={label}
       className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer disabled:text-slate-900 disabled:cursor-not-allowed"
     >
       {options.map((opt: any) => (
@@ -149,13 +161,14 @@ export const Financials: React.FC<FinancialsProps> = ({
   const [formData, setFormData] = useState<Partial<Invoice>>({
     clientId: "",
     items: [],
-    date: new Date().toISOString().split("T")[0],
+    date: getLocalDateInputValue(),
     status: "Pending",
     contractId: "",
     paymentMethod: "Bank Transfer",
     paymentReference: "",
     receivedBy: defaultReceiver,
     receivingAccount: "",
+    dueDate: "",
   });
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [proofUploading, setProofUploading] = useState(false);
@@ -185,13 +198,14 @@ export const Financials: React.FC<FinancialsProps> = ({
   const getEmptyFormData = (): Partial<Invoice> => ({
     clientId: "",
     items: [],
-    date: new Date().toISOString().split("T")[0],
+    date: getLocalDateInputValue(),
     status: "Pending",
     contractId: "",
     paymentMethod: "Bank Transfer",
     paymentReference: "",
     receivedBy: defaultReceiver,
     receivingAccount: "",
+    dueDate: "",
   });
   const resetQuoteFields = () => {
     setExpiryDate("");
@@ -214,23 +228,81 @@ export const Financials: React.FC<FinancialsProps> = ({
     return () => unsubscribe();
   }, []);
 
+  const getClientDueDate = (clientId: string, invoiceDate: string) => {
+    const billingDay = allClients.find((client) => client.id === clientId)
+      ?.billingDay;
+    if (!billingDay || billingDay < 1 || billingDay > 31) return "";
+
+    const safeInvoiceDate = /^\d{4}-\d{2}-\d{2}$/.test(invoiceDate)
+      ? invoiceDate
+      : getLocalDateInputValue();
+    const issuedOn = new Date(`${safeInvoiceDate}T12:00:00`);
+    if (Number.isNaN(issuedOn.getTime())) return "";
+    const dueForMonth = (year: number, month: number) =>
+      new Date(
+        year,
+        month,
+        Math.min(billingDay, new Date(year, month + 1, 0).getDate()),
+        12,
+      );
+    let dueOn = dueForMonth(issuedOn.getFullYear(), issuedOn.getMonth());
+    if (dueOn < issuedOn) {
+      dueOn = dueForMonth(issuedOn.getFullYear(), issuedOn.getMonth() + 1);
+    }
+    return getLocalDateInputValue(dueOn);
+  };
+
+  const handleClientSelect = (clientId: string) => {
+    setFormData((previous) => {
+      const shouldGenerateDueDate =
+        activeTab === "Invoices" &&
+        (dueDateProvenanceRef.current === "initial" ||
+          dueDateProvenanceRef.current === "auto");
+      const dueDate = shouldGenerateDueDate
+        ? getClientDueDate(clientId, previous.date || "")
+        : previous.dueDate;
+      if (shouldGenerateDueDate && dueDate) {
+        dueDateProvenanceRef.current = "auto";
+      }
+      return {
+      ...previous,
+      clientId,
+      dueDate,
+      };
+    });
+  };
+
   const handleRentalSelect = (contractId: string) => {
     const contract = getContracts().find((c) => c.id === contractId);
     if (contract) {
       const billboard = getBillboards().find(
         (b) => b.id === contract.billboardId,
       );
-      setFormData({
-        ...formData,
+      setFormData((previous) => {
+        const shouldGenerateDueDate =
+          activeTab === "Invoices" &&
+          (dueDateProvenanceRef.current === "initial" ||
+            dueDateProvenanceRef.current === "auto");
+        const dueDate = shouldGenerateDueDate
+          ? getClientDueDate(contract.clientId, previous.date || "")
+          : previous.dueDate;
+        if (shouldGenerateDueDate && dueDate) {
+          dueDateProvenanceRef.current = "auto";
+        }
+        return {
+        ...previous,
         contractId: contractId,
         clientId: contract.clientId,
+        dueDate,
         items: [
           {
             description: `Monthly Rental - ${billboard?.name} (${contract.details})`,
             amount: contract.monthlyRate,
           },
         ],
+        };
       });
+      setHasVat(contract.hasVat);
     }
   };
   const handleInvoiceSelect = (invoiceId: string) => {
@@ -381,6 +453,7 @@ export const Financials: React.FC<FinancialsProps> = ({
   const receiptIsLinkedToInvoice =
     activeTab === "Receipts" && !!selectedInvoiceToPay;
   const isSubmittingRef = useRef(false);
+  const dueDateProvenanceRef = useRef<DueDateProvenance>("initial");
   const convertingToInvoiceRef = useRef(false);
   const convertingToContractRef = useRef(false);
   const handleCreate = async (e: React.FormEvent) => {
@@ -433,6 +506,12 @@ export const Financials: React.FC<FinancialsProps> = ({
           ...editingInvoice,
           clientId: formData.clientId!,
           date: formData.date!,
+          dueDate:
+            editingInvoice.type === "Invoice"
+              ? dueDateProvenanceRef.current === "manual-cleared"
+                ? (null as any)
+                : formData.dueDate || undefined
+              : undefined,
           items: formData.items || [],
           subtotal,
           discountAmount,
@@ -503,6 +582,12 @@ export const Financials: React.FC<FinancialsProps> = ({
         const newDoc: Invoice = {
           clientId: formData.clientId!,
           date: formData.date!,
+          dueDate:
+            activeTab === "Invoices"
+              ? dueDateProvenanceRef.current === "manual-cleared"
+                ? (null as any)
+                : formData.dueDate || undefined
+              : undefined,
           items: formData.items || [],
           subtotal,
           discountAmount,
@@ -619,10 +704,14 @@ export const Financials: React.FC<FinancialsProps> = ({
   const handleEdit = (doc: Invoice) => {
     const client = allClients.find((c) => c.id === doc.clientId);
     setEditingInvoice(doc);
+    dueDateProvenanceRef.current = doc.dueDate
+      ? "existing"
+      : "manual-cleared";
     setFormData({
       clientId: doc.clientId,
       items: [...doc.items],
       date: doc.date,
+      dueDate: doc.dueDate || "",
       status: doc.status,
       contractId: doc.contractId || "",
       paymentMethod: doc.paymentMethod || "Bank Transfer",
@@ -846,13 +935,16 @@ export const Financials: React.FC<FinancialsProps> = ({
                     setSelectedInvoiceToPay("");
                     setFormData(getEmptyFormData());
                     setNewItem({ description: "", amount: 0 });
-                    setHasVat(false);
+                    // The configured company VAT rate is the safest default for
+                    // a new bill; a rental selection can still override it.
+                    setHasVat(activeTab === "Invoices");
                     setDiscountType("amount");
                     setDiscountValue(0);
                     setDiscountDescription("");
                     setBillboardSelections({});
                     setBillboardSearch("");
                     resetQuoteFields();
+                    dueDateProvenanceRef.current = "initial";
                     setIsModalOpen(true);
                   }}
                   className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:bg-slate-800 flex items-center gap-2 shadow-lg transition-all hover:scale-105"
@@ -1526,9 +1618,14 @@ export const Financials: React.FC<FinancialsProps> = ({
             onClick={() => setIsModalOpen(false)}
           />
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all w-full sm:my-8 sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl border border-white/20 max-h-[92vh] overflow-y-auto">
+            <div
+              className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all w-full sm:my-8 sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl border border-white/20 max-h-[92vh] overflow-y-auto"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="finance-document-title"
+            >
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                <h3 className="text-xl font-bold text-slate-900">
+                <h3 id="finance-document-title" className="text-xl font-bold text-slate-900">
                   {editingInvoice
                     ? `Edit ${editingInvoice.type}`
                     : `Create New ${activeTab.slice(0, -1)}`}
@@ -1539,6 +1636,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                     setEditingInvoice(null);
                   }}
                   className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  aria-label="Close document form"
                 >
                   <X size={20} className="text-slate-900" />
                 </button>
@@ -1589,15 +1687,22 @@ export const Financials: React.FC<FinancialsProps> = ({
                         }),
                       ]}
                     />
+                    <p className="mt-3 text-xs text-slate-700">
+                      Select a rental to apply its client, billed line item, and VAT setting.
+                    </p>
                   </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div
+                  className={`grid grid-cols-1 gap-3 sm:gap-4 ${
+                    activeTab === "Invoices"
+                      ? "sm:grid-cols-3"
+                      : "sm:grid-cols-2"
+                  }`}
+                >
                   <MinimalSelect
                     label="Client"
                     value={formData.clientId}
-                    onChange={(e: any) =>
-                      setFormData({ ...formData, clientId: e.target.value })
-                    }
+                    onChange={(e: any) => handleClientSelect(e.target.value)}
                     options={[
                       { value: "", label: "Select Client..." },
                       ...allClients.map((c) => ({
@@ -1610,11 +1715,51 @@ export const Financials: React.FC<FinancialsProps> = ({
                     label="Date"
                     type="date"
                     value={formData.date}
-                    onChange={(e: any) =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
+                    onChange={(e: any) => {
+                      const nextDate = e.target.value;
+                      setFormData((previous) => {
+                        const shouldRefreshDue =
+                          activeTab === "Invoices" &&
+                          Boolean(previous.clientId) &&
+                          dueDateProvenanceRef.current === "auto";
+                        return {
+                          ...previous,
+                          date: nextDate,
+                          dueDate: shouldRefreshDue
+                            ? getClientDueDate(previous.clientId || "", nextDate)
+                            : previous.dueDate,
+                        };
+                      });
+                    }}
                   />
+                  {activeTab === "Invoices" && (
+                    <MinimalInput
+                      label="Payment Due"
+                      type="date"
+                      value={formData.dueDate || ""}
+                      onChange={(e: any) => {
+                        dueDateProvenanceRef.current = e.target.value
+                          ? "manual-set"
+                          : "manual-cleared";
+                        setFormData({ ...formData, dueDate: e.target.value });
+                      }}
+                    />
+                  )}
                 </div>
+                {activeTab === "Invoices" && formData.clientId && (
+                  <p className="-mt-1 text-xs text-slate-700">
+                    {dueDateProvenanceRef.current === "manual-set"
+                      ? "Payment due date was entered manually."
+                      : dueDateProvenanceRef.current === "manual-cleared"
+                        ? "You chose not to add a payment due date."
+                        : dueDateProvenanceRef.current === "existing"
+                          ? "Existing payment due date from this invoice."
+                        : dueDateProvenanceRef.current === "auto" &&
+                            formData.dueDate
+                          ? "Payment due date was derived from the client billing profile and can be adjusted."
+                          : "If left blank, the standard 30-day payment term will be applied."}
+                  </p>
+                )}
                 {activeTab === "Receipts" && (
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 space-y-4">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800">

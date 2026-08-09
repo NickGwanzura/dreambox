@@ -9,6 +9,11 @@ import { pickInvoiceData } from '../lib/whitelist';
 import { assertPeriodOpen, assertPeriodsOpen } from '../lib/accountingPeriod';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const calendarDate = z.string().regex(DATE_RE, 'Date must use YYYY-MM-DD').refine((value) => {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}, 'Date must be a valid calendar date');
 const DEFAULT_VAT_RATE = 0.155;
 const money = z.number().finite().nonnegative().max(1_000_000_000);
 const invoiceItemSchema = z.object({
@@ -30,8 +35,11 @@ const invoiceItemSchema = z.object({
 const invoiceSchema = z.object({
   clientId: z.string().trim().min(1).max(200),
   contractId: z.string().max(200).optional().nullable(),
-  date: z.string().regex(DATE_RE, 'Date must use YYYY-MM-DD'),
-  dueDate: z.string().regex(DATE_RE, 'Due date must use YYYY-MM-DD').optional().nullable(),
+  date: calendarDate,
+  dueDate: z.union([
+    calendarDate,
+    z.literal(''),
+  ]).optional().nullable(),
   items: z.array(invoiceItemSchema).min(1).max(100),
   subtotal: money,
   discountAmount: money.optional().nullable(),
@@ -50,7 +58,7 @@ const invoiceSchema = z.object({
   proofUploadedAt: z.union([z.string(), z.date()]).optional().nullable(),
   linkedInvoiceId: z.string().max(200).optional().nullable(),
   quoteNumber: z.string().max(100).optional().nullable(),
-  expiryDate: z.string().regex(DATE_RE).optional().nullable(),
+  expiryDate: calendarDate.optional().nullable(),
   terms: z.string().max(2000).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
   quoteStatus: z.enum(['Draft', 'Sent', 'Accepted', 'Rejected', 'Expired', 'Converted']).optional().nullable(),
@@ -154,7 +162,14 @@ function canonicalInvoiceData(body: any, vatRate: number) {
   data.subtotal = subtotal;
   data.vatAmount = vatAmount;
   data.total = total;
-  data.dueDate = body.type === 'Invoice' ? (body.dueDate || addDays(body.date, 30)) : null;
+  const hasExplicitDueDate =
+    Object.prototype.hasOwnProperty.call(body, 'dueDate') &&
+    body.dueDate !== undefined;
+  data.dueDate = body.type === 'Invoice'
+    ? hasExplicitDueDate
+      ? body.dueDate || null
+      : addDays(body.date, 30)
+    : null;
   data.status = body.type === 'Receipt' ? 'Paid' : (body.status === 'Overdue' ? 'Overdue' : 'Pending');
   return data;
 }
