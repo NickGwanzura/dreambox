@@ -72,6 +72,18 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!await requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const client = await prisma.client.findUnique({ where: { id: id as string } });
+      if (!client) return res.status(404).json({ error: 'Client not found' });
+      // These tables intentionally retain financial/contract history.  Do not
+      // turn a client delete into a silent orphaning operation.
+      const [contracts, invoices, expenses] = await Promise.all([
+        prisma.contract.count({ where: { clientId: id as string } }),
+        prisma.invoice.count({ where: { clientId: id as string } }),
+        prisma.expense.count({ where: { clientId: id as string } }),
+      ]);
+      if (contracts || invoices || expenses) {
+        return res.status(409).json({ error: 'Client is referenced by contracts, financial records, or expenses and cannot be deleted.' });
+      }
       await prisma.client.delete({ where: { id: id as string } });
       return res.status(200).json({ success: true });
     }

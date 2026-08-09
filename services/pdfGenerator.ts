@@ -1,7 +1,7 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Invoice, Contract, Client, Expense, OutsourcedBillboard, Billboard, BillboardType, CompanyProfile } from '../types';
+import { Invoice, Contract, Client, Expense, Billboard, BillboardType, CompanyProfile } from '../types';
 import { getCompanyProfile, getCompanyLogo, getContracts, getEffectiveVatRate, getUsers } from './mockData';
 import { api } from './apiClient';
 import { formatVatPercent } from './constants';
@@ -1007,47 +1007,6 @@ export const generateClientDirectoryPDF = async (clients: Client[]) => {
         doc.save('Client_Directory.pdf');
     } catch (e) {
         alert("Failed to generate Client PDF");
-    }
-};
-
-export const generateOutsourcedInventoryPDF = async (billboards: OutsourcedBillboard[]) => {
-    try {
-        const doc = new jsPDF();
-        await useGeistSans(doc);
-        const branding = await getPdfBranding();
-        let y = addCompanyHeader(doc, branding);
-        
-        doc.setFontSize(18);
-        doc.setTextColor(15, 23, 42);
-        doc.text("Outsourced Inventory Report", 14, y);
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, y + 6);
-
-        const rows = billboards.map(b => [
-            b.billboardName,
-            b.mediaOwner,
-            b.ownerContact,
-            `$${b.monthlyPayout.toLocaleString()}`,
-            b.contractEnd
-        ]);
-
-        const totalPayout = billboards.reduce((acc, curr) => acc + curr.monthlyPayout, 0);
-        rows.push(['', '', 'TOTAL MONTHLY PAYOUT', `$${totalPayout.toLocaleString()}`, '']);
-
-        runAutoTable(doc, {
-            startY: y + 15,
-            head: [['Billboard Asset', 'Partner / Owner', 'Contact', 'Monthly Payout', 'Contract End']],
-            body: rows,
-            theme: 'grid',
-            headStyles: { fillColor: [15, 118, 110] }, // Teal-ish
-            columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
-        });
-
-        addContactFooter(doc);
-        doc.save('Outsourced_Inventory.pdf');
-    } catch (e) {
-        alert("Failed to generate Outsourced PDF");
     }
 };
 

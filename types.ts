@@ -61,18 +61,6 @@ export interface MaintenanceLog {
   notes?: string; // Additional field for internal notes
 }
 
-export interface OutsourcedBillboard {
-  id: string;
-  billboardId: string; // Linked to internal inventory
-  billboardName?: string; // Cache for display
-  mediaOwner: string; // The 3rd party
-  ownerContact: string;
-  monthlyPayout: number; // Revenue from them
-  contractStart: string;
-  contractEnd: string;
-  status: 'Active' | 'Inactive';
-}
-
 export interface Client {
   id: string;
   companyName: string;

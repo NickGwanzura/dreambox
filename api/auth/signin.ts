@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { signToken, signTwoFactorToken, cors, toSafeUser } from '../../lib/auth';
+import { getClientIp } from '../../lib/clientIp';
 import { notifyWatchedLogin } from '../../lib/notifyAdmin';
 import { checkRateLimit } from '../../lib/rateLimiter.js';
 import { log } from '../../lib/serverLogger.js';
@@ -18,20 +19,12 @@ const signinSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-function getIp(req: HttpRequest): string {
-  return (
-    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    (req as any).socket?.remoteAddress ||
-    'unknown'
-  );
-}
-
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const ip = getIp(req);
+  const ip = getClientIp(req);
 
   // Per-IP rate limit
   const rateCheck = await checkRateLimit(`signin:ip:${ip}`, {

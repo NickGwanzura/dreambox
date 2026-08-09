@@ -15,6 +15,11 @@ const contactSchema = z.object({
   isPrimary: z.boolean().optional(),
 });
 
+async function assertCompany(companyId: string) {
+  const company = await prisma.cRMCompany.findUnique({ where: { id: companyId }, select: { id: true } });
+  if (!company) throw new Error('Company not found');
+}
+
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -42,6 +47,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       const data = pickCRMContactData(req.body ?? {});
+      await assertCompany(data.companyId);
       const row = await prisma.cRMContact.create({ data });
       return res.status(201).json(row);
     }
@@ -55,6 +61,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const data = pickCRMContactData(req.body ?? {});
       const existing = await prisma.cRMContact.findUnique({ where: { id: id as string } });
+      if (data.companyId) await assertCompany(data.companyId);
       const row = existing
         ? await prisma.cRMContact.update({ where: { id: id as string }, data })
         : await prisma.cRMContact.create({ data: { ...data, id: id as string } });

@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireDeletePermission, requireFeatureRead, requireFeatureWrite, requireQuotationWritePermission, cors } from '../lib/auth';
+import { requireAuth, requireDeletePermission, requireFeatureRead, requireFeatureWrite, requireQuotationApprovePermission, requireQuotationWritePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 import { pickInvoiceData } from '../lib/whitelist';
 import { assertPeriodOpen, assertPeriodsOpen } from '../lib/accountingPeriod';
@@ -206,6 +206,62 @@ async function getVatRate(): Promise<number> {
   return typeof profile?.vatRate === 'number' && profile.vatRate >= 0 ? profile.vatRate : DEFAULT_VAT_RATE;
 }
 
+const QUOTATION_SERVER_FIELDS = new Set([
+  'type', 'status', 'createdBy', 'convertedToInvoiceId', 'convertedToContractId', 'convertedAt',
+]);
+
+function isQuotationOwner(quote: any, payload: any): boolean {
+  return quote.createdBy === payload.email || quote.createdBy === payload.userId;
+}
+
+/** Convert only here: one transaction locks the source row, creates the
+ * invoice, links the source and writes the timeline/audit trail. */
+async function convertQuotationToInvoice(quotationId: string, payload: any, req: HttpRequest) {
+  const audit = auditContext(req);
+  return prisma.$transaction(async tx => {
+    if (typeof tx.$queryRaw === 'function') {
+      await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`dreambox-quotation:${quotationId}`}))`);
+      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "invoices" WHERE "id" = ${quotationId} FOR UPDATE`);
+    }
+    const quote = await tx.invoice.findUnique({ where: { id: quotationId } });
+    if (!quote || quote.type !== 'Quotation' || quote.isVoided) {
+      throw new PaymentIntegrityError('Source quotation not found', 404);
+    }
+    if (quote.quoteStatus === 'Converted' || quote.convertedToInvoiceId || quote.convertedToContractId) {
+      throw new PaymentIntegrityError('This quotation has already been converted', 409, quote.convertedToInvoiceId || quote.convertedToContractId || undefined);
+    }
+    if (quote.quoteStatus !== 'Accepted') {
+      throw new PaymentIntegrityError('Only accepted quotations can be converted', 409);
+    }
+    const issueDate = new Date().toISOString().slice(0, 10);
+    const invoice = await tx.invoice.create({
+      data: {
+        clientId: quote.clientId,
+        contractId: quote.contractId,
+        date: issueDate,
+        dueDate: addDays(issueDate, 30),
+        items: quote.items as any,
+        subtotal: quote.subtotal,
+        discountAmount: quote.discountAmount,
+        discountDescription: quote.discountDescription,
+        vatAmount: quote.vatAmount,
+        total: quote.total,
+        status: 'Pending',
+        type: 'Invoice',
+        notes: quote.notes,
+        createdBy: payload.email,
+      },
+    });
+    const converted = await tx.invoice.update({
+      where: { id: quote.id },
+      data: { quoteStatus: 'Converted', convertedToInvoiceId: invoice.id, convertedAt: new Date() },
+    });
+    await tx.quotationEvent.create({ data: { invoiceId: quote.id, type: 'converted', actorId: payload.userId, actorEmail: payload.email, details: `Converted to Invoice ${invoice.id}` } });
+    await tx.auditLog.create({ data: { action: 'Quotation Converted to Invoice', details: `Quotation ${quote.quoteNumber || quote.id} converted to invoice ${invoice.id}`, userId: payload.userId, userEmail: payload.email, tableName: 'invoices', recordId: quote.id, beforeData: quote as any, afterData: converted as any, ...audit } });
+    return invoice;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
 function handlePrismaError(e: any, res: HttpResponse, context: string): void {
   const code = e?.code ?? 'UNKNOWN';
   const message = e?.message ?? String(e);
@@ -288,6 +344,20 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
   if (req.method === 'POST') {
     const body = req.body ?? {};
+    if (req.query.action === 'convertQuotation') {
+      const payload = await requireQuotationApprovePermission(req, res);
+      if (!payload) return;
+      const quotationId = String(body.quotationId || '').trim();
+      if (!quotationId) return res.status(400).json({ error: 'quotationId is required' });
+      try {
+        const invoice = await convertQuotationToInvoice(quotationId, payload, req);
+        return res.status(201).json(withoutProofUrl(invoice));
+      } catch (e: any) {
+        if (e instanceof PaymentIntegrityError) return res.status(e.status).json({ error: e.message, ...(e.existingId ? { existingId: e.existingId } : {}) });
+        if (e?.code === 'P2034') return res.status(409).json({ error: 'Quotation changed concurrently. Refresh and retry.' });
+        handlePrismaError(e, res, 'convertQuotation'); return;
+      }
+    }
     const payload = String(body.type).toLowerCase() === 'quotation'
       ? await requireQuotationWritePermission(req, res)
       : await requireFeatureWrite(req, res, 'invoices');
@@ -298,6 +368,16 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     try {
       const vatRate = await getVatRate();
       const data: any = canonicalInvoiceData(parsed.data, vatRate);
+      if (data.type === 'Quotation') {
+        // Lifecycle and authorship are facts established by the server, never
+        // values a synced/browser payload may choose for itself.
+        data.status = 'Pending';
+        data.quoteStatus = 'Draft';
+        data.createdBy = payload.email;
+        data.convertedToInvoiceId = null;
+        data.convertedToContractId = null;
+        data.convertedAt = null;
+      }
       const paymentAuditError = validatePaymentAudit(data);
       if (paymentAuditError) return res.status(400).json({ error: paymentAuditError });
       await assertPeriodOpen(data.date, payload.email);
@@ -379,6 +459,20 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!payload) return;
 
       const body = req.body ?? {};
+      if (existing.type === 'Quotation') {
+        if (payload.role === 'SalesAgent' && !isQuotationOwner(existing, payload)) {
+          return res.status(403).json({ error: 'Sales Agents may edit only quotations they created.' });
+        }
+        const attemptedServerField = [...QUOTATION_SERVER_FIELDS].find(field => Object.prototype.hasOwnProperty.call(body, field) && body[field] !== (existing as any)[field]);
+        if (attemptedServerField) {
+          return res.status(403).json({ error: `${attemptedServerField} is controlled by the server.` });
+        }
+        if (body.quoteStatus === 'Converted') return res.status(403).json({ error: 'Use the quotation conversion action.' });
+        if (body.quoteStatus === 'Accepted') {
+          const approver = await requireQuotationApprovePermission(req, res);
+          if (!approver) return;
+        }
+      }
       if (body.type && body.type !== existing.type && !(['Quotation', 'Proforma'].includes(existing.type) && body.type === 'Invoice')) {
         return res.status(400).json({ error: 'Document type cannot be changed this way' });
       }
@@ -403,6 +497,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
 
       const data = canonicalInvoiceData(parsed.data, await getVatRate());
+      if (existing.type === 'Quotation') {
+        // Preserve every server-owned lifecycle field even if a legacy client
+        // sends it back as part of a full-record update.
+        for (const field of QUOTATION_SERVER_FIELDS) data[field] = (existing as any)[field];
+        data.quoteStatus = body.quoteStatus ?? existing.quoteStatus;
+      }
       // A date move affects both the original and destination period.  The
       // transaction repeats this check so the write and lock check share a DB
       // boundary; a database trigger protects direct/competing writes too.

@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { Resend } from 'resend';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireAdmin, requireDeletePermission, cors, invalidateUserCache } from '../lib/auth';
+import { requireAuth, requireAdmin, cors, invalidateUserCache } from '../lib/auth';
 import { validatePassword } from '../lib/passwordPolicy.js';
 import { notifyAdminNewUser } from '../lib/notifyAdmin.js';
 import { log } from '../lib/serverLogger.js';
@@ -328,10 +328,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   }
 
   // ----------------------------------------------------------------
-  // DELETE /api/users?id=... — delete user (allowlist only)
+  // DELETE /api/users?id=... — user identities are Admin-only, unlike
+  // operational-record deletion which Managers may perform.
   // ----------------------------------------------------------------
   if (req.method === 'DELETE') {
-    if (!await requireDeletePermission(req, res)) return;
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
     const { id } = req.query;
     if (!id || !UUID_RE.test(id as string)) return res.status(400).json({ error: 'Valid id required' });
 
@@ -373,14 +375,15 @@ function generateTempPassword(): string {
   const digits = '23456789';
   const special = '!@#$%';
   const all = chars;
-  const base = [
-    upper[Math.floor(Math.random() * upper.length)],
-    lower[Math.floor(Math.random() * lower.length)],
-    digits[Math.floor(Math.random() * digits.length)],
-    special[Math.floor(Math.random() * special.length)],
-    ...Array.from({ length: 8 }, () => all[Math.floor(Math.random() * all.length)]),
-  ];
-  return base.sort(() => Math.random() - 0.5).join('');
+  const pick = (alphabet: string) => alphabet[crypto.randomInt(alphabet.length)];
+  const base = [pick(upper), pick(lower), pick(digits), pick(special)];
+  while (base.length < 12) base.push(pick(all));
+  // Fisher-Yates with crypto.randomInt: no predictable Math.random sequence.
+  for (let i = base.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [base[i], base[j]] = [base[j], base[i]];
+  }
+  return base.join('');
 }
 
 function buildResetEmail(firstName: string, resetUrl: string): string {

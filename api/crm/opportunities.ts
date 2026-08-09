@@ -29,6 +29,17 @@ const opportunitySchema = z.object({
   stageHistory: z.any().optional(),
 });
 
+async function assertOpportunityParents(data: any) {
+  const [company, primary, secondary] = await Promise.all([
+    prisma.cRMCompany.findUnique({ where: { id: data.companyId }, select: { id: true } }),
+    prisma.cRMContact.findUnique({ where: { id: data.primaryContactId }, select: { id: true, companyId: true } }),
+    data.secondaryContactId ? prisma.cRMContact.findUnique({ where: { id: data.secondaryContactId }, select: { id: true, companyId: true } }) : null,
+  ]);
+  if (!company) throw new Error('Company not found');
+  if (!primary || primary.companyId !== data.companyId) throw new Error('Primary contact must belong to the company');
+  if (secondary && secondary.companyId !== data.companyId) throw new Error('Secondary contact must belong to the company');
+}
+
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -56,6 +67,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       const data = pickCRMOpportunityData(req.body ?? {});
+      await assertOpportunityParents(data);
+      data.createdBy = payload.email;
       const row = await prisma.cRMOpportunity.create({ data });
       return res.status(201).json(row);
     }
@@ -69,6 +82,11 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const data = pickCRMOpportunityData(req.body ?? {});
       const existing = await prisma.cRMOpportunity.findUnique({ where: { id: id as string } });
+      if (existing) {
+        const merged = { ...existing, ...data };
+        await assertOpportunityParents(merged);
+        delete data.createdBy;
+      }
       const row = existing
         ? await prisma.cRMOpportunity.update({ where: { id: id as string }, data })
         : await prisma.cRMOpportunity.create({ data: { ...data, id: id as string } });

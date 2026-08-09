@@ -2,7 +2,7 @@ import type { HttpRequest, HttpResponse } from '../lib/http';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
+import { requireAuth, requireDeletePermission, requireQuotationApprovePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 
 const contractDateSchema = z
@@ -192,6 +192,15 @@ async function createContractFromQuotation(data: any, sourceQuotationId: string,
   });
 }
 
+async function assertContractParents(data: { clientId: string; billboardId: string }) {
+  const [client, billboard] = await Promise.all([
+    prisma.client.findUnique({ where: { id: data.clientId }, select: { id: true } }),
+    prisma.billboard.findUnique({ where: { id: data.billboardId }, select: { id: true } }),
+  ]);
+  if (!client) throw new ContractConversionError('Client not found', 400);
+  if (!billboard) throw new ContractConversionError('Billboard not found', 400);
+}
+
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -231,6 +240,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         sourceQuotationId,
       } = req.body ?? {};
 
+      // A contract conversion is a financial/lifecycle approval. Re-auth via
+      // the dedicated guard rather than allowing an arbitrary signed-in user
+      // to flip the quotation's conversion invariant.
+      if (sourceQuotationId) {
+        const approver = await requireQuotationApprovePermission(req, res);
+        if (!approver) return;
+      }
+
       const incomingStatus = status ?? 'Pending';
       const data = {
         id, clientId, billboardId, startDate, endDate, monthlyRate,
@@ -250,6 +267,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         masterContractId: masterContractId ?? null,
         sourceQuotationId: sourceQuotationId ?? null,
       };
+      await assertContractParents(data);
       // When the contract is being created from a quotation, the quotation's
       // Converted flip happens server-side and atomically (see
       // createContractFromQuotation) — this is the guard against cross-device
@@ -282,6 +300,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
       const updatedStatus = parsed.data.status ?? existing.status;
       const bookingData = { ...parsed.data, status: updatedStatus };
+      await assertContractParents(bookingData);
       const row = await prisma.$transaction(async tx => {
         await assertBookingAvailable(tx, bookingData, id as string);
         return tx.contract.update({ where: { id: id as string }, data: parsed.data });
@@ -314,24 +333,25 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         });
       }
 
-      // Cascade-delete ALL linked data in a single transaction so partial deletion is impossible.
-      const [invoicesRes, amendmentsRes] = await prisma.$transaction([
-        prisma.invoice.deleteMany({ where: { contractId: id as string } }),
-        prisma.contractAmendment.deleteMany({ where: { contractId: id as string } }),
-      ]);
-      await prisma.contract.delete({ where: { id: id as string } });
-
-      // Write audit log server-side
-      await prisma.auditLog.create({
-        data: {
-          action: 'Permanent Delete',
-          details: `Deleted contract ${id} (${existing.clientId}, ${existing.monthlyRate}/mo, invoices: ${invoicesRes.count}, amendments: ${amendmentsRes.count})`,
-          userId: payload.userId,
-          userEmail: payload.email,
-          tableName: 'contracts',
-          recordId: id as string,
-        },
-      }).catch((e: any) => log.warn('[contracts] audit log write failed:', e?.message));
+      // Dependents, contract, and audit entry commit as one unit.  Financial
+      // invoices are protected above, but this shape remains correct if a
+      // future dependency is added or an audit insert fails.
+      const { invoicesRes, amendmentsRes } = await prisma.$transaction(async tx => {
+        const invoicesRes = await tx.invoice.deleteMany({ where: { contractId: id as string } });
+        const amendmentsRes = await tx.contractAmendment.deleteMany({ where: { contractId: id as string } });
+        await tx.contract.delete({ where: { id: id as string } });
+        await tx.auditLog.create({
+          data: {
+            action: 'Permanent Delete',
+            details: `Deleted contract ${id} (${existing.clientId}, ${existing.monthlyRate}/mo, invoices: ${invoicesRes.count}, amendments: ${amendmentsRes.count})`,
+            userId: payload.userId,
+            userEmail: payload.email,
+            tableName: 'contracts',
+            recordId: id as string,
+          },
+        });
+        return { invoicesRes, amendmentsRes };
+      });
 
       return res.status(200).json({
         success: true,

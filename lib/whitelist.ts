@@ -115,21 +115,6 @@ export function pickTaskData(body: any) {
   };
 }
 
-// ─── Outsourced Billboards ────────────────────────────────────────────────────
-
-export function pickOutsourcedData(body: any) {
-  return {
-    billboardId:   body.billboardId,
-    billboardName: body.billboardName        ?? undefined,
-    mediaOwner:    body.mediaOwner,
-    ownerContact:  body.ownerContact,
-    monthlyPayout: Number(body.monthlyPayout),
-    contractStart: body.contractStart,
-    contractEnd:   body.contractEnd,
-    status:        body.status               ?? undefined,
-  };
-}
-
 // ─── Printing Jobs ────────────────────────────────────────────────────────────
 
 export function pickPrintingJobData(body: any) {

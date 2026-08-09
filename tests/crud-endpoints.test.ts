@@ -17,7 +17,6 @@ const mockPrisma = {
   client: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
   expense: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
   task: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
-  outsourcedBillboard: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
   printingJob: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
   companyProfile: { findUnique: vi.fn(), upsert: vi.fn() },
   cRMCompany: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
@@ -76,7 +75,11 @@ function mockRes(): HttpResponse & { _status: number; _json: any } {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('CRUD Endpoint Integration Tests', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.cRMCompany.findUnique.mockResolvedValue({ id: 'c1' });
+    mockPrisma.cRMContact.findUnique.mockResolvedValue({ id: 'contact-1', companyId: 'c1' });
+  });
 
   describe('tasks.ts', () => {
     it('POST rejects missing title', async () => {
@@ -94,25 +97,6 @@ describe('CRUD Endpoint Integration Tests', () => {
       expect(res._status).toBe(201);
       const data = mockPrisma.task.create.mock.calls[0][0].data;
       expect(data.title).toBe('Test');
-      expect(data).not.toHaveProperty('maliciousField');
-    });
-  });
-
-  describe('outsourced.ts', () => {
-    it('POST rejects missing mediaOwner', async () => {
-      const mod = await import('../api/outsourced');
-      const res = mockRes();
-      await mod.default(mockReq({ body: { billboardId: 'BB-1' } }), res);
-      expect(res._status).toBe(400);
-    });
-
-    it('POST accepts valid payload', async () => {
-      mockPrisma.outsourcedBillboard.create.mockResolvedValue({ id: 'o1' });
-      const mod = await import('../api/outsourced');
-      const res = mockRes();
-      await mod.default(mockReq({ body: { billboardId: 'BB-1', mediaOwner: 'Owner', ownerContact: '077000', monthlyPayout: 1000, contractStart: '2026-01-01', contractEnd: '2026-12-31' } }), res);
-      expect(res._status).toBe(201);
-      const data = mockPrisma.outsourcedBillboard.create.mock.calls[0][0].data;
       expect(data).not.toHaveProperty('maliciousField');
     });
   });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { getExpenses, getPrintingJobs, getOutsourcedBillboards, getBillboards, getContracts } from '../services/mockData';
+import { getExpenses, getPrintingJobs, getBillboards, getContracts } from '../services/mockData';
 import {
     AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend
@@ -77,13 +77,10 @@ export const Analytics: React.FC = () => {
     // Expense breakdown (for pie chart)
     const operationalExpenses = getExpenses().reduce((acc, curr) => acc + curr.amount, 0);
     const printingExpenses = getPrintingJobs().reduce((acc, curr) => acc + curr.totalCost, 0);
-    const outsourcedPayouts = getOutsourcedBillboards().reduce((acc, curr) => acc + (curr.monthlyPayout * 12), 0);
-
     const expenseBreakdown = [
         { name: 'Installation', value: getContracts().reduce((s, c) => s + (c.installationCost || 0), 0) },
         { name: 'Printing', value: Math.max(printingExpenses, getContracts().reduce((s, c) => s + (c.printingCost || 0), 0)) },
         { name: 'Production', value: getContracts().reduce((s, c) => s + (c.productionCost || 0), 0) },
-        { name: 'Outsourced', value: outsourcedPayouts },
         { name: 'Operational', value: operationalExpenses },
     ].filter(e => e.value > 0);
 

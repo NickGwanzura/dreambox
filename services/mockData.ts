@@ -1,6 +1,7 @@
-import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, OutsourcedBillboard, AuditLogEntry, CompanyProfile, Task, MaintenanceLog, QuotationEvent, QuoteStatus } from '../types';
+import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, AuditLogEntry, CompanyProfile, Task, MaintenanceLog, QuotationEvent, QuoteStatus } from '../types';
 import { api, isConfigured } from './apiClient';
 import { STORAGE_KEYS, splitInclusiveVat, VAT_RATE } from './constants';
+import { registerPulledRecordsHandler } from './remoteState';
 import { exportAllData } from './storage';
 import {
   createBackup,
@@ -131,7 +132,6 @@ export let contractAmendments: ContractAmendment[] = [];
 export let invoices: Invoice[] = [];
 export let expenses: Expense[] = [];
 export let auditLogs: AuditLogEntry[] = [];
-export let outsourcedBillboards: OutsourcedBillboard[] = [];
 export let printingJobs: PrintingJob[] = [];
 export let maintenanceLogs: MaintenanceLog[] = [];
 export let tasks: Task[] = [];
@@ -196,6 +196,21 @@ const normalizeInvoiceMoney = (row: any): Invoice => ({
 
 const normalizeExpenseMoney = (row: any): Expense => ({ ...row, amount: Number(row.amount) || 0 });
 
+/** Called by the pull-only sync manager after a complete successful table
+ * fetch.  Storage alone is not state: listeners must see the same confirmed
+ * server rows as the next render. */
+export const applyPulledRecords = (records: Partial<{
+    invoices: any[]; billboards: Billboard[]; contracts: Contract[]; clients: Client[];
+}>): void => {
+    if (records.invoices) invoices = records.invoices.map(normalizeInvoiceMoney);
+    if (records.billboards) billboards = records.billboards;
+    if (records.contracts) contracts = records.contracts;
+    if (records.clients) clients = records.clients;
+    hydratedFromApi = true;
+    notifyListeners();
+};
+registerPulledRecordsHandler(applyPulledRecords);
+
 // --- Initialize from API (callable after login too) ---
 export const reloadAllFromApi = async (): Promise<void> => {
     if (!isConfigured()) return;
@@ -230,7 +245,6 @@ export const reloadAllFromApi = async (): Promise<void> => {
             }),
             api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d.map(normalizeExpenseMoney); }),
             api.get<any[]>('/api/users').then(d => { if (d) users = d; }),
-            api.get<any[]>('/api/outsourced').then(d => { if (d) outsourcedBillboards = d; }),
             api.get<any[]>('/api/printing-jobs').then(d => { if (d) printingJobs = d; }),
             api.get<any[]>('/api/maintenance').then(d => { if (d) maintenanceLogs = d; }),
             api.get<any[]>('/api/tasks').then(d => { if (d) tasks = d; }),
@@ -297,6 +311,8 @@ const loadCompanyProfile = (): void => {
 loadCompanyProfile();
 
 export const setCompanyLogo = async (url: string): Promise<void> => {
+    const previousLogo = companyLogo;
+    const previousProfile = companyProfile ? { ...companyProfile } : null;
     companyLogo = url;
     updateLocalCompanyProfile({ logo: url });
     persistCompanyProfile();
@@ -304,21 +320,17 @@ export const setCompanyLogo = async (url: string): Promise<void> => {
         try {
             await api.put('/api/company-profile', { id: 'profile_v1', logo: url });
         } catch (e: any) {
-            // A 4xx means the server permanently rejected this file (bad
-            // mimetype, too large) — retrying won't help, so rethrow instead
-            // of quietly claiming "saved" while the caller shows a success
-            // message. Network/5xx failures keep the offline-first behavior:
-            // stay local and retry on next sync.
-            if (e?.status >= 400 && e?.status < 500) {
-                throw e;
-            }
-            console.warn('[setCompanyLogo] API save failed, logo kept locally:', e?.message);
-            notifySyncError('Logo saved locally — server sync failed. It may not appear on other devices yet.');
+            companyLogo = previousLogo;
+            companyProfile = previousProfile;
+            persistCompanyProfile();
+            notifyListeners();
+            throw e;
         }
     }
 };
 
 export const updateCompanyProfile = async (profile: CompanyProfile): Promise<void> => {
+    const previous = companyProfile;
     companyProfile = profile;
     persistCompanyProfile();
     if (isConfigured()) {
@@ -327,8 +339,10 @@ export const updateCompanyProfile = async (profile: CompanyProfile): Promise<voi
         try {
             await api.put('/api/company-profile', payload);
         } catch (e: any) {
-            console.warn('[updateCompanyProfile] API save failed, kept locally:', e?.message);
-            notifySyncError('Company details saved locally — server sync failed.');
+            companyProfile = previous;
+            persistCompanyProfile();
+            notifyListeners();
+            throw e;
         }
     }
     logAction('Settings Update', 'Updated company profile details');
@@ -421,8 +435,9 @@ export const addBillboard = async (billboard: Billboard) => {
             const merged = { ...created, imageUrl: created.imageUrl || billboard.imageUrl };
             billboards = billboards.map(b => b.id === billboard.id ? merged : b);
         } catch (e) {
-            console.error('[addBillboard] API error, using local:', e);
-            // Optimistic entry already in place — no action needed
+            billboards = billboards.filter(b => b !== billboard);
+            notifyListeners();
+            throw e;
         }
     }
     logAction('Create Billboard', `Added ${billboard.name} (${billboard.type})`);
@@ -528,6 +543,20 @@ export const deleteContract = async (id: string) => {
     const contract = contracts.find(c => c.id === id);
     if (!contract) return;
 
+    // Online mode has no durable mutation queue. Confirm the server deletion
+    // before changing the rendered cache; the API also protects financial
+    // dependents, which a browser-side cascade cannot safely reproduce.
+    if (isConfigured()) {
+        await api.delete('/api/contracts', { id });
+        contracts = contracts.filter(c => c.id !== id);
+        contractAmendments = contractAmendments.filter(a => a.contractId !== id);
+        try { localStorage.setItem(STORAGE_KEYS.CONTRACTS, JSON.stringify(contracts)); } catch {}
+        recalcBillboardAvailability(contract.billboardId);
+        logAction('Delete Contract', `Removed contract ${id}`);
+        notifyListeners();
+        return;
+    }
+
     // 1. Synchronous in-memory mutations (visible to caller before any await)
     contracts = contracts.filter(c => c.id !== id);
     addToDeletedQueue('contracts', id);
@@ -595,6 +624,16 @@ export const endContract = async (id: string) => {
         lastModifiedBy: `${(() => { try { const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER); if (stored) { const u = JSON.parse(stored); return u?.firstName || u?.name || u?.email || 'Current User'; } } catch (_) {} return 'Current User'; })()}`,
     };
 
+    if (isConfigured()) {
+        const saved = await api.put<Contract>('/api/contracts', endedContract, { id: endedContract.id });
+        contracts = contracts.map(c => c.id === id ? saved : c);
+        try { localStorage.setItem(STORAGE_KEYS.CONTRACTS, JSON.stringify(contracts)); } catch {}
+        recalcBillboardAvailability(saved.billboardId);
+        logAction('End Contract', `Ended contract ${id} — marked as Expired`);
+        notifyListeners();
+        return;
+    }
+
     // 1. Synchronous in-memory mutations
     contracts = contracts.map(c => c.id === endedContract.id ? endedContract : c);
 
@@ -616,19 +655,6 @@ export const endContract = async (id: string) => {
     logAction('End Contract', `Ended contract ${id} — marked as Expired, availability freed, ${pendingInvoices.length} pending invoice(s) cancelled`);
     notifyListeners();
 
-    // 2. Async API calls — best-effort
-    if (isConfigured()) {
-        try {
-            await api.put('/api/contracts', endedContract, { id: endedContract.id });
-        } catch (e) { console.error('[endContract] API update failed:', e); notifySyncError('Contract ended locally — server sync failed.'); }
-
-        for (const inv of pendingInvoices) {
-            try {
-                await api.delete('/api/invoices', { id: inv.id });
-                removeFromDeletedQueue('invoices', inv.id);
-            } catch (e) { console.error('[endContract] API DELETE failed for invoice:', inv.id, e); }
-        }
-    }
 };
 
 const auditLogToApi = async (action: string, details: string, tableName?: string, recordId?: string) => {
@@ -655,26 +681,10 @@ export const permanentDeleteContract = async (id: string): Promise<{ success: bo
         const linkedInvoiceIds = invoices.filter(i => i.contractId === id).map(i => i.id);
         const linkedAmendmentIds = contractAmendments.filter(a => a.contractId === id).map(a => a.id);
 
-        // If API is configured, push audit log + deletes to application database FIRST
+        // Online mode delegates the complete atomic delete/audit decision to
+        // the server. Client-side dependent deletes could otherwise partially
+        // succeed before the protected contract deletion is rejected.
         if (isConfigured()) {
-            await auditLogToApi(
-                'Permanent Delete Contract',
-                `Permanently deleted contract ${id} (${contract.billboardId}, ${contract.startDate}–${contract.endDate}) and all linked records`,
-                'contracts',
-                id
-            );
-            for (const iid of linkedInvoiceIds) {
-                addToDeletedQueue('invoices', iid);
-                try {
-                    await api.delete('/api/invoices', { id: iid });
-                    removeFromDeletedQueue('invoices', iid);
-                } catch (e: any) {
-                    console.error('[permanentDeleteContract] API error deleting invoice:', iid, e);
-                }
-            }
-            for (const aid of linkedAmendmentIds) {
-                try { await api.delete('/api/contract-amendments', { id: aid }); } catch (e: any) { console.error('[permanentDeleteContract] API error:', e); }
-            }
             try { await api.delete('/api/contracts', { id }); } catch (e: any) {
                 const msg = e?.message || 'API rejected the deletion';
                 console.error('[permanentDeleteContract] API error:', msg);
@@ -807,6 +817,22 @@ export const convertQuotationToInvoice = async (id: string): Promise<Invoice | n
     // duplicate invoice. Guard here in addition to UI gating so every caller
     // (Quotations page, Financials) is protected from double-clicks/races.
     if (quotation.quoteStatus === QuoteStatus.Converted) return null;
+    // Online conversion is one server-side transaction.  Do not create an
+    // invoice then separately mutate the quote: that two-write sequence can
+    // duplicate billing when two tabs/devices race.
+    if (isConfigured()) {
+        const created = normalizeInvoiceMoney(await api.post<Invoice>('/api/invoices?action=convertQuotation', { quotationId: id }));
+        invoices = invoices.map(invoice => invoice.id === id
+            ? { ...invoice, quoteStatus: QuoteStatus.Converted, convertedToInvoiceId: created.id, convertedAt: new Date().toISOString() }
+            : invoice);
+        invoices = [created, ...invoices];
+        persistInvoices();
+        logAction('Convert Quotation', `Converted quotation #${id} to invoice #${created.id}`);
+        notifyListeners();
+        return created;
+    }
+    // Standalone/demo mode keeps the historic local behaviour only. Online
+    // deployments always use the authoritative conversion endpoint above.
     // Omit id — server generates UUID to prevent collisions
     const { id: _origId, quoteNumber: _origQN, ...quotationRest } = quotation;
     const invoicePayload: Omit<Invoice, 'id'> = {
@@ -1232,49 +1258,6 @@ export const addPrintingJob = async (job: PrintingJob) => {
     notifyListeners();
 };
 
-// --- Outsourced Billboard CRUD ---
-export const addOutsourcedBillboard = async (b: OutsourcedBillboard) => {
-    if (isConfigured()) {
-        const created = await api.post<OutsourcedBillboard>('/api/outsourced', b);
-        outsourcedBillboards = [...outsourcedBillboards, created];
-        b = created;
-    } else {
-        outsourcedBillboards = [...outsourcedBillboards, b];
-    }
-    logAction('Outsourcing', `Added outsourced unit ${b.billboardId}`);
-    notifyListeners();
-};
-
-export const updateOutsourcedBillboard = async (updated: OutsourcedBillboard) => {
-    const previous = outsourcedBillboards.find(b => b.id === updated.id);
-    outsourcedBillboards = outsourcedBillboards.map(b => b.id === updated.id ? updated : b);
-    if (isConfigured()) {
-        try {
-            await api.put('/api/outsourced', updated, { id: updated.id });
-        } catch (e) {
-            if (previous) outsourcedBillboards = outsourcedBillboards.map(b => b.id === updated.id ? previous : b);
-            notifyListeners();
-            throw e;
-        }
-    }
-    notifyListeners();
-};
-
-export const deleteOutsourcedBillboard = async (id: string): Promise<void> => {
-    const target = outsourcedBillboards.find(b => b.id === id);
-    outsourcedBillboards = outsourcedBillboards.filter(b => b.id !== id);
-    if (isConfigured()) {
-        try {
-            await api.delete('/api/outsourced', { id });
-        } catch (e) {
-            if (target) outsourcedBillboards = [target, ...outsourcedBillboards];
-            notifyListeners();
-            throw e;
-        }
-    }
-    notifyListeners();
-};
-
 // --- Task CRUD ---
 export const addTask = async (task: Task) => {
     if (isConfigured()) {
@@ -1548,7 +1531,6 @@ export const getInvoicesReviewQueue = async (): Promise<Invoice[]> => {
 export const getAuditLogs = () => auditLogs || [];
 export const getUsers = () => users || [];
 export const getClients = () => clients || [];
-export const getOutsourcedBillboards = () => outsourcedBillboards || [];
 export const getTasks = () => tasks || [];
 export const getMaintenanceLogs = () => maintenanceLogs || [];
 export const getCompanyLogo = () => companyLogo || (companyProfile as any)?.logo || null;
@@ -1741,14 +1723,12 @@ export const getFinancialTrends = () => {
     const monthCOGS = monthContracts.reduce((sum, c) => 
       sum + (c.installationCost || 0) + (c.printingCost || 0) + (c.productionCost || 0), 0);
     
-    const outsourcedMonthly = outsourcedBillboards.reduce((sum, b) => sum + (b.monthlyPayout || 0), 0);
-    
     const operationalMonthly = expenses.filter(e => {
       const d = new Date(e.date);
       return d.getMonth() === monthIndex && d.getFullYear() === year;
     }).reduce((sum, e) => sum + e.amount, 0);
     
-    const cogs = monthCOGS + outsourcedMonthly + operationalMonthly;
+    const cogs = monthCOGS + operationalMonthly;
     const grossProfit = revenue - cogs;
     
     result.push({

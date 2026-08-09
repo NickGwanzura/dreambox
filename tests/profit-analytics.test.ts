@@ -96,7 +96,6 @@ describe('profitability attribution', () => {
     vi.spyOn(mockData, 'getClients').mockReturnValue(data.clients || []);
     vi.spyOn(mockData, 'getPrintingJobs').mockReturnValue(data.printingJobs || []);
     vi.spyOn(mockData, 'getExpenses').mockReturnValue(data.expenses || []);
-    vi.spyOn(mockData, 'getOutsourcedBillboards').mockReturnValue([]);
   };
 
   it('keeps contracts with no invoices at zero realised revenue', () => {

@@ -433,10 +433,10 @@ describe('application database Sync: Deleted Queue Filter', () => {
   });
 
   // ------------------------------------------------------------------
-  // 8. Local-only records are preserved alongside filtered remote records
+  // 8. A pull-only manager drops unconfirmed local-only records.
   // ------------------------------------------------------------------
-  it('preserves local-only records not in remote while filtering deleted', async () => {
-    // Local storage has a record that was created offline (not yet synced)
+  it('drops local-only records not in remote while filtering deleted', async () => {
+    // A stale local record has no durable server-side mutation queue.
     store[STORAGE_KEYS.INVOICES] = JSON.stringify([
       makeInvoiceData('INV-LOCAL-001'), // local-only, not in remote
     ]);
@@ -454,12 +454,13 @@ describe('application database Sync: Deleted Queue Filter', () => {
     const mod = await import('../services/databaseSyncManager');
     await mod.pullAllFromDatabase();
 
-    // INV-002 should be filtered out, INV-LOCAL-001 should be merged in
+    // INV-002 is filtered out and the unconfirmed local-only record is
+    // removed: a successful pull must reflect server truth.
     const storedInvoices: any[] = JSON.parse(
       localStorage.getItem(STORAGE_KEYS.INVOICES) || '[]',
     );
     const storedIds = storedInvoices.map((i: any) => i.id).sort();
-    expect(storedIds).toEqual(['INV-001', 'INV-003', 'INV-LOCAL-001']);
+    expect(storedIds).toEqual(['INV-001', 'INV-003']);
     expect(storedIds).not.toContain('INV-002');
   });
 

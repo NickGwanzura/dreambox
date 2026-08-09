@@ -2,6 +2,7 @@ import type { HttpRequest, HttpResponse } from '../lib/http';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireManagerOrAdmin, cors } from '../lib/auth';
 import { uploadBase64Image, isBase64DataUrl } from '../lib/uploadBase64';
+import { isAllowedStorageReference } from '../lib/storage';
 import { log } from '../lib/serverLogger.js';
 
 // partnerLogos/campaignGallery are stored as JSON strings of [{ src, ... }].
@@ -72,6 +73,14 @@ function pickCompanyProfileData(body: any) {
   };
 }
 
+function validateImageReference(value: unknown, field: string): string | undefined {
+  if (value == null || value === '') return undefined;
+  if (typeof value !== 'string' || isBase64DataUrl(value) || !isAllowedStorageReference(value, 'logos')) {
+    throw new Error(`${field} must be an uploaded Dreambox storage image.`);
+  }
+  return value;
+}
+
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -92,6 +101,10 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const raw = req.body ?? {};
       const data = pickCompanyProfileData(raw);
       const existing = await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } });
+      // A non-base64 image must already be a Dreambox storage object.  This
+      // keeps profile fields from becoming an SSRF source for logo-proxy.
+      if (!isBase64DataUrl(String(data.logo || ''))) validateImageReference(data.logo, 'logo');
+      if (!isBase64DataUrl(String(data.heroImageUrl || ''))) validateImageReference(data.heroImageUrl, 'heroImageUrl');
       const logo = await uploadBase64Image('logos', data.logo, existing?.logo);
       const heroImageUrl = await uploadBase64Image('logos', data.heroImageUrl, (existing as any)?.heroImageUrl ?? null);
       const partnerLogos = await uploadEmbeddedImages(data.partnerLogos, (existing as any)?.partnerLogos);

@@ -115,7 +115,7 @@ function utcDayStart(value: Date): number {
 
 function dateKey(value: unknown): string | undefined {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
-  return validDate(value)?.toISOString().slice(0, 10);
+  return validDate(value)?.toISOString()?.slice(0, 10);
 }
 
 function normalize(value: unknown): string {

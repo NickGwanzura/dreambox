@@ -40,72 +40,27 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       return res.status(400).json({ error: 'name and email are required' });
     }
 
-    let company = await prisma.cRMCompany.findFirst({
-      where: { name: { equals: companyName, mode: 'insensitive' } },
-    });
-
-    if (!company) {
-      company = await prisma.cRMCompany.create({
-        data: {
-          name: companyName,
-          industry: 'Advertising Prospect',
-          website: '',
-          streetAddress: '',
-          city: '',
-          country: 'Zimbabwe',
-        },
-      });
-    }
-
-    let contact = email
-      ? await prisma.cRMContact.findFirst({
-          where: { email: { equals: email, mode: 'insensitive' } },
-        })
-      : null;
-
-    if (!contact) {
-      contact = await prisma.cRMContact.create({
-        data: {
-          companyId: company.id,
-          fullName: name,
-          phone,
-          email,
-          isPrimary: true,
-        },
-      });
-    }
-
     const now = new Date().toISOString();
     const followUp = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const opportunity = await prisma.cRMOpportunity.create({
-      data: {
-        companyId: company.id,
-        primaryContactId: contact.id,
-        locationInterest,
-        billboardType,
-        campaignDuration,
-        estimatedValue,
-        status: 'new',
-        stage: 'new_lead',
-        leadSource: 'Website',
-        callOutcomeNotes: message,
-        numberOfAttempts: 0,
-        nextFollowUpDate: followUp,
-        createdBy: 'website',
-        daysInCurrentStage: 0,
-        stageHistory: [{ stage: 'new_lead', enteredAt: now, daysInStage: 0 }],
-      },
+    // Company/contact/opportunity/audit are a single lead intake unit. A
+    // failure must not leave orphan prospects that operators cannot trace.
+    const { company, contact, opportunity } = await prisma.$transaction(async tx => {
+      let company = await tx.cRMCompany.findFirst({ where: { name: { equals: companyName, mode: 'insensitive' } } });
+      if (!company) {
+        company = await tx.cRMCompany.create({ data: { name: companyName, industry: 'Advertising Prospect', website: '', streetAddress: '', city: '', country: 'Zimbabwe' } });
+      }
+      let contact = await tx.cRMContact.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
+      // Never attach a new lead opportunity to a cross-company contact with a
+      // coincidentally shared email address.
+      if (!contact || contact.companyId !== company.id) {
+        contact = await tx.cRMContact.create({ data: { companyId: company.id, fullName: name, phone, email, isPrimary: true } });
+      }
+      const opportunity = await tx.cRMOpportunity.create({
+        data: { companyId: company.id, primaryContactId: contact.id, locationInterest, billboardType, campaignDuration, estimatedValue, status: 'new', stage: 'new_lead', leadSource: 'Website', callOutcomeNotes: message, numberOfAttempts: 0, nextFollowUpDate: followUp, createdBy: 'website', daysInCurrentStage: 0, stageHistory: [{ stage: 'new_lead', enteredAt: now, daysInStage: 0 }] },
+      });
+      await tx.auditLog.create({ data: { action: 'CRM: Website Lead Created', details: `New website lead for "${company.name}" — ${locationInterest}`, userEmail: 'website', tableName: 'crm_opportunities', recordId: opportunity.id } });
+      return { company, contact, opportunity };
     });
-
-    await prisma.auditLog.create({
-      data: {
-        action: 'CRM: Website Lead Created',
-        details: `New website lead for "${company.name}" — ${locationInterest}`,
-        userEmail: 'website',
-        tableName: 'crm_opportunities',
-        recordId: opportunity.id,
-      },
-    }).catch(() => undefined);
 
     notifyAdminWebsiteLead({
       name,

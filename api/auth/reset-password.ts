@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
+import { getClientIp } from '../../lib/clientIp';
 import { checkRateLimit } from '../../lib/rateLimiter.js';
 import { escapeHtml } from '../../lib/htmlEscape.js';
 import { log } from '../../lib/serverLogger.js';
@@ -13,10 +14,6 @@ const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
 const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 const GENERIC_MESSAGE = 'If that email exists, a reset link has been sent';
 const resetSchema = z.object({ email: z.string().trim().email() });
-
-function getIp(req: HttpRequest): string {
-  return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req as any).socket?.remoteAddress || 'unknown';
-}
 
 function hashResetToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -32,7 +29,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   const email = parsed.data.email.toLowerCase();
 
   const [ipCheck, emailCheck] = await Promise.all([
-    checkRateLimit(`password-reset:ip:${getIp(req)}`, { maxAttempts: 10, windowMs: 15 * 60 * 1000 }),
+    checkRateLimit(`password-reset:ip:${getClientIp(req)}`, { maxAttempts: 10, windowMs: 15 * 60 * 1000 }),
     checkRateLimit(`password-reset:email:${email}`, { maxAttempts: 3, windowMs: 60 * 60 * 1000 }),
   ]);
   if (!ipCheck.allowed || !emailCheck.allowed) {

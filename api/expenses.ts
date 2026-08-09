@@ -7,11 +7,17 @@ import { log } from '../lib/serverLogger.js';
 import { pickExpenseData } from '../lib/whitelist';
 import { assertPeriodOpen } from '../lib/accountingPeriod';
 
+const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD').refine(value => {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}, 'Date must be a valid calendar date');
+
 const expenseSchema = z.object({
   category: z.enum(['Maintenance', 'Printing', 'Electricity', 'Labor', 'Other']),
   description: z.string().trim().min(1, 'Description is required').max(1000, 'Description too long'),
   amount: z.number().positive('Amount must be positive').max(1_000_000_000, 'Amount is too large'),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD'),
+  date: calendarDate,
   reference: z.string().trim().max(200, 'Reference too long').optional(),
   clientId: z.string().trim().max(200).optional().nullable(),
   contractId: z.string().trim().max(200).optional().nullable(),

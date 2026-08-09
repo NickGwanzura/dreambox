@@ -341,23 +341,6 @@ model MaintenanceLog {
   @@map("maintenance_logs")
 }
 
-model OutsourcedBillboard {
-  id            String           @id @default(uuid())
-  billboardId   String
-  billboardName String?
-  mediaOwner    String
-  ownerContact  String
-  monthlyPayout Float
-  contractStart String
-  contractEnd   String
-  status        OutsourcedStatus @default(Active)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-
-  @@index([billboardId])
-  @@map("outsourced_billboards")
-}
-
 model PrintingJob {
   id              String   @id @default(uuid())
   clientId        String
@@ -744,11 +727,6 @@ enum MaintenanceType {
   Repair
   Emergency
   Inspection
-}
-
-enum OutsourcedStatus {
-  Active
-  Inactive
 }
 
 enum FieldReportType {

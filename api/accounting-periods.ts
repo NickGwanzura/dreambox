@@ -3,7 +3,11 @@ import { z } from 'zod';
 import { cors, requireManagerOrAdmin } from '../lib/auth';
 import { prisma } from '../lib/prisma';
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates must use YYYY-MM-DD');
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates must use YYYY-MM-DD').refine(value => {
+  const [year, month, day] = value.split('-').map(Number);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  return candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day;
+}, 'Dates must be valid calendar dates');
 const createSchema = z.object({ startDate: date, endDate: date, reason: z.string().trim().max(1000).optional() });
 const actionSchema = z.object({ action: z.enum(['close', 'reopen']), reason: z.string().trim().min(10).max(1000) });
 

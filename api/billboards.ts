@@ -81,6 +81,10 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!await requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const billboard = await prisma.billboard.findUnique({ where: { id: id as string } });
+      if (!billboard) return res.status(404).json({ error: 'Billboard not found' });
+      const contracts = await prisma.contract.count({ where: { billboardId: id as string } });
+      if (contracts) return res.status(409).json({ error: 'Billboard is referenced by contracts and cannot be deleted.' });
       await prisma.billboard.delete({ where: { id: id as string } });
       return res.status(200).json({ success: true });
     }

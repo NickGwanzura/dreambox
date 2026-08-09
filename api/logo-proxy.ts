@@ -2,8 +2,30 @@ import type { HttpRequest, HttpResponse } from '../lib/http';
 import { prisma } from '../lib/prisma';
 import { requireAuth, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { isAllowedStorageReference, storageUrlForKey } from '../lib/storage';
 
 const MAX_LOGO_BYTES = 6 * 1024 * 1024;
+
+async function readWithLimit(response: Response): Promise<Buffer> {
+  const length = Number(response.headers.get('content-length') || 0);
+  if (Number.isFinite(length) && length > MAX_LOGO_BYTES) throw new Error('Logo too large');
+  if (!response.body) return Buffer.from(await response.arrayBuffer());
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_LOGO_BYTES) throw new Error('Logo too large');
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks.map(chunk => Buffer.from(chunk)), total);
+}
 
 /**
  * Returns the company logo as a base64 data URL.
@@ -26,20 +48,29 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     const logo = profile?.logo || '';
     if (!logo) return res.status(404).json({ error: 'No logo set' });
 
-    // Already stored inline — return as-is
-    if (logo.startsWith('data:')) {
-      return res.status(200).json({ dataUrl: logo });
-    }
+    // Legacy inline data remains readable, but is never accepted by the
+    // profile write endpoint. It is not a network fetch and therefore cannot
+    // be abused as SSRF.
+    if (logo.startsWith('data:')) return res.status(200).json({ dataUrl: logo });
 
-    const upstream = await fetch(logo);
+    if (!isAllowedStorageReference(logo, 'logos')) {
+      log.warn('[logo-proxy] rejected non-storage logo reference');
+      return res.status(400).json({ error: 'Invalid logo storage reference' });
+    }
+    const target = logo.includes('://') ? logo : storageUrlForKey(logo);
+    if (!target) return res.status(502).json({ error: 'Logo storage is not publicly configured' });
+
+    const upstream = await fetch(target, { redirect: 'error' });
     if (!upstream.ok) {
       log.warn(`[logo-proxy] Upstream fetch failed: ${upstream.status} for ${logo}`);
       return res.status(502).json({ error: 'Could not fetch logo from storage' });
     }
 
-    const buffer = Buffer.from(await upstream.arrayBuffer());
-    if (buffer.length > MAX_LOGO_BYTES) {
-      return res.status(502).json({ error: 'Logo too large' });
+    let buffer: Buffer;
+    try { buffer = await readWithLimit(upstream); }
+    catch (error: any) {
+      if (error?.message === 'Logo too large') return res.status(502).json({ error: 'Logo too large' });
+      throw error;
     }
 
     const mimetype = upstream.headers.get('content-type') || 'image/png';

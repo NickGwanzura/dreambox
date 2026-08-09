@@ -151,7 +151,6 @@ const BACKUP_TABLES = [
   'users',
   'tasks',
   'maintenance',
-  'outsourced',
   'printing-jobs',
 ];
 

@@ -6,19 +6,12 @@ import { notifyWatchedLogin } from '../../../lib/notifyAdmin';
 import { checkRateLimit } from '../../../lib/rateLimiter.js';
 import { verifyTotp } from '../../../lib/totp.js';
 import { log } from '../../../lib/serverLogger.js';
+import { getClientIp } from '../../../lib/clientIp';
 
 const verifySchema = z.object({
   twoFactorToken: z.string().min(1, 'Missing two-factor token'),
   code: z.string().min(1, 'Verification code is required'),
 });
-
-function getIp(req: HttpRequest): string {
-  return (
-    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    (req as any).socket?.remoteAddress ||
-    'unknown'
-  );
-}
 
 /**
  * POST /api/auth/two-factor/verify
@@ -30,7 +23,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const ip = getIp(req);
+  const ip = getClientIp(req);
   const rateCheck = await checkRateLimit(`twofactor-verify:ip:${ip}`, {
     maxAttempts: 10,
     windowMs: 15 * 60 * 1000,
@@ -64,6 +57,16 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   try {
     const user = await prisma.user.findUnique({ where: { id: challenge.userId } });
     if (!user) return res.status(401).json({ error: 'Account not found. Sign in again.' });
+
+    // A challenge is intentionally valid for ten minutes.  It must not bypass
+    // a lock imposed after the password half of the login completed.
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      await recordHistory(user.id, false, 'account_locked');
+      const remainingSecs = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000);
+      return res.status(423).json({
+        error: `Account temporarily locked due to too many failed attempts. Try again in ${remainingSecs} seconds.`,
+      });
+    }
 
     if (!user.twoFactorEnabled || !user.twoFactorSecret) {
       return res.status(400).json({ error: 'Two-factor authentication is not enabled for this account.' });

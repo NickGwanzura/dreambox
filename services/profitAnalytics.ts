@@ -23,7 +23,6 @@ import {
     getInvoices,
     getExpenses,
     getPrintingJobs,
-    getOutsourcedBillboards,
     getBillboards,
     getClients,
 } from './mockData';
@@ -47,7 +46,6 @@ const realisedInvoices = (): Invoice[] => getInvoices().filter(isInvoice);
 // these two getters.  The production adapter exports both; the fallback keeps
 // a partial test fixture from crashing the whole analytics page.
 const printingJobsForAnalytics = () => typeof getPrintingJobs === 'function' ? getPrintingJobs() : [];
-const outsourcedBillboardsForAnalytics = () => typeof getOutsourcedBillboards === 'function' ? getOutsourcedBillboards() : [];
 
 const contractDirectCost = (contract: {
     installationCost?: number;
@@ -269,11 +267,7 @@ export interface ProfitabilitySummary {
     unallocatedExpenses: number;
 }
 
-/**
- * Build the top-level attribution summary.  Outsourced payouts are not
- * contract costs, so they remain unallocated operating expense alongside the
- * unlinked Expense records (expenses tied to a client/contract are attributed).
- */
+/** Build the top-level attribution summary from the active finance ledger. */
 export function getProfitabilitySummary(): ProfitabilitySummary {
     const contracts = getContracts();
     const invoices = realisedInvoices();
@@ -296,17 +290,7 @@ export function getProfitabilitySummary(): ProfitabilitySummary {
     // Only expenses with no client/contract linkage remain operating costs;
     // linked expenses moved into the attribution ledger above.
     const ordinaryOperatingExpenses = expenses.unallocatedExpenseTotal;
-    const outsourcedOperatingExpenses = outsourcedBillboardsForAnalytics().reduce((sum, billboard) => {
-        const start = new Date(billboard.contractStart);
-        const end = new Date(billboard.contractEnd);
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return sum;
-        const months = Math.max(
-            1,
-            (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth() + 1,
-        );
-        return sum + numeric(billboard.monthlyPayout) * months;
-    }, 0);
-    const unallocatedOperatingExpenses = ordinaryOperatingExpenses + outsourcedOperatingExpenses;
+    const unallocatedOperatingExpenses = ordinaryOperatingExpenses;
     const unallocatedCosts = unallocatedOperatingExpenses + printing.unallocatedPrintingJobCosts;
     const grossProfit = realizedRevenue - attributedDirectCosts;
     const netProfit = grossProfit - unallocatedOperatingExpenses;
@@ -687,11 +671,6 @@ export function getMonthlyProfitTrends(): MonthlyProfitData[] {
             return start.getMonth() === monthIndex && start.getFullYear() === year;
         });
         const monthCOGS = monthContracts.reduce((sum, contract) => sum + contractDirectCost(contract), 0);
-        const monthStart = new Date(Date.UTC(year, monthIndex, 1));
-        const monthEnd = new Date(Date.UTC(year, monthIndex + 1, 0));
-        const outsourcedMonthly = outsourcedBillboardsForAnalytics()
-            .filter(board => new Date(board.contractStart) <= monthEnd && new Date(board.contractEnd) >= monthStart)
-            .reduce((sum, board) => sum + numeric(board.monthlyPayout), 0);
         const operationalMonthly = getExpenses()
             .filter(expense => {
                 const date = new Date(expense.date);
@@ -707,7 +686,7 @@ export function getMonthlyProfitTrends(): MonthlyProfitData[] {
             oneTimeRevenue,
             cogs: monthCOGS,
             grossProfit,
-            netProfit: grossProfit - operationalMonthly - outsourcedMonthly,
+            netProfit: grossProfit - operationalMonthly,
         });
     }
     return results;

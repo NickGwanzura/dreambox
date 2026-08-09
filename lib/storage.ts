@@ -90,6 +90,34 @@ export function storageKeyFromUrl(value: string, requiredPrefix?: string): strin
   return key;
 }
 
+/** Values persisted as image references may be an object key or one of this
+ * deployment's HTTPS object-storage URLs.  Do not treat arbitrary URLs in the
+ * database as safe fetch targets. */
+export function isAllowedStorageReference(value: string, requiredPrefix?: string): boolean {
+  if (!value || value.length > 2000 || value.includes('..')) return false;
+  if (!value.includes('://')) {
+    return !value.startsWith('/') && (!requiredPrefix || value.startsWith(`${requiredPrefix}/`));
+  }
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return false;
+    const configured = [publicUrl, rawEndpoint]
+      .filter(Boolean)
+      .map(url => { try { return new URL(url).origin; } catch { return ''; } })
+      .filter(Boolean);
+    if (!configured.includes(parsed.origin)) return false;
+    const key = storageKeyFromUrl(value, requiredPrefix);
+    return Boolean(key);
+  } catch {
+    return false;
+  }
+}
+
+export function storageUrlForKey(key: string): string | null {
+  if (!publicUrl || !isAllowedStorageReference(key)) return null;
+  return `${publicUrl.replace(/\/$/, '')}/${encodeURI(key)}`;
+}
+
 export async function getStoredFile(key: string) {
   if (!s3 || !bucket) throw new Error('Object storage is not configured');
   if (!key || key.includes('..')) throw new Error('Invalid storage object path');

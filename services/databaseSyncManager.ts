@@ -9,6 +9,7 @@ import { isConfigured } from './apiClient';
 import { STORAGE_KEYS } from './constants';
 import { logger } from '../utils/logger';
 import { useState, useEffect } from 'react';
+import { publishPulledRecords } from './remoteState';
 
 let isSyncing = false;
 let lastSyncTime = 0;
@@ -127,22 +128,30 @@ export const pullAllFromDatabase = async (): Promise<{
 
         const filtered = remoteRecords.filter(r => !deletedIds.has(r.id));
 
-        // Preserve local-only records (created offline, not yet in remote)
-        const localRaw = localStorage.getItem(storageKey);
-        const localRecords: any[] = localRaw ? JSON.parse(localRaw) : [];
-        const remoteIds = new Set(remoteRecords.map(r => r.id));
-        const localOnly = localRecords.filter(r => !remoteIds.has(r.id) && !deletedIds.has(r.id));
-
-        const merged = [...filtered, ...localOnly];
-        localStorage.setItem(storageKey, JSON.stringify(merged));
-        results[table] = { count: merged.length };
+        // This manager has no durable write queue. Once online, a completed
+        // pull is the authoritative truth; retaining invisible local-only
+        // records would falsely claim an unsaved write succeeded.
+        localStorage.setItem(storageKey, JSON.stringify(filtered));
+        results[table] = { count: filtered.length };
       } catch (e: any) {
         results[table] = { count: 0, error: e?.message };
       }
     }
 
     const success = Object.values(results).every(result => !result.error);
-    if (success) lastSyncTime = Date.now();
+    if (success) {
+      const records = {
+        invoices: JSON.parse(localStorage.getItem(STORAGE_KEYS.INVOICES) || '[]'),
+        billboards: JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLBOARDS) || '[]'),
+        contracts: JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTRACTS) || '[]'),
+        clients: JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || '[]'),
+      };
+      // Avoid importing the live stores here: importing mockData eagerly
+      // starts its own hydration.  The loaded store subscribes to this event
+      // and updates its in-memory arrays/listeners from this exact snapshot.
+      publishPulledRecords(records);
+      lastSyncTime = Date.now();
+    }
     lastSyncOutcome = success ? 'success' : 'failed';
     return { success, results };
   } catch (e) {

@@ -187,7 +187,6 @@ async function verifyRequiredIntegrityReadiness(): Promise<{ ready: boolean; mis
       invoicesPeriodTrigger: boolean;
       expensesPeriodTrigger: boolean;
       printingJobsPeriodTrigger: boolean;
-      outsourcedBillboardsPeriodTrigger: boolean;
       paymentAllocationsActiveTrigger: boolean;
       invoicesAllocationStateTrigger: boolean;
       auditPrepareTrigger: boolean;
@@ -247,15 +246,6 @@ async function verifyRequiredIntegrityReadiness(): Promise<{ ready: boolean; mis
         ) AS "printingJobsPeriodTrigger",
         EXISTS (
           SELECT 1 FROM trigger_definitions trigger
-          WHERE trigger.tgname = 'outsourced_billboards_closed_accounting_period_guard'
-            AND trigger.tgrelid = to_regclass('outsourced_billboards')
-            AND trigger.tgfoid = to_regprocedure('dreambox_guard_closed_outsourced_period()')
-            AND NOT trigger.tgisinternal
-            AND trigger.tgenabled IN ('O', 'A')
-            AND trigger.definition ~* 'BEFORE INSERT OR UPDATE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_guard_closed_outsourced_period[(][)]'
-        ) AS "outsourcedBillboardsPeriodTrigger",
-        EXISTS (
-          SELECT 1 FROM trigger_definitions trigger
           WHERE trigger.tgname = 'payment_allocations_active_guard'
             AND trigger.tgrelid = to_regclass('payment_allocations')
             AND trigger.tgfoid = to_regprocedure('dreambox_guard_active_payment_allocation()')
@@ -304,7 +294,6 @@ async function verifyRequiredIntegrityReadiness(): Promise<{ ready: boolean; mis
       ['invoicesPeriodTrigger', 'invoice accounting-period trigger'],
       ['expensesPeriodTrigger', 'expense accounting-period trigger'],
       ['printingJobsPeriodTrigger', 'printing-job accounting-period trigger'],
-      ['outsourcedBillboardsPeriodTrigger', 'outsourced-billboard accounting-period trigger'],
       ['paymentAllocationsActiveTrigger', 'payment-allocation active trigger'],
       ['invoicesAllocationStateTrigger', 'invoice allocation-state trigger'],
       ['auditPrepareTrigger', 'audit preparation trigger'],
@@ -467,7 +456,7 @@ export async function runMigrations(): Promise<MigrationRunResult> {
 
   // Databases where migration 20260802110000 never completed (incomplete Prisma
   // migration history) miss the DB-level finance guards: closed-period triggers
-  // on invoices/expenses/printing_jobs/outsourced_billboards, the payment
+  // on invoices/expenses/printing_jobs, the payment
   // allocation triggers, and the duplicate-reference queue. The migration file
   // is fully idempotent (functions replaced, triggers dropped first, queue
   // upserted), so replaying it at boot is safe. Skip when both markers already
@@ -688,7 +677,6 @@ async function registerRoutes() {
   const financeReconciliation = await import('./api/finance-reconciliation.js');
   const tasks        = await import('./api/tasks.js');
   const maintenance  = await import('./api/maintenance.js');
-  const outsourced   = await import('./api/outsourced.js');
   const printingJobs      = await import('./api/printing-jobs.js');
   const companyProf       = await import('./api/company-profile.js');
   const users             = await import('./api/users.js');
@@ -721,7 +709,6 @@ async function registerRoutes() {
   app.all('/api/finance-reconciliation', adapt(financeReconciliation, 'finance-reconciliation'));
   app.all('/api/tasks',                 adapt(tasks,               'tasks'));
   app.all('/api/maintenance',           adapt(maintenance,         'maintenance'));
-  app.all('/api/outsourced',            adapt(outsourced,          'outsourced'));
   app.all('/api/printing-jobs',         adapt(printingJobs,        'printing-jobs'));
   app.all('/api/company-profile',       adapt(companyProf,         'company-profile'));
   app.all('/api/upload-image',          adapt(uploadImage,         'upload-image'));
@@ -734,7 +721,7 @@ async function registerRoutes() {
   app.all('/api/ai',                    adapt(ai,                  'ai'));
   app.all('/api/today',                 adapt(today,                'today'));
   app.all('/api/field-reports',         adapt(fieldReports,         'field-reports'));
-  log.boot('  Core routes        ✓  (billboards, clients, contracts, contract-amendments, invoices, expenses, tasks, maintenance, outsourced, printing-jobs, company-profile, users, ai, today, field-reports)');
+  log.boot('  Core routes        ✓  (billboards, clients, contracts, contract-amendments, invoices, expenses, tasks, maintenance, printing-jobs, company-profile, users, ai, today, field-reports)');
 
   // CRM
   const crmCompanies     = await import('./api/crm/companies.js');

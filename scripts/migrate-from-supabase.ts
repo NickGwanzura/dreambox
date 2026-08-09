@@ -316,31 +316,6 @@ async function migrateMaintenanceLogs(): Promise<number> {
   return result.count;
 }
 
-async function migrateOutsourcedBillboards(): Promise<number> {
-  console.log('\n[outsourced_billboards]');
-  const rows = await fetchTable('outsourced_billboards');
-  console.log(`  fetched ${rows.length} rows`);
-  if (!rows.length) return 0;
-
-  const data = (rows as any[]).map((r) => ({
-    id: r.id,
-    billboardId: r.billboardId ?? r.billboard_id,
-    billboardName: r.billboardName ?? r.billboard_name ?? null,
-    mediaOwner: r.mediaOwner ?? r.media_owner ?? '',
-    ownerContact: r.ownerContact ?? r.owner_contact ?? '',
-    monthlyPayout: r.monthlyPayout ?? r.monthly_payout ?? 0,
-    contractStart: r.contractStart ?? r.contract_start ?? '',
-    contractEnd: r.contractEnd ?? r.contract_end ?? '',
-    status: normalizeStatus(r.status) as any,
-    createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
-    updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-  }));
-
-  const result = await prisma.outsourcedBillboard.createMany({ data, skipDuplicates: true });
-  console.log(`  inserted ${result.count}/${rows.length}`);
-  return result.count;
-}
-
 async function migratePrintingJobs(): Promise<number> {
   console.log('\n[printing_jobs]');
   const rows = await fetchTable('printing_jobs');
@@ -638,7 +613,6 @@ async function main() {
   totals.expenses = await migrateExpenses();
   totals.tasks = await migrateTasks();
   totals.maintenance_logs = await migrateMaintenanceLogs();
-  totals.outsourced_billboards = await migrateOutsourcedBillboards();
   totals.printing_jobs = await migratePrintingJobs();
   totals.company_profile = await migrateCompanyProfile();
 

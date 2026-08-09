@@ -11,6 +11,8 @@ const state = vi.hoisted(() => {
     contract: {
       findUnique: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
     },
+    client: { findUnique: vi.fn() },
+    billboard: { findUnique: vi.fn() },
     invoice: { findUnique: vi.fn(), update: vi.fn(), count: vi.fn(), deleteMany: vi.fn() },
     auditLog: { create: vi.fn() },
     quotationEvent: { create: vi.fn() },
@@ -19,7 +21,7 @@ const state = vi.hoisted(() => {
   prisma.$transaction = vi.fn(async (callback: (tx: any) => unknown) => callback(prisma));
   return {
     prisma,
-    auth: { requireAuth: vi.fn(), requireManagerOrAdmin: vi.fn(), requireDeletePermission: vi.fn(), cors: vi.fn() },
+    auth: { requireAuth: vi.fn(), requireManagerOrAdmin: vi.fn(), requireDeletePermission: vi.fn(), requireQuotationApprovePermission: vi.fn(), cors: vi.fn() },
   };
 });
 
@@ -71,7 +73,10 @@ describe('privileged settings and amendment writes', () => {
     vi.clearAllMocks();
     state.auth.requireAuth.mockResolvedValue(manager);
     state.auth.requireManagerOrAdmin.mockResolvedValue(manager);
+    state.auth.requireQuotationApprovePermission.mockResolvedValue(manager);
     state.prisma.$queryRaw.mockResolvedValue([]);
+    state.prisma.client.findUnique.mockResolvedValue({ id: 'client-1' });
+    state.prisma.billboard.findUnique.mockResolvedValue({ id: 'billboard-1' });
     state.prisma.contract.findFirst.mockResolvedValue(null);
   });
 

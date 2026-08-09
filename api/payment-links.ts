@@ -67,7 +67,9 @@ export default async function handler(req: any, res: any) {
     if (receipt.linkedInvoiceId) {
       return res.status(409).json({ error: 'This payment is already linked to an invoice.' });
     }
-    if (!invoice || !['Invoice', 'Proforma'].includes(invoice.type)) {
+    // A receipt settles an issued invoice.  Proformas are not receivables and
+    // linking one would make a non-posted document look paid.
+    if (!invoice || invoice.type !== 'Invoice') {
       return res.status(404).json({ error: 'Target invoice not found.' });
     }
     if ((invoice as any).isVoided) {
