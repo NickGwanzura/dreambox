@@ -35,6 +35,33 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+type MigrationReadiness = 'not_configured' | 'pending' | 'ready' | 'failed';
+type SchemaReadiness = 'not_configured' | 'pending' | 'ready' | 'blocked';
+
+interface MigrationRunResult {
+  bootIssues: string[];
+  migrationsReady: boolean;
+  schemaReady: boolean;
+}
+
+// Prisma Migrate is the authoritative schema contract. The idempotent guards
+// below are legacy compatibility measures and do not replace a successful
+// migration deployment.
+const startupReadiness: { migrations: MigrationReadiness; schema: SchemaReadiness } = {
+  migrations: process.env.DATABASE_URL ? 'pending' : 'not_configured',
+  schema: process.env.DATABASE_URL ? 'pending' : 'not_configured',
+};
+
+export function getDatabaseReadiness() {
+  return {
+    migrations: startupReadiness.migrations,
+    schema: startupReadiness.schema,
+    ready: startupReadiness.migrations === 'ready' && startupReadiness.schema === 'ready',
+  };
+}
+
+export { app };
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 // Security headers — CSP and COEP disabled to allow SPA import maps and CDN-loaded ES modules
@@ -149,12 +176,160 @@ async function tableExists(table: string): Promise<boolean> {
   }
 }
 
-async function runMigrations(): Promise<string[]> {
+async function verifyRequiredIntegrityReadiness(): Promise<{ ready: boolean; missing: string[] }> {
+  try {
+    const rows = await prisma.$queryRawUnsafe<Array<{
+      bookingFunction: boolean;
+      bookingTrigger: boolean;
+      financeGuardFunction: boolean;
+      financeQueue: boolean;
+      auditPrepareFunction: boolean;
+      invoicesPeriodTrigger: boolean;
+      expensesPeriodTrigger: boolean;
+      printingJobsPeriodTrigger: boolean;
+      outsourcedBillboardsPeriodTrigger: boolean;
+      paymentAllocationsActiveTrigger: boolean;
+      invoicesAllocationStateTrigger: boolean;
+      auditPrepareTrigger: boolean;
+      auditAppendOnlyTrigger: boolean;
+    }>>(`
+      WITH trigger_definitions AS (
+        SELECT
+          trigger.oid,
+          trigger.tgname,
+          trigger.tgrelid,
+          trigger.tgfoid,
+          trigger.tgenabled,
+          trigger.tgisinternal,
+          pg_get_triggerdef(trigger.oid, true) AS definition
+        FROM pg_trigger trigger
+      )
+      SELECT
+        to_regprocedure('dreambox_prevent_overlapping_contract_booking()') IS NOT NULL AS "bookingFunction",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'contracts_booking_integrity_guard'
+            AND trigger.tgrelid = to_regclass('contracts')
+            AND trigger.tgfoid = to_regprocedure('dreambox_prevent_overlapping_contract_booking()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND trigger.definition ~* 'BEFORE INSERT OR UPDATE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_prevent_overlapping_contract_booking[(][)]'
+        ) AS "bookingTrigger",
+        to_regprocedure('dreambox_guard_closed_financial_period()') IS NOT NULL AS "financeGuardFunction",
+        to_regclass('payment_reference_duplicate_queue') IS NOT NULL AS "financeQueue",
+        to_regprocedure('dreambox_prepare_audit_event()') IS NOT NULL AS "auditPrepareFunction",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'invoices_closed_accounting_period_guard'
+            AND trigger.tgrelid = to_regclass('invoices')
+            AND trigger.tgfoid = to_regprocedure('dreambox_guard_closed_financial_period()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND trigger.definition ~* 'BEFORE INSERT OR UPDATE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_guard_closed_financial_period[(][)]'
+        ) AS "invoicesPeriodTrigger",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'expenses_closed_accounting_period_guard'
+            AND trigger.tgrelid = to_regclass('expenses')
+            AND trigger.tgfoid = to_regprocedure('dreambox_guard_closed_financial_period()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND trigger.definition ~* 'BEFORE INSERT OR UPDATE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_guard_closed_financial_period[(][)]'
+        ) AS "expensesPeriodTrigger",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'printing_jobs_closed_accounting_period_guard'
+            AND trigger.tgrelid = to_regclass('printing_jobs')
+            AND trigger.tgfoid = to_regprocedure('dreambox_guard_closed_financial_period()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND trigger.definition ~* 'BEFORE INSERT OR UPDATE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_guard_closed_financial_period[(][)]'
+        ) AS "printingJobsPeriodTrigger",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'outsourced_billboards_closed_accounting_period_guard'
+            AND trigger.tgrelid = to_regclass('outsourced_billboards')
+            AND trigger.tgfoid = to_regprocedure('dreambox_guard_closed_outsourced_period()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND trigger.definition ~* 'BEFORE INSERT OR UPDATE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_guard_closed_outsourced_period[(][)]'
+        ) AS "outsourcedBillboardsPeriodTrigger",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'payment_allocations_active_guard'
+            AND trigger.tgrelid = to_regclass('payment_allocations')
+            AND trigger.tgfoid = to_regprocedure('dreambox_guard_active_payment_allocation()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND trigger.definition ~* 'BEFORE INSERT OR UPDATE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_guard_active_payment_allocation[(][)]'
+        ) AS "paymentAllocationsActiveTrigger",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'invoices_payment_allocation_state_guard'
+            AND trigger.tgrelid = to_regclass('invoices')
+            AND trigger.tgfoid = to_regprocedure('dreambox_guard_document_allocation_state()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND trigger.definition ~* 'BEFORE UPDATE OF "?type"?[[:space:]]*,[[:space:]]*"?isVoided"?[[:space:]]*,[[:space:]]*"?approvalStatus"?[[:space:]]*,[[:space:]]*"?total"? ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_guard_document_allocation_state[(][)]'
+        ) AS "invoicesAllocationStateTrigger",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'audit_logs_prepare_event'
+            AND trigger.tgrelid = to_regclass('audit_logs')
+            AND trigger.tgfoid = to_regprocedure('dreambox_prepare_audit_event()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND trigger.definition ~* 'BEFORE INSERT ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_prepare_audit_event[(][)]'
+        ) AS "auditPrepareTrigger",
+        EXISTS (
+          SELECT 1 FROM trigger_definitions trigger
+          WHERE trigger.tgname = 'audit_logs_append_only'
+            AND trigger.tgrelid = to_regclass('audit_logs')
+            AND trigger.tgfoid = to_regprocedure('dreambox_prevent_audit_mutation()')
+            AND NOT trigger.tgisinternal
+            AND trigger.tgenabled IN ('O', 'A')
+            AND (
+              trigger.definition ~* 'BEFORE UPDATE OR DELETE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_prevent_audit_mutation[(][)]'
+              OR trigger.definition ~* 'BEFORE DELETE OR UPDATE ON .* FOR EACH ROW EXECUTE FUNCTION .*dreambox_prevent_audit_mutation[(][)]'
+            )
+        ) AS "auditAppendOnlyTrigger"
+    `);
+    const readiness = rows?.[0];
+    const checks: Array<[keyof NonNullable<typeof readiness>, string]> = [
+      ['bookingFunction', 'booking function'],
+      ['bookingTrigger', 'booking trigger'],
+      ['financeGuardFunction', 'finance guard function'],
+      ['financeQueue', 'payment reference queue'],
+      ['auditPrepareFunction', 'audit preparation function'],
+      ['invoicesPeriodTrigger', 'invoice accounting-period trigger'],
+      ['expensesPeriodTrigger', 'expense accounting-period trigger'],
+      ['printingJobsPeriodTrigger', 'printing-job accounting-period trigger'],
+      ['outsourcedBillboardsPeriodTrigger', 'outsourced-billboard accounting-period trigger'],
+      ['paymentAllocationsActiveTrigger', 'payment-allocation active trigger'],
+      ['invoicesAllocationStateTrigger', 'invoice allocation-state trigger'],
+      ['auditPrepareTrigger', 'audit preparation trigger'],
+      ['auditAppendOnlyTrigger', 'audit append-only trigger'],
+    ];
+    const missing = checks
+      .filter(([key]) => !readiness?.[key])
+      .map(([, label]) => label);
+    return { ready: missing.length === 0, missing };
+  } catch (e: any) {
+    log.error('Required schema integrity readiness check failed', { error: e?.message?.slice(0, 200) });
+    return { ready: false, missing: ['integrity readiness verification'] };
+  }
+}
+
+export async function runMigrations(): Promise<MigrationRunResult> {
   const bootIssues: string[] = [];
   if (!process.env.DATABASE_URL) {
+    startupReadiness.migrations = 'not_configured';
+    startupReadiness.schema = 'not_configured';
     log.boot('  Migrations         —  skipped (DATABASE_URL not set)');
-    return bootIssues;
+    return { bootIssues, migrationsReady: false, schemaReady: false };
   }
+  startupReadiness.migrations = 'pending';
+  startupReadiness.schema = 'pending';
   try {
     log.boot('  Migrations         →  running prisma migrate deploy...');
     execSync('npx prisma migrate deploy', {
@@ -163,10 +338,15 @@ async function runMigrations(): Promise<string[]> {
     });
     log.boot('  Migrations         ✓  all pending migrations applied');
   } catch (e: any) {
-    // Non-fatal: log and continue; the DB may already be up-to-date
     const msg = e?.stderr?.toString?.() || e?.stdout?.toString?.() || e?.message || String(e);
-    log.boot(`  Migrations         ⚠  ${msg.slice(0, 200)}`);
+    startupReadiness.migrations = 'failed';
+    startupReadiness.schema = 'blocked';
+    log.error('Prisma migrations failed; refusing to start with an unknown schema state', {
+      error: msg.slice(0, 200),
+    });
+    throw new Error(`Prisma migrations failed; refusing to start: ${msg.slice(0, 200)}`);
   }
+  startupReadiness.migrations = 'ready';
 
   // Authentication depends on this column. Keep an idempotent safeguard here
   // because some older production databases have incomplete Prisma migration
@@ -382,29 +562,75 @@ async function runMigrations(): Promise<string[]> {
     // Ignore — the type may not exist yet or this is a replica
   }
 
-  return bootIssues;
+  // Guard failures remain warnings until they leave a required integrity marker
+  // absent. This catches migrations that intentionally skip a trigger on an
+  // incomplete legacy table and prevents serving unsafe writes in that state.
+  const integrityReadiness = await verifyRequiredIntegrityReadiness();
+  if (!integrityReadiness.ready) {
+    startupReadiness.schema = 'blocked';
+    bootIssues.push(`Required schema integrity missing: ${integrityReadiness.missing.join(', ')}`);
+    log.error('Required schema integrity is incomplete; routes will not be registered', {
+      missing: integrityReadiness.missing,
+    });
+    return { bootIssues, migrationsReady: true, schemaReady: false };
+  }
+
+  startupReadiness.schema = 'ready';
+  return { bootIssues, migrationsReady: true, schemaReady: true };
 }
 
-// Health check — tests both process liveness and DB connectivity
-app.get('/health', async (_req, res) => {
+// Health check — tests process liveness, DB connectivity, and canonical schema readiness.
+export async function getHealthResponse(): Promise<{ status: number; body: Record<string, unknown> }> {
   const ts = Date.now();
   const maintenance = isMaintenanceActive();
   const maintenanceUntil = maintenance ? maintenanceUntilMs() : null;
   const maintenanceUntilIso = maintenanceUntil ? new Date(maintenanceUntil).toISOString() : null;
   const healthBody = { ts, maintenance, ...(maintenanceUntilIso ? { maintenanceUntil: maintenanceUntilIso } : {}) };
   if (!process.env.DATABASE_URL) {
-    return res.status(503).json({ status: 'degraded', db: 'not_configured', ...healthBody });
+    return { status: 503, body: { status: 'degraded', db: 'not_configured', ...healthBody } };
   }
+  const readiness = getDatabaseReadiness();
   try {
     await Promise.race([
       prisma.$queryRaw`SELECT 1`,
       new Promise((_, reject) => setTimeout(() => reject(new Error('DB health timeout')), 5000)),
     ]);
-    return res.json({ status: 'ok', db: 'connected', ...healthBody });
+    if (!readiness.ready) {
+      log.error(`[health] Database reachable but migration readiness is ${readiness.migrations}/${readiness.schema}`);
+      return {
+        status: 503,
+        body: {
+          status: 'degraded',
+          db: 'connected',
+          migrations: readiness.migrations,
+          schema: readiness.schema,
+          ...healthBody,
+        },
+      };
+    }
+    return {
+      status: 200,
+      body: { status: 'ok', db: 'connected', migrations: readiness.migrations, schema: readiness.schema, ...healthBody },
+    };
   } catch (e: any) {
     log.error(`[health] DB check failed: ${e?.message}`);
-    return res.status(503).json({ status: 'degraded', db: 'unreachable', error: e?.message?.slice(0, 100), ...healthBody });
+    return {
+      status: 503,
+      body: {
+        status: 'degraded',
+        db: 'unreachable',
+        migrations: readiness.migrations,
+        schema: readiness.schema,
+        error: e?.message?.slice(0, 100),
+        ...healthBody,
+      },
+    };
   }
+}
+
+app.get('/health', async (_req, res) => {
+  const health = await getHealthResponse();
+  return res.status(health.status).json(health.body);
 });
 
 // ─── Dynamic API route registration ──────────────────────────────────────────
@@ -729,28 +955,31 @@ function startCronScheduler() {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
-registerShutdownHandlers();
+export async function startServer(): Promise<void> {
+  const migrationResult = await runMigrations();
+  if (!migrationResult.schemaReady) {
+    throw new Error('Required schema integrity checks failed; refusing to register routes');
+  }
+  if (migrationResult.bootIssues.length > 0) {
+    notifyAdminOpsAlert('Boot schema self-heal issues', [
+      { title: `${migrationResult.bootIssues.length} guard(s) failed to apply`, lines: migrationResult.bootIssues.slice(0, 20) },
+    ]);
+    log.warn(`[boot] ${migrationResult.bootIssues.length} schema guard issue(s) — admin notified`);
+  }
+  await registerRoutes();
+  serveStatic();
+  // Global error handler must come after routes
+  app.use(errorHandler);
+  app.listen(PORT, () => {
+    logStartupInfo(PORT);
+    startCronScheduler();
+  });
+}
 
-runMigrations()
-  .then((bootIssues: string[]) => {
-    if (bootIssues.length > 0) {
-      notifyAdminOpsAlert('Boot schema self-heal issues', [
-        { title: `${bootIssues.length} guard(s) failed to apply`, lines: bootIssues.slice(0, 20) },
-      ]);
-      log.warn(`[boot] ${bootIssues.length} schema guard issue(s) — admin notified`);
-    }
-    return registerRoutes();
-  })
-  .then(() => {
-    serveStatic();
-    // Global error handler must come after routes
-    app.use(errorHandler);
-    app.listen(PORT, () => {
-      logStartupInfo(PORT);
-      startCronScheduler();
-    });
-  })
-  .catch((e) => {
+if (process.env.NODE_ENV !== 'test') {
+  registerShutdownHandlers();
+  startServer().catch((e) => {
     log.error('Failed to start server', { message: e?.message, stack: e?.stack });
     process.exit(1);
   });
+}

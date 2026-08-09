@@ -274,7 +274,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
       const skip = Math.max(0, Number(req.query.skip) || 0);
       const includeVoided = String(req.query.includeVoided || '').toLowerCase() === 'true' && ['Admin', 'Manager'].includes(payload.role);
-      const rows = await prisma.invoice.findMany({ where: includeVoided ? undefined : { isVoided: false }, orderBy: { createdAt: 'asc' }, take: limit, skip });
+      // Use a unique secondary key so cursor-like skip/take pages cannot
+      // reshuffle records that share the same createdAt timestamp.
+      const rows = await prisma.invoice.findMany({
+        where: includeVoided ? undefined : { isVoided: false },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: limit,
+        skip,
+      });
       return res.status(200).json(rows.map(withoutProofUrl));
     } catch (e: any) { handlePrismaError(e, res, 'GET'); return; }
   }

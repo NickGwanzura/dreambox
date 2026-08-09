@@ -8,9 +8,13 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Optional cron secret protection
+  // Cron work must never be exposed when its credential is absent.
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers['x-cron-secret'] || req.headers.authorization;
+  if (!cronSecret) {
+    log.error('[cron/backup] CRON_SECRET env var is not set — refusing request');
+    return res.status(503).json({ error: 'Cron endpoint not configured' });
+  }
   if (cronSecret && authHeader !== `Bearer ${cronSecret}` && authHeader !== cronSecret) {
     return res.status(401).json({ error: 'Unauthorized' });
   }

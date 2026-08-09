@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
-import { shouldShowLoadingFallback } from '../components/Layout';
+import { getSyncStateLabel, shouldShowLoadingFallback } from '../components/Layout';
 
 // ============================================================
 // Layout.tsx — loading guard
@@ -74,5 +74,14 @@ describe('shouldShowLoadingFallback', () => {
     // JSON.parse failure is handled separately in the user state initializer.
     localStorage.setItem(STORAGE_KEY, '{broken json');
     expect(shouldShowLoadingFallback()).toBe(false);
+  });
+});
+
+describe('getSyncStateLabel', () => {
+  it('never presents an unattempted or failed cloud sync as synced', () => {
+    expect(getSyncStateLabel(true, 'never')).toBe('Not synced');
+    expect(getSyncStateLabel(true, 'failed')).toBe('Sync failed');
+    expect(getSyncStateLabel(true, 'success')).toBe('Synced');
+    expect(getSyncStateLabel(false, 'success')).toBe('Local');
   });
 });

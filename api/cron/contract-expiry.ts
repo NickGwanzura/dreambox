@@ -15,7 +15,6 @@ import { cors } from '../../lib/auth';
 import { notifyAdminOpsAlert } from '../../lib/notifyAdmin';
 import { log } from '../../lib/serverLogger.js';
 
-const CRON_SECRET = process.env.CRON_SECRET || '';
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
@@ -34,9 +33,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const secret = req.headers['x-cron-secret'] as string;
-  if (!CRON_SECRET) return res.status(503).json({ error: 'Cron endpoint not configured' });
-  if (secret !== CRON_SECRET) return res.status(401).json({ error: 'Invalid secret' });
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers['x-cron-secret'] || req.headers.authorization;
+  if (!cronSecret) return res.status(503).json({ error: 'Cron endpoint not configured' });
+  if (authHeader !== `Bearer ${cronSecret}` && authHeader !== cronSecret) {
+    return res.status(401).json({ error: 'Invalid secret' });
+  }
 
   try {
     const milestoneDates = MILESTONES_DAYS.map(isoDate);

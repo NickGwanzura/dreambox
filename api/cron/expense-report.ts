@@ -14,7 +14,6 @@ import { cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const CRON_SECRET = process.env.CRON_SECRET || '';
 const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 const BRIAN_EMAILS = ['chiduroobc@gmail.com', 'chiduurobc@gmail.com'];
 
@@ -24,12 +23,13 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Authenticate: always require a matching CRON_SECRET header — no localhost bypass
-  const secret = req.headers['x-cron-secret'] as string;
-  if (!CRON_SECRET) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers['x-cron-secret'] || req.headers.authorization;
+  if (!cronSecret) {
     log.error('[cron/expense-report] CRON_SECRET env var is not set — refusing request');
     return res.status(503).json({ error: 'Cron endpoint not configured' });
   }
-  if (secret !== CRON_SECRET) {
+  if (authHeader !== `Bearer ${cronSecret}` && authHeader !== cronSecret) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

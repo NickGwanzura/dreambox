@@ -108,12 +108,17 @@ export async function requireAuth(
     res.status(401).json({ error: 'Invalid or expired token' });
     return null;
   }
-  const fresh = await getFreshUserState(payload.userId).catch(e => {
-    // DB unavailable — fall back to the token's own claims rather than
-    // locking everyone out.
-    log.warn(`Auth DB check failed, using token claims: ${e?.message}`);
-    return { role: payload.role, status: payload.status, sessionVersion: payload.sessionVersion };
-  });
+  let fresh: Awaited<ReturnType<typeof getFreshUserState>>;
+  try {
+    fresh = await getFreshUserState(payload.userId);
+  } catch (e: any) {
+    // Role, account status, and session version are security-critical state.
+    // Never authorize privileged work from stale JWT claims when that lookup
+    // cannot be completed.
+    log.warn(`Auth DB check failed; rejecting request: ${e?.message}`);
+    res.status(503).json({ error: 'Authentication service unavailable' });
+    return null;
+  }
   if (!fresh) {
     log.warn(`Auth rejected — user no longer exists  user=${payload.email}`);
     res.status(401).json({ error: 'Account not found' });

@@ -199,10 +199,11 @@ export async function createBackup(createdBy = 'system'): Promise<BackupResult> 
     })
   );
 
-  const requiredFinanceTables = new Set(['invoices', 'payment_allocations', 'expenses', 'accounting_periods', 'payment_reviews', 'audit_logs']);
-  const requiredFailures = exportErrors.filter(error => [...requiredFinanceTables].some(table => error.startsWith(`${table}:`)));
-  if (requiredFailures.length > 0) {
-    throw new Error(`Backup aborted; required finance tables could not be exported: ${requiredFailures.join('; ')}`);
+  // A backup with an empty table caused by an export error is not a usable
+  // backup. Abort before upload rather than presenting a partial snapshot as
+  // successful; callers retain the existing exception-based failure contract.
+  if (exportErrors.length > 0) {
+    throw new Error(`Backup aborted; tables could not be exported: ${exportErrors.join('; ')}`);
   }
 
   const manifest: BackupManifest = {
@@ -294,9 +295,6 @@ export async function restoreBackupFromData(data: BackupRecord): Promise<{ resto
 }
 
 async function restoreFromData(data: BackupRecord): Promise<{ restored: number; errors: string[] }> {
-  const errors: string[] = [];
-  let restored = 0;
-
   // Order matters for referential integrity: dependencies before dependants.
   const order = [
     'billboards',
@@ -327,37 +325,67 @@ async function restoreFromData(data: BackupRecord): Promise<{ restored: number; 
     'auditLogs',
   ];
 
-  for (const key of order) {
-    const def = BACKUP_TABLES.find(t => t.key === key);
-    if (!def) continue;
+  const restorePlan = order.flatMap(key => {
+    const def = BACKUP_TABLES.find(table => table.key === key);
     const records = Array.isArray(data[key]) ? data[key] : [];
-    if (records.length === 0) continue;
+    return def && records.length > 0 ? [{ key, def, records }] : [];
+  });
+  let restored = 0;
+  let auditTriggerDisabled = false;
 
-    try {
-      const ids = records.map((r: any) => r.id).filter(Boolean);
-      // @ts-ignore
-      if (ids.length > 0 && key !== 'auditLogs') await prisma[def.model].deleteMany({ where: { id: { in: ids } } });
-      // The audit hash-chain trigger recomputes eventHash/previousHash on every
-      // insert. During a restore the archived hashes must be preserved verbatim,
-      // so disable the trigger for this batch and re-enable it afterwards.
-      if (key === 'auditLogs') {
-        try {
-          await prisma.$executeRawUnsafe(`ALTER TABLE "audit_logs" DISABLE TRIGGER "audit_logs_prepare_event"`);
-        } catch (e: any) {
-          console.warn('[backup] Could not disable audit chain trigger — restored hashes will re-chain:', e.message);
-        }
+  try {
+    // A backup restore changes interdependent records, so every delete and
+    // insert belongs to one database transaction. A failed table therefore
+    // rolls back the entire supported restore instead of leaving a mixture of
+    // old and restored rows.
+    await prisma.$transaction(async tx => {
+      const auditLogBatch = restorePlan.find(({ key }) => key === 'auditLogs');
+      if (auditLogBatch) {
+        // The audit hash-chain trigger recomputes eventHash/previousHash on
+        // every insert. Preserve the archived chain during this transaction.
+        await tx.$executeRawUnsafe(`ALTER TABLE "audit_logs" DISABLE TRIGGER "audit_logs_prepare_event"`);
+        auditTriggerDisabled = true;
       }
-      // @ts-ignore
-      await prisma[def.model].createMany({ data: records, skipDuplicates: true });
-      if (key === 'auditLogs') {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "audit_logs" ENABLE TRIGGER "audit_logs_prepare_event"`).catch(() => undefined);
+
+      // Delete in reverse dependency order before inserting in dependency order.
+      // In particular, payment_allocations references invoices with ON DELETE
+      // RESTRICT, so allocations must be cleared before their receipt/invoice
+      // rows. Quotation events and other dependent records follow the same
+      // pattern. Audit events remain append-only and are never deleted.
+      for (const { key, def, records } of [...restorePlan].reverse()) {
+        const ids = records.map((record: any) => record.id).filter(Boolean);
+        // Audit events are append-only; existing events are retained and
+        // createMany(skipDuplicates) imports only records not already present.
+        // @ts-ignore -- dynamic Prisma model access
+        if (ids.length > 0 && key !== 'auditLogs') await tx[def.model].deleteMany({ where: { id: { in: ids } } });
       }
-      restored += records.length;
-    } catch (e: any) {
-      console.error(`[backup] Restore failed for ${key}:`, e.message);
-      errors.push(`${key}: ${e.message}`);
+
+      // Restore dependencies before dependants. createMany().count is the
+      // authoritative record of actual inserts after skipDuplicates.
+      for (const { def, records } of restorePlan) {
+        // @ts-ignore -- dynamic Prisma model access
+        const result = await tx[def.model].createMany({ data: records, skipDuplicates: true });
+        restored += result.count;
+      }
+
+      if (auditTriggerDisabled) {
+        await tx.$executeRawUnsafe(`ALTER TABLE "audit_logs" ENABLE TRIGGER "audit_logs_prepare_event"`);
+        auditTriggerDisabled = false;
+      }
+    });
+
+    return { restored, errors: [] };
+  } catch (e: any) {
+    console.error('[backup] Restore transaction failed:', e.message);
+    return { restored: 0, errors: [`restore: ${e.message}`] };
+  } finally {
+    // Do this even when an insert or the in-transaction re-enable fails. A
+    // transaction rollback normally restores the trigger state, but the
+    // explicit cleanup protects against failures after the trigger command.
+    if (auditTriggerDisabled) {
+      // Do not suppress this failure: reporting a completed restore while the
+      // audit trigger might still be disabled would be unsafe.
+      await prisma.$executeRawUnsafe(`ALTER TABLE "audit_logs" ENABLE TRIGGER "audit_logs_prepare_event"`);
     }
   }
-
-  return { restored, errors };
 }

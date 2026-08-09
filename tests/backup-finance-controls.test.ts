@@ -51,4 +51,14 @@ describe('application backup finance controls', () => {
     expect(state.model('paymentReview').findMany).toHaveBeenCalledOnce();
     expect(state.model('auditLog').findMany).toHaveBeenCalledOnce();
   });
+
+  it('aborts before upload when any intended table cannot be exported', async () => {
+    state.model('client').findMany.mockRejectedValue(new Error('client table unavailable'));
+    const { createBackup } = await import('../lib/backup');
+
+    await expect(createBackup('manager@example.com')).rejects.toThrow(
+      'Backup aborted; tables could not be exported: clients: client table unavailable',
+    );
+    expect(state.uploadFile).not.toHaveBeenCalled();
+  });
 });

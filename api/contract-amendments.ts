@@ -1,7 +1,7 @@
 import type { HttpRequest, HttpResponse } from '../lib/http';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, cors } from '../lib/auth';
+import { requireAuth, requireManagerOrAdmin, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 
 const amendmentSchema = z.object({
@@ -24,10 +24,22 @@ const amendmentSchema = z.object({
   invoiceImpactNote: z.string().optional(),
 });
 
+function amendmentAuditSnapshot(amendment: any) {
+  return {
+    ...amendment,
+    createdAt: amendment.createdAt?.toISOString?.() ?? amendment.createdAt,
+    appliedAt: amendment.appliedAt?.toISOString?.() ?? amendment.appliedAt,
+  };
+}
+
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  const payload = await requireAuth(req, res);
+  // Amendments change contract financial history. Reads remain available to
+  // authenticated users, but every mutation requires a manager or admin.
+  const payload = req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE'
+    ? await requireManagerOrAdmin(req, res)
+    : await requireAuth(req, res);
   if (!payload) return;
 
   try {
@@ -46,8 +58,22 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!parsed.success) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
-      const data = req.body ?? {};
-      const row = await prisma.contractAmendment.create({ data });
+      const data = parsed.data;
+      const row = await prisma.$transaction(async tx => {
+        const created = await tx.contractAmendment.create({ data });
+        await tx.auditLog.create({
+          data: {
+            action: 'Contract Amendment Created',
+            details: `Created ${created.type} amendment for contract ${created.contractId}`,
+            userId: payload.userId,
+            userEmail: payload.email,
+            tableName: 'contract_amendments',
+            recordId: created.id,
+            afterData: amendmentAuditSnapshot(created),
+          },
+        });
+        return created;
+      });
       return res.status(201).json(row);
     }
 
@@ -55,16 +81,45 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
       const { id: _id, ...data } = req.body ?? {};
-      const existing = await prisma.contractAmendment.findUnique({ where: { id: id as string } });
-      if (!existing) return res.status(404).json({ error: 'Not found' });
-      const row = await prisma.contractAmendment.update({ where: { id: id as string }, data });
+      const row = await prisma.$transaction(async tx => {
+        const existing = await tx.contractAmendment.findUnique({ where: { id: id as string } });
+        if (!existing) return null;
+        const updated = await tx.contractAmendment.update({ where: { id: id as string }, data });
+        await tx.auditLog.create({
+          data: {
+            action: 'Contract Amendment Updated',
+            details: `Updated amendment ${updated.id} for contract ${updated.contractId}`,
+            userId: payload.userId,
+            userEmail: payload.email,
+            tableName: 'contract_amendments',
+            recordId: updated.id,
+            beforeData: amendmentAuditSnapshot(existing),
+            afterData: amendmentAuditSnapshot(updated),
+          },
+        });
+        return updated;
+      });
+      if (!row) return res.status(404).json({ error: 'Not found' });
       return res.status(200).json(row);
     }
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
-      await prisma.contractAmendment.delete({ where: { id: id as string } });
+      await prisma.$transaction(async tx => {
+        const deleted = await tx.contractAmendment.delete({ where: { id: id as string } });
+        await tx.auditLog.create({
+          data: {
+            action: 'Contract Amendment Deleted',
+            details: `Deleted ${deleted.type} amendment ${deleted.id} for contract ${deleted.contractId}`,
+            userId: payload.userId,
+            userEmail: payload.email,
+            tableName: 'contract_amendments',
+            recordId: deleted.id,
+            beforeData: amendmentAuditSnapshot(deleted),
+          },
+        });
+      });
       return res.status(200).json({ success: true });
     }
 

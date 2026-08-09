@@ -11,102 +11,171 @@ import { logger } from '../utils/logger';
 import { useState, useEffect } from 'react';
 
 let isSyncing = false;
-let lastSyncTime = Date.now();
+let lastSyncTime = 0;
+export type SyncAttemptOutcome = 'never' | 'running' | 'success' | 'failed';
+let lastSyncOutcome: SyncAttemptOutcome = 'never';
 let syncIntervalId: ReturnType<typeof setInterval> | null = null;
 let syncListeners: Array<() => void> = [];
+const SYNC_PAGE_SIZE = 500;
 
 function notifyListeners() {
   syncListeners.forEach(fn => fn());
 }
 
 export const getLastSyncTime = () => lastSyncTime;
+export const getLastSyncOutcome = () => lastSyncOutcome;
 export const getPendingSyncCount = () => 0;
 export const isCurrentlySyncing = () => isSyncing;
 
 export const syncRecordToDatabase = async (): Promise<{ success: boolean; error?: string }> => {
-  return { success: true };
+  return { success: false, error: 'Record push is not supported by this sync manager' };
 };
 
 export const pushAllToDatabase = async (): Promise<{
   success: boolean;
   results: Record<string, { synced: number; failed: number; errors: string[] }>;
 }> => {
-  return { success: true, results: {} };
+  return {
+    success: false,
+    results: {
+      unsupported: {
+        synced: 0,
+        failed: 0,
+        errors: ['Push is not supported by this sync manager'],
+      },
+    },
+  };
 };
+
+async function fetchAllRemoteRecords(
+  table: string,
+  endpoint: string,
+  headers: Record<string, string>,
+): Promise<any[]> {
+  const remoteRecords: any[] = [];
+  let skip = 0;
+
+  while (true) {
+    const pageUrl = `${endpoint}?limit=${SYNC_PAGE_SIZE}&skip=${skip}`;
+    const res = await fetch(pageUrl, { headers });
+    if (!res.ok) throw new Error(`Remote ${table} pull failed (HTTP ${res.status})`);
+
+    const page: unknown = await res.json();
+    if (!Array.isArray(page)) throw new Error(`Remote ${table} pull returned an invalid response`);
+
+    remoteRecords.push(...page);
+    if (page.length < SYNC_PAGE_SIZE) return remoteRecords;
+    skip += page.length;
+  }
+}
 
 export const pullAllFromDatabase = async (): Promise<{
   success: boolean;
   results: Record<string, { count: number; error?: string }>;
 }> => {
-  if (!isConfigured()) return { success: false, results: {} };
+  const managesSyncState = !isSyncing;
+  if (managesSyncState) {
+    isSyncing = true;
+    lastSyncOutcome = 'running';
+    notifyListeners();
+  }
 
-  // Read deleted queue — entries are {table, id, timestamp} objects
-  let deletedQueue: { table: string; id: string; timestamp: number }[] = [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_QUEUE);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        deletedQueue = parsed.filter(
-          e => typeof e === 'object' && e !== null && typeof e.id === 'string' && typeof e.table === 'string'
+    if (!isConfigured()) {
+      lastSyncOutcome = 'failed';
+      return { success: false, results: {} };
+    }
+
+    // Read deleted queue — entries are {table, id, timestamp} objects
+    let deletedQueue: { table: string; id: string; timestamp: number }[] = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_QUEUE);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          deletedQueue = parsed.filter(
+            e => typeof e === 'object' && e !== null && typeof e.id === 'string' && typeof e.table === 'string'
+          );
+        }
+      }
+    } catch {
+      deletedQueue = [];
+    }
+
+    const TABLE_MAP = [
+      { table: 'invoices',   endpoint: '/api/invoices',   storageKey: STORAGE_KEYS.INVOICES },
+      { table: 'billboards', endpoint: '/api/billboards', storageKey: STORAGE_KEYS.BILLBOARDS },
+      { table: 'contracts',  endpoint: '/api/contracts',  storageKey: STORAGE_KEYS.CONTRACTS },
+      { table: 'clients',    endpoint: '/api/clients',    storageKey: STORAGE_KEYS.CLIENTS },
+    ] as const;
+
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    const results: Record<string, { count: number; error?: string }> = {};
+
+    for (const { table, endpoint, storageKey } of TABLE_MAP) {
+      try {
+        // Do not update localStorage until every page has completed. A later
+        // page failure must leave this table's prior cache intact rather than
+        // presenting a truncated remote dataset as a completed sync.
+        const remoteRecords = await fetchAllRemoteRecords(table, endpoint, headers);
+
+        // IDs deleted locally that we don't want re-imported
+        const deletedIds = new Set(
+          deletedQueue.filter(e => e.table === table).map(e => e.id)
         );
+
+        const filtered = remoteRecords.filter(r => !deletedIds.has(r.id));
+
+        // Preserve local-only records (created offline, not yet in remote)
+        const localRaw = localStorage.getItem(storageKey);
+        const localRecords: any[] = localRaw ? JSON.parse(localRaw) : [];
+        const remoteIds = new Set(remoteRecords.map(r => r.id));
+        const localOnly = localRecords.filter(r => !remoteIds.has(r.id) && !deletedIds.has(r.id));
+
+        const merged = [...filtered, ...localOnly];
+        localStorage.setItem(storageKey, JSON.stringify(merged));
+        results[table] = { count: merged.length };
+      } catch (e: any) {
+        results[table] = { count: 0, error: e?.message };
       }
     }
-  } catch {
-    deletedQueue = [];
-  }
 
-  const TABLE_MAP = [
-    { table: 'invoices',   endpoint: '/api/invoices',   storageKey: STORAGE_KEYS.INVOICES },
-    { table: 'billboards', endpoint: '/api/billboards', storageKey: STORAGE_KEYS.BILLBOARDS },
-    { table: 'contracts',  endpoint: '/api/contracts',  storageKey: STORAGE_KEYS.CONTRACTS },
-    { table: 'clients',    endpoint: '/api/clients',    storageKey: STORAGE_KEYS.CLIENTS },
-  ] as const;
-
-  const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-  const results: Record<string, { count: number; error?: string }> = {};
-
-  for (const { table, endpoint, storageKey } of TABLE_MAP) {
-    try {
-      const res = await fetch(endpoint, { headers });
-      const remoteRecords: any[] = await res.json();
-
-      // IDs deleted locally that we don't want re-imported
-      const deletedIds = new Set(
-        deletedQueue.filter(e => e.table === table).map(e => e.id)
-      );
-
-      const filtered = remoteRecords.filter(r => !deletedIds.has(r.id));
-
-      // Preserve local-only records (created offline, not yet in remote)
-      const localRaw = localStorage.getItem(storageKey);
-      const localRecords: any[] = localRaw ? JSON.parse(localRaw) : [];
-      const remoteIds = new Set(remoteRecords.map(r => r.id));
-      const localOnly = localRecords.filter(r => !remoteIds.has(r.id) && !deletedIds.has(r.id));
-
-      const merged = [...filtered, ...localOnly];
-      localStorage.setItem(storageKey, JSON.stringify(merged));
-      results[table] = { count: merged.length };
-    } catch (e: any) {
-      results[table] = { count: 0, error: e?.message };
+    const success = Object.values(results).every(result => !result.error);
+    if (success) lastSyncTime = Date.now();
+    lastSyncOutcome = success ? 'success' : 'failed';
+    return { success, results };
+  } catch (e) {
+    lastSyncOutcome = 'failed';
+    throw e;
+  } finally {
+    if (managesSyncState) {
+      isSyncing = false;
+      notifyListeners();
     }
   }
-
-  lastSyncTime = Date.now();
-  return { success: true, results };
 };
 
 export const queueForSync = (_table: string, _data: any) => {};
 
-const performSyncCycle = async () => {
-  if (!isConfigured() || isSyncing) return;
+const performSyncCycle = async (): Promise<boolean> => {
+  if (!isConfigured()) {
+    lastSyncOutcome = 'failed';
+    notifyListeners();
+    return false;
+  }
+  if (isSyncing) return false;
   isSyncing = true;
+  lastSyncOutcome = 'running';
   notifyListeners();
   try {
-    lastSyncTime = Date.now();
+    const result = await pullAllFromDatabase();
+    if (!result.success) logger.error('Sync cycle failed:', result.results);
+    return result.success;
   } catch (e) {
     logger.error('Sync cycle error:', e);
+    lastSyncOutcome = 'failed';
+    return false;
   } finally {
     isSyncing = false;
     notifyListeners();
@@ -134,18 +203,13 @@ export const stopAutoSync = () => {
 };
 
 export const forceSyncNow = async (): Promise<boolean> => {
-  if (!isConfigured()) return true;
-  try {
-    await pullAllFromDatabase();
-  } catch (e) {
-    logger.error('Force sync failed:', e);
-  }
-  return true;
+  return performSyncCycle();
 };
 
 export const getSyncStatus = () => ({
   isSyncing,
   lastSyncTime,
+  lastSyncOutcome,
   pendingCount: 0,
   isAutoSyncRunning: syncIntervalId !== null,
   nextSyncIn: syncIntervalId ? 30_000 : null,

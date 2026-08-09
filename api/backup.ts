@@ -68,10 +68,33 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     if (req.method === 'POST') {
       // Direct restore from uploaded JSON file content
       if (req.query.action === 'restore') {
-        const result = await restoreBackupFromData(req.body);
+        let result: Awaited<ReturnType<typeof restoreBackupFromData>>;
+        try {
+          result = await restoreBackupFromData(req.body);
+        } catch (e: any) {
+          const error = e?.message || 'Restore execution failed';
+          await recordBackupAudit(
+            payload,
+            req,
+            'BACKUP_RESTORE_FAILED_FROM_UPLOAD',
+            `Uploaded application backup restore failed: ${error}`,
+          );
+          log.warn('[backup] Uploaded backup restore rejected', { restoredBy: payload.email, error });
+          return res.status(409).json({ success: false, restored: 0, errors: [error] });
+        }
+        if (result.errors.length > 0) {
+          await recordBackupAudit(
+            payload,
+            req,
+            'BACKUP_RESTORE_FAILED_FROM_UPLOAD',
+            `Uploaded application backup restore failed: ${result.errors.join('; ')}`,
+          );
+          log.warn('[backup] Uploaded backup restore failed', { restoredBy: payload.email, errors: result.errors.length });
+          return res.status(409).json({ success: false, restored: result.restored, errors: result.errors });
+        }
         await recordBackupAudit(payload, req, 'BACKUP_RESTORED_FROM_UPLOAD', 'Uploaded application backup restored');
-        log.info('[backup] Restored uploaded backup', { restoredBy: payload.email, restored: result.restored, errors: result.errors.length });
-        return res.status(200).json({ success: result.errors.length === 0, restored: result.restored, errors: result.errors });
+        log.info('[backup] Restored uploaded backup', { restoredBy: payload.email, restored: result.restored });
+        return res.status(200).json({ success: true, restored: result.restored, errors: [] });
       }
 
       const result = await createBackup(payload.email);
@@ -103,10 +126,23 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     if (req.method === 'PUT') {
       const { id } = req.query;
       if (!id || typeof id !== 'string') return res.status(400).json({ error: 'Backup id required' });
-      const result = await restoreBackup(id);
+      let result: Awaited<ReturnType<typeof restoreBackup>>;
+      try {
+        result = await restoreBackup(id);
+      } catch (e: any) {
+        const error = e?.message || 'Restore execution failed';
+        await recordBackupAudit(payload, req, 'BACKUP_RESTORE_FAILED', `Application backup restore failed: ${error}`, id);
+        log.warn('[backup] Backup restore rejected', { id, restoredBy: payload.email, error });
+        return res.status(409).json({ success: false, restored: 0, errors: [error] });
+      }
+      if (result.errors.length > 0) {
+        await recordBackupAudit(payload, req, 'BACKUP_RESTORE_FAILED', `Application backup restore failed: ${result.errors.join('; ')}`, id);
+        log.warn('[backup] Backup restore failed', { id, restoredBy: payload.email, errors: result.errors.length });
+        return res.status(409).json({ success: false, restored: result.restored, errors: result.errors });
+      }
       await recordBackupAudit(payload, req, 'BACKUP_RESTORED', `Application backup restored: ${id}`, id);
-      log.info('[backup] Restored backup', { id, restoredBy: payload.email, restored: result.restored, errors: result.errors.length });
-      return res.status(200).json({ success: result.errors.length === 0, restored: result.restored, errors: result.errors });
+      log.info('[backup] Restored backup', { id, restoredBy: payload.email, restored: result.restored });
+      return res.status(200).json({ success: true, restored: result.restored, errors: [] });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

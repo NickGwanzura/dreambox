@@ -21,7 +21,7 @@ import {
   onSyncError
 } from '../services/mockData';
 import { logger } from '../utils/logger';
-import { startAutoSync, useSync, forceSyncNow } from '../services/databaseSyncManager';
+import { startAutoSync, useSync, forceSyncNow, type SyncAttemptOutcome } from '../services/databaseSyncManager';
 import {
   ALERT_CHECK_INTERVAL_MS,
   BACKUP_INTERVAL_MS,
@@ -112,6 +112,14 @@ export function shouldShowLoadingFallback(): boolean {
   try { return !localStorage.getItem('billboard_user'); } catch { return true; }
 }
 
+export function getSyncStateLabel(dbConnected: boolean, outcome: SyncAttemptOutcome): string {
+  if (!dbConnected) return 'Local';
+  if (outcome === 'running') return 'Syncing…';
+  if (outcome === 'success') return 'Synced';
+  if (outcome === 'failed') return 'Sync failed';
+  return 'Not synced';
+}
+
 export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
@@ -121,6 +129,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const [quickCreateType, setQuickCreateType] = useState<DocType>('Quotation');
   const alertPanelRef = useRef<HTMLDivElement>(null);
   const syncStatus = useSync();
+  const syncLabel = getSyncStateLabel(dbConnected, syncStatus.lastSyncOutcome);
+  const displayedSyncOutcome: SyncAttemptOutcome = dbConnected ? syncStatus.lastSyncOutcome : 'never';
+  const syncTitle = displayedSyncOutcome === 'success' && syncStatus.lastSyncTime
+    ? `Last successful sync: ${new Date(syncStatus.lastSyncTime).toLocaleTimeString()}`
+    : `Sync status: ${syncLabel}`;
 
   const [user, setUser] = useState<Awaited<ReturnType<typeof getCurrentUser>>>(
     () => {
@@ -419,9 +432,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                   }}
                   disabled={syncStatus.isSyncing || !dbConnected}
                   className={`flex items-center gap-1 text-[9px] font-medium transition-colors ${
-                    dbConnected ? 'text-emerald-500/80 hover:text-emerald-400' : 'text-slate-600'
+                    !dbConnected
+                      ? 'text-slate-600'
+                      : syncStatus.lastSyncOutcome === 'success'
+                      ? 'text-emerald-500/80 hover:text-emerald-400'
+                      : syncStatus.lastSyncOutcome === 'failed'
+                        ? 'text-red-400 hover:text-red-300'
+                        : 'text-slate-500 hover:text-slate-300'
                   } ${syncStatus.isSyncing ? 'cursor-wait' : 'cursor-pointer'}`}
-                  title={syncStatus.lastSyncTime ? `Last sync: ${new Date(syncStatus.lastSyncTime).toLocaleTimeString()}` : 'Click to sync'}
+                  title={syncTitle}
                 >
                   {dbConnected
                     ? syncStatus.isSyncing
@@ -429,7 +448,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                       : <Database size={9} />
                     : <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                   }
-                  {dbConnected ? (syncStatus.isSyncing ? 'Syncing…' : 'Synced') : 'Local'}
+                  {syncLabel}
                 </button>
                 <span className="text-[9px] font-mono text-slate-700 ml-auto">v{APP_VERSION}</span>
               </div>
@@ -469,20 +488,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             {/* Sync indicator */}
             <div
               className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-[11px] font-medium transition-all shadow-sm"
-              title={`Last sync: ${syncStatus.lastSyncTime ? new Date(syncStatus.lastSyncTime).toLocaleTimeString() : 'Never'}`}
+              title={syncTitle}
             >
-              {syncStatus.isSyncing
+              {displayedSyncOutcome === 'running'
                 ? <RefreshCw size={10} className="animate-spin text-indigo-500" />
-                : syncStatus.isAutoSyncRunning
+                : displayedSyncOutcome === 'success'
                   ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  : displayedSyncOutcome === 'failed'
+                    ? <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                   : <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
               }
               <span className="text-slate-600">
-                {syncStatus.lastSyncTime
+                {!dbConnected
+                  ? 'local'
+                  : displayedSyncOutcome === 'success' && syncStatus.lastSyncTime
                   ? (s => s < 5 ? 'now' : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m`)(
                       Math.floor((Date.now() - syncStatus.lastSyncTime) / 1000)
                     )
-                  : '--'}
+                  : displayedSyncOutcome === 'running'
+                    ? 'syncing'
+                    : displayedSyncOutcome === 'failed'
+                      ? 'failed'
+                      : 'never'}
               </span>
               {syncStatus.pendingCount > 0 && (
                 <span className="flex items-center justify-center min-w-[16px] h-4 px-1 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold">

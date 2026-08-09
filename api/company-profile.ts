@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponse } from '../lib/http';
 import { prisma } from '../lib/prisma';
-import { requireAuth, cors } from '../lib/auth';
+import { requireAuth, requireManagerOrAdmin, cors } from '../lib/auth';
 import { uploadBase64Image, isBase64DataUrl } from '../lib/uploadBase64';
 import { log } from '../lib/serverLogger.js';
 
@@ -85,7 +85,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     }
 
     if (req.method === 'PUT' || req.method === 'POST') {
-      const payload = await requireAuth(req, res);
+      // Company settings include bank and payment details, so an authenticated
+      // user alone must not be allowed to change them.
+      const payload = await requireManagerOrAdmin(req, res);
       if (!payload) return;
       const raw = req.body ?? {};
       const data = pickCompanyProfileData(raw);

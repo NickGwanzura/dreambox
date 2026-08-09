@@ -38,7 +38,13 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
       const skip = Math.max(0, Number(req.query.skip) || 0);
-      const rows = await prisma.billboard.findMany({ orderBy: { createdAt: 'asc' }, take: limit, skip });
+      // Keep page boundaries deterministic when multiple billboards share a
+      // creation timestamp.
+      const rows = await prisma.billboard.findMany({
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: limit,
+        skip,
+      });
       return res.status(200).json(rows.map(toClient));
     }
 

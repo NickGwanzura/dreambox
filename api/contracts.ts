@@ -55,6 +55,85 @@ class ContractConversionError extends Error {
   }
 }
 
+class BookingConflictError extends Error {
+  constructor(readonly error: string, readonly conflictingContract: string) {
+    super(error);
+    this.name = 'BookingConflictError';
+  }
+}
+
+type BookingTransaction = Pick<typeof prisma, '$queryRaw'> & {
+  contract: {
+    findFirst: typeof prisma.contract.findFirst;
+  };
+};
+
+function bookingConflictMessage(data: {
+  billboardId: string;
+  startDate: string;
+  endDate: string;
+  status?: string | null;
+  slotNumber?: number | null;
+  side?: string | null;
+}, excludedContractId?: string) {
+  if (data.status !== 'Active' || !data.billboardId || !data.startDate || !data.endDate) return null;
+
+  const baseWhere = {
+    billboardId: data.billboardId,
+    status: 'Active' as const,
+    startDate: { lte: data.endDate },
+    endDate: { gte: data.startDate },
+    ...(excludedContractId ? { id: { not: excludedContractId } } : {}),
+  };
+
+  if (data.slotNumber != null) {
+    return {
+      where: { ...baseWhere, slotNumber: data.slotNumber },
+      error: `Slot ${data.slotNumber} is already booked for these dates`,
+    };
+  }
+
+  if (data.side) {
+    const sideFilter = data.side === 'Both'
+      ? [{ side: 'A' }, { side: 'B' }, { side: 'Both' }]
+      : [{ side: data.side }, { side: 'Both' }];
+    return {
+      where: { ...baseWhere, OR: sideFilter },
+      error: `Side ${data.side} is already booked for these dates`,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Serialize availability checks and the following write for a billboard.
+ * The database migration installs the same guard for direct SQL/import writes;
+ * this keeps the API's conflict response stable instead of exposing a raw
+ * trigger exception to callers.
+ */
+async function assertBookingAvailable(
+  tx: BookingTransaction,
+  data: Parameters<typeof bookingConflictMessage>[0],
+  excludedContractId?: string,
+) {
+  const conflictQuery = bookingConflictMessage(data, excludedContractId);
+  if (!conflictQuery) return;
+
+  await tx.$queryRaw(
+    Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`dreambox-contract-booking:${data.billboardId}`}))`,
+  );
+  const conflict = await tx.contract.findFirst({ where: conflictQuery.where });
+  if (conflict) {
+    throw new BookingConflictError(conflictQuery.error, conflict.id);
+  }
+}
+
+function bookingConflictResponse(error: unknown) {
+  if (!(error instanceof BookingConflictError)) return null;
+  return { error: error.error, conflictingContract: error.conflictingContract };
+}
+
 // Creates a contract from a quotation and marks the quotation Converted in the
 // SAME transaction. The quote row is locked with SELECT ... FOR UPDATE so two
 // concurrent conversions (two devices) serialize: the loser reads the already-
@@ -73,6 +152,7 @@ async function createContractFromQuotation(data: any, sourceQuotationId: string,
     if (quote.quoteStatus === 'Converted' || quote.convertedToContractId || quote.convertedToInvoiceId) {
       throw new ContractConversionError(`Quotation ${quote.quoteNumber || quote.id} has already been converted`);
     }
+    await assertBookingAvailable(tx, data);
     const created = await tx.contract.create({ data });
     await tx.invoice.update({
       where: { id: sourceQuotationId },
@@ -128,7 +208,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 1000));
       const skip = Math.max(0, Number(req.query.skip) || 0);
-      const rows = await prisma.contract.findMany({ orderBy: { dbCreatedAt: 'asc' }, take: limit, skip });
+      // dbCreatedAt is not unique; append id to make offset pagination stable.
+      const rows = await prisma.contract.findMany({
+        orderBy: [{ dbCreatedAt: 'asc' }, { id: 'asc' }],
+        take: limit,
+        skip,
+      });
       return res.status(200).json(rows);
     }
 
@@ -146,47 +231,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         sourceQuotationId,
       } = req.body ?? {};
 
-      // Server-side availability guard — prevents duplicate slot/side bookings even via direct API calls
       const incomingStatus = status ?? 'Pending';
-      if (incomingStatus === 'Active' && billboardId && startDate && endDate) {
-        if (slotNumber != null) {
-          const conflict = await prisma.contract.findFirst({
-            where: {
-              billboardId,
-              slotNumber: Number(slotNumber),
-              status: 'Active',
-              startDate: { lte: endDate },
-              endDate: { gte: startDate },
-            },
-          });
-          if (conflict) {
-            return res.status(409).json({
-              error: `Slot ${slotNumber} is already booked for these dates`,
-              conflictingContract: conflict.id,
-            });
-          }
-        } else if (side) {
-          const sideFilter = side === 'Both'
-            ? [{ side: 'A' }, { side: 'B' }, { side: 'Both' }]
-            : [{ side: side as string }, { side: 'Both' }];
-          const conflict = await prisma.contract.findFirst({
-            where: {
-              billboardId,
-              status: 'Active',
-              startDate: { lte: endDate },
-              endDate: { gte: startDate },
-              OR: sideFilter,
-            },
-          });
-          if (conflict) {
-            return res.status(409).json({
-              error: `Side ${side} is already booked for these dates`,
-              conflictingContract: conflict.id,
-            });
-          }
-        }
-      }
-
       const data = {
         id, clientId, billboardId, startDate, endDate, monthlyRate,
         installationCost: installationCost ?? 0,
@@ -211,7 +256,10 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       // duplicate conversions.
       const row = sourceQuotationId
         ? await createContractFromQuotation(data, sourceQuotationId, payload)
-        : await prisma.contract.create({ data });
+        : await prisma.$transaction(async tx => {
+          await assertBookingAvailable(tx, data);
+          return tx.contract.create({ data });
+        });
       return res.status(201).json(row);
     }
 
@@ -232,53 +280,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(404).json({ error: 'Contract not found on server. Sync the contract locally first, then retry.' });
       }
 
-      // Server-side availability guard for edits — re-check if dates/slot/side changed or status became Active
       const updatedStatus = parsed.data.status ?? existing.status;
-      if (updatedStatus === 'Active') {
-        const { billboardId: updBillboardId, startDate: updStart, endDate: updEnd, slotNumber: updSlot, side: updSide } = parsed.data;
-        if (updBillboardId && updStart && updEnd) {
-          if (updSlot != null) {
-            const conflict = await prisma.contract.findFirst({
-              where: {
-                billboardId: updBillboardId,
-                slotNumber: updSlot,
-                status: 'Active',
-                startDate: { lte: updEnd },
-                endDate: { gte: updStart },
-                id: { not: id as string },
-              },
-            });
-            if (conflict) {
-              return res.status(409).json({
-                error: `Slot ${updSlot} is already booked for these dates`,
-                conflictingContract: conflict.id,
-              });
-            }
-          } else if (updSide) {
-            const sideFilter = updSide === 'Both'
-              ? [{ side: 'A' }, { side: 'B' }, { side: 'Both' }]
-              : [{ side: updSide }, { side: 'Both' }];
-            const conflict = await prisma.contract.findFirst({
-              where: {
-                billboardId: updBillboardId,
-                status: 'Active',
-                startDate: { lte: updEnd },
-                endDate: { gte: updStart },
-                OR: sideFilter,
-                id: { not: id as string },
-              },
-            });
-            if (conflict) {
-              return res.status(409).json({
-                error: `Side ${updSide} is already booked for these dates`,
-                conflictingContract: conflict.id,
-              });
-            }
-          }
-        }
-      }
-
-      const row = await prisma.contract.update({ where: { id: id as string }, data: parsed.data });
+      const bookingData = { ...parsed.data, status: updatedStatus };
+      const row = await prisma.$transaction(async tx => {
+        await assertBookingAvailable(tx, bookingData, id as string);
+        return tx.contract.update({ where: { id: id as string }, data: parsed.data });
+      });
       return res.status(200).json(row);
     }
 
@@ -335,6 +342,10 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
+    const bookingConflict = bookingConflictResponse(e);
+    if (bookingConflict) {
+      return res.status(409).json(bookingConflict);
+    }
     if (e instanceof ContractConversionError) {
       return res.status(e.status).json({ error: e.message });
     }
