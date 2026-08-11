@@ -10,6 +10,13 @@ RUN npm test && npx tsc --noEmit && npm run build
 
 EXPOSE 3000
 
+# The app only needs to read its source, generated client, and static build at
+# runtime. Drop root privileges after the build so a compromised request cannot
+# write into the image or run as root.
+RUN chown -R node:node /app
+USER node
+ENV NODE_ENV=production
+
 # Dokploy can use this to remove unhealthy instances from service traffic.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok) process.exit(1)}).catch(()=>process.exit(1))"
