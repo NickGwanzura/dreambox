@@ -152,6 +152,9 @@ async function createContractFromQuotation(data: any, sourceQuotationId: string,
     if (quote.quoteStatus === 'Converted' || quote.convertedToContractId || quote.convertedToInvoiceId) {
       throw new ContractConversionError(`Quotation ${quote.quoteNumber || quote.id} has already been converted`);
     }
+    if (quote.quoteStatus !== 'Accepted') {
+      throw new ContractConversionError('Only accepted quotations can be converted', 409);
+    }
     await assertBookingAvailable(tx, data);
     const created = await tx.contract.create({ data });
     await tx.invoice.update({
@@ -299,7 +302,10 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
 
       const updatedStatus = parsed.data.status ?? existing.status;
-      const bookingData = { ...parsed.data, status: updatedStatus };
+      // Booking validation must use the complete post-update record. Partial
+      // PUT payloads commonly omit clientId/billboardId; validating the patch
+      // alone would reject otherwise valid edits with undefined parents.
+      const bookingData = { ...existing, ...parsed.data, status: updatedStatus };
       await assertContractParents(bookingData);
       const row = await prisma.$transaction(async tx => {
         await assertBookingAvailable(tx, bookingData, id as string);

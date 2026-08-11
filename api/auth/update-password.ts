@@ -2,7 +2,7 @@ import type { HttpRequest, HttpResponse } from '../../lib/http';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
-import { requireAuth, signToken, cors } from '../../lib/auth';
+import { requireAuth, signToken, cors, setSessionCookie } from '../../lib/auth';
 import { validatePassword } from '../../lib/passwordPolicy.js';
 import { log } from '../../lib/serverLogger.js';
 
@@ -73,6 +73,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     });
 
     const newToken = signToken({ userId: updated.id, email: updated.email, role: updated.role, status: updated.status, sessionVersion: updated.sessionVersion });
+    setSessionCookie(res, newToken);
     return res.status(200).json({ message: 'Password updated successfully', token: newToken });
   } catch (e: any) {
     log.error('[auth/update-password]', e);

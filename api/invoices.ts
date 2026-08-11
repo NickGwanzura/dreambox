@@ -7,6 +7,8 @@ import { requireAuth, requireDeletePermission, requireFeatureRead, requireFeatur
 import { log } from '../lib/serverLogger.js';
 import { pickInvoiceData } from '../lib/whitelist';
 import { assertPeriodOpen, assertPeriodsOpen } from '../lib/accountingPeriod';
+import { getClientIp } from '../lib/clientIp.js';
+import { isAllowedStorageReference } from '../lib/storage.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const calendarDate = z.string().regex(DATE_RE, 'Date must use YYYY-MM-DD').refine((value) => {
@@ -52,7 +54,7 @@ const invoiceSchema = z.object({
   paymentReference: z.string().max(200).optional().nullable(),
   receivedBy: z.string().trim().max(200).optional().nullable(),
   receivingAccount: z.string().trim().max(200).optional().nullable(),
-  proofPaymentUrl: z.string().url().max(2000).optional().nullable(),
+  proofPaymentUrl: z.string().max(2000).refine(value => isAllowedStorageReference(value, 'payment-proofs'), 'Invalid payment proof storage reference').optional().nullable(),
   proofOriginalName: z.string().trim().max(255).optional().nullable(),
   proofMimeType: z.enum(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']).optional().nullable(),
   proofUploadedAt: z.union([z.string(), z.date()]).optional().nullable(),
@@ -73,6 +75,13 @@ const invoiceSchema = z.object({
 });
 
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value as Record<string, unknown>).sort().map(key => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
 const EFFECTIVE_RECEIPT_APPROVALS = ['Approved', 'NotRequired'];
 
 class PaymentIntegrityError extends Error {
@@ -152,7 +161,8 @@ function canonicalInvoiceData(body: any, vatRate: number) {
   const discount = roundMoney(body.discountAmount ?? 0);
   if (discount > gross) throw new Error('Discount cannot exceed the line-item total');
   const total = roundMoney(gross - discount);
-  const hasVat = body.type !== 'Receipt' && (body.hasVat === true || Number(body.vatAmount) > 0);
+  const hasExplicitVat = Object.prototype.hasOwnProperty.call(body, 'hasVat');
+  const hasVat = body.type !== 'Receipt' && (hasExplicitVat ? body.hasVat === true : Number(body.vatAmount) > 0);
   const subtotal = hasVat ? roundMoney(total / (1 + vatRate)) : total;
   const vatAmount = hasVat ? roundMoney(total - subtotal) : 0;
 
@@ -193,10 +203,9 @@ function validatePaymentAudit(data: any): string | null {
 }
 
 function auditContext(req: HttpRequest) {
-  const forwarded = req.headers['x-forwarded-for'];
   return {
     requestId: String(req.headers['x-request-id'] || randomUUID()),
-    ipAddress: String(Array.isArray(forwarded) ? forwarded[0] : forwarded || (req as any).socket?.remoteAddress || '').split(',')[0].trim() || null,
+    ipAddress: getClientIp(req) || null,
     userAgent: String(req.headers['user-agent'] || '').slice(0, 500) || null,
   };
 }
@@ -490,18 +499,38 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const merged = { ...existing, ...body, type: body.type || existing.type };
       const parsed = invoiceSchema.safeParse(merged);
       if (!parsed.success) return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
-      const financialChange = ['items', 'discountAmount', 'vatAmount', 'subtotal', 'total', 'clientId'].some(field => body[field] != null && JSON.stringify(body[field]) !== JSON.stringify((existing as any)[field]));
+      const data = canonicalInvoiceData(parsed.data, await getVatRate());
+      // Compare the canonical server-calculated financial values, not just
+      // non-null request fields. This catches explicit null clears and VAT
+      // toggles (which are represented by the derived vatAmount/subtotal).
+      const financialChange = (
+        stableJson(data.items) !== stableJson((existing as any).items)
+        || String(data.clientId ?? '') !== String((existing as any).clientId ?? '')
+        || ['discountAmount', 'vatAmount', 'subtotal', 'total'].some(field =>
+          Math.abs(Number(data[field] ?? 0) - Number((existing as any)[field] ?? 0)) > 0.005)
+      );
       if (financialChange && existing.type === 'Invoice') {
         const receiptCount = await prisma.invoice.count({ where: { type: 'Receipt', linkedInvoiceId: existing.id } });
         if (receiptCount > 0) return res.status(409).json({ error: 'An invoice with allocated payments cannot be financially edited.' });
       }
-
-      const data = canonicalInvoiceData(parsed.data, await getVatRate());
       if (existing.type === 'Quotation') {
         // Preserve every server-owned lifecycle field even if a legacy client
         // sends it back as part of a full-record update.
         for (const field of QUOTATION_SERVER_FIELDS) data[field] = (existing as any)[field];
         data.quoteStatus = body.quoteStatus ?? existing.quoteStatus;
+      }
+      const quotationFinancialChange = existing.type === 'Quotation'
+        && existing.quoteStatus === 'Accepted'
+        && financialChange;
+      if (quotationFinancialChange) {
+        if (payload.role === 'SalesAgent') {
+          return res.status(403).json({ error: 'Accepted quotations require manager approval before financial edits.' });
+        }
+        const approver = await requireQuotationApprovePermission(req, res);
+        if (!approver) return;
+        // Any financial edit invalidates the previous acceptance decision.
+        data.quoteStatus = 'Draft';
+        data.status = 'Pending';
       }
       // A date move affects both the original and destination period.  The
       // transaction repeats this check so the write and lock check share a DB

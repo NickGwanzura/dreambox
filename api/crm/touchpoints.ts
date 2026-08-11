@@ -4,6 +4,9 @@ import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMTouchpointData } from '../../lib/whitelist';
 import { z } from 'zod';
+import { assertCRMActivityParents, isIntegrityError } from '../../lib/crmIntegrity.js';
+import { parsePagination } from '../../lib/pagination.js';
+import { recordMutationAudit } from '../../lib/mutationAudit.js';
 
 const touchpointSchema = z.object({
   opportunityId: z.string().min(1, 'Opportunity ID is required'),
@@ -15,7 +18,7 @@ const touchpointSchema = z.object({
   outcome: z.string().optional().nullable(),
   sentiment: z.string().optional().nullable(),
   durationSeconds: z.number().int().optional().nullable(),
-  createdBy: z.string().min(1, 'Created by is required'),
+  createdBy: z.string().optional(),
 });
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
@@ -34,7 +37,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const rows = await prisma.cRMTouchpoint.findMany({
         where: opportunityId ? { opportunityId: opportunityId as string } : undefined,
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        ...parsePagination(req.query as any, 500),
       });
       return res.status(200).json(rows);
     }
@@ -45,7 +49,10 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       const data = pickCRMTouchpointData(req.body ?? {});
+      await assertCRMActivityParents(data.opportunityId);
+      data.createdBy = payload.email;
       const row = await prisma.cRMTouchpoint.create({ data });
+      await recordMutationAudit(req, payload, 'CRM_TOUCHPOINT_CREATED', 'crm_touchpoints', row.id, `CRM touchpoint ${row.id} created`);
       return res.status(201).json(row);
     }
 
@@ -58,9 +65,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const data = pickCRMTouchpointData(req.body ?? {});
       const existing = await prisma.cRMTouchpoint.findUnique({ where: { id: id as string } });
+      const merged = existing ? { ...existing, ...data } : data;
+      if (!existing && !parsed.data.opportunityId) return res.status(400).json({ error: 'Opportunity ID is required' });
+      await assertCRMActivityParents(merged.opportunityId);
+      delete data.createdBy;
       const row = existing
         ? await prisma.cRMTouchpoint.update({ where: { id: id as string }, data })
-        : await prisma.cRMTouchpoint.create({ data: { ...data, id: id as string } });
+        : await prisma.cRMTouchpoint.create({ data: { ...data, id: id as string, createdBy: payload.email } });
+      await recordMutationAudit(req, payload, existing ? 'CRM_TOUCHPOINT_UPDATED' : 'CRM_TOUCHPOINT_CREATED', 'crm_touchpoints', id as string, `CRM touchpoint ${id} ${existing ? 'updated' : 'created'}`);
       return res.status(200).json(row);
     }
 
@@ -69,12 +81,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
       await prisma.cRMTouchpoint.delete({ where: { id: id as string } });
+      await recordMutationAudit(req, payload, 'CRM_TOUCHPOINT_DELETED', 'crm_touchpoints', id as string, `CRM touchpoint ${id} deleted`);
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
     log.error('[crm/touchpoints]', e);
+    if (isIntegrityError(e)) return res.status(409).json({ error: e.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

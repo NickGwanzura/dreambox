@@ -2,6 +2,7 @@ import type { HttpRequest, HttpResponse } from '../lib/http';
 import { z } from 'zod';
 import { cors, requireManagerOrAdmin } from '../lib/auth';
 import { prisma } from '../lib/prisma';
+import { parsePagination } from '../lib/pagination.js';
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates must use YYYY-MM-DD').refine(value => {
   const [year, month, day] = value.split('-').map(Number);
@@ -18,7 +19,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   if (!actor) return;
 
   if (req.method === 'GET') {
-    const rows = await prisma.accountingPeriod.findMany({ orderBy: { startDate: 'desc' } });
+    const rows = await prisma.accountingPeriod.findMany({ orderBy: [{ startDate: 'desc' }, { id: 'desc' }], ...parsePagination(req.query as any, 500) });
     return res.status(200).json(rows);
   }
   if (req.method === 'POST') {

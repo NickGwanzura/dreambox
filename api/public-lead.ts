@@ -4,6 +4,7 @@ import { cors } from '../lib/auth';
 import { checkRateLimit } from '../lib/rateLimiter.js';
 import { notifyAdminWebsiteLead } from '../lib/notifyAdmin';
 import { log } from '../lib/serverLogger.js';
+import { getClientIp } from '../lib/clientIp.js';
 
 const clean = (value: unknown): string =>
   String(value || '').trim().slice(0, 1000);
@@ -13,7 +14,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req as any).socket?.remoteAddress || 'unknown';
+  const ip = getClientIp(req);
   const rateCheck = await checkRateLimit(`public-lead:ip:${ip}`, { maxAttempts: 5, windowMs: 60 * 60 * 1000 });
   if (!rateCheck.allowed) {
     return res.status(429).json({ error: 'Too many submissions. Please try again later.' });
@@ -36,7 +37,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       return res.status(400).json({ error: 'Invalid submission' });
     }
 
-    if (!name || !email) {
+    if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ error: 'name and email are required' });
     }
 

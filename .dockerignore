@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-server
+.git
+.gitignore
+.env
+.env.*
+.freebuff
+.zcode
+.codex
+.agents
+coverage
+*.log
+*.local
+.DS_Store

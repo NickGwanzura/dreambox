@@ -12,6 +12,8 @@ import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
+import { escapeHtml } from '../../lib/htmlEscape.js';
+import { claimCronJob, completeCronJob, failCronJob } from '../../lib/cronJobs.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
@@ -33,6 +35,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  const periodKey = `expense-report:${new Date().toISOString().slice(0, 10)}`;
+  if (!await claimCronJob(periodKey)) return res.status(200).json({ skipped: true, reason: 'already processed or running' });
   try {
     const now = new Date();
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
@@ -72,7 +76,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         const pct = grandTotal > 0 ? Math.round((data.total / grandTotal) * 100) : 0;
         const itemRows = data.items.map(exp =>
           `<tr>
-            <td style="padding:6px 12px;font-size:12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${exp.description}</td>
+            <td style="padding:6px 12px;font-size:12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${escapeHtml(exp.description)}</td>
             <td style="padding:6px 12px;font-size:12px;color:#1e293b;text-align:right;border-bottom:1px solid #f1f5f9;">$${exp.amount.toLocaleString()}</td>
             <td style="padding:6px 12px;font-size:11px;color:#94a3b8;border-bottom:1px solid #f1f5f9;">${new Date(exp.date).toLocaleDateString('en-ZW', { day: 'numeric', month: 'short' })}</td>
           </tr>`
@@ -179,6 +183,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     log.info(`[cron/expense-report] Sent ${sent} emails, ${failed} failed. Total: $${grandTotal}, Items: ${recentExpenses.length}`);
 
+    if (failed > 0) await failCronJob(periodKey, `${failed} report email(s) failed`);
+    else await completeCronJob(periodKey, { sent, items: recentExpenses.length });
+
     return res.status(200).json({
       message: `Expense report sent (${sent} emails)`,
       period: periodLabel,
@@ -187,6 +194,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       categories: Object.keys(byCategory).length,
     });
   } catch (e: any) {
+    await failCronJob(periodKey, e);
     log.error(`[cron/expense-report] ${e?.message}`, { stack: e?.stack });
     return res.status(500).json({ error: 'Failed to generate expense report' });
   }

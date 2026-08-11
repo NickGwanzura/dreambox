@@ -8,6 +8,8 @@ import { requireAuth, requireAdmin, cors, invalidateUserCache } from '../lib/aut
 import { validatePassword } from '../lib/passwordPolicy.js';
 import { notifyAdminNewUser } from '../lib/notifyAdmin.js';
 import { log } from '../lib/serverLogger.js';
+import { escapeHtml } from '../lib/htmlEscape.js';
+import { parsePagination } from '../lib/pagination.js';
 
 const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
 const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
@@ -56,7 +58,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     try {
       const users = await prisma.user.findMany({
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        ...parsePagination(req.query as any, 500),
         select: USER_SELECT,
       });
       return res.status(200).json(users);
@@ -398,20 +401,20 @@ function buildResetEmail(firstName: string, resetUrl: string): string {
               <span style="font-size:24px;font-weight:700;color:#1e293b;">Dreambox</span>
               <span style="font-size:24px;font-weight:300;color:#6366f1;"> CRM</span>
             </td></tr>
-            <tr><td style="color:#1e293b;font-size:16px;line-height:1.6;padding-bottom:16px;">Hi ${firstName},</td></tr>
+            <tr><td style="color:#1e293b;font-size:16px;line-height:1.6;padding-bottom:16px;">Hi ${escapeHtml(firstName)},</td></tr>
             <tr><td style="color:#64748b;font-size:14px;line-height:1.6;padding-bottom:24px;">
               An administrator has requested a password reset for your account.
               Click the button below to create a new password. This link expires in <strong style="color:#1e293b;">1 hour</strong>.
             </td></tr>
             <tr><td align="center" style="padding-bottom:32px;">
-              <a href="${resetUrl}"
+              <a href="${escapeHtml(resetUrl)}"
                 style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:10px;">
                 Reset Password
               </a>
             </td></tr>
             <tr><td style="color:#94a3b8;font-size:12px;line-height:1.6;border-top:1px solid #e2e8f0;padding-top:24px;">
               If you did not expect this, please contact your administrator.<br>
-              Or copy this link: <a href="${resetUrl}" style="color:#6366f1;">${resetUrl}</a>
+              Or copy this link: <a href="${escapeHtml(resetUrl)}" style="color:#6366f1;">${escapeHtml(resetUrl)}</a>
             </td></tr>
           </table>
         </td></tr>
@@ -433,14 +436,14 @@ function buildInviteEmail(firstName: string, tempPassword: string): string {
               <span style="font-size:24px;font-weight:700;color:#1e293b;">Dreambox</span>
               <span style="font-size:24px;font-weight:300;color:#6366f1;"> CRM</span>
             </td></tr>
-            <tr><td style="color:#1e293b;font-size:16px;line-height:1.6;padding-bottom:16px;">Hi ${firstName},</td></tr>
+            <tr><td style="color:#1e293b;font-size:16px;line-height:1.6;padding-bottom:16px;">Hi ${escapeHtml(firstName)},</td></tr>
             <tr><td style="color:#64748b;font-size:14px;line-height:1.6;padding-bottom:24px;">
               You have been added to <strong style="color:#1e293b;">Dreambox CRM</strong>.
               Use the temporary password below to sign in. You will be asked to change it on first login.
             </td></tr>
             <tr><td align="center" style="padding-bottom:24px;">
               <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 32px;font-family:monospace;font-size:18px;color:#4f46e5;letter-spacing:2px;">
-                ${tempPassword}
+                ${escapeHtml(tempPassword)}
               </div>
             </td></tr>
             <tr><td align="center" style="padding-bottom:32px;">

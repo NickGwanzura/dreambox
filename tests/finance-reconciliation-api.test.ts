@@ -104,8 +104,8 @@ describe('finance-reconciliation API', () => {
 
     expect(res.statusCode).toBe(200);
     expect(state.auth.requireManagerOrAdmin).toHaveBeenCalledOnce();
-    expect(state.prisma.invoice.findMany).toHaveBeenCalledWith({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
-    expect(state.prisma.expense.findMany).toHaveBeenCalledWith({ orderBy: [{ date: 'asc' }, { createdAt: 'asc' }] });
+    expect(state.prisma.invoice.findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: expect.any(Number) }));
+    expect(state.prisma.expense.findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: [{ date: 'asc' }, { createdAt: 'asc' }], take: expect.any(Number) }));
     expect(res.payload.controls).toMatchObject({
       invoiceCount: 2,
       receiptCount: 2,

@@ -16,6 +16,7 @@ import type { HttpRequest, HttpResponse } from '../../lib/http.js';
 import { prisma } from '../../lib/prisma.js';
 import { cors } from '../../lib/auth.js';
 import { log } from '../../lib/serverLogger.js';
+import { claimCronJob, completeCronJob, failCronJob } from '../../lib/cronJobs.js';
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
@@ -33,6 +34,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  let claimedKeys: string[] = [];
   try {
     // Strict-past UTC date: a quote expiring "today" stays valid all day, and the
     // daily cadence means this never flags a quote early regardless of client TZ.
@@ -52,15 +54,25 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       return res.status(200).json({ expired: 0 });
     }
 
+    const claimed = [];
+    for (const candidate of candidates) {
+      const key = `expire-quotation:${candidate.id}:${today}`;
+      if (await claimCronJob(key)) {
+        claimed.push(candidate);
+        claimedKeys.push(key);
+      }
+    }
+    if (claimed.length === 0) return res.status(200).json({ expired: 0, skipped: candidates.length });
+
     // Atomic: status flip + audit trail + timeline rows share one transaction so
     // a partial failure can never leave quotes Expired without a record.
     await prisma.$transaction(async tx => {
-      const ids = candidates.map(c => c.id);
+      const ids = claimed.map(c => c.id);
       await tx.invoice.updateMany({
-        where: { id: { in: ids } },
+        where: { id: { in: ids }, quoteStatus: { in: ['Draft', 'Sent'] }, isVoided: false },
         data: { quoteStatus: 'Expired' },
       });
-      for (const c of candidates) {
+      for (const c of claimed) {
         await tx.auditLog.create({
           data: {
             action: 'Quotation Auto-Expired',
@@ -83,9 +95,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
     });
 
-    log.info(`[cron/expire-quotations] Expired ${candidates.length} quotation(s)`);
-    return res.status(200).json({ expired: candidates.length });
+    await Promise.all(claimed.map(c => completeCronJob(`expire-quotation:${c.id}:${today}`, { id: c.id })));
+    log.info(`[cron/expire-quotations] Expired ${claimed.length} quotation(s)`);
+    return res.status(200).json({ expired: claimed.length, skipped: candidates.length - claimed.length });
   } catch (e: any) {
+    // Claims are lease-based and can be retried after a failure.
+    await Promise.all(claimedKeys.map(key => failCronJob(key, e)));
     log.error('[cron/expire-quotations]', e);
     return res.status(500).json({ error: e.message || 'Failed to expire quotations' });
   }

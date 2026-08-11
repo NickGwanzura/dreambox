@@ -8,6 +8,19 @@ const MANIFEST_KEY = 'backups/manifest.json';
 const DATABASE_BACKUP_PREFIX = (process.env.DATABASE_BACKUP_PREFIX || 'dreambox-postgres-db-9cy1yw/database-backups/dreambox-production')
   .replace(/^\/+|\/+$/g, '');
 
+/** Serialize manifest mutations across app instances using a transaction-
+ * scoped PostgreSQL advisory lock. The interactive transaction pins one
+ * connection while the shared R2 read-modify-write completes, so pooled
+ * clients cannot acquire and release the lock on different sessions. */
+async function withManifestLock<T>(operation: () => Promise<T>): Promise<T> {
+  const transaction = (prisma as any).$transaction;
+  if (typeof transaction !== 'function') return operation();
+  return transaction.call(prisma, async (tx: any) => {
+    await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext('dreambox-backup-manifest'))");
+    return operation();
+  });
+}
+
 export interface BackupManifest {
   version: string;
   exportedAt: string;
@@ -237,32 +250,36 @@ export async function createBackup(createdBy = 'system'): Promise<BackupResult> 
     tables: Object.keys(data).filter(k => data[k].length > 0),
   };
 
-  const existing = await getManifest();
-  existing.push(entry);
-  if (existing.length > 50) {
-    const removed = existing.shift();
-    if (removed) {
-      try { await deleteFile(removed.key); } catch (e: any) {
-        console.warn('[backup] Failed to prune old backup file:', e.message);
+  await withManifestLock(async () => {
+    const existing = await getManifest();
+    existing.push(entry);
+    if (existing.length > 50) {
+      const removed = existing.shift();
+      if (removed) {
+        try { await deleteFile(removed.key); } catch (e: any) {
+          console.warn('[backup] Failed to prune old backup file:', e.message);
+        }
       }
     }
-  }
-  await saveManifest(existing);
+    await saveManifest(existing);
+  });
 
   return { id, key: fileKey, url, manifest, size: buffer.length, recordCount };
 }
 
 export async function deleteBackup(id: string): Promise<void> {
-  const manifest = await getManifest();
-  const entry = manifest.find(b => b.id === id);
-  if (!entry) throw new Error('Backup not found');
+  await withManifestLock(async () => {
+    const manifest = await getManifest();
+    const entry = manifest.find(b => b.id === id);
+    if (!entry) throw new Error('Backup not found');
 
-  try { await deleteFile(entry.key); } catch (e: any) {
-    console.warn('[backup] Failed to delete backup file:', e.message);
-  }
+    try { await deleteFile(entry.key); } catch (e: any) {
+      console.warn('[backup] Failed to delete backup file:', e.message);
+    }
 
-  const updated = manifest.filter(b => b.id !== id);
-  await saveManifest(updated);
+    const updated = manifest.filter(b => b.id !== id);
+    await saveManifest(updated);
+  });
 }
 
 async function fetchBackupFromR2(key: string): Promise<BackupRecord> {

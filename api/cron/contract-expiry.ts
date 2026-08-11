@@ -14,6 +14,8 @@ import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
 import { notifyAdminOpsAlert } from '../../lib/notifyAdmin';
 import { log } from '../../lib/serverLogger.js';
+import { claimCronJob, completeCronJob, failCronJob } from '../../lib/cronJobs.js';
+import { escapeHtml } from '../../lib/htmlEscape.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
@@ -40,6 +42,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     return res.status(401).json({ error: 'Invalid secret' });
   }
 
+  let claimedKeys: string[] = [];
   try {
     const milestoneDates = MILESTONES_DAYS.map(isoDate);
 
@@ -55,18 +58,28 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       return res.status(200).json({ checked: milestoneDates, expiring: 0, emailsSent: 0 });
     }
 
+    const claimedContracts = [];
+    for (const contract of contracts) {
+      const key = `contract-expiry:${contract.id}:${contract.endDate}`;
+      if (await claimCronJob(key)) {
+        claimedContracts.push(contract);
+        claimedKeys.push(key);
+      }
+    }
+    if (claimedContracts.length === 0) return res.status(200).json({ checked: milestoneDates, expiring: 0, emailsSent: 0, skipped: contracts.length });
+
     // Batch-resolve related names.
     const [clients, billboards, assignedUsers] = await Promise.all([
-      prisma.client.findMany({ where: { id: { in: contracts.map(c => c.clientId) } }, select: { id: true, companyName: true } }),
-      prisma.billboard.findMany({ where: { id: { in: contracts.map(c => c.billboardId).filter(Boolean) } }, select: { id: true, name: true } }),
-      prisma.user.findMany({ where: { id: { in: contracts.map(c => c.assignedTo).filter(Boolean) } }, select: { id: true, firstName: true, lastName: true, email: true } }),
+      prisma.client.findMany({ where: { id: { in: claimedContracts.map(c => c.clientId) } }, select: { id: true, companyName: true } }),
+      prisma.billboard.findMany({ where: { id: { in: claimedContracts.map(c => c.billboardId).filter(Boolean) } }, select: { id: true, name: true } }),
+      prisma.user.findMany({ where: { id: { in: claimedContracts.map(c => c.assignedTo).filter(Boolean) } }, select: { id: true, firstName: true, lastName: true, email: true } }),
     ]);
 
     const clientName = new Map(clients.map(c => [c.id, c.companyName]));
     const boardName = new Map(billboards.map(b => [b.id, b.name]));
     const userBy = new Map(assignedUsers.map(u => [u.id, u]));
 
-    const rows = contracts.map(c => {
+    const rows = claimedContracts.map(c => {
       const days = Math.round((new Date(c.endDate + 'T00:00:00Z').getTime() - Date.now()) / 86_400_000);
       return {
         id: c.id,
@@ -106,7 +119,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const user = userBy.get(userId);
       if (!user?.email) continue;
       const lines = list
-        .map(r => `${r.client} — ${r.billboard} — ends ${r.endDate} (${r.daysLeft} day(s) left)`)
+        .map(r => `${escapeHtml(r.client)} — ${escapeHtml(r.billboard)} — ends ${escapeHtml(r.endDate)} (${r.daysLeft} day(s) left)`)
         .join('<br>');
       const sent = await resend.emails
         .send({
@@ -116,7 +129,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
           html: `
             <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 0;">
               <h2 style="color:#1e293b;">Contract${list.length > 1 ? 's' : ''} expiring soon</h2>
-              <p style="color:#475569;line-height:1.6;">Hi ${user.firstName}, the following active contract${list.length > 1 ? 's are' : ' is'} approaching its end date — worth a renewal conversation:</p>
+              <p style="color:#475569;line-height:1.6;">Hi ${escapeHtml(user.firstName)}, the following active contract${list.length > 1 ? 's are' : ' is'} approaching its end date — worth a renewal conversation:</p>
               <div style="background:#f8fafc;border-radius:10px;padding:20px;margin:16px 0;">
                 <div style="color:#334155;font-size:14px;line-height:1.8;">${lines}</div>
               </div>
@@ -130,9 +143,11 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (sent) emailsSent += 1;
     }
 
+    await Promise.all(claimedKeys.map(key => completeCronJob(key, { emailsSent })));
     log.info(`[cron/contract-expiry] ${rows.length} expiring, ${emailsSent} emails sent`);
     return res.status(200).json({ checked: milestoneDates, expiring: rows.length, emailsSent });
   } catch (e: any) {
+    await Promise.all(claimedKeys.map(key => failCronJob(key, e)));
     log.error('[cron/contract-expiry]', e);
     return res.status(500).json({ error: e.message });
   }

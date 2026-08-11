@@ -101,14 +101,13 @@ function colorMethod(method: string): string {
 // ─── Express middleware ───────────────────────────────────────────────────────
 
 import type { Request, Response, NextFunction } from 'express';
+import { getClientIp } from './clientIp.js';
 
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
   const start = Date.now();
   const method = req.method;
   const url = req.originalUrl || req.url;
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
-    ?? req.socket?.remoteAddress
-    ?? '-';
+  const ip = getClientIp(req as any) || '-';
 
   // Log incoming request
   const authHeader = req.headers['authorization'];

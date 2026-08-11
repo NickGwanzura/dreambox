@@ -2,6 +2,7 @@ import type { HttpRequest, HttpResponse } from '../lib/http';
 import { prisma } from '../lib/prisma';
 import { requireAuth, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { parsePagination } from '../lib/pagination.js';
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
@@ -17,7 +18,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const rows = await prisma.quotationEvent.findMany({
         where: { invoiceId: invoiceId as string },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        ...parsePagination(req.query as any, 500),
       });
       return res.status(200).json(rows);
     }

@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { requireFeatureWrite, cors } from '../lib/auth';
 import { assertPeriodOpen } from '../lib/accountingPeriod';
 import { log } from '../lib/serverLogger.js';
+import { getClientIp } from '../lib/clientIp.js';
 
 const linkSchema = z.object({
   receiptId: z.string().min(1, 'receiptId is required'),
@@ -14,10 +15,9 @@ const linkSchema = z.object({
 const BANK_METHOD_RE = /bank|transfer|rtgs|swift|wire/i;
 
 function auditContext(req: any) {
-  const forwarded = req.headers['x-forwarded-for'];
   return {
     requestId: String(req.headers['x-request-id'] || randomUUID()),
-    ipAddress: String(Array.isArray(forwarded) ? forwarded[0] : forwarded || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+    ipAddress: getClientIp(req) || null,
     userAgent: String(req.headers['user-agent'] || '').slice(0, 500) || null,
   };
 }

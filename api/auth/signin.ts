@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
-import { signToken, signTwoFactorToken, cors, toSafeUser } from '../../lib/auth';
+import { signToken, signTwoFactorToken, cors, toSafeUser, setSessionCookie } from '../../lib/auth';
 import { getClientIp } from '../../lib/clientIp';
 import { notifyWatchedLogin } from '../../lib/notifyAdmin';
 import { checkRateLimit } from '../../lib/rateLimiter.js';
@@ -141,6 +141,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     notifyWatchedLogin({ email: user.email, firstName: user.firstName, lastName: user.lastName }, ip, ua);
 
     const token = signToken({ userId: user.id, email: user.email, role: user.role, status: user.status, sessionVersion: user.sessionVersion });
+    setSessionCookie(res, token);
     log.info(`Signin success  email=${email}  role=${user.role}`);
 
     return res.status(200).json({ token, user: toSafeUser(user) });

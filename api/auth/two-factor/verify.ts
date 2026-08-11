@@ -1,7 +1,7 @@
 import type { HttpRequest, HttpResponse } from '../../../lib/http';
 import { z } from 'zod';
 import { prisma } from '../../../lib/prisma';
-import { signToken, verifyTwoFactorToken, cors, toSafeUser } from '../../../lib/auth';
+import { signToken, verifyTwoFactorToken, cors, toSafeUser, setSessionCookie } from '../../../lib/auth';
 import { notifyWatchedLogin } from '../../../lib/notifyAdmin';
 import { checkRateLimit } from '../../../lib/rateLimiter.js';
 import { verifyTotp } from '../../../lib/totp.js';
@@ -122,6 +122,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       status: user.status,
       sessionVersion: user.sessionVersion,
     });
+    setSessionCookie(res, token);
     log.info(`Signin success (2FA)  email=${user.email}  role=${user.role}`);
 
     return res.status(200).json({ token, user: toSafeUser(user) });

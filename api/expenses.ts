@@ -6,6 +6,8 @@ import { requireFeatureRead, requireDeletePermission, requireFeatureWrite, cors 
 import { log } from '../lib/serverLogger.js';
 import { pickExpenseData } from '../lib/whitelist';
 import { assertPeriodOpen } from '../lib/accountingPeriod';
+import { getClientIp } from '../lib/clientIp.js';
+import { parsePagination } from '../lib/pagination.js';
 
 const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD').refine(value => {
   const [year, month, day] = value.split('-').map(Number);
@@ -46,10 +48,9 @@ async function resolveExpenseLinkage(data: any): Promise<{ data: any; error?: st
 }
 
 function auditContext(req: HttpRequest) {
-  const forwarded = req.headers['x-forwarded-for'];
   return {
     requestId: String(req.headers['x-request-id'] || randomUUID()),
-    ipAddress: String(Array.isArray(forwarded) ? forwarded[0] : forwarded || (req as any).socket?.remoteAddress || '').split(',')[0].trim() || null,
+    ipAddress: getClientIp(req) || null,
     userAgent: String(req.headers['user-agent'] || '').slice(0, 500) || null,
   };
 }
@@ -70,7 +71,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const rows = await prisma.expense.findMany({ orderBy: { createdAt: 'asc' } });
+      const rows = await prisma.expense.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], ...parsePagination(req.query as any, 500) });
       return res.status(200).json(rows);
     }
 

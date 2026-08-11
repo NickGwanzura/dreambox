@@ -34,6 +34,7 @@ function fmtArgs(args: any[]): string {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+let httpServer: ReturnType<typeof app.listen> | null = null;
 
 type MigrationReadiness = 'not_configured' | 'pending' | 'ready' | 'failed';
 type SchemaReadiness = 'not_configured' | 'pending' | 'ready' | 'blocked';
@@ -66,7 +67,12 @@ export { app };
 
 // Security headers — CSP and COEP disabled to allow SPA import maps and CDN-loaded ES modules
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
-app.use(express.json({ limit: '10mb' }));
+// Only trust forwarded client addresses when the deployment explicitly sits
+// behind a configured reverse proxy (Cloudflare/Dokploy).
+app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
+// Backups are JSON documents and can exceed the normal API payload size. Keep
+// the ceiling explicit and configurable rather than failing restores at 10 MB.
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '50mb' }));
 app.use(requestLogger);
 
 // ─── Maintenance mode ─────────────────────────────────────────────────────────
@@ -317,6 +323,17 @@ export async function runMigrations(): Promise<MigrationRunResult> {
     log.boot('  Migrations         —  skipped (DATABASE_URL not set)');
     return { bootIssues, migrationsReady: false, schemaReady: false };
   }
+  if (process.env.MIGRATIONS_ON_BOOT === 'false') {
+    // Production deployments can apply migrations as a separate Dokploy step,
+    // avoiding DDL locks and long startup times in every web replica. Refuse
+    // to serve if the required integrity markers are not already present.
+    startupReadiness.migrations = 'ready';
+    const integrity = await verifyRequiredIntegrityReadiness();
+    startupReadiness.schema = integrity.ready ? 'ready' : 'blocked';
+    const issues = integrity.missing.map(missing => `Missing required schema marker: ${missing}`);
+    log.boot(`  Migrations         —  skipped on boot (${integrity.ready ? 'schema ready' : 'schema blocked'})`);
+    return { bootIssues: issues, migrationsReady: true, schemaReady: integrity.ready };
+  }
   startupReadiness.migrations = 'pending';
   startupReadiness.schema = 'pending';
   try {
@@ -368,6 +385,9 @@ export async function runMigrations(): Promise<MigrationRunResult> {
     // unique index. If it fails (duplicate values), a ⚠ line below is the diagnostic.
     { label: 'crm_tasks_automationKey_key', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "crm_tasks_automationKey_key" ON "crm_tasks"("automationKey")` },
     { label: 'contracts_sourceQuotationId_idx', sql: `CREATE INDEX IF NOT EXISTS "contracts_sourceQuotationId_idx" ON "contracts"("sourceQuotationId")` },
+    { label: 'cron_job_runs table', sql: `CREATE TABLE IF NOT EXISTS "cron_job_runs" ("id" TEXT NOT NULL, "jobKey" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT 'Running', "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "completedAt" TIMESTAMP(3), "result" JSONB, "error" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "cron_job_runs_pkey" PRIMARY KEY ("id"))` },
+    { label: 'cron_job_runs_jobKey_key', sql: `CREATE UNIQUE INDEX IF NOT EXISTS "cron_job_runs_jobKey_key" ON "cron_job_runs"("jobKey")` },
+    { label: 'cron_job_runs_status_startedAt_idx', sql: `CREATE INDEX IF NOT EXISTS "cron_job_runs_status_startedAt_idx" ON "cron_job_runs"("status", "startedAt")` },
   ];
   let authGuardsReady = 0;
   for (const step of authSchemaGuards) {
@@ -629,6 +649,7 @@ async function registerRoutes() {
 
   // Auth
   const signin       = await import('./api/auth/signin.js');
+  const signout      = await import('./api/auth/signout.js');
   const signup       = await import('./api/auth/signup.js');
   const me           = await import('./api/auth/me.js');
   const resetPw      = await import('./api/auth/reset-password.js');
@@ -640,6 +661,7 @@ async function registerRoutes() {
   const tfaVerify    = await import('./api/auth/two-factor/verify.js');
 
   app.all('/api/auth/signin',                adapt(signin,       'auth/signin'));
+  app.all('/api/auth/signout',               adapt(signout,      'auth/signout'));
   app.all('/api/auth/signup',                adapt(signup,       'auth/signup'));
   app.all('/api/auth/me',                    adapt(me,           'auth/me'));
   app.all('/api/auth/reset-password',        adapt(resetPw,      'auth/reset-password'));
@@ -649,7 +671,7 @@ async function registerRoutes() {
   app.all('/api/auth/two-factor/enable',     adapt(tfaEnable,    'auth/two-factor/enable'));
   app.all('/api/auth/two-factor/disable',    adapt(tfaDisable,   'auth/two-factor/disable'));
   app.all('/api/auth/two-factor/verify',     adapt(tfaVerify,    'auth/two-factor/verify'));
-  log.boot('  Auth routes        ✓  (signin, signup, me, reset-password, update-password, resend-verification, two-factor)');
+  log.boot('  Auth routes        ✓  (signin, signout, signup, me, reset-password, update-password, resend-verification, two-factor)');
 
   // Public resources
   const publicBillboards = await import('./api/public-billboards.js');
@@ -800,6 +822,9 @@ function serveStatic() {
 function registerShutdownHandlers() {
   const shutdown = async (signal: string) => {
     log.warn(`Received ${signal} — shutting down gracefully...`);
+    if (httpServer) {
+      await new Promise<void>(resolve => httpServer!.close(() => resolve()));
+    }
     await prisma.$disconnect().catch(() => {});
     process.exit(0);
   };
@@ -823,6 +848,18 @@ const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 const LEGACY_MAINTENANCE_END = new Date('2026-06-19T10:00:00Z'); // 12:00 CAT
 
 function startCronScheduler() {
+  const cleanupRateLimits = async () => {
+    try {
+      const result = await prisma.rateLimit.deleteMany({ where: { resetAt: { lt: new Date() } } });
+      if (result.count > 0) log.info(`[cron] removed ${result.count} expired rate-limit keys`);
+    } catch (e: any) {
+      log.warn(`[cron] rate-limit cleanup failed: ${e?.message}`);
+    }
+  };
+  setTimeout(cleanupRateLimits, 60_000);
+  setInterval(cleanupRateLimits, 24 * 60 * 60 * 1000);
+  log.boot('  Cron scheduler     ✓  expired rate-limit cleanup daily');
+
   // ─── Ops health check + 5xx spike monitor (every 5 minutes) ──────────────
   const fireHealthCheck = async () => {
     try {
@@ -957,9 +994,13 @@ export async function startServer(): Promise<void> {
   serveStatic();
   // Global error handler must come after routes
   app.use(errorHandler);
-  app.listen(PORT, () => {
+  httpServer = app.listen(PORT, () => {
     logStartupInfo(PORT);
-    startCronScheduler();
+    if (process.env.CRON_SCHEDULER_ENABLED !== 'false') {
+      startCronScheduler();
+    } else {
+      log.boot('  Cron scheduler     —  disabled by CRON_SCHEDULER_ENABLED=false');
+    }
   });
 }
 

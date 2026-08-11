@@ -81,6 +81,13 @@ export async function deleteFile(key: string): Promise<void> {
 }
 
 export function storageKeyFromUrl(value: string, requiredPrefix?: string): string {
+  if (!value.includes('://')) {
+    const key = decodeURIComponent(value).replace(/^\/+/, '');
+    if (!key || key.includes('..') || (requiredPrefix && !key.startsWith(`${requiredPrefix}/`))) {
+      throw new Error('Invalid storage object path');
+    }
+    return key;
+  }
   const parsed = new URL(value);
   let key = decodeURIComponent(parsed.pathname).replace(/^\/+/, '');
   if (key.startsWith(`${bucket}/`)) key = key.slice(bucket.length + 1);

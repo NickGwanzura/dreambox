@@ -32,7 +32,7 @@ function res() {
   return response;
 }
 const invoiceBody = (extra: any = {}) => ({ clientId: 'client-1', date: '2026-08-01', items: [{ description: 'Campaign', amount: 115.5 }], subtotal: 100, vatAmount: 15.5, total: 115.5, type: 'Invoice', ...extra });
-const bankReceipt = (extra: any = {}) => ({ clientId: 'client-1', date: '2026-08-01', items: [{ description: 'Payment', amount: 115.5 }], subtotal: 115.5, vatAmount: 0, total: 115.5, type: 'Receipt', linkedInvoiceId: 'invoice-1', paymentMethod: 'Bank Transfer', paymentReference: 'BANK-001', receivedBy: 'Jane Doe', receivingAccount: 'CBZ USD 1234', proofPaymentUrl: 'https://files.example.com/proof.pdf', proofOriginalName: 'proof.pdf', proofMimeType: 'application/pdf', proofUploadedAt: '2026-08-01T10:00:00.000Z', ...extra });
+const bankReceipt = (extra: any = {}) => ({ clientId: 'client-1', date: '2026-08-01', items: [{ description: 'Payment', amount: 115.5 }], subtotal: 115.5, vatAmount: 0, total: 115.5, type: 'Receipt', linkedInvoiceId: 'invoice-1', paymentMethod: 'Bank Transfer', paymentReference: 'BANK-001', receivedBy: 'Jane Doe', receivingAccount: 'CBZ USD 1234', proofPaymentUrl: 'payment-proofs/proof.pdf', proofOriginalName: 'proof.pdf', proofMimeType: 'application/pdf', proofUploadedAt: '2026-08-01T10:00:00.000Z', ...extra });
 
 let handler: any;
 beforeEach(async () => {

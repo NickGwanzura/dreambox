@@ -3,6 +3,8 @@ import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
+import { getClientIp } from '../../lib/clientIp.js';
+import { checkRateLimit } from '../../lib/rateLimiter.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
@@ -12,6 +14,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const ipCheck = await checkRateLimit(`resend-verification:ip:${getClientIp(req)}`, { maxAttempts: 5, windowMs: 15 * 60 * 1000 });
+  if (!ipCheck.allowed) {
+    res.setHeader('Retry-After', String(Math.ceil((ipCheck.retryAfterMs ?? 900000) / 1000)));
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  }
 
   const { email } = req.body ?? {};
   if (!email) return res.status(400).json({ error: 'Email required' });

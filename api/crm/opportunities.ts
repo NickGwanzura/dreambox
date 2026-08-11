@@ -3,6 +3,9 @@ import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMOpportunityData } from '../../lib/whitelist';
+import { isIntegrityError } from '../../lib/crmIntegrity.js';
+import { parsePagination } from '../../lib/pagination.js';
+import { recordMutationAudit } from '../../lib/mutationAudit.js';
 import { z } from 'zod';
 
 const opportunitySchema = z.object({
@@ -22,7 +25,8 @@ const opportunitySchema = z.object({
   callOutcomeNotes: z.string().optional().nullable(),
   numberOfAttempts: z.number().int().optional(),
   assignedTo: z.string().optional().nullable(),
-  createdBy: z.string().min(1, 'Created by is required'),
+  // Authorship is always derived from the verified JWT on the server.
+  createdBy: z.string().optional(),
   closedAt: z.string().optional().nullable(),
   closedReason: z.string().optional().nullable(),
   daysInCurrentStage: z.number().int().optional(),
@@ -56,7 +60,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const rows = await prisma.cRMOpportunity.findMany({
         where: companyId ? { companyId: companyId as string } : undefined,
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        ...parsePagination(req.query as any, 500),
       });
       return res.status(200).json(rows);
     }
@@ -70,6 +75,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       await assertOpportunityParents(data);
       data.createdBy = payload.email;
       const row = await prisma.cRMOpportunity.create({ data });
+      await recordMutationAudit(req, payload, 'CRM_OPPORTUNITY_CREATED', 'crm_opportunities', row.id, `CRM opportunity ${row.id} created`);
       return res.status(201).json(row);
     }
 
@@ -86,10 +92,13 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         const merged = { ...existing, ...data };
         await assertOpportunityParents(merged);
         delete data.createdBy;
+      } else {
+        await assertOpportunityParents(data);
       }
       const row = existing
         ? await prisma.cRMOpportunity.update({ where: { id: id as string }, data })
-        : await prisma.cRMOpportunity.create({ data: { ...data, id: id as string } });
+        : await prisma.cRMOpportunity.create({ data: { ...data, id: id as string, createdBy: payload.email } });
+      await recordMutationAudit(req, payload, existing ? 'CRM_OPPORTUNITY_UPDATED' : 'CRM_OPPORTUNITY_CREATED', 'crm_opportunities', id as string, `CRM opportunity ${id} ${existing ? 'updated' : 'created'}`);
       return res.status(200).json(row);
     }
 
@@ -97,13 +106,24 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!await requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const [touchpoints, tasks, emailThreads, callLogs] = await Promise.all([
+        prisma.cRMTouchpoint.count({ where: { opportunityId: id as string } }),
+        prisma.cRMTask.count({ where: { opportunityId: id as string } }),
+        prisma.cRMEmailThread.count({ where: { opportunityId: id as string } }),
+        prisma.cRMCallLog.count({ where: { opportunityId: id as string } }),
+      ]);
+      if (touchpoints || tasks || emailThreads || callLogs) {
+        return res.status(409).json({ error: 'Opportunity has CRM activity and cannot be deleted.' });
+      }
       await prisma.cRMOpportunity.delete({ where: { id: id as string } });
+      await recordMutationAudit(req, payload, 'CRM_OPPORTUNITY_DELETED', 'crm_opportunities', id as string, `CRM opportunity ${id} deleted`);
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
     log.error('[crm/opportunities]', e);
+    if (isIntegrityError(e)) return res.status(409).json({ error: e.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

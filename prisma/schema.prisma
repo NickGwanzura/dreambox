@@ -594,6 +594,23 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// Durable claim ledger for scheduled side effects (emails, expiry events, and
+// other jobs that may be retried or run by more than one app replica).
+model CronJobRun {
+  id          String    @id @default(uuid())
+  jobKey      String    @unique
+  status      String    @default("Running")
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  result      Json?
+  error       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, startedAt])
+  @@map("cron_job_runs")
+}
+
 model AccountingPeriod {
   id         String   @id @default(uuid())
   startDate  String

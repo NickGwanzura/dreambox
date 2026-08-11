@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireManagerOrAdmin, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { parsePagination } from '../lib/pagination.js';
 
 const amendmentSchema = z.object({
   contractId: z.string().min(1, 'Contract ID is required'),
@@ -48,7 +49,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const where = contractId ? { contractId: contractId as string } : {};
       const rows = await prisma.contractAmendment.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        ...parsePagination(req.query as any, 500),
       });
       return res.status(200).json(rows);
     }

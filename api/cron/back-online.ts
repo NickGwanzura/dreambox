@@ -10,6 +10,8 @@ import { Resend } from 'resend';
 import { prisma } from '../../lib/prisma';
 import { cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
+import { escapeHtml } from '../../lib/htmlEscape.js';
+import { claimCronJob, completeCronJob, failCronJob } from '../../lib/cronJobs.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 export default async function handler(req: HttpRequest, res: HttpResponse) {
@@ -27,6 +29,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     return res.status(401).json({ error: 'Invalid secret' });
   }
 
+  const jobKey = `back-online:${process.env.MAINTENANCE_UNTIL || new Date().toISOString().slice(0, 10)}`;
+  if (!await claimCronJob(jobKey)) return res.status(200).json({ skipped: true, reason: 'already processed or running' });
   try {
     // Fetch all active users
     const users = await prisma.user.findMany({
@@ -36,6 +40,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     if (users.length === 0) {
       log.info('[cron/back-online] No active users to notify');
+      await completeCronJob(jobKey, { sent: 0, total: 0 });
       return res.status(200).json({ sent: 0, users: 0 });
     }
 
@@ -66,7 +71,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
               <!-- Body -->
               <tr>
                 <td style="padding:32px 40px">
-                  <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6">Hi ${companyName === 'Dreambox Advertising' ? 'team' : ''},</p>
+                  <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6">Hi ${companyName === 'Dreambox Advertising' ? 'team' : escapeHtml(companyName)},</p>
                   <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6">
                     The scheduled maintenance is complete and the Dreambox CRM platform is fully operational again.
                   </p>
@@ -120,7 +125,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
           from: `${senderName} <${fromEmail}>`,
           to: user.email,
           subject: 'Dreambox CRM — Back Online',
-          html: html.replace('Hi team,', `Hi ${user.firstName},`),
+          html: html.replace('Hi team,', `Hi ${escapeHtml(user.firstName)},`),
         });
         sent++;
       } catch (e: any) {
@@ -130,12 +135,15 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     log.info(`[cron/back-online] Sent ${sent}/${users.length} emails` + (errors.length ? `, errors: ${errors.join('; ')}` : ''));
 
+    if (errors.length > 0) await failCronJob(jobKey, `${errors.length} email(s) failed`);
+    else await completeCronJob(jobKey, { sent, total: users.length });
     return res.status(200).json({
       sent,
       total: users.length,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (e: any) {
+    await failCronJob(jobKey, e);
     log.error('[cron/back-online] Failed:', { message: e.message });
     return res.status(500).json({ error: e.message });
   }

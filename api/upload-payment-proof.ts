@@ -40,7 +40,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     if (!validSignature(buffer, match[1])) return res.status(400).json({ error: 'The uploaded file content does not match its declared type.' });
     const uploaded = await uploadFile('payment-proofs', { buffer, originalName: parsed.data.originalName, mimetype: match[1] });
     log.info(`[payment-proof] Uploaded by ${payload.email} key=${uploaded.key}`);
-    return res.status(201).json({ url: uploaded.url, originalName: parsed.data.originalName, mimeType: match[1], uploadedAt: new Date().toISOString() });
+    // Persist the private object key, not a potentially public R2 URL. The
+    // authenticated /api/payment-proof route streams the object on demand.
+    return res.status(201).json({ url: uploaded.key, originalName: parsed.data.originalName, mimeType: match[1], uploadedAt: new Date().toISOString() });
   } catch (e: any) {
     log.error('[payment-proof]', e);
     return res.status(500).json({ error: e?.message || 'Proof upload failed' });

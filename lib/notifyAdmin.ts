@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { log } from './serverLogger.js';
+import { escapeHtml } from './htmlEscape.js';
 
 export const SYSTEM_ADMIN_EMAIL = 'rufarod@gmail.com';
 export const SYSTEM_ADMIN_NAME = 'Rufaro';
@@ -46,7 +47,7 @@ function buildNewUserAlertEmail(user: NewUserAlert): string {
   const ctaLabel = needsApproval ? 'Review & Approve' : 'Open User Management';
   const ctaUrl = `${APP_URL}/settings/users`;
   const invitedByRow = user.invitedBy
-    ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Invited by:</strong> ${user.invitedBy}</td></tr>`
+    ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Invited by:</strong> ${escapeHtml(user.invitedBy)}</td></tr>`
     : '';
   const banner = needsApproval
     ? `<tr><td style="background:#fef3c7;color:#78350f;font-size:13px;line-height:1.5;padding:12px 16px;border-radius:8px;margin-bottom:16px;">
@@ -76,10 +77,10 @@ function buildNewUserAlertEmail(user: NewUserAlert): string {
             ${banner}
             <tr><td style="padding:20px 0;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;padding:20px;">
-                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Name:</strong> ${user.firstName} ${user.lastName}</td></tr>
-                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Email:</strong> ${user.email}</td></tr>
-                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Role:</strong> ${user.role}</td></tr>
-                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Status:</strong> ${user.status}</td></tr>
+                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Name:</strong> ${escapeHtml(user.firstName)} ${escapeHtml(user.lastName)}</td></tr>
+                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Email:</strong> ${escapeHtml(user.email)}</td></tr>
+                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Role:</strong> ${escapeHtml(user.role)}</td></tr>
+                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Status:</strong> ${escapeHtml(user.status)}</td></tr>
                 <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Source:</strong> ${sourceLabel}</td></tr>
                 ${invitedByRow}
               </table>
@@ -152,15 +153,15 @@ function buildWebsiteLeadEmail(lead: WebsiteLeadAlert): string {
             </td></tr>
             <tr><td style="padding:20px 0;">
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;padding:20px;">
-                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Name:</strong> ${lead.name}</td></tr>
-                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Email:</strong> ${lead.email}</td></tr>
-                ${lead.phone ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Phone:</strong> ${lead.phone}</td></tr>` : ''}
-                ${lead.company ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Company:</strong> ${lead.company}</td></tr>` : ''}
-                ${lead.locationInterest ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Location interest:</strong> ${lead.locationInterest}</td></tr>` : ''}
-                ${lead.billboardType ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Media type:</strong> ${lead.billboardType}</td></tr>` : ''}
-                ${lead.campaignDuration ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Duration:</strong> ${lead.campaignDuration}</td></tr>` : ''}
+                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Name:</strong> ${escapeHtml(lead.name)}</td></tr>
+                <tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Email:</strong> ${escapeHtml(lead.email)}</td></tr>
+                ${lead.phone ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Phone:</strong> ${escapeHtml(lead.phone)}</td></tr>` : ''}
+                ${lead.company ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Company:</strong> ${escapeHtml(lead.company)}</td></tr>` : ''}
+                ${lead.locationInterest ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Location interest:</strong> ${escapeHtml(lead.locationInterest)}</td></tr>` : ''}
+                ${lead.billboardType ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Media type:</strong> ${escapeHtml(lead.billboardType)}</td></tr>` : ''}
+                ${lead.campaignDuration ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Duration:</strong> ${escapeHtml(lead.campaignDuration)}</td></tr>` : ''}
                 ${lead.estimatedValue ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Estimated value:</strong> ${money(lead.estimatedValue)}</td></tr>` : ''}
-                ${lead.message ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Message:</strong> ${lead.message.replace(/\n/g, '<br>')}</td></tr>` : ''}
+                ${lead.message ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;"><strong style="color:#1e293b;">Message:</strong> ${escapeHtml(lead.message).replace(/\n/g, '<br>')}</td></tr>` : ''}
               </table>
             </td></tr>
             <tr><td align="center" style="padding:16px 0 24px 0;">
@@ -208,8 +209,8 @@ function buildOpsAlertEmail(subject: string, sections: OpsAlertSection[]): strin
       s => `
         <tr><td style="padding:20px 0;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;padding:20px;">
-            <tr><td style="color:#1e293b;font-size:14px;font-weight:700;padding-bottom:8px;">${s.title}</td></tr>
-            ${s.lines.map(l => `<tr><td style="color:#475569;font-size:13px;padding:3px 0;line-height:1.5;word-break:break-word;">${l}</td></tr>`).join('')}
+            <tr><td style="color:#1e293b;font-size:14px;font-weight:700;padding-bottom:8px;">${escapeHtml(s.title)}</td></tr>
+            ${s.lines.map(l => `<tr><td style="color:#475569;font-size:13px;padding:3px 0;line-height:1.5;word-break:break-word;">${escapeHtml(l)}</td></tr>`).join('')}
           </table>
         </td></tr>`,
     )
@@ -230,7 +231,7 @@ function buildOpsAlertEmail(subject: string, sections: OpsAlertSection[]): strin
               Hi ${SYSTEM_ADMIN_NAME},
             </td></tr>
             <tr><td style="color:#64748b;font-size:14px;line-height:1.6;padding-bottom:8px;">
-              ${subject}
+              ${escapeHtml(subject)}
             </td></tr>
             ${blocks}
             <tr><td style="color:#94a3b8;font-size:12px;line-height:1.6;border-top:1px solid #e2e8f0;padding-top:24px;">
@@ -280,13 +281,13 @@ export function notifyWatchedLogin(watchedUser: WatchedLoginUser, ip: string, us
     <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:32px;">
       <tr><td style="font-size:20px;font-weight:700;color:#1e293b;padding-bottom:12px;">Login Alert</td></tr>
       <tr><td style="color:#64748b;font-size:14px;line-height:1.6;padding-bottom:16px;">
-        <strong style="color:#1e293b;">${fullName}</strong> (${watchedUser.email}) just signed in to Dreambox CRM.
+        <strong style="color:#1e293b;">${escapeHtml(fullName)}</strong> (${escapeHtml(watchedUser.email)}) just signed in to Dreambox CRM.
       </td></tr>
       <tr><td>
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;padding:16px;font-size:13px;color:#1e293b;">
           <tr><td style="padding:4px 0;"><strong>When:</strong> ${when} (CAT)</td></tr>
-          <tr><td style="padding:4px 0;"><strong>IP:</strong> ${ip}</td></tr>
-          <tr><td style="padding:4px 0;word-break:break-all;"><strong>Device:</strong> ${userAgent || 'unknown'}</td></tr>
+          <tr><td style="padding:4px 0;"><strong>IP:</strong> ${escapeHtml(ip)}</td></tr>
+          <tr><td style="padding:4px 0;word-break:break-all;"><strong>Device:</strong> ${escapeHtml(userAgent || 'unknown')}</td></tr>
         </table>
       </td></tr>
       <tr><td style="color:#94a3b8;font-size:11px;padding-top:20px;border-top:1px solid #e2e8f0;margin-top:20px;text-align:center;">

@@ -79,6 +79,7 @@ describe('CRUD Endpoint Integration Tests', () => {
     vi.clearAllMocks();
     mockPrisma.cRMCompany.findUnique.mockResolvedValue({ id: 'c1' });
     mockPrisma.cRMContact.findUnique.mockResolvedValue({ id: 'contact-1', companyId: 'c1' });
+    mockPrisma.cRMOpportunity.findUnique.mockResolvedValue({ id: 'opp1', companyId: 'c1' });
   });
 
   describe('tasks.ts', () => {

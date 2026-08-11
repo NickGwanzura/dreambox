@@ -6,10 +6,16 @@ import { buildForensicFinanceReport } from '../services/forensicFinance';
 import { createHash, randomUUID } from 'node:crypto';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const calendarDate = z.string().regex(DATE_RE).refine(value => {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}, 'Invalid calendar date');
 const querySchema = z.object({
-  startDate: z.string().regex(DATE_RE),
-  endDate: z.string().regex(DATE_RE),
+  startDate: calendarDate,
+  endDate: calendarDate,
 });
+const MAX_REPORT_ROWS = 20_000;
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
@@ -22,12 +28,15 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
   try {
     const [invoiceRows, clientRows, expenseRows] = await Promise.all([
-      prisma.invoice.findMany({ where: { date: { lte: parsed.data.endDate } }, orderBy: [{ date: 'asc' }, { createdAt: 'asc' }] }),
-      prisma.client.findMany(),
+      prisma.invoice.findMany({ where: { date: { lte: parsed.data.endDate } }, orderBy: [{ date: 'asc' }, { createdAt: 'asc' }], take: MAX_REPORT_ROWS + 1 }),
+      prisma.client.findMany({ take: MAX_REPORT_ROWS + 1 }),
       // Expenses through the end date are retained for as-of controls; the
       // forensic service applies the requested P&L window separately.
-      prisma.expense.findMany({ where: { date: { lte: parsed.data.endDate } } }),
+      prisma.expense.findMany({ where: { date: { lte: parsed.data.endDate } }, take: MAX_REPORT_ROWS + 1 }),
     ]);
+    if (invoiceRows.length > MAX_REPORT_ROWS || clientRows.length > MAX_REPORT_ROWS || expenseRows.length > MAX_REPORT_ROWS) {
+      return res.status(413).json({ error: 'Financial report dataset is too large. Narrow the reporting period or run an offline export.' });
+    }
     const invoices = invoiceRows.map(row => ({ ...row, subtotal: Number(row.subtotal), discountAmount: row.discountAmount == null ? undefined : Number(row.discountAmount), vatAmount: Number(row.vatAmount), total: Number(row.total), proofUploadedAt: row.proofUploadedAt?.toISOString(), recordedAt: row.recordedAt?.toISOString(), postedAt: row.postedAt?.toISOString(), voidedAt: row.voidedAt?.toISOString() })) as any;
     const expenses = expenseRows.map(row => ({ ...row, amount: Number(row.amount) })) as any;
     const report = buildForensicFinanceReport(

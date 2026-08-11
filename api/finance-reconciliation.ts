@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { buildForensicFinanceReport } from '../services/forensicFinance';
 
 const asMoney = (value: unknown): number => Number(value) || 0;
+const MAX_RECONCILIATION_ROWS = 20_000;
 
 /**
  * Reconciliation is intentionally read-only. It exposes enough ledger facts
@@ -52,10 +53,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
   try {
     const [documentRows, clients, expenseRows] = await Promise.all([
-      prisma.invoice.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
-      prisma.client.findMany(),
-      prisma.expense.findMany({ orderBy: [{ date: 'asc' }, { createdAt: 'asc' }] }),
+      prisma.invoice.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_RECONCILIATION_ROWS + 1 }),
+      prisma.client.findMany({ take: MAX_RECONCILIATION_ROWS + 1 }),
+      prisma.expense.findMany({ orderBy: [{ date: 'asc' }, { createdAt: 'asc' }], take: MAX_RECONCILIATION_ROWS + 1 }),
     ]);
+
+    if (documentRows.length > MAX_RECONCILIATION_ROWS || clients.length > MAX_RECONCILIATION_ROWS || expenseRows.length > MAX_RECONCILIATION_ROWS) {
+      return res.status(413).json({ error: 'Reconciliation dataset is too large. Narrow the reporting period or run an offline export.' });
+    }
 
     const documents = documentRows.map(toForensicInvoice);
     const expenses = expenseRows.map((row: any) => ({ ...row, amount: asMoney(row.amount) }));

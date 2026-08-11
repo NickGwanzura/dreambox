@@ -104,6 +104,7 @@ export const verifyTwoFactor = async (
 // ============================================================
 
 export const signOut = async (): Promise<void> => {
+  await fetch('/api/auth/signout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
   clearToken();
   clearSession();
   logger.info('User signed out');

@@ -2,11 +2,15 @@ import type { HttpRequest, HttpResponse } from '../lib/http';
 import { prisma } from '../lib/prisma';
 import { cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { checkRateLimit } from '../lib/rateLimiter.js';
+import { getClientIp } from '../lib/clientIp.js';
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  const rate = await checkRateLimit(`public-profile:${getClientIp(req)}`, { maxAttempts: 120, windowMs: 60_000 });
+  if (!rate.allowed) return res.status(429).json({ error: 'Too many requests. Please try again later.' });
 
   try {
     const row = await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } });

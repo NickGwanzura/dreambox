@@ -8,6 +8,24 @@ if (!JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not set. Cannot start the application.');
 }
 
+const SESSION_COOKIE = 'db_session';
+
+function cookieOptions(maxAgeSeconds: number): string {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return `${SESSION_COOKIE}=; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax${secure}`;
+}
+
+/** Issue a server-managed session cookie while retaining the Authorization
+ * header for existing clients and offline-first compatibility. */
+export function setSessionCookie(res: HttpResponse, token: string): void {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(token)}; Max-Age=86400; Path=/; HttpOnly; SameSite=Lax${secure}`);
+}
+
+export function clearSessionCookie(res: HttpResponse): void {
+  res.setHeader('Set-Cookie', cookieOptions(0));
+}
+
 export interface JWTPayload {
   userId: string;
   email: string;
@@ -66,6 +84,12 @@ export function verifyToken(token: string): JWTPayload | null {
 export function getTokenFromRequest(req: HttpRequest): string | null {
   const auth = req.headers.authorization;
   if (auth?.startsWith('Bearer ')) return auth.slice(7);
+  const cookieHeader = req.headers.cookie;
+  const match = cookieHeader?.split(';')?.map(part => part.trim()).find(part => part.startsWith(`${SESSION_COOKIE}=`));
+  if (match) {
+    const value = match.slice(SESSION_COOKIE.length + 1);
+    try { return decodeURIComponent(value); } catch { return null; }
+  }
   return null;
 }
 
@@ -176,6 +200,7 @@ export function cors(res: HttpResponse, req?: HttpRequest): void {
   res.setHeader('Access-Control-Allow-Origin', allowed);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Vary', 'Origin');
 }
 

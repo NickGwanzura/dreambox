@@ -77,7 +77,7 @@ describe('finance-report period controls', () => {
 
     expect(res.statusCode).toBe(200);
     expect(state.prisma.invoice.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { date: { lte: '2026-07-31' } } }));
-    expect(state.prisma.expense.findMany).toHaveBeenCalledWith({ where: { date: { lte: '2026-07-31' } } });
+    expect(state.prisma.expense.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { date: { lte: '2026-07-31' } }, take: expect.any(Number) }));
     expect(res.payload.period).toMatchObject({
       startDate: '2026-07-01',
       endDate: '2026-07-31',

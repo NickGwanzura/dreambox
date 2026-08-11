@@ -4,6 +4,8 @@ import { prisma } from '../../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMCompanyData } from '../../lib/whitelist';
+import { parsePagination } from '../../lib/pagination.js';
+import { recordMutationAudit } from '../../lib/mutationAudit.js';
 
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -28,7 +30,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const rows = await prisma.cRMCompany.findMany({ orderBy: { createdAt: 'asc' } });
+      const { take, skip } = parsePagination(req.query as any, 500);
+      const rows = await prisma.cRMCompany.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take, skip });
       return res.status(200).json(rows);
     }
 
@@ -39,6 +42,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const data = pickCRMCompanyData(req.body ?? {});
       const row = await prisma.cRMCompany.create({ data });
+      await recordMutationAudit(req, payload, 'CRM_COMPANY_CREATED', 'crm_companies', row.id, `CRM company ${row.id} created`);
       return res.status(201).json(row);
     }
 
@@ -54,6 +58,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const row = existing
         ? await prisma.cRMCompany.update({ where: { id: id as string }, data })
         : await prisma.cRMCompany.create({ data: { ...data, id: id as string } });
+      await recordMutationAudit(req, payload, existing ? 'CRM_COMPANY_UPDATED' : 'CRM_COMPANY_CREATED', 'crm_companies', id as string, `CRM company ${id} ${existing ? 'updated' : 'created'}`);
       return res.status(200).json(row);
     }
 
@@ -61,7 +66,15 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!await requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const [contacts, opportunities] = await Promise.all([
+        prisma.cRMContact.count({ where: { companyId: id as string } }),
+        prisma.cRMOpportunity.count({ where: { companyId: id as string } }),
+      ]);
+      if (contacts || opportunities) {
+        return res.status(409).json({ error: 'Company has contacts or opportunities and cannot be deleted.' });
+      }
       await prisma.cRMCompany.delete({ where: { id: id as string } });
+      await recordMutationAudit(req, payload, 'CRM_COMPANY_DELETED', 'crm_companies', id as string, `CRM company ${id} deleted`);
       return res.status(200).json({ success: true });
     }
 

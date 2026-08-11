@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 import { pickPrintingJobData } from '../lib/whitelist';
+import { parsePagination } from '../lib/pagination.js';
 
 const printingJobSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
@@ -34,7 +35,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const rows = await prisma.printingJob.findMany({ orderBy: { createdAt: 'asc' } });
+      const rows = await prisma.printingJob.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], ...parsePagination(req.query as any, 500) });
       return res.status(200).json(rows);
     }
 

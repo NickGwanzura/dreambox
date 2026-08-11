@@ -4,6 +4,9 @@ import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMEmailThreadData } from '../../lib/whitelist';
 import { z } from 'zod';
+import { assertCRMActivityParents, isIntegrityError } from '../../lib/crmIntegrity.js';
+import { parsePagination } from '../../lib/pagination.js';
+import { recordMutationAudit } from '../../lib/mutationAudit.js';
 
 const emailThreadSchema = z.object({
   opportunityId: z.string().min(1, 'Opportunity ID is required'),
@@ -34,7 +37,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const rows = await prisma.cRMEmailThread.findMany({
         where: opportunityId ? { opportunityId: opportunityId as string } : undefined,
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        ...parsePagination(req.query as any, 500),
       });
       return res.status(200).json(rows);
     }
@@ -45,7 +49,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues.map(e => e.message) });
       }
       const data = pickCRMEmailThreadData(req.body ?? {});
+      await assertCRMActivityParents(data.opportunityId, data.contactId);
       const row = await prisma.cRMEmailThread.create({ data });
+      await recordMutationAudit(req, payload, 'CRM_EMAIL_THREAD_CREATED', 'crm_email_threads', row.id, `CRM email thread ${row.id} created`);
       return res.status(201).json(row);
     }
 
@@ -58,9 +64,13 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const data = pickCRMEmailThreadData(req.body ?? {});
       const existing = await prisma.cRMEmailThread.findUnique({ where: { id: id as string } });
+      const merged = existing ? { ...existing, ...data } : data;
+      if (!existing && (!parsed.data.opportunityId || !parsed.data.contactId)) return res.status(400).json({ error: 'Opportunity and contact IDs are required' });
+      await assertCRMActivityParents(merged.opportunityId, merged.contactId);
       const row = existing
         ? await prisma.cRMEmailThread.update({ where: { id: id as string }, data })
         : await prisma.cRMEmailThread.create({ data: { ...data, id: id as string } });
+      await recordMutationAudit(req, payload, existing ? 'CRM_EMAIL_THREAD_UPDATED' : 'CRM_EMAIL_THREAD_CREATED', 'crm_email_threads', id as string, `CRM email thread ${id} ${existing ? 'updated' : 'created'}`);
       return res.status(200).json(row);
     }
 
@@ -69,12 +79,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
       await prisma.cRMEmailThread.delete({ where: { id: id as string } });
+      await recordMutationAudit(req, payload, 'CRM_EMAIL_THREAD_DELETED', 'crm_email_threads', id as string, `CRM email thread ${id} deleted`);
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
     log.error('[crm/email-threads]', e);
+    if (isIntegrityError(e)) return res.status(409).json({ error: e.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

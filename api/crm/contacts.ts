@@ -4,6 +4,8 @@ import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMContactData } from '../../lib/whitelist';
 import { z } from 'zod';
+import { parsePagination } from '../../lib/pagination.js';
+import { recordMutationAudit } from '../../lib/mutationAudit.js';
 
 const contactSchema = z.object({
   companyId: z.string().min(1, 'Company ID is required'),
@@ -36,7 +38,8 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const rows = await prisma.cRMContact.findMany({
         where: companyId ? { companyId: companyId as string } : undefined,
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        ...parsePagination(req.query as any, 500),
       });
       return res.status(200).json(rows);
     }
@@ -49,6 +52,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const data = pickCRMContactData(req.body ?? {});
       await assertCompany(data.companyId);
       const row = await prisma.cRMContact.create({ data });
+      await recordMutationAudit(req, payload, 'CRM_CONTACT_CREATED', 'crm_contacts', row.id, `CRM contact ${row.id} created`);
       return res.status(201).json(row);
     }
 
@@ -65,6 +69,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const row = existing
         ? await prisma.cRMContact.update({ where: { id: id as string }, data })
         : await prisma.cRMContact.create({ data: { ...data, id: id as string } });
+      await recordMutationAudit(req, payload, existing ? 'CRM_CONTACT_UPDATED' : 'CRM_CONTACT_CREATED', 'crm_contacts', id as string, `CRM contact ${id} ${existing ? 'updated' : 'created'}`);
       return res.status(200).json(row);
     }
 
@@ -72,7 +77,16 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!await requireDeletePermission(req, res)) return;
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
+      const [opportunities, emailThreads, callLogs] = await Promise.all([
+        prisma.cRMOpportunity.count({ where: { OR: [{ primaryContactId: id as string }, { secondaryContactId: id as string }] } }),
+        prisma.cRMEmailThread.count({ where: { contactId: id as string } }),
+        prisma.cRMCallLog.count({ where: { contactId: id as string } }),
+      ]);
+      if (opportunities || emailThreads || callLogs) {
+        return res.status(409).json({ error: 'Contact has CRM activity and cannot be deleted.' });
+      }
       await prisma.cRMContact.delete({ where: { id: id as string } });
+      await recordMutationAudit(req, payload, 'CRM_CONTACT_DELETED', 'crm_contacts', id as string, `CRM contact ${id} deleted`);
       return res.status(200).json({ success: true });
     }
 
