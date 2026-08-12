@@ -157,6 +157,7 @@ export const Financials: React.FC<FinancialsProps> = ({
   const [invoices, setInvoices] = useState<Invoice[]>(getInvoices());
   const [allClients, setAllClients] = useState(getClients());
   const [searchTerm, setSearchTerm] = useState("");
+  const [invoiceMonth, setInvoiceMonth] = useState("all");
   const [newItem, setNewItem] = useState({ description: "", amount: 0 });
   const [formData, setFormData] = useState<Partial<Invoice>>({
     clientId: "",
@@ -881,11 +882,13 @@ export const Financials: React.FC<FinancialsProps> = ({
     }
   };
 
+  const invoiceMonths = Array.from(new Set(invoices.map(i => i.date?.slice(0, 7)).filter(Boolean))).sort().reverse();
   const filteredDocs = invoices.filter((i) => {
     const iType = String(i.type || "").toLowerCase();
     let matchesType = false;
     if (activeTab === "Invoices") matchesType = iType === "invoice";
     else if (activeTab === "Receipts") matchesType = iType === "receipt";
+    const matchesMonth = invoiceMonth === "all" || i.date?.startsWith(invoiceMonth);
     const searchLower = searchTerm.toLowerCase();
     const clientName = String(
       allClients.find((c) => c.id === i.clientId)?.companyName || "",
@@ -897,8 +900,9 @@ export const Financials: React.FC<FinancialsProps> = ({
       clientName.includes(searchLower) ||
       (i.paymentReference &&
         String(i.paymentReference).toLowerCase().includes(searchLower));
-    return matchesType && matchesSearch;
+    return matchesType && matchesMonth && matchesSearch;
   });
+  const filteredDocsTotal = filteredDocs.reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
 
   return (
     <>
@@ -934,6 +938,10 @@ export const Financials: React.FC<FinancialsProps> = ({
                   placeholder="Search ID, Client, Ref..."
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"
                 />
+                <select aria-label="Filter documents by month" value={invoiceMonth} onChange={(e) => setInvoiceMonth(e.target.value)} className="w-full sm:w-40 px-3 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 text-sm">
+                  <option value="all">All months</option>
+                  {invoiceMonths.map(month => <option key={month} value={month}>{new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</option>)}
+                </select>
               </div>
               {canUserWrite && (
                 <button

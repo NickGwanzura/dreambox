@@ -62,6 +62,7 @@ export const Quotations: React.FC = () => {
   const [allClients, setAllClients] = useState<Client[]>(getClients());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [quoteMonth, setQuoteMonth] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<Invoice | null>(null);
   const [convertingQuotation, setConvertingQuotation] = useState<Invoice | null>(null);
@@ -118,6 +119,7 @@ export const Quotations: React.FC = () => {
     invoices.filter(i => String(i.type).toLowerCase() === docTypeFilter.toLowerCase()),
     [invoices, docTypeFilter]
   );
+  const quoteMonths = useMemo(() => Array.from(new Set(quotations.map(q => q.date?.slice(0, 7)).filter(Boolean))).sort().reverse(), [quotations]);
 
   const filteredQuotations = useMemo(() => {
     let result = quotations;
@@ -131,8 +133,9 @@ export const Quotations: React.FC = () => {
     if (statusFilter !== 'All') {
       result = result.filter(q => q.quoteStatus === statusFilter);
     }
+    if (quoteMonth !== 'all') result = result.filter(q => q.date?.startsWith(quoteMonth));
     return result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [quotations, searchTerm, statusFilter, allClients]);
+  }, [quotations, searchTerm, statusFilter, quoteMonth, allClients]);
 
   const stats = useMemo(() => {
     const total = quotations.length;
@@ -146,6 +149,7 @@ export const Quotations: React.FC = () => {
     const conversionRate = sent > 0 ? Math.round((accepted + converted) / sent * 100) : 0;
     return { total, draft, sent, accepted, rejected, expired, converted, totalValue, conversionRate };
   }, [quotations]);
+  const filteredQuotedValue = filteredQuotations.reduce((sum, q) => sum + (q.total || 0), 0);
 
   const pipelineData = useMemo(() => [
     { name: 'Draft', value: stats.draft, fill: '#64748b' },
@@ -733,9 +737,15 @@ export const Quotations: React.FC = () => {
               { value: 'Converted', label: 'Converted' },
             ]} />
           </div>
+          <div className="relative">
+            <MinimalSelect label="Month" value={quoteMonth} onChange={(e: any) => setQuoteMonth(e.target.value)} options={[
+              { value: 'all', label: 'All Months' },
+              ...quoteMonths.map(month => ({ value: month, label: new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) })),
+            ]} />
+          </div>
         </div>
         <div className="text-sm text-slate-900 font-medium">
-          Total Quoted Value: <span className="font-bold text-slate-900">${stats.totalValue.toLocaleString()}</span>
+          Showing {filteredQuotations.length} · Total Quoted Value: <span className="font-bold text-slate-900">${filteredQuotedValue.toLocaleString()}</span>
         </div>
       </div>
 
