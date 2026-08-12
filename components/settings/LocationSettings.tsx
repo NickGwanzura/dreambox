@@ -4,20 +4,15 @@ import { createGooglePin, createDotPin, googlePopup, PIN_RED, PIN_GREEN, STREET_
 import { MapPin, AlertTriangle, RefreshCw, CheckCircle, XCircle, Edit2, Search, Save, Plus, Trash2, Loader2 } from 'lucide-react';
 import { getBillboards, updateBillboard, ZIM_TOWNS, subscribe } from '../../services/mockData';
 import { bulkGeocodeBillboards, GeocodeMatch } from '../../services/geocodingService';
-import { hasValidCoordinates, hasMissingCoordinates, isFallbackCoordinate, TOWN_CENTERS, getConfiguredTowns } from '../../utils/coordinates';
+import { hasValidCoordinates, hasMissingCoordinates, isFallbackCoordinate, TOWN_CENTERS } from '../../utils/coordinates';
 import type { Billboard } from '../../types';
-
-const STORAGE_KEY = 'dreambox_location_towns';
-
-function saveTownList(towns: string[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(towns));
-  } catch {}
-}
+import { api } from '../../services/apiClient';
+import { useToast } from '../ToastProvider';
 
 export const LocationSettings: React.FC = () => {
+  const { showToast } = useToast();
   const [billboards, setBillboards] = useState<Billboard[]>(getBillboards());
-  const [towns, setTowns] = useState<string[]>(getConfiguredTowns(ZIM_TOWNS));
+  const [towns, setTowns] = useState<string[]>(ZIM_TOWNS);
   const [search, setSearch] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; currentId?: string } | null>(null);
@@ -26,6 +21,26 @@ export const LocationSettings: React.FC = () => {
   const [newTown, setNewTown] = useState('');
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    api.get<{ locationTowns?: string }>('/api/company-profile').then(profile => {
+      if (!profile.locationTowns) return;
+      try {
+        const shared = JSON.parse(profile.locationTowns);
+        if (Array.isArray(shared) && shared.every(t => typeof t === 'string')) setTowns(shared);
+      } catch { showToast('Saved town configuration could not be read.', 'error'); }
+    }).catch(() => showToast('Could not load shared towns; using the default list.', 'warning'));
+  }, [showToast]);
+
+  const saveTownList = async (next: string[]) => {
+    try {
+      await api.put('/api/company-profile', { locationTowns: JSON.stringify(next) });
+      setTowns(next);
+      showToast('Town list saved for all users.', 'success');
+    } catch (error: any) {
+      showToast(error?.message || 'Failed to save town list.', 'error');
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = subscribe(() => {
@@ -147,8 +162,7 @@ export const LocationSettings: React.FC = () => {
     const t = newTown.trim();
     if (!t || towns.includes(t)) return;
     const next = [...towns, t].sort();
-    setTowns(next);
-    saveTownList(next);
+    void saveTownList(next);
     // Provide a default center for unknown towns so map picker doesn't break
     if (!TOWN_CENTERS[t]) {
       TOWN_CENTERS[t] = { lat: -19.0, lng: 29.9 };
@@ -159,12 +173,11 @@ export const LocationSettings: React.FC = () => {
   const handleDeleteTown = (town: string) => {
     const inUse = billboards.some((b) => b.town === town);
     if (inUse) {
-      alert(`Cannot delete "${town}" because it is used by one or more billboards.`);
+      showToast(`Cannot delete "${town}" because it is used by one or more billboards.`, 'error');
       return;
     }
     const next = towns.filter((t) => t !== town);
-    setTowns(next);
-    saveTownList(next);
+    void saveTownList(next);
   };
 
   return (

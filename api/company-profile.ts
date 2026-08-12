@@ -70,6 +70,7 @@ function pickCompanyProfileData(body: any) {
     heroImageUrl:        body.heroImageUrl        ?? undefined,
     partnerLogos:        body.partnerLogos        ?? undefined,
     campaignGallery:     body.campaignGallery     ?? undefined,
+    locationTowns:       body.locationTowns       ?? undefined,
   };
 }
 

@@ -389,6 +389,7 @@ model CompanyProfile {
   heroImageUrl      String?
   partnerLogos      String?
   campaignGallery   String?
+  locationTowns     String?
 
   @@map("company_profile")
 }

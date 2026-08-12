@@ -372,6 +372,7 @@ export async function runMigrations(): Promise<MigrationRunResult> {
     // campaign gallery column missing. Add it idempotently so saving the
     // website gallery doesn't 500 with "column campaignGallery does not exist".
     { label: 'company_profile.campaignGallery', sql: `ALTER TABLE "company_profile" ADD COLUMN IF NOT EXISTS "campaignGallery" TEXT` },
+    { label: 'company_profile.locationTowns', sql: `ALTER TABLE "company_profile" ADD COLUMN IF NOT EXISTS "locationTowns" TEXT` },
     // Same failure mode for newer columns: expenses are attributed to
     // clients/contracts and CRM tasks are de-duped by automationKey. These are
     // missing on DBs where migrate deploy never completed, which makes the
