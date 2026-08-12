@@ -23,6 +23,9 @@ import { CRMAnalytics } from './CRMAnalytics';
 import { CSVImportModal } from './CSVImportModal';
 import { OpportunityModal } from './OpportunityModal';
 import { LoadingButton } from '../ui/LoadingButton';
+import { PaginationControls } from '../ui/PaginationControls';
+import { fetchPage, PaginationMeta } from '../../services/pagination';
+import { isConfigured } from '../../services/apiClient';
 import { LeadScoringDashboard } from './LeadScoringDashboard';
 import { 
   generatePipelineReport, 
@@ -53,6 +56,11 @@ export const CRM: React.FC = () => {
   const [selectedOpportunity, setSelectedOpportunity] = useState<CRMOpportunity | undefined>();
   const [isExporting, setIsExporting] = useState(false);
   const [showPdfMenu, setShowPdfMenu] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const [pageOpportunities, setPageOpportunities] = useState<CRMOpportunity[]>([]);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
   
   const { showToast } = useToast();
   // Load shared data from application database on mount, then subscribe to local changes
@@ -70,13 +78,29 @@ export const CRM: React.FC = () => {
 
   // Filter opportunities
   const filteredOpportunities = useMemo(() => {
-    return opportunities.filter(opp => {
+    const source = isConfigured() ? pageOpportunities : opportunities;
+    return source.filter(opp => {
       const matchesSearch = !searchQuery || 
         opp.companyId.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || opp.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [opportunities, searchQuery, statusFilter]);
+  }, [opportunities, pageOpportunities, searchQuery, statusFilter]);
+
+  useEffect(() => {
+    if (!isConfigured()) return;
+    let active = true;
+    setIsLoadingPage(true);
+    setPageError(null);
+    fetchPage<CRMOpportunity>('/api/crm/opportunities', page).then(result => {
+      if (!active) return;
+      setPageOpportunities(result.data);
+      setPagination(result.pagination);
+    }).catch(error => active && setPageError(error?.message || 'Unable to load CRM opportunities.')).finally(() => active && setIsLoadingPage(false));
+    return () => { active = false; };
+  }, [page, refreshKey]);
+
+  useEffect(() => { setPage(1); }, [searchQuery, statusFilter]);
 
   // Export CSV
   const handleExport = useCallback(async () => {
@@ -375,6 +399,8 @@ export const CRM: React.FC = () => {
 
       {/* Content */}
       <div className="min-h-[500px]">
+        {pageError && <div role="alert" className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
+        {isLoadingPage && <div className="py-12 text-center text-sm text-slate-500">Loading opportunities…</div>}
         {view === 'pipeline' && (
           <CRMPipeline 
             opportunities={filteredOpportunities}
@@ -403,6 +429,7 @@ export const CRM: React.FC = () => {
         {view === 'scoring' && (
           <LeadScoringDashboard />
         )}
+        {(view === 'pipeline' || view === 'list') && <PaginationControls pagination={pagination} onPageChange={setPage} disabled={isLoadingPage} />}
       </div>
 
       {/* Modals */}
