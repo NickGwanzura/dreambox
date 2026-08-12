@@ -8,6 +8,7 @@ import { Mail, Phone, MoreHorizontal, User, Plus, X, Save, Search, Trash2, Alert
 import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
 import { ClientDetail } from './ClientDetail';
+import { useToast } from './ToastProvider';
 
 const MinimalInput = ({ label, value, onChange, type = "text", placeholder, required = false, max, min, step }: any) => (
   <div className="group relative">
@@ -17,6 +18,8 @@ const MinimalInput = ({ label, value, onChange, type = "text", placeholder, requ
 );
 
 export const ClientList: React.FC = () => {
+  const { showToast } = useToast();
+  const notify = (message: string) => showToast(message, /failed|error|required|not found/i.test(message) ? 'error' : 'success');
   const canUserDelete = canDelete(getCurrentUser());
   const [clients, setClients] = useState<Client[]>(getClients());
   const [contracts, setContracts] = useState<Contract[]>(getContracts());
@@ -81,7 +84,7 @@ export const ClientList: React.FC = () => {
         setIsAddModalOpen(false);
         setNewClient({ companyName: '', contactPerson: '', email: '', phone: '', status: 'Active', billingDay: undefined, streetAddress: '', city: '', country: 'Zimbabwe' });
     } catch (err: any) {
-        alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+        notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
     }
     } finally {
       isSubmittingRef.current = false;
@@ -95,7 +98,7 @@ export const ClientList: React.FC = () => {
             await updateClient(editingClient);
             setEditingClient(null);
         } catch (err: any) {
-            alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+            notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
         }
     }
   };
@@ -106,7 +109,7 @@ export const ClientList: React.FC = () => {
               await deleteClient(clientToDelete.id);
               setClientToDelete(null);
           } catch (err: any) {
-              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
           }
       }
   };
@@ -225,7 +228,7 @@ export const ClientList: React.FC = () => {
             merged.city !== existing.city ||
             merged.country !== existing.country;
           if (changed) {
-            try { await updateClient(merged); updated++; } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
+            try { await updateClient(merged); updated++; } catch (err: any) { notify(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
           } else { skipped++; }
         } else {
           const newClient: Client = {
@@ -240,7 +243,7 @@ export const ClientList: React.FC = () => {
             city,
             country,
           };
-          try { await addClient(newClient); byName.set(String(companyName || '').toLowerCase().trim(), newClient); created++; } catch (err: any) { alert(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
+          try { await addClient(newClient); byName.set(String(companyName || '').toLowerCase().trim(), newClient); created++; } catch (err: any) { notify(`Failed: ${err?.message || 'Server error. Please try again.'}`); }
         }
       }
 
@@ -258,7 +261,7 @@ export const ClientList: React.FC = () => {
       // Use the premium domain requested
       const link = `https://admin.dreamboxadvertising.com/?portal=true&clientId=${client.id}`;
       navigator.clipboard.writeText(link);
-      alert(`Client Portal Link Copied!\n${link}`);
+      notify(`Client Portal Link Copied!\n${link}`);
   };
 
   const viewingClient = viewingClientId ? clients.find(c => c.id === viewingClientId) : null;

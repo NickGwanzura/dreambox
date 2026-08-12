@@ -14,6 +14,7 @@ import { canDelete } from '../utils/settingsAccess';
 import { getProductionFee } from '../utils/productionFee';
 import { ContractAmendmentModal } from './ContractAmendmentModal';
 import { getContractGroupAllLines as getGroupedLines, getContractGroupId as getGroupedId, invoiceTouchesContractLine } from '../utils/contractGroups';
+import { useToast } from './ToastProvider';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -56,6 +57,8 @@ const MinimalSelect = ({ label, value, onChange, options, disabled = false }: an
 );
 
 export const Rentals: React.FC = () => {
+  const { showToast } = useToast();
+  const notify = (message: string) => showToast(message, /failed|error|required|already booked|conflict|missing/i.test(message) ? 'error' : 'success');
   const canUserDelete = canDelete(getCurrentUser());
   const vatRate = getEffectiveVatRate();
   const vatPct = formatVatPercent(vatRate);
@@ -491,11 +494,11 @@ export const Rentals: React.FC = () => {
     isSubmittingRef.current = true;
     try {
     if (!newRental.clientId || !newRental.billboardId || !newRental.startDate || !newRental.endDate) {
-        alert('Please select a client, at least one billboard, and contract dates.');
+        notify('Please select a client, at least one billboard, and contract dates.');
         return;
     }
     if (new Date(newRental.endDate) < new Date(newRental.startDate)) {
-        alert('End date cannot be before the start date.');
+        notify('End date cannot be before the start date.');
         return;
     }
 
@@ -547,7 +550,7 @@ export const Rentals: React.FC = () => {
             const sameDigitalSlot = billboard?.type === BillboardType.LED &&
                 (a.slotNumber || 1) === (b.slotNumber || 1);
             if (sameStaticSide || sameDigitalSlot) {
-                alert(`${billboard?.name || 'A selected billboard'} is duplicated on this contract. Pick a different side/slot or remove one line.`);
+                notify(`${billboard?.name || 'A selected billboard'} is duplicated on this contract. Pick a different side/slot or remove one line.`);
                 return;
             }
         }
@@ -556,12 +559,12 @@ export const Rentals: React.FC = () => {
     for (const line of allCreateLines) {
         const billboard = getBillboard(line.billboardId);
         if (!billboard) {
-            alert('One selected billboard could not be found. Please reselect it.');
+            notify('One selected billboard could not be found. Please reselect it.');
             return;
         }
         const avail = checkAvailability(line.billboardId, line.side || 'A', line.startDate, line.endDate, undefined, line.slotNumber);
         if (!avail.ok) {
-            alert(`${billboard.name} is already booked: ${avail.reason || 'Conflict detected'}.`);
+            notify(`${billboard.name} is already booked: ${avail.reason || 'Conflict detected'}.`);
             return;
         }
     }
@@ -581,7 +584,7 @@ export const Rentals: React.FC = () => {
         for (const created of [...createdContracts].reverse()) {
             try { await deleteContract(created.id); } catch (rollbackErr) { console.error('[Rentals] Rollback failed for contract line:', created.id, rollbackErr); }
         }
-        alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+        notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
         return;
     }
 
@@ -615,13 +618,13 @@ export const Rentals: React.FC = () => {
         for (const created of [...createdContracts].reverse()) {
             try { await deleteContract(created.id); } catch (rollbackErr) { console.error('[Rentals] Rollback failed after invoice error:', created.id, rollbackErr); }
         }
-        alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+        notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
         return;
     }
     
     setIsCreateModalOpen(false);
     resetCreateRental();
-    alert(`Success! ${allCreateLines.length} billboard${allCreateLines.length === 1 ? '' : 's'} added to the contract and initial invoice generated.`);
+    notify(`Success! ${allCreateLines.length} billboard${allCreateLines.length === 1 ? '' : 's'} added to the contract and initial invoice generated.`);
     } finally {
       isSubmittingRef.current = false;
     }
@@ -726,7 +729,7 @@ export const Rentals: React.FC = () => {
           try {
               await updateContract(updatedContract);
           } catch (err: any) {
-              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
               return;
           }
           for (const [idx, line] of editExtraLines.entries()) {
@@ -745,7 +748,7 @@ export const Rentals: React.FC = () => {
                   if (exists) await updateContract(normalized);
                   else await addContract(normalized);
               } catch (err: any) {
-                  alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                  notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
                   return;
               }
           }
@@ -754,7 +757,7 @@ export const Rentals: React.FC = () => {
               try {
                   await deleteContract(id);
               } catch (err: any) {
-                  alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                  notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
               }
           }
           setRentals([...getContracts()]);
@@ -766,7 +769,7 @@ export const Rentals: React.FC = () => {
           console.log('[Rentals] Contract updated successfully:', updatedContract.id);
       } catch (error) {
           console.error('[Rentals] CRITICAL ERROR in handleEditSave:', error);
-          alert('Failed to save contract changes. Please try again.');
+          notify('Failed to save contract changes. Please try again.');
       } finally {
           setSaving(false);
           console.log('[Rentals] handleEditSave finished, saving=false');
@@ -814,7 +817,7 @@ export const Rentals: React.FC = () => {
           try {
               await addContract(renewedContract);
           } catch (err: any) {
-              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
               return;
           }
           setRentals([...getContracts()]);
@@ -824,7 +827,7 @@ export const Rentals: React.FC = () => {
           console.log('[Rentals] Contract renewed successfully:', renewedContract.id);
       } catch (error) {
           console.error('[Rentals] CRITICAL ERROR in handleRenew:', error);
-          alert('Failed to renew contract. Please try again.');
+          notify('Failed to renew contract. Please try again.');
       } finally {
           setSaving(false);
           console.log('[Rentals] handleRenew finished, saving=false');
@@ -832,7 +835,7 @@ export const Rentals: React.FC = () => {
   };
 
   const handleGenerateProposal = async () => {
-    if (!newRental.clientId || !newRental.billboardId) { alert("Please select a Client and Billboard first."); return; }
+    if (!newRental.clientId || !newRental.billboardId) { notify("Please select a Client and Billboard first."); return; }
     setIsGenerating(true);
     const client = getClient(newRental.clientId)!;
     const billboard = getBillboard(newRental.billboardId)!;
@@ -870,7 +873,7 @@ export const Rentals: React.FC = () => {
               setRentalToDelete(null);
               setShowPaidInvoiceDeleteWarning(false);
           } catch (err: any) {
-              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
           }
       }
   };
@@ -1705,7 +1708,7 @@ export const Rentals: React.FC = () => {
                             onClick={() => {
                                 const client = getClient(selectedRental.clientId);
                                 const billboard = getBillboard(selectedRental.billboardId);
-                                if (!client) { alert('Client data missing.'); return; }
+                                if (!client) { notify('Client data missing.'); return; }
                                 generateLegalContractPDF(selectedRental, client, billboard, { overrides: getGroupedContractOverrides(selectedRental) });
                             }}
                             className="w-full py-3 text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2"
@@ -2273,7 +2276,7 @@ export const Rentals: React.FC = () => {
 	                        if (!failed) {
 	                          setRentals([...getContracts()]);
 	                        } else {
-	                          alert(failed.error || 'Failed to delete contract.');
+	                          notify(failed.error || 'Failed to delete contract.');
 	                        }
 	                      }}
                       className="flex-1 py-3 text-white bg-red-600 hover:bg-red-700 rounded-2xl font-bold uppercase text-xs tracking-wider transition-all shadow-md hover:-translate-y-0.5 shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"

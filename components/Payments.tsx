@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "../services/authServiceSecure";
 import { canDelete } from "../utils/settingsAccess";
+import { useToast } from "./ToastProvider";
 import {
   uploadPaymentProof,
   isBankPaymentMethod,
@@ -183,6 +184,8 @@ const PaymentEvidenceTimeline: React.FC<{
 };
 
 export const Payments: React.FC = () => {
+  const { showToast } = useToast();
+  const notify = (message: string) => showToast(message, /failed|error|required|not found|proof upload/i.test(message) ? 'error' : 'success');
   const currentUser = getCurrentUser();
   const canUserDelete = canDelete(currentUser);
   const defaultReceiver = currentUser
@@ -292,7 +295,7 @@ export const Payments: React.FC = () => {
   const handleSendInvoice = (invoice: Invoice) => {
     const client = clients.find((c) => c.id === invoice.clientId);
     if (!client) {
-      alert("Client not found");
+      notify("Client not found");
       return;
     }
     setSendModal({ invoice, client });
@@ -356,19 +359,19 @@ export const Payments: React.FC = () => {
       receivingAccount,
     } = monthlyForm;
     if (!receivedBy.trim()) {
-      alert("Who received the payment is required.");
+      notify("Who received the payment is required.");
       return;
     }
     if (!reference.trim()) {
-      alert("Payment reference is required.");
+      notify("Payment reference is required.");
       return;
     }
     if (isBankPaymentMethod(method) && !receivingAccount.trim()) {
-      alert("Receiving bank account is required for bank payments.");
+      notify("Receiving bank account is required for bank payments.");
       return;
     }
     if (isBankPaymentMethod(method) && !monthlyProofFile) {
-      alert("Attach proof of payment before posting a bank payment.");
+      notify("Attach proof of payment before posting a bank payment.");
       return;
     }
     let proof = null;
@@ -377,7 +380,7 @@ export const Payments: React.FC = () => {
       try {
         proof = await uploadPaymentProof(monthlyProofFile);
       } catch (e: any) {
-        alert(e?.message || "Proof upload failed.");
+        notify(e?.message || "Proof upload failed.");
         return;
       } finally {
         setProofUploading(false);
@@ -420,7 +423,7 @@ export const Payments: React.FC = () => {
       try {
         invoiceForPayment = await addInvoice(invoice);
       } catch (err: any) {
-        alert(`Failed: ${err?.message || "Server error. Please try again."}`);
+        notify(`Failed: ${err?.message || "Server error. Please try again."}`);
         return;
       }
     }
@@ -451,7 +454,7 @@ export const Payments: React.FC = () => {
     try {
       await addInvoice(receipt);
     } catch (err: any) {
-      alert(`Failed: ${err?.message || "Server error. Please try again."}`);
+      notify(`Failed: ${err?.message || "Server error. Please try again."}`);
       return;
     }
     logAction(
@@ -478,34 +481,34 @@ export const Payments: React.FC = () => {
   const confirmPayment = async () => {
     if (selectedInvoice) {
       if (!paymentDetails.receivedBy.trim()) {
-        alert("Who received the payment is required.");
+        notify("Who received the payment is required.");
         return;
       }
       const outstanding = outstandingAmount(selectedInvoice);
       const amount = Math.round(Number(paymentDetails.amount || 0) * 100) / 100;
       if (amount <= 0) {
-        alert("Enter a valid payment amount.");
+        notify("Enter a valid payment amount.");
         return;
       }
       if (amount - outstanding > 0.01) {
-        alert(
+        notify(
           `Payment exceeds the outstanding balance of $${outstanding.toFixed(2)}.`,
         );
         return;
       }
       if (!paymentDetails.reference.trim()) {
-        alert("Payment reference is required.");
+        notify("Payment reference is required.");
         return;
       }
       if (
         isBankPaymentMethod(paymentDetails.method) &&
         !paymentDetails.receivingAccount.trim()
       ) {
-        alert("Receiving bank account is required for bank payments.");
+        notify("Receiving bank account is required for bank payments.");
         return;
       }
       if (isBankPaymentMethod(paymentDetails.method) && !paymentProofFile) {
-        alert("Attach proof of payment before posting a bank payment.");
+        notify("Attach proof of payment before posting a bank payment.");
         return;
       }
       let proof = null;
@@ -514,7 +517,7 @@ export const Payments: React.FC = () => {
         try {
           proof = await uploadPaymentProof(paymentProofFile);
         } catch (e: any) {
-          alert(e?.message || "Proof upload failed.");
+          notify(e?.message || "Proof upload failed.");
           return;
         } finally {
           setProofUploading(false);
@@ -547,7 +550,7 @@ export const Payments: React.FC = () => {
       try {
         await addInvoice(receipt);
       } catch (err: any) {
-        alert(`Failed: ${err?.message || "Server error. Please try again."}`);
+        notify(`Failed: ${err?.message || "Server error. Please try again."}`);
         return;
       }
       logAction(
@@ -1076,7 +1079,7 @@ export const Payments: React.FC = () => {
                         {(receipt.hasPaymentProof ?? Boolean(receipt.proofPaymentUrl)) ? (
                           <button
                             type="button"
-                            onClick={() => openPaymentProof(receipt.id).catch(error => alert(error.message))}
+                            onClick={() => openPaymentProof(receipt.id).catch(error => notify(error.message))}
                             className="font-bold text-indigo-600 hover:text-indigo-800"
                           >
                             View proof
@@ -1715,7 +1718,7 @@ export const Payments: React.FC = () => {
               defaultSubject={subject}
               defaultMessage={message}
               onSent={({ to }) => {
-                alert(`${typeLabel} sent to ${to}`);
+                notify(`${typeLabel} sent to ${to}`);
               }}
             />
           );

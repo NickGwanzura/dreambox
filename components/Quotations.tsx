@@ -22,6 +22,7 @@ import { getCurrentUser } from '../services/authServiceSecure';
 import { BillboardCatalogue } from './quotations/BillboardCatalogue';
 import { QuotationTimeline } from './quotations/QuotationTimeline';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { useToast } from './ToastProvider';
 
 type InvoiceLineItem = Invoice['items'][number];
 
@@ -58,6 +59,8 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; i
 };
 
 export const Quotations: React.FC = () => {
+  const { showToast } = useToast();
+  const notify = (message: string) => showToast(message, /failed|error|required|permission|not found|already converted|could not/i.test(message) ? 'error' : 'success');
   const [invoices, setInvoices] = useState<Invoice[]>(getInvoices());
   const [allClients, setAllClients] = useState<Client[]>(getClients());
   const [searchTerm, setSearchTerm] = useState('');
@@ -237,11 +240,11 @@ export const Quotations: React.FC = () => {
   // so a quote can be issued without saving the client in the Clients page first.
   const resolveClientId = async (): Promise<string | null> => {
     if (formData.clientId !== NEW_CLIENT_OPTION) {
-      if (!formData.clientId) { alert('Please select a client or add a new one.'); return null; }
+      if (!formData.clientId) { notify('Please select a client or add a new one.'); return null; }
       return formData.clientId;
     }
     const companyName = newClientForm.companyName.trim();
-    if (!companyName) { alert("Please enter the new client's company name."); return null; }
+    if (!companyName) { notify("Please enter the new client's company name."); return null; }
     const client: Client = {
       id: (Date.now()).toString(),
       companyName,
@@ -258,7 +261,7 @@ export const Quotations: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canCreateQuotations(currentUser)) {
-      alert('You do not have permission to create quotations.');
+      notify('You do not have permission to create quotations.');
       return;
     }
     const clientId = await resolveClientId();
@@ -283,9 +286,9 @@ export const Quotations: React.FC = () => {
         setInvoices(getInvoices());
         setIsModalOpen(false);
         resetForm();
-        alert('Quotation Updated Successfully!');
+        notify('Quotation Updated Successfully!');
       } catch (err: any) {
-        alert(`Failed to update quotation: ${err?.message || 'Server error. Please try again.'}`);
+        notify(`Failed to update quotation: ${err?.message || 'Server error. Please try again.'}`);
       }
     } else {
       // No client-side id or quoteNumber — server generates both to prevent collisions
@@ -310,9 +313,9 @@ export const Quotations: React.FC = () => {
         setInvoices(getInvoices());
         setIsModalOpen(false);
         resetForm();
-        alert('Quotation Created Successfully!');
+        notify('Quotation Created Successfully!');
       } catch (err: any) {
-        alert(`Failed to save quotation: ${err?.message || 'Server error. Please try again.'}`);
+        notify(`Failed to save quotation: ${err?.message || 'Server error. Please try again.'}`);
       }
     }
   };
@@ -345,7 +348,7 @@ export const Quotations: React.FC = () => {
 
   const handleDelete = async (doc: Invoice) => {
     if (!canDelete(currentUser)) {
-      alert('You do not have permission to delete quotations.');
+      notify('You do not have permission to delete quotations.');
       return;
     }
     const reason = window.prompt(`Void quotation ${doc.quoteNumber || doc.id}? Enter the audit reason:`);
@@ -354,30 +357,30 @@ export const Quotations: React.FC = () => {
         await deleteInvoice(doc.id, reason);
         setInvoices(getInvoices());
       } catch (err: any) {
-        alert(`Failed to delete quotation: ${err?.message || 'Server error. Please try again.'}`);
+        notify(`Failed to delete quotation: ${err?.message || 'Server error. Please try again.'}`);
       }
     }
   };
 
   const handleDuplicate = async (doc: Invoice) => {
     if (!canCreateQuotations(currentUser)) {
-      alert('You do not have permission to duplicate quotations.');
+      notify('You do not have permission to duplicate quotations.');
       return;
     }
     try {
       const dup = await duplicateQuotation(doc.id);
       if (dup) {
         setInvoices(getInvoices());
-        alert(`Quotation duplicated: ${dup.quoteNumber || dup.id}`);
+        notify(`Quotation duplicated: ${dup.quoteNumber || dup.id}`);
       }
     } catch (err: any) {
-      alert(`Failed to duplicate quotation: ${err?.message || 'Server error. Please try again.'}`);
+      notify(`Failed to duplicate quotation: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
   const handleConvertToInvoice = async (doc: Invoice) => {
     if (!canApproveQuotations(currentUser)) {
-      alert('Only Admin or Manager can convert quotations to invoices.');
+      notify('Only Admin or Manager can convert quotations to invoices.');
       return;
     }
     if (!window.confirm(`Convert quotation ${doc.quoteNumber || doc.id} to an invoice?`)) return;
@@ -385,20 +388,20 @@ export const Quotations: React.FC = () => {
       const inv = await convertQuotationToInvoice(doc.id);
       if (inv) {
         setInvoices(getInvoices());
-        alert(`Converted to Invoice ${inv.id}`);
+        notify(`Converted to Invoice ${inv.id}`);
       }
     } catch (err: any) {
-      alert(`Failed to convert quotation: ${err?.message || 'Server error. Please try again.'}`);
+      notify(`Failed to convert quotation: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
   const handleConvertToContract = (doc: Invoice) => {
     if (!canApproveQuotations(currentUser)) {
-      alert('Only Admin or Manager can convert quotations to contracts.');
+      notify('Only Admin or Manager can convert quotations to contracts.');
       return;
     }
     if (doc.quoteStatus === 'Converted' || doc.convertedToContractId) {
-      alert(`Quotation ${doc.quoteNumber || doc.id} has already been converted.`);
+      notify(`Quotation ${doc.quoteNumber || doc.id} has already been converted.`);
       return;
     }
     setConvertingQuotation(doc);
@@ -412,7 +415,7 @@ export const Quotations: React.FC = () => {
     // opened (another tab/session may have converted it since).
     const currentQuote = getInvoices().find(inv => inv.id === convertingQuotation.id) || convertingQuotation;
     if (currentQuote.quoteStatus === 'Converted' || currentQuote.convertedToContractId) {
-      alert(`Quotation ${currentQuote.quoteNumber || currentQuote.id} has already been converted.`);
+      notify(`Quotation ${currentQuote.quoteNumber || currentQuote.id} has already been converted.`);
       setConvertingQuotation(null);
       return;
     }
@@ -453,7 +456,7 @@ export const Quotations: React.FC = () => {
         // 409 = the quotation was already converted elsewhere — close the stale modal.
         if (err?.status === 409) setConvertingQuotation(null);
         console.error('Failed to create contract:', err);
-        alert(`Failed to create contract: ${err?.message || 'Server error. Please try again.'}`);
+        notify(`Failed to create contract: ${err?.message || 'Server error. Please try again.'}`);
         return;
       }
       // The contract is live server-side (and the quotation was flipped there
@@ -473,7 +476,7 @@ export const Quotations: React.FC = () => {
       setInvoices(getInvoices());
       setConvertingQuotation(null);
       setConvertForm({ billboardId: '', startDate: '', endDate: '' });
-      alert(`Contract ${contract.id} created. Quotation preserved.`);
+      notify(`Contract ${contract.id} created. Quotation preserved.`);
     } finally {
       convertingToContractRef.current = false;
     }
@@ -482,26 +485,26 @@ export const Quotations: React.FC = () => {
   const downloadPDF = (doc: Invoice) => {
     const client = allClients.find(c => c.id === doc.clientId);
     if (client) { generateInvoicePDF(doc, client); }
-    else { alert(`Client data missing for ID ${doc.clientId}`); }
+    else { notify(`Client data missing for ID ${doc.clientId}`); }
   };
 
   const handleSendDoc = (doc: Invoice) => {
     if (!canSendQuotations(currentUser)) {
-      alert('You do not have permission to send quotations.');
+      notify('You do not have permission to send quotations.');
       return;
     }
     const client = allClients.find(c => c.id === doc.clientId);
-    if (!client) { alert('Client not found'); return; }
+    if (!client) { notify('Client not found'); return; }
     setSendModal({ doc, client });
   };
 
   const handleWhatsAppShare = async (doc: Invoice) => {
     if (!canSendQuotations(currentUser)) {
-      alert('You do not have permission to share quotations.');
+      notify('You do not have permission to share quotations.');
       return;
     }
     const client = allClients.find(c => c.id === doc.clientId);
-    if (!client?.phone) { alert('Client phone number not found'); return; }
+    if (!client?.phone) { notify('Client phone number not found'); return; }
     const message = `Hi ${client.contactPerson}, please find your quotation from Dreambox Advertising: ${doc.quoteNumber || doc.id} — $${(doc.total ?? 0).toLocaleString()}. Valid until ${doc.expiryDate || '30 days from now'}.`;
     const url = `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -509,20 +512,20 @@ export const Quotations: React.FC = () => {
       await markQuotationSent(doc.id, client.phone);
       setInvoices(getInvoices());
     } catch (err: any) {
-      alert(`Could not mark as sent: ${err?.message || 'Server error.'}`);
+      notify(`Could not mark as sent: ${err?.message || 'Server error.'}`);
     }
   };
 
   const handleMarkStatus = async (doc: Invoice, status: QuoteStatus) => {
     if (!canApproveQuotations(currentUser)) {
-      alert('Only Admin or Manager can change quotation status.');
+      notify('Only Admin or Manager can change quotation status.');
       return;
     }
     try {
       await markQuotationStatus(doc.id, status);
       setInvoices(getInvoices());
     } catch (err: any) {
-      alert(`Failed to update status: ${err?.message || 'Server error. Please try again.'}`);
+      notify(`Failed to update status: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
@@ -708,7 +711,7 @@ export const Quotations: React.FC = () => {
                     await markExpiredQuotations();
                     setInvoices(getInvoices());
                   } catch (err: any) {
-                    alert(`Failed to refresh statuses: ${err?.message || 'Server error.'}`);
+                    notify(`Failed to refresh statuses: ${err?.message || 'Server error.'}`);
                   }
                 }}
                 className="px-4 py-2 bg-white text-amber-700 border border-amber-200 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-amber-100 transition-all flex items-center gap-1.5"
@@ -1129,7 +1132,7 @@ export const Quotations: React.FC = () => {
             clientEmail={client.email}
             defaultSubject={subject}
             defaultMessage={message}
-            onSent={({ to }) => { markQuotationSent(doc.id, to); setInvoices(getInvoices()); alert(`Quotation sent to ${to}`); }}
+            onSent={({ to }) => { markQuotationSent(doc.id, to); setInvoices(getInvoices()); notify(`Quotation sent to ${to}`); }}
           />
         );
       })()}
