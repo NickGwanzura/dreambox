@@ -6,7 +6,9 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-RUN npm test && npx tsc --noEmit && npm run build
+# npm ci installs Prisma but does not create the generated client. Generate it
+# before tests import API modules, then build the frontend without regenerating.
+RUN npx prisma generate && npm test && npx tsc --noEmit && npx vite build
 
 EXPOSE 3000
 
