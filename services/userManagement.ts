@@ -205,11 +205,3 @@ export const adminResetPassword = async (userId: string): Promise<{ message: str
     return { message: null, error: new Error(error.message || 'Failed to send reset email') };
   }
 };
-
-// ----------------------------------------------------------------
-// LEGACY EXPORTS
-// ----------------------------------------------------------------
-export const addUser = createUser;
-export const updateUser = updateUserData;
-export const deleteUser = deleteUserData;
-export const resetUserPassword = adminResetPassword;

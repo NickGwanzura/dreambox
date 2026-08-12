@@ -207,7 +207,3 @@ export const exportAllData = async (): Promise<{
     return { data: null, error: e.message };
   }
 };
-
-// Legacy compatibility aliases (deprecated — use application database names)
-export const checkSupabaseHealth = checkDatabaseHealth;
-export const waitForSupabase = waitForDatabase;

@@ -9,10 +9,6 @@ export {
   checkDatabaseHealth,
   waitForDatabase,
 
-  // Legacy aliases (deprecated)
-  checkSupabaseHealth,
-  waitForSupabase,
-
   // Generic fetch
   fetchAll,
   fetchById,
@@ -43,7 +39,4 @@ export {
 export {
   isConfigured as isDatabaseConfigured,
   checkConnection as checkDatabaseConnection,
-  // Legacy aliases (deprecated)
-  isConfigured as isSupabaseConfigured,
-  checkConnection as checkSupabaseConnection,
 } from '../apiClient';

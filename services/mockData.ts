@@ -1437,16 +1437,6 @@ export const RELEASE_NOTES = [
 export const triggerAutoBackup = () => {};
 export const runMaintenanceCheck = () => 0;
 export const syncToDatabase = async () => {};
-export const simulateCloudSync = async () => {
-  try {
-    const backup = await createBackup();
-    try { localStorage.setItem('lastCloudBackupDate', backup.createdAt); } catch {}
-    return backup.createdAt;
-  } catch (e) {
-    console.error('[simulateCloudSync] failed', e);
-    throw e;
-  }
-};
 export const createSystemBackup = async (): Promise<string> => {
   const result = await exportAllData();
   if (result.error) throw new Error(result.error);
