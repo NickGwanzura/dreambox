@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getUsers as getLocalUsers, addUser as addLocalUser, updateUser as updateLocalUser, deleteUser as deleteLocalUser, getAuditLogs, getCompanyLogo, setCompanyLogo, getCompanyProfile, updateCompanyProfile, RELEASE_NOTES, resetSystemData, createSystemBackup, restoreSystemBackup, getLastManualBackupDate, getAutoBackupStatus, getStorageUsage, simulateCloudSync, getLastCloudBackupDate, refreshLastCloudBackupDate, verifyDataIntegrity, syncToDatabase, subscribe } from '../services/mockData';
+import { getUsers as getLocalUsers, addUser as addLocalUser, updateUser as updateLocalUser, deleteUser as deleteLocalUser, getAuditLogs, getCompanyLogo, setCompanyLogo, getCompanyProfile, updateCompanyProfile, RELEASE_NOTES, subscribe } from '../services/mockData';
 import { createUser, deleteUserData, approveUser, rejectUser, fetchAllUsers, suspendUser, reactivateUser, unlockUser, updateUserPermissions, bulkInviteUsers, fetchLoginHistory, adminResetPassword } from '../services/userManagement';
 import { getCurrentUser } from '../services/authServiceSecure';
 
 import { generateAppFeaturesPDF, generateUserManualPDF } from '../services/pdfGenerator';
-import { Shield, Building, ScrollText, Download, Plus, X, Save, Phone, MapPin, Edit2, Trash2, AlertTriangle, Cloud, Upload, RefreshCw, Clock, HardDrive, Sparkles, Loader2, CheckCircle, FileText, ChevronRight, Server, Wifi, Activity, Lock, Copy, FileCheck, Layers, Cpu, Code2, UserCheck, Users, Database, UserX, Key, History, SlashSquare, Settings2, Mail, Globe } from 'lucide-react';
+import { Shield, Building, ScrollText, Download, Plus, X, Save, Phone, MapPin, Edit2, Trash2, AlertTriangle, Cloud, Upload, RefreshCw, Loader2, CheckCircle, FileText, ChevronRight, UserCheck, Users, Database, UserX, Key, History, Mail } from 'lucide-react';
 import { User as UserType, CompanyProfile, UserPermissions, LoginHistoryEntry } from '../types';
 import { DataSyncManager } from './DataSyncManager';
 import { LocationSettings } from './settings/LocationSettings';
@@ -81,9 +81,6 @@ export const Settings: React.FC = () => {
   const [approvalUser, setApprovalUser] = useState<UserType | null>(null);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [newUser, setNewUser] = useState<Partial<UserType>>({ firstName: '', lastName: '', email: '', username: '', role: 'Staff', status: 'Active' });
-  const [backupStatus, setBackupStatus] = useState({ manual: getLastManualBackupDate(), auto: getAutoBackupStatus(), storage: getStorageUsage(), cloud: getLastCloudBackupDate() });
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
 
   // New state for enhanced features
@@ -113,12 +110,6 @@ export const Settings: React.FC = () => {
     };
     if (isAdmin) loadUsers();
   }, [isAdmin]);
-
-  useEffect(() => {
-    if (activeTab === 'Data') {
-      setBackupStatus({ manual: getLastManualBackupDate(), auto: getAutoBackupStatus(), storage: getStorageUsage(), cloud: getLastCloudBackupDate() });
-    }
-  }, [activeTab]);
 
   const refreshUsers = async () => {
     const { users: freshUsers } = await fetchAllUsers();
@@ -315,73 +306,6 @@ export const Settings: React.FC = () => {
     link.click();
     document.body.removeChild(link);
   };
-
-  const handleDownloadBackup = async () => {
-    try {
-      setIsSyncing(true);
-      const json = await createSystemBackup();
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `dreambox-backup-${new Date().toISOString().slice(0, 10)}.json`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setBackupStatus(prev => ({ ...prev, manual: getLastManualBackupDate(), storage: getStorageUsage() }));
-    } catch (e: any) {
-      alert('Backup failed: ' + (e.message || 'Unknown error'));
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleCloudSync = async () => {
-    try {
-      setIsSyncing(true);
-      const timestamp = await simulateCloudSync();
-      setBackupStatus(prev => ({ ...prev, cloud: new Date(timestamp).toLocaleString(), storage: 'Cloud (R2)' }));
-      alert("Backup successfully synced to Cloud Storage.");
-    } catch { alert("Cloud sync failed. Please check your connection."); }
-    finally { setIsSyncing(false); }
-  };
-
-  const handleRestoreBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIsRestoring(true);
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        if (event.target?.result) {
-          try {
-            const result = await restoreSystemBackup(event.target.result as string);
-            if (result.success && result.errors.length === 0) {
-              alert(`System restored successfully!\n\n${result.count} items processed.`);
-              window.location.reload();
-            } else if (result.success && result.errors.length > 0) {
-              alert(`System restored with warnings.\n${result.count} items processed.\n\n${result.errors.join('\n')}`);
-              window.location.reload();
-            } else {
-              alert("Restore Failed: The backup file appears empty or invalid.");
-            }
-          } catch (err: any) {
-            alert('Restore failed: ' + (err.message || 'Unknown error'));
-          }
-        }
-        setIsRestoring(false);
-        e.target.value = '';
-      };
-      reader.onerror = () => { setIsRestoring(false); e.target.value = ''; };
-      reader.readAsText(file);
-    }
-  };
-
-  useEffect(() => {
-    refreshLastCloudBackupDate().then(date => {
-      setBackupStatus(prev => ({ ...prev, cloud: date }));
-    }).catch(() => {});
-  }, []);
 
   const pendingUsers = users.filter(u => u.status === 'Pending');
   const activeUsers = users;
