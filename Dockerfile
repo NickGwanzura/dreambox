@@ -12,10 +12,9 @@ RUN npx prisma generate && npm test && npx tsc --noEmit && npx vite build
 
 EXPOSE 3000
 
-# The app only needs to read its source, generated client, and static build at
-# runtime. Drop root privileges after the build so a compromised request cannot
-# write into the image or run as root.
-RUN chown -R node:node /app
+# The app only needs read/execute access to its source, generated client, and
+# static build at runtime. Drop root privileges without recursively rewriting
+# the dependency tree (which makes Dokploy releases unnecessarily slow).
 USER node
 ENV NODE_ENV=production
 
