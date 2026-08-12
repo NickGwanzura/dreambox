@@ -571,7 +571,7 @@ export const Quotations: React.FC = () => {
                 key={t}
                 onClick={() => setDocTypeFilter(t)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  docTypeFilter === t ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  docTypeFilter === t ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-900 hover:text-slate-900'
                 }`}
               >
                 {t === 'Quotation' ? 'Quotations' : 'Proformas'}
@@ -909,7 +909,7 @@ export const Quotations: React.FC = () => {
                 {formData.clientId === NEW_CLIENT_OPTION && (
                   <div className="bg-indigo-50/60 rounded-2xl p-4 sm:p-5 space-y-3 border border-indigo-100">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-700">New Client Details</h4>
-                    <p className="text-xs text-slate-600">This client will be saved automatically when you create the quotation.</p>
+                    <p className="text-xs text-slate-900">This client will be saved automatically when you create the quotation.</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <MinimalInput label="Company Name" required value={newClientForm.companyName} onChange={(e: any) => setNewClientForm({ ...newClientForm, companyName: e.target.value })} />
                       <MinimalInput label="Contact Person" value={newClientForm.contactPerson} onChange={(e: any) => setNewClientForm({ ...newClientForm, contactPerson: e.target.value })} />
@@ -976,15 +976,15 @@ export const Quotations: React.FC = () => {
                 </div>
                 <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">Subtotal</span>
+                    <span className="text-slate-900">Subtotal</span>
                     <span className="font-semibold">${subtotal.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">Discount</span>
+                    <span className="text-slate-900">Discount</span>
                     <span className="font-semibold">-${discountAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">VAT</span>
+                    <span className="text-slate-900">VAT</span>
                     <span className="font-semibold">${vatAmount.toLocaleString()}</span>
                   </div>
                   <div className="pt-2 border-t border-slate-700 flex items-center justify-between">

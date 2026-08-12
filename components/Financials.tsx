@@ -158,6 +158,7 @@ export const Financials: React.FC<FinancialsProps> = ({
   const [allClients, setAllClients] = useState(getClients());
   const [searchTerm, setSearchTerm] = useState("");
   const [invoiceMonth, setInvoiceMonth] = useState("all");
+  const [invoiceStatus, setInvoiceStatus] = useState("all");
   const [newItem, setNewItem] = useState({ description: "", amount: 0 });
   const [formData, setFormData] = useState<Partial<Invoice>>({
     clientId: "",
@@ -889,6 +890,7 @@ export const Financials: React.FC<FinancialsProps> = ({
     if (activeTab === "Invoices") matchesType = iType === "invoice";
     else if (activeTab === "Receipts") matchesType = iType === "receipt";
     const matchesMonth = invoiceMonth === "all" || i.date?.startsWith(invoiceMonth);
+    const matchesStatus = invoiceStatus === "all" || String(i.status || '').toLowerCase() === invoiceStatus;
     const searchLower = searchTerm.toLowerCase();
     const clientName = String(
       allClients.find((c) => c.id === i.clientId)?.companyName || "",
@@ -900,7 +902,7 @@ export const Financials: React.FC<FinancialsProps> = ({
       clientName.includes(searchLower) ||
       (i.paymentReference &&
         String(i.paymentReference).toLowerCase().includes(searchLower));
-    return matchesType && matchesMonth && matchesSearch;
+    return matchesType && matchesMonth && matchesStatus && matchesSearch;
   });
   const filteredDocsTotal = filteredDocs.reduce((sum, invoice) => sum + (Number(invoice.total) || 0), 0);
 
@@ -941,6 +943,14 @@ export const Financials: React.FC<FinancialsProps> = ({
                 <select aria-label="Filter documents by month" value={invoiceMonth} onChange={(e) => setInvoiceMonth(e.target.value)} className="w-full sm:w-40 px-3 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 text-sm">
                   <option value="all">All months</option>
                   {invoiceMonths.map(month => <option key={month} value={month}>{new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</option>)}
+                </select>
+                <select aria-label="Filter documents by status" value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value)} className="w-full sm:w-36 px-3 py-2.5 border border-slate-200 rounded-full bg-white outline-none focus:border-slate-800 text-sm">
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="voided">Voided</option>
                 </select>
               </div>
               {canUserWrite && (
@@ -2259,19 +2269,19 @@ export const Financials: React.FC<FinancialsProps> = ({
                 </details>
                 <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">Subtotal</span>
+                    <span className="text-slate-900">Subtotal</span>
                     <span className="font-semibold">
                       ${subtotal.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">Discount</span>
+                    <span className="text-slate-900">Discount</span>
                     <span className="font-semibold">
                       -${discountAmount.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">VAT</span>
+                    <span className="text-slate-900">VAT</span>
                     <span className="font-semibold">
                       ${vatAmount.toLocaleString()}
                     </span>
