@@ -47,6 +47,7 @@ export const ClientList: React.FC = () => {
   }, [contracts]);
 
   const filteredClients = useMemo(() => {
+    if (isConfigured()) return clients;
     const q = searchQuery.trim().toLowerCase();
     if (!q) return clients;
     return clients.filter(c =>
@@ -73,13 +74,13 @@ export const ClientList: React.FC = () => {
     let active = true;
     setIsLoadingPage(true);
     setPageError(null);
-    fetchPage<Client>('/api/clients', page).then(result => {
+    fetchPage<Client>('/api/clients', page, undefined, { search: searchQuery.trim() }).then(result => {
       if (!active) return;
       setClients(result.data);
       setPagination(result.pagination);
     }).catch(error => active && setPageError(error?.message || 'Unable to load clients.')).finally(() => active && setIsLoadingPage(false));
     return () => { active = false; };
-  }, [page, refreshPage]);
+  }, [page, refreshPage, searchQuery]);
 
   useEffect(() => { setPage(1); }, [searchQuery]);
 
@@ -394,7 +395,7 @@ export const ClientList: React.FC = () => {
         </div>
         {searchQuery && (
             <p className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                {filteredClients.length} of {clients.length} clients match "{searchQuery}"
+                {filteredClients.length} of {(pagination?.total ?? clients.length)} clients match "{searchQuery}"
             </p>
         )}
         {pageError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}

@@ -72,10 +72,34 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(200).json(row);
       }
       const { take, skip, page, limit } = parsePagePagination(req.query as any);
-      const rows = await prisma.expense.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take, skip });
+      const search = String(req.query.search || '').trim();
+      const month = String(req.query.month || '').trim();
+      const category = String(req.query.category || '').trim();
+      const clientIds = String(req.query.clientIds || '').split(',').map(value => value.trim()).filter(Boolean);
+      const contractIds = String(req.query.contractIds || '').split(',').map(value => value.trim()).filter(Boolean);
+      const dateFrom = String(req.query.dateFrom || '').trim();
+      const dateTo = String(req.query.dateTo || '').trim();
+      const searchClauses = search ? [
+        { description: { contains: search, mode: 'insensitive' } },
+        { reference: { contains: search, mode: 'insensitive' } },
+        { contractId: { contains: search, mode: 'insensitive' } },
+        { clientId: { contains: search, mode: 'insensitive' } },
+        ...(Object.values({ Maintenance: 'Maintenance', Printing: 'Printing', Electricity: 'Electricity', Labor: 'Labor', Other: 'Other' }).filter(value => value.toLowerCase().includes(search.toLowerCase())).map(category => ({ category }))),
+      ] : [];
+      const linkedSearchClauses = [
+        ...(clientIds.length ? [{ clientId: { in: clientIds } }] : []),
+        ...(contractIds.length ? [{ contractId: { in: contractIds } }] : []),
+      ];
+      const where: any = {
+        ...(month && month !== 'all' ? { date: { startsWith: month } } : {}),
+        ...(category && category !== 'all' ? { category } : {}),
+        ...((dateFrom || dateTo) ? { date: { ...(month && month !== 'all' ? { startsWith: month } : {}), ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}),
+        ...((searchClauses.length || linkedSearchClauses.length) ? { OR: [...searchClauses, ...linkedSearchClauses] } : {}),
+      };
+      const rows = await prisma.expense.findMany({ where, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take, skip });
       // The fallback keeps lightweight endpoint mocks compatible; Prisma's
       // production delegate always provides count(), yielding true metadata.
-      const total = typeof prisma.expense.count === 'function' ? await prisma.expense.count() : rows.length;
+      const total = typeof prisma.expense.count === 'function' ? await prisma.expense.count({ where }) : rows.length;
       return res.status(200).json(paginated(rows, page, limit, total));
     }
 

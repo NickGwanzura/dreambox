@@ -93,6 +93,7 @@ export const Rentals: React.FC = () => {
   const [refreshPage, setRefreshPage] = useState(0);
 
   const filteredRentals = rentals.filter(contract => {
+      if (isConfigured()) return true;
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       const clientName = String(getClientName(contract.clientId) || '').toLowerCase();
@@ -145,13 +146,16 @@ export const Rentals: React.FC = () => {
     let active = true;
     setIsLoadingPage(true);
     setPageError(null);
-    fetchPage<Contract>('/api/contracts', page).then(result => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const clientIds = normalizedSearch ? clients.filter(client => client.companyName.toLowerCase().includes(normalizedSearch)).map(client => client.id).join(',') : '';
+    const billboardIds = normalizedSearch ? getBillboards().filter(billboard => billboard.name.toLowerCase().includes(normalizedSearch)).map(billboard => billboard.id).join(',') : '';
+    fetchPage<Contract>('/api/contracts', page, undefined, { search: searchQuery.trim(), clientIds, billboardIds }).then(result => {
       if (!active) return;
       setRentals(result.data);
       setPagination(result.pagination);
     }).catch(error => active && setPageError(error?.message || 'Unable to load contracts.')).finally(() => active && setIsLoadingPage(false));
     return () => { active = false; };
-  }, [page, refreshPage]);
+  }, [page, refreshPage, searchQuery]);
 
   useEffect(() => { setPage(1); }, [searchQuery]);
 

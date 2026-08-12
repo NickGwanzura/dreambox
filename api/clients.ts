@@ -31,14 +31,26 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(200).json(row);
       }
       const { take, skip, page, limit } = parsePagePagination(req.query as any);
+      const search = String(req.query.search || '').trim();
+      const status = String(req.query.status || '').trim();
+      const where: any = {
+        ...(status && status !== 'all' ? { status } : {}),
+        ...(search ? { OR: [
+          { companyName: { contains: search, mode: 'insensitive' } },
+          { contactPerson: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+        ] } : {}),
+      };
       // Stable tie-breaker is required for limit/skip pagination: timestamps
       // are not unique, and ordering by them alone can duplicate or omit rows
       // between pages when records share the same createdAt value.
       const [rows, total] = await Promise.all([prisma.client.findMany({
+        where,
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take,
         skip,
-      }), typeof prisma.client.count === 'function' ? prisma.client.count() : Promise.resolve(0)]);
+      }), typeof prisma.client.count === 'function' ? prisma.client.count({ where }) : Promise.resolve(0)]);
       return res.status(200).json(paginated(rows, page, limit, total));
     }
 

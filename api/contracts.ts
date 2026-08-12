@@ -220,12 +220,36 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         return res.status(200).json(row);
       }
       const { take, skip, page, limit } = parsePagePagination(req.query as any);
+      const search = String(req.query.search || '').trim();
+      const clientIds = String(req.query.clientIds || '').split(',').map(value => value.trim()).filter(Boolean);
+      const billboardIds = String(req.query.billboardIds || '').split(',').map(value => value.trim()).filter(Boolean);
+      const status = String(req.query.status || '').trim();
+      const dateFrom = String(req.query.dateFrom || '').trim();
+      const dateTo = String(req.query.dateTo || '').trim();
+      const searchClauses = search ? [
+        { id: { contains: search, mode: 'insensitive' } },
+        { clientId: { contains: search, mode: 'insensitive' } },
+        { billboardId: { contains: search, mode: 'insensitive' } },
+        { details: { contains: search, mode: 'insensitive' } },
+        { startDate: { contains: search } },
+        { endDate: { contains: search } },
+      ] : [];
+      const linkedSearchClauses = [
+        ...(clientIds.length ? [{ clientId: { in: clientIds } }] : []),
+        ...(billboardIds.length ? [{ billboardId: { in: billboardIds } }] : []),
+      ];
+      const where: any = {
+        ...(status && status !== 'all' ? { status } : {}),
+        ...((dateFrom || dateTo) ? { startDate: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}),
+        ...((searchClauses.length || linkedSearchClauses.length) ? { OR: [...searchClauses, ...linkedSearchClauses] } : {}),
+      };
       // dbCreatedAt is not unique; append id to make offset pagination stable.
       const [rows, total] = await Promise.all([prisma.contract.findMany({
+        where,
         orderBy: [{ dbCreatedAt: 'asc' }, { id: 'asc' }],
         take,
         skip,
-      }), typeof prisma.contract.count === 'function' ? prisma.contract.count() : Promise.resolve(0)]);
+      }), typeof prisma.contract.count === 'function' ? prisma.contract.count({ where }) : Promise.resolve(0)]);
       return res.status(200).json(paginated(rows, page, limit, total));
     }
 

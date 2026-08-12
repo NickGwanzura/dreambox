@@ -58,7 +58,23 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const where = companyId ? { companyId: companyId as string } : undefined;
+      const search = String(req.query.search || '').trim();
+      const status = String(req.query.status || '').trim();
+      const companyIds = String(req.query.companyIds || '').split(',').map(value => value.trim()).filter(Boolean);
+      const dateFrom = String(req.query.dateFrom || '').trim();
+      const dateTo = String(req.query.dateTo || '').trim();
+      const where: any = {
+        ...(companyId ? { companyId: companyId as string } : {}),
+        ...(companyIds.length ? { companyId: { in: companyIds } } : {}),
+        ...(status && status !== 'all' ? { status } : {}),
+        ...((dateFrom || dateTo) ? { nextFollowUpDate: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}),
+        ...(search ? { OR: [
+          { companyId: { contains: search, mode: 'insensitive' } },
+          { locationInterest: { contains: search, mode: 'insensitive' } },
+          { leadSource: { contains: search, mode: 'insensitive' } },
+          { assignedTo: { contains: search, mode: 'insensitive' } },
+        ] } : {}),
+      };
       const { take, skip, page, limit } = parsePagePagination(req.query as any);
       const [rows, total] = await Promise.all([prisma.cRMOpportunity.findMany({
         where,

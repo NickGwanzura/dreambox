@@ -339,9 +339,28 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
       const { take, skip, page, limit } = parsePagePagination(req.query as any);
       const includeVoided = String(req.query.includeVoided || '').toLowerCase() === 'true' && ['Admin', 'Manager'].includes(payload.role);
+      const search = String(req.query.search || '').trim();
+      const month = String(req.query.month || '').trim();
+      const type = String(req.query.type || '').trim();
+      const status = String(req.query.status || '').trim();
+      const clientIds = String(req.query.clientIds || '').split(',').map(value => value.trim()).filter(Boolean);
+      const dateFrom = String(req.query.dateFrom || '').trim();
+      const dateTo = String(req.query.dateTo || '').trim();
       // Use a unique secondary key so cursor-like skip/take pages cannot
       // reshuffle records that share the same createdAt timestamp.
-      const where = includeVoided ? undefined : { isVoided: false };
+      const where: any = {
+        ...(includeVoided ? {} : { isVoided: false }),
+        ...(type && type !== 'all' ? { type } : {}),
+        ...(status && status !== 'all' ? { status } : {}),
+        ...(clientIds.length ? { clientId: { in: clientIds } } : {}),
+        ...((month || dateFrom || dateTo) ? { date: { ...(month && month !== 'all' ? { startsWith: month } : {}), ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}),
+        ...(search ? { OR: [
+          { id: { contains: search, mode: 'insensitive' } },
+          { quoteNumber: { contains: search, mode: 'insensitive' } },
+          { paymentReference: { contains: search, mode: 'insensitive' } },
+          { clientId: { contains: search, mode: 'insensitive' } },
+        ] } : {}),
+      };
       const [rows, total] = await Promise.all([prisma.invoice.findMany({
         where,
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
