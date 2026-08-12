@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import {
   getCRMOpportunities,
+  getCRMCompanies,
   getCRMPipelineMetrics,
   subscribe,
   exportToCSV,
@@ -79,6 +80,7 @@ export const CRM: React.FC = () => {
   // Filter opportunities
   const filteredOpportunities = useMemo(() => {
     const source = isConfigured() ? pageOpportunities : opportunities;
+    if (isConfigured()) return source;
     return source.filter(opp => {
       const matchesSearch = !searchQuery || 
         opp.companyId.toLowerCase().includes(searchQuery.toLowerCase());
@@ -92,13 +94,15 @@ export const CRM: React.FC = () => {
     let active = true;
     setIsLoadingPage(true);
     setPageError(null);
-    fetchPage<CRMOpportunity>('/api/crm/opportunities', page).then(result => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const companyIds = normalizedSearch ? getCRMCompanies().filter(company => company.name.toLowerCase().includes(normalizedSearch)).map(company => company.id).join(',') : '';
+    fetchPage<CRMOpportunity>('/api/crm/opportunities', page, undefined, { search: searchQuery.trim(), status: statusFilter, companyIds }).then(result => {
       if (!active) return;
       setPageOpportunities(result.data);
       setPagination(result.pagination);
     }).catch(error => active && setPageError(error?.message || 'Unable to load CRM opportunities.')).finally(() => active && setIsLoadingPage(false));
     return () => { active = false; };
-  }, [page, refreshKey]);
+  }, [page, refreshKey, searchQuery, statusFilter]);
 
   useEffect(() => { setPage(1); }, [searchQuery, statusFilter]);
 

@@ -63,17 +63,17 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const companyIds = String(req.query.companyIds || '').split(',').map(value => value.trim()).filter(Boolean);
       const dateFrom = String(req.query.dateFrom || '').trim();
       const dateTo = String(req.query.dateTo || '').trim();
+      const searchClauses = search ? [
+        { companyId: { contains: search, mode: 'insensitive' } },
+        { locationInterest: { contains: search, mode: 'insensitive' } },
+        { leadSource: { contains: search, mode: 'insensitive' } },
+        { assignedTo: { contains: search, mode: 'insensitive' } },
+      ] : [];
       const where: any = {
         ...(companyId ? { companyId: companyId as string } : {}),
-        ...(companyIds.length ? { companyId: { in: companyIds } } : {}),
         ...(status && status !== 'all' ? { status } : {}),
         ...((dateFrom || dateTo) ? { nextFollowUpDate: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}),
-        ...(search ? { OR: [
-          { companyId: { contains: search, mode: 'insensitive' } },
-          { locationInterest: { contains: search, mode: 'insensitive' } },
-          { leadSource: { contains: search, mode: 'insensitive' } },
-          { assignedTo: { contains: search, mode: 'insensitive' } },
-        ] } : {}),
+        ...((searchClauses.length || companyIds.length) ? { OR: [...searchClauses, ...(companyIds.length ? [{ companyId: { in: companyIds } }] : [])] } : {}),
       };
       const { take, skip, page, limit } = parsePagePagination(req.query as any);
       const [rows, total] = await Promise.all([prisma.cRMOpportunity.findMany({

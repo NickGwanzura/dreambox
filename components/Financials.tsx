@@ -248,13 +248,16 @@ export const Financials: React.FC<FinancialsProps> = ({
     let active = true;
     setIsLoadingPage(true);
     setPageError(null);
-    fetchPage<Invoice>('/api/invoices', page).then(result => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const clientIds = normalizedSearch ? allClients.filter(client => client.companyName.toLowerCase().includes(normalizedSearch)).map(client => client.id).join(',') : '';
+    const type = activeTab === 'Invoices' ? 'Invoice' : activeTab === 'Receipts' ? 'Receipt' : 'all';
+    fetchPage<Invoice>('/api/invoices', page, undefined, { search: searchTerm.trim(), month: invoiceMonth, status: invoiceStatus, type, clientIds }).then(result => {
       if (!active) return;
       setInvoices(result.data);
       setPagination(result.pagination);
     }).catch(error => active && setPageError(error?.message || 'Unable to load invoices.')).finally(() => active && setIsLoadingPage(false));
     return () => { active = false; };
-  }, [page, refreshPage]);
+  }, [page, refreshPage, activeTab, searchTerm, invoiceMonth, invoiceStatus, allClients]);
 
   useEffect(() => { setPage(1); }, [activeTab, searchTerm, invoiceMonth, invoiceStatus]);
 
@@ -912,6 +915,7 @@ export const Financials: React.FC<FinancialsProps> = ({
 
   const invoiceMonths = Array.from(new Set(invoices.map(i => i.date?.slice(0, 7)).filter(Boolean))).sort().reverse();
   const filteredDocs = invoices.filter((i) => {
+    if (isConfigured()) return activeTab === 'Statements' ? false : true;
     const iType = String(i.type || "").toLowerCase();
     let matchesType = false;
     if (activeTab === "Invoices") matchesType = iType === "invoice";

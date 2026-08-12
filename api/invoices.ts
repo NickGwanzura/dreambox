@@ -348,18 +348,18 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const dateTo = String(req.query.dateTo || '').trim();
       // Use a unique secondary key so cursor-like skip/take pages cannot
       // reshuffle records that share the same createdAt timestamp.
+      const searchClauses = search ? [
+        { id: { contains: search, mode: 'insensitive' } },
+        { quoteNumber: { contains: search, mode: 'insensitive' } },
+        { paymentReference: { contains: search, mode: 'insensitive' } },
+        { clientId: { contains: search, mode: 'insensitive' } },
+      ] : [];
       const where: any = {
         ...(includeVoided ? {} : { isVoided: false }),
         ...(type && type !== 'all' ? { type } : {}),
         ...(status && status !== 'all' ? { status } : {}),
-        ...(clientIds.length ? { clientId: { in: clientIds } } : {}),
         ...((month || dateFrom || dateTo) ? { date: { ...(month && month !== 'all' ? { startsWith: month } : {}), ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}),
-        ...(search ? { OR: [
-          { id: { contains: search, mode: 'insensitive' } },
-          { quoteNumber: { contains: search, mode: 'insensitive' } },
-          { paymentReference: { contains: search, mode: 'insensitive' } },
-          { clientId: { contains: search, mode: 'insensitive' } },
-        ] } : {}),
+        ...((searchClauses.length || clientIds.length) ? { OR: [...searchClauses, ...(clientIds.length ? [{ clientId: { in: clientIds } }] : [])] } : {}),
       };
       const [rows, total] = await Promise.all([prisma.invoice.findMany({
         where,

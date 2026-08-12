@@ -52,13 +52,15 @@ export const Expenses: React.FC = () => {
     let active = true;
     setIsLoadingPage(true);
     setPageError(null);
-    fetchPage<Expense>('/api/expenses', page).then(result => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const clientIds = normalizedSearch ? getClients().filter(client => client.companyName.toLowerCase().includes(normalizedSearch)).map(client => client.id).join(',') : '';
+    fetchPage<Expense>('/api/expenses', page, undefined, { search: searchTerm.trim(), month: expenseMonth, clientIds }).then(result => {
       if (!active) return;
       setGeneralExpenses(result.data);
       setPagination(result.pagination);
     }).catch(error => active && setPageError(error?.message || 'Unable to load expenses.')).finally(() => active && setIsLoadingPage(false));
     return () => { active = false; };
-  }, [page, refreshPage]);
+  }, [page, refreshPage, searchTerm, expenseMonth]);
 
   useEffect(() => { setPage(1); }, [searchTerm, expenseMonth]);
 
@@ -70,6 +72,7 @@ export const Expenses: React.FC = () => {
   };
   const expenseMonths = Array.from(new Set(generalExpenses.map(exp => exp.date.slice(0, 7)).filter(Boolean))).sort().reverse();
   const filteredGeneralExpenses = generalExpenses.filter(exp => {
+    if (isConfigured()) return true;
     const matchesMonth = expenseMonth === 'all' || exp.date.startsWith(expenseMonth);
     if (!matchesMonth) return false;
     if (!searchTerm.trim()) return true;
