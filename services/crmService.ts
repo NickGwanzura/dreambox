@@ -24,6 +24,7 @@ import {
   StageHistoryEntry
 } from '../types';
 import { api, isConfigured } from './apiClient';
+import { fetchAllPages } from './pagination';
 import { STORAGE_KEYS, EMAIL_REGEX, PHONE_REGEX } from './constants';
 import { logger } from '../utils/logger';
 import { sanitizeString, generateId } from '../utils/sanitizers';
@@ -254,7 +255,7 @@ export const reloadCRMFromApi = async (): Promise<void> => {
   const keys = Object.keys(API_ENDPOINTS) as (keyof CRMState)[];
   const results = await Promise.allSettled(
     keys.map(async key => {
-      let data = await api.get<any[]>(`/api/${API_ENDPOINTS[key]}`);
+      let data = await fetchAllPages<any>(`/api/${API_ENDPOINTS[key]}`);
       if (Array.isArray(data)) {
         if (key === 'opportunities') data = data.map(sanitizeOpportunity);
         const { merged, localOnly } = mergeRemoteWithLocal(key, data, state[key] as any[]);

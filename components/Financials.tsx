@@ -52,6 +52,9 @@ import {
   isBankPaymentMethod,
   openPaymentProof,
 } from "../services/paymentProof";
+import { fetchPage, PaginationMeta } from "../services/pagination";
+import { isConfigured } from "../services/apiClient";
+import { PaginationControls } from "./ui/PaginationControls";
 
 type InvoiceLineItem = Invoice["items"][number];
 type DueDateProvenance =
@@ -158,6 +161,11 @@ export const Financials: React.FC<FinancialsProps> = ({
   >(initialTab);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>(getInvoices());
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [refreshPage, setRefreshPage] = useState(0);
   const [allClients, setAllClients] = useState(getClients());
   const [searchTerm, setSearchTerm] = useState("");
   const [invoiceMonth, setInvoiceMonth] = useState("all");
@@ -221,18 +229,34 @@ export const Financials: React.FC<FinancialsProps> = ({
 
   // Refresh data whenever tab changes, modal closes, or a data sync happens
   useEffect(() => {
-    setInvoices(getInvoices());
+    if (!isConfigured()) setInvoices(getInvoices());
     setAllClients(getClients());
   }, [activeTab, isModalOpen]);
 
   // Subscribe to live data changes (application database sync)
   useEffect(() => {
     const unsubscribe = subscribe(() => {
-      setInvoices(getInvoices());
+      if (!isConfigured()) setInvoices(getInvoices());
+      setRefreshPage(value => value + 1);
       setAllClients(getClients());
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!isConfigured()) return;
+    let active = true;
+    setIsLoadingPage(true);
+    setPageError(null);
+    fetchPage<Invoice>('/api/invoices', page).then(result => {
+      if (!active) return;
+      setInvoices(result.data);
+      setPagination(result.pagination);
+    }).catch(error => active && setPageError(error?.message || 'Unable to load invoices.')).finally(() => active && setIsLoadingPage(false));
+    return () => { active = false; };
+  }, [page, refreshPage]);
+
+  useEffect(() => { setPage(1); }, [activeTab, searchTerm, invoiceMonth, invoiceStatus]);
 
   const getClientDueDate = (clientId: string, invoiceDate: string) => {
     const billingDay = allClients.find((client) => client.id === clientId)
@@ -1222,6 +1246,8 @@ export const Financials: React.FC<FinancialsProps> = ({
 
         {activeTab !== "Statements" && (
           <>
+            {pageError && <div role="alert" className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
+            {isLoadingPage && <div className="py-8 text-center text-sm text-slate-500">Loading documents…</div>}
             {/* Mobile Cards */}
             <div className="lg:hidden grid grid-cols-1 gap-4">
               {filteredDocs.length > 0 ? (
@@ -1636,6 +1662,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                 </table>
               </div>
             </div>
+            <PaginationControls pagination={pagination} onPageChange={setPage} disabled={isLoadingPage} />
           </>
         )}
       </div>

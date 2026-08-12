@@ -5,7 +5,7 @@ import { log } from '../../lib/serverLogger.js';
 import { pickCRMCallLogData } from '../../lib/whitelist';
 import { z } from 'zod';
 import { assertCRMActivityParents, isIntegrityError } from '../../lib/crmIntegrity.js';
-import { parsePagination } from '../../lib/pagination.js';
+import { PaginationError, paginated, parsePagePagination } from '../../lib/pagination.js';
 import { recordMutationAudit } from '../../lib/mutationAudit.js';
 
 const callLogSchema = z.object({
@@ -36,12 +36,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const rows = await prisma.cRMCallLog.findMany({
-        where: opportunityId ? { opportunityId: opportunityId as string } : undefined,
+      const where = opportunityId ? { opportunityId: opportunityId as string } : undefined;
+      const { take, skip, page, limit } = parsePagePagination(req.query as any);
+      const [rows, total] = await Promise.all([prisma.cRMCallLog.findMany({
+        where,
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        ...parsePagination(req.query as any, 500),
-      });
-      return res.status(200).json(rows);
+        take, skip,
+      }), typeof prisma.cRMCallLog.count === 'function' ? prisma.cRMCallLog.count({ where }) : Promise.resolve(0)]);
+      return res.status(200).json(paginated(rows, page, limit, total));
     }
 
     if (req.method === 'POST') {
@@ -88,6 +90,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
+    if (e instanceof PaginationError) return res.status(400).json({ error: e.message });
     log.error('[crm/call-logs]', e);
     if (isIntegrityError(e)) return res.status(409).json({ error: e.message });
     return res.status(500).json({ error: 'Internal server error' });

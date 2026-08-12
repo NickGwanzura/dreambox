@@ -9,6 +9,9 @@ import { getCurrentUser } from '../services/authServiceSecure';
 import { canDelete } from '../utils/settingsAccess';
 import { ClientDetail } from './ClientDetail';
 import { useToast } from './ToastProvider';
+import { fetchPage, PaginationMeta } from '../services/pagination';
+import { isConfigured } from '../services/apiClient';
+import { PaginationControls } from './ui/PaginationControls';
 
 const MinimalInput = ({ label, value, onChange, type = "text", placeholder, required = false, max, min, step }: any) => (
   <div className="group relative">
@@ -29,6 +32,11 @@ export const ClientList: React.FC = () => {
   const [viewingClientId, setViewingClientId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [importResult, setImportResult] = useState<{ updated: number; created: number; skipped: number; details: string[] } | null>(null);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [refreshPage, setRefreshPage] = useState(0);
 
   const activeContractsByClient = useMemo(() => {
     const map: Record<string, number> = {};
@@ -54,11 +62,26 @@ export const ClientList: React.FC = () => {
   // Real-time Subscription
   useEffect(() => {
       const unsubscribe = subscribe(() => {
-          setClients([...getClients()]);
           setContracts([...getContracts()]);
+          setRefreshPage(value => value + 1);
       });
       return () => { unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!isConfigured()) return;
+    let active = true;
+    setIsLoadingPage(true);
+    setPageError(null);
+    fetchPage<Client>('/api/clients', page).then(result => {
+      if (!active) return;
+      setClients(result.data);
+      setPagination(result.pagination);
+    }).catch(error => active && setPageError(error?.message || 'Unable to load clients.')).finally(() => active && setIsLoadingPage(false));
+    return () => { active = false; };
+  }, [page, refreshPage]);
+
+  useEffect(() => { setPage(1); }, [searchQuery]);
 
   const isSubmittingRef = useRef(false);
   const handleAddClient = async (e: React.FormEvent) => {
@@ -374,7 +397,8 @@ export const ClientList: React.FC = () => {
                 {filteredClients.length} of {clients.length} clients match "{searchQuery}"
             </p>
         )}
-        {filteredClients.length === 0 && searchQuery ? (
+        {pageError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
+        {isLoadingPage ? <div className="py-16 text-center text-sm text-slate-500">Loading clients…</div> : filteredClients.length === 0 && searchQuery ? (
             <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
                 <Search size={32} className="text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-900 font-medium">No clients found matching "{searchQuery}"</p>
@@ -437,6 +461,7 @@ export const ClientList: React.FC = () => {
             )})}
         </div>
         )}
+        <PaginationControls pagination={pagination} onPageChange={setPage} disabled={isLoadingPage} />
       </div>
 
       {/* Add Client Modal */}

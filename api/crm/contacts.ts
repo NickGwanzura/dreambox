@@ -4,7 +4,7 @@ import { requireAuth, requireDeletePermission, cors } from '../../lib/auth';
 import { log } from '../../lib/serverLogger.js';
 import { pickCRMContactData } from '../../lib/whitelist';
 import { z } from 'zod';
-import { parsePagination } from '../../lib/pagination.js';
+import { PaginationError, paginated, parsePagePagination } from '../../lib/pagination.js';
 import { recordMutationAudit } from '../../lib/mutationAudit.js';
 
 const contactSchema = z.object({
@@ -36,12 +36,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const rows = await prisma.cRMContact.findMany({
-        where: companyId ? { companyId: companyId as string } : undefined,
+      const where = companyId ? { companyId: companyId as string } : undefined;
+      const { take, skip, page, limit } = parsePagePagination(req.query as any);
+      const [rows, total] = await Promise.all([prisma.cRMContact.findMany({
+        where,
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        ...parsePagination(req.query as any, 500),
-      });
-      return res.status(200).json(rows);
+        take, skip,
+      }), typeof prisma.cRMContact.count === 'function' ? prisma.cRMContact.count({ where }) : Promise.resolve(0)]);
+      return res.status(200).json(paginated(rows, page, limit, total));
     }
 
     if (req.method === 'POST') {
@@ -92,6 +94,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
+    if (e instanceof PaginationError) return res.status(400).json({ error: e.message });
     log.error('[crm/contacts]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }

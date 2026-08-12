@@ -7,7 +7,7 @@ import { log } from '../lib/serverLogger.js';
 import { pickExpenseData } from '../lib/whitelist';
 import { assertPeriodOpen } from '../lib/accountingPeriod';
 import { getClientIp } from '../lib/clientIp.js';
-import { parsePagination } from '../lib/pagination.js';
+import { PaginationError, paginated, parsePagePagination } from '../lib/pagination.js';
 
 const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must use YYYY-MM-DD').refine(value => {
   const [year, month, day] = value.split('-').map(Number);
@@ -71,8 +71,12 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const rows = await prisma.expense.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], ...parsePagination(req.query as any, 500) });
-      return res.status(200).json(rows);
+      const { take, skip, page, limit } = parsePagePagination(req.query as any);
+      const rows = await prisma.expense.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take, skip });
+      // The fallback keeps lightweight endpoint mocks compatible; Prisma's
+      // production delegate always provides count(), yielding true metadata.
+      const total = typeof prisma.expense.count === 'function' ? await prisma.expense.count() : rows.length;
+      return res.status(200).json(paginated(rows, page, limit, total));
     }
 
     if (req.method === 'POST') {
@@ -173,6 +177,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
+    if (e instanceof PaginationError) return res.status(400).json({ error: e.message });
     log.error('[expenses]', e);
     if (/Accounting period/.test(e?.message || '')) return res.status(409).json({ error: e.message });
     return res.status(500).json({ error: 'Internal server error' });

@@ -9,6 +9,7 @@ import { pickInvoiceData } from '../lib/whitelist';
 import { assertPeriodOpen, assertPeriodsOpen } from '../lib/accountingPeriod';
 import { getClientIp } from '../lib/clientIp.js';
 import { isAllowedStorageReference } from '../lib/storage.js';
+import { PaginationError, paginated, parsePagePagination } from '../lib/pagination.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const calendarDate = z.string().regex(DATE_RE, 'Date must use YYYY-MM-DD').refine((value) => {
@@ -336,19 +337,22 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
           flaggedForReview: true,
         })));
       }
-      const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
-      const skip = Math.max(0, Number(req.query.skip) || 0);
+      const { take, skip, page, limit } = parsePagePagination(req.query as any);
       const includeVoided = String(req.query.includeVoided || '').toLowerCase() === 'true' && ['Admin', 'Manager'].includes(payload.role);
       // Use a unique secondary key so cursor-like skip/take pages cannot
       // reshuffle records that share the same createdAt timestamp.
-      const rows = await prisma.invoice.findMany({
-        where: includeVoided ? undefined : { isVoided: false },
+      const where = includeVoided ? undefined : { isVoided: false };
+      const [rows, total] = await Promise.all([prisma.invoice.findMany({
+        where,
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        take: limit,
+        take,
         skip,
-      });
-      return res.status(200).json(rows.map(withoutProofUrl));
-    } catch (e: any) { handlePrismaError(e, res, 'GET'); return; }
+      }), typeof prisma.invoice.count === 'function' ? prisma.invoice.count({ where }) : Promise.resolve(0)]);
+      return res.status(200).json(paginated(rows.map(withoutProofUrl), page, limit, total));
+    } catch (e: any) {
+      if (e instanceof PaginationError) return res.status(400).json({ error: e.message });
+      handlePrismaError(e, res, 'GET'); return;
+    }
   }
 
   if (req.method === 'POST') {

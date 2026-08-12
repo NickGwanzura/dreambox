@@ -15,6 +15,9 @@ import { getProductionFee } from '../utils/productionFee';
 import { ContractAmendmentModal } from './ContractAmendmentModal';
 import { getContractGroupAllLines as getGroupedLines, getContractGroupId as getGroupedId, invoiceTouchesContractLine } from '../utils/contractGroups';
 import { useToast } from './ToastProvider';
+import { fetchPage, PaginationMeta } from '../services/pagination';
+import { isConfigured } from '../services/apiClient';
+import { PaginationControls } from './ui/PaginationControls';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => {
   const isDate = type === 'date';
@@ -83,6 +86,11 @@ export const Rentals: React.FC = () => {
   const [showPaidInvoiceDeleteWarning, setShowPaidInvoiceDeleteWarning] = useState(false);
   const [contractToPermanentDelete, setContractToPermanentDelete] = useState<Contract | null>(null);
   const [isDeletingPermanent, setIsDeletingPermanent] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [refreshPage, setRefreshPage] = useState(0);
 
   const filteredRentals = rentals.filter(contract => {
       if (!searchQuery.trim()) return true;
@@ -127,10 +135,25 @@ export const Rentals: React.FC = () => {
   // Real-time Subscription
   useEffect(() => {
       const unsubscribe = subscribe(() => {
-          setRentals([...getContracts()]);
+          setRefreshPage(value => value + 1);
       });
       return () => { unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!isConfigured()) return;
+    let active = true;
+    setIsLoadingPage(true);
+    setPageError(null);
+    fetchPage<Contract>('/api/contracts', page).then(result => {
+      if (!active) return;
+      setRentals(result.data);
+      setPagination(result.pagination);
+    }).catch(error => active && setPageError(error?.message || 'Unable to load contracts.')).finally(() => active && setIsLoadingPage(false));
+    return () => { active = false; };
+  }, [page, refreshPage]);
+
+  useEffect(() => { setPage(1); }, [searchQuery]);
 
   const getClient = (id: string) => clients.find(c => c.id === id);
   const getBillboard = (id: string) => getBillboards().find(b => b.id === id);
@@ -1035,6 +1058,8 @@ export const Rentals: React.FC = () => {
 
         {viewMode === 'gantt' ? renderGanttChart() : (
             <div className="grid gap-4">
+            {pageError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
+            {isLoadingPage && <div className="py-12 text-center text-sm text-slate-500">Loading contracts…</div>}
             {filteredRentals.map(contract => (
                 <div key={contract.id} className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 group hover:-translate-y-0.5 duration-300">
                 <div className="flex items-start gap-4 w-full lg:w-auto">
@@ -1116,6 +1141,7 @@ export const Rentals: React.FC = () => {
                     <p className="text-slate-900 text-sm">{searchQuery ? 'Try adjusting your search terms.' : 'Create a new rental agreement to get started.'}</p>
                 </div>
             )}
+            <PaginationControls pagination={pagination} onPageChange={setPage} disabled={isLoadingPage} />
             </div>
         )}
       </div>

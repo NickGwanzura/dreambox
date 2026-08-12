@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, requireQuotationApprovePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
+import { PaginationError, paginated, parsePagePagination } from '../lib/pagination.js';
 
 const contractDateSchema = z
   .string()
@@ -218,15 +219,14 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 1000));
-      const skip = Math.max(0, Number(req.query.skip) || 0);
+      const { take, skip, page, limit } = parsePagePagination(req.query as any);
       // dbCreatedAt is not unique; append id to make offset pagination stable.
-      const rows = await prisma.contract.findMany({
+      const [rows, total] = await Promise.all([prisma.contract.findMany({
         orderBy: [{ dbCreatedAt: 'asc' }, { id: 'asc' }],
-        take: limit,
+        take,
         skip,
-      });
-      return res.status(200).json(rows);
+      }), typeof prisma.contract.count === 'function' ? prisma.contract.count() : Promise.resolve(0)]);
+      return res.status(200).json(paginated(rows, page, limit, total));
     }
 
     if (req.method === 'POST') {
@@ -368,6 +368,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
+    if (e instanceof PaginationError) return res.status(400).json({ error: e.message });
     const bookingConflict = bookingConflictResponse(e);
     if (bookingConflict) {
       return res.status(409).json(bookingConflict);

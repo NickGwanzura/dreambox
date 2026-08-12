@@ -1,5 +1,6 @@
 import { Billboard, BillboardType, Client, Contract, ContractAmendment, Invoice, Expense, User, PrintingJob, AuditLogEntry, CompanyProfile, Task, MaintenanceLog, QuotationEvent, QuoteStatus } from '../types';
 import { api, isConfigured } from './apiClient';
+import { fetchAllPages } from './pagination';
 import { STORAGE_KEYS, splitInclusiveVat, VAT_RATE } from './constants';
 import { registerPulledRecordsHandler } from './remoteState';
 import { exportAllData } from './storage';
@@ -232,18 +233,16 @@ export const reloadAllFromApi = async (): Promise<void> => {
 
         const results = await Promise.allSettled([
             api.get<any[]>('/api/billboards').then(d => { if (d) billboards = mergeRemoteWithLocal(d, billboards, 'billboards'); }),
-            api.get<any[]>('/api/clients').then(d => { if (d) clients = mergeRemoteWithLocal(d, clients, 'clients'); }),
-            api.get<any[]>('/api/contracts?limit=1000').then(d => { if (d) contracts = mergeRemoteWithLocal(d, contracts, 'contracts'); }),
+            fetchAllPages<any>('/api/clients').then(d => { clients = mergeRemoteWithLocal(d, clients, 'clients'); }),
+            fetchAllPages<any>('/api/contracts').then(d => { contracts = mergeRemoteWithLocal(d, contracts, 'contracts'); }),
             api.get<any[]>('/api/contract-amendments').then(d => { if (d) contractAmendments = d; }),
-            api.get<any[]>('/api/invoices').then(d => {
-                if (d) {
-                    // The server is authoritative for the financial ledger.
-                    const deletedIds = new Set(deletedQueue.filter(e => e.table === 'invoices').map(e => e.id));
-                    invoices = d.filter(row => !deletedIds.has(row.id)).map(normalizeInvoiceMoney);
-                    persistInvoices();
-                }
+            fetchAllPages<any>('/api/invoices').then(d => {
+                // The server is authoritative for the financial ledger.
+                const deletedIds = new Set(deletedQueue.filter(e => e.table === 'invoices').map(e => e.id));
+                invoices = d.filter(row => !deletedIds.has(row.id)).map(normalizeInvoiceMoney);
+                persistInvoices();
             }),
-            api.get<any[]>('/api/expenses').then(d => { if (d) expenses = d.map(normalizeExpenseMoney); }),
+            fetchAllPages<any>('/api/expenses').then(d => { expenses = d.map(normalizeExpenseMoney); }),
             api.get<any[]>('/api/users').then(d => { if (d) users = d; }),
             api.get<any[]>('/api/printing-jobs').then(d => { if (d) printingJobs = d; }),
             api.get<any[]>('/api/maintenance').then(d => { if (d) maintenanceLogs = d; }),

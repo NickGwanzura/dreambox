@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireDeletePermission, cors } from '../lib/auth';
 import { log } from '../lib/serverLogger.js';
 import { pickClientData } from '../lib/whitelist';
+import { PaginationError, paginated, parsePagePagination } from '../lib/pagination.js';
 
 const clientSchema = z.object({
   companyName: z.string().min(1, 'Company name is required'),
@@ -29,17 +30,16 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (!row) return res.status(404).json({ error: 'Not found' });
         return res.status(200).json(row);
       }
-      const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 500));
-      const skip = Math.max(0, Number(req.query.skip) || 0);
+      const { take, skip, page, limit } = parsePagePagination(req.query as any);
       // Stable tie-breaker is required for limit/skip pagination: timestamps
       // are not unique, and ordering by them alone can duplicate or omit rows
       // between pages when records share the same createdAt value.
-      const rows = await prisma.client.findMany({
+      const [rows, total] = await Promise.all([prisma.client.findMany({
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        take: limit,
+        take,
         skip,
-      });
-      return res.status(200).json(rows);
+      }), typeof prisma.client.count === 'function' ? prisma.client.count() : Promise.resolve(0)]);
+      return res.status(200).json(paginated(rows, page, limit, total));
     }
 
     if (req.method === 'POST') {
@@ -90,6 +90,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
+    if (e instanceof PaginationError) return res.status(400).json({ error: e.message });
     log.error('[clients]', e);
     return res.status(500).json({ error: 'Internal server error' });
   }
