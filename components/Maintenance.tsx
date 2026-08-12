@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { getBillboards, getMaintenanceLogs, addMaintenanceLog, addExpense, getExpenses } from '../services/mockData';
 import { Billboard, MaintenanceLog, Expense } from '../types';
 import { Wrench, Calendar, CheckCircle, AlertTriangle, Clock, Plus, X, Save, Search, MapPin, History, Hammer, FileText, DollarSign, ChevronRight } from 'lucide-react';
+import { useToast } from './ToastProvider';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
   <div className="group relative pt-5">
@@ -37,6 +38,8 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
 );
 
 export const Maintenance: React.FC = () => {
+  const { showToast } = useToast();
+  const notify = (message: string) => showToast(message, /failed|error|required/i.test(message) ? 'error' : 'success');
   const [billboards, setBillboards] = useState<Billboard[]>(getBillboards());
   const [logs, setLogs] = useState<MaintenanceLog[]>(getMaintenanceLogs());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -76,7 +79,7 @@ export const Maintenance: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!selectedBillboardId) { alert("Please select a billboard."); return; }
+      if (!selectedBillboardId) { notify("Please select a billboard."); return; }
 
       // Calculate next due date (3 months from completed date)
       const completedDate = new Date(newLog.date!);
@@ -98,7 +101,7 @@ export const Maintenance: React.FC = () => {
       try {
           await addMaintenanceLog(logEntry);
       } catch (err: any) {
-          alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
           return;
       }
 
@@ -114,7 +117,7 @@ export const Maintenance: React.FC = () => {
           try {
               await addExpense(expense);
           } catch (err: any) {
-              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              notify(`Failed: ${err?.message || 'Server error. Please try again.'}`);
           }
       }
 

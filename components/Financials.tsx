@@ -45,6 +45,7 @@ import { Invoice, Contract, BillboardType, QuoteStatus } from "../types";
 import { splitInclusiveVat, formatVatPercent } from "../services/constants";
 import { getEffectiveVatRate } from "../services/mockData";
 import { canDelete, canWriteFinance } from "../utils/settingsAccess";
+import { useToast } from "./ToastProvider";
 import { getCurrentUser } from "../services/authServiceSecure";
 import {
   uploadPaymentProof,
@@ -145,6 +146,8 @@ interface FinancialsProps {
 export const Financials: React.FC<FinancialsProps> = ({
   initialTab = "Invoices",
 }) => {
+  const { showToast } = useToast();
+  const notify = (message: string) => showToast(message, /failed|error|required|not found|proof/i.test(message) ? 'error' : 'success');
   const currentUser = getCurrentUser();
   const canUserWrite = canWriteFinance(currentUser, "invoices");
   const defaultReceiver = currentUser
@@ -476,18 +479,18 @@ export const Financials: React.FC<FinancialsProps> = ({
         : null;
       if (activeTab === "Receipts") {
         if (!String(formData.receivedBy || "").trim()) {
-          alert("Who received the payment is required.");
+          notify("Who received the payment is required.");
           return;
         }
         if (!String(formData.paymentReference || "").trim()) {
-          alert("Payment reference is required.");
+          notify("Payment reference is required.");
           return;
         }
         if (
           isBankPaymentMethod(formData.paymentMethod) &&
           !String(formData.receivingAccount || "").trim()
         ) {
-          alert("Receiving bank account is required for bank payments.");
+          notify("Receiving bank account is required for bank payments.");
           return;
         }
         if (paymentProofFile) {
@@ -499,7 +502,7 @@ export const Financials: React.FC<FinancialsProps> = ({
           }
         }
         if (isBankPaymentMethod(formData.paymentMethod) && !proof) {
-          alert("Attach proof of payment before posting a bank payment.");
+          notify("Attach proof of payment before posting a bank payment.");
           return;
         }
       }
@@ -563,7 +566,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         try {
           await updateInvoice(updatedDoc);
         } catch (err: any) {
-          alert(`Failed: ${err?.message || "Server error. Please try again."}`);
+          notify(`Failed: ${err?.message || "Server error. Please try again."}`);
           return;
         }
         setInvoices(getInvoices());
@@ -580,7 +583,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         setBillboardSelections({});
         setBillboardSearch("");
         resetQuoteFields();
-        alert(`${editingInvoice.type} Updated Successfully!`);
+        notify(`${editingInvoice.type} Updated Successfully!`);
       } else {
         const isQuote = (activeTab as string) === "Quotations";
         const newDoc: Invoice = {
@@ -639,7 +642,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         try {
           await addInvoice(newDoc);
         } catch (err: any) {
-          alert(`Failed: ${err?.message || "Server error. Please try again."}`);
+          notify(`Failed: ${err?.message || "Server error. Please try again."}`);
           return;
         }
         setInvoices(getInvoices());
@@ -656,7 +659,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         setBillboardSelections({});
         setBillboardSearch("");
         resetQuoteFields();
-        alert(`${activeTab.slice(0, -1)} Created Successfully!`);
+        notify(`${activeTab.slice(0, -1)} Created Successfully!`);
       }
     } finally {
       isSubmittingRef.current = false;
@@ -667,7 +670,7 @@ export const Financials: React.FC<FinancialsProps> = ({
     if (client) {
       generateInvoicePDF(doc, client);
     } else {
-      alert(
+      notify(
         `Could not generate PDF: Client data missing for ID ${doc.clientId}`,
       );
     }
@@ -679,7 +682,7 @@ export const Financials: React.FC<FinancialsProps> = ({
   const handleSendDoc = (doc: Invoice) => {
     const client = allClients.find((c) => c.id === doc.clientId);
     if (!client) {
-      alert("Client not found");
+      notify("Client not found");
       return;
     }
     setSendModal({ doc, client });
@@ -755,7 +758,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         await deleteInvoice(doc.id, reason);
         setInvoices(getInvoices());
       } catch (err: any) {
-        alert(`Failed: ${err?.message || "Server error. Please try again."}`);
+        notify(`Failed: ${err?.message || "Server error. Please try again."}`);
       }
     }
   };
@@ -764,7 +767,7 @@ export const Financials: React.FC<FinancialsProps> = ({
   // never become a second contract (double-click or stale modal included).
   const openConvertToContract = (doc: Invoice) => {
     if (doc.quoteStatus === "Converted" || doc.convertedToContractId) {
-      alert(
+      notify(
         `Quotation ${doc.quoteNumber || doc.id} has already been converted.`,
       );
       return;
@@ -792,7 +795,7 @@ export const Financials: React.FC<FinancialsProps> = ({
       currentQuote.quoteStatus === "Converted" ||
       currentQuote.convertedToContractId
     ) {
-      alert(
+      notify(
         `Quotation ${currentQuote.quoteNumber || currentQuote.id} has already been converted.`,
       );
       setConvertingQuotation(null);
@@ -850,7 +853,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         // 409 = the quotation was already converted elsewhere — close the stale modal.
         if (err?.status === 409) setConvertingQuotation(null);
         console.error("Failed to create contract:", err);
-        alert(
+        notify(
           `Failed to create contract: ${err?.message || "Server error. Please try again."}`,
         );
         return;
@@ -875,7 +878,7 @@ export const Financials: React.FC<FinancialsProps> = ({
       setInvoices(getInvoices());
       setConvertingQuotation(null);
       setConvertForm({ billboardId: "", startDate: "", endDate: "" });
-      alert(
+      notify(
         `Contract ${contract.id} created from Quotation #${convertingQuotation.id}. The quotation has been preserved.`,
       );
     } finally {
@@ -1350,12 +1353,12 @@ export const Financials: React.FC<FinancialsProps> = ({
                                       await convertQuotationToInvoice(doc.id);
                                     if (created) {
                                       setInvoices(getInvoices());
-                                      alert(
+                                      notify(
                                         `Converted to Invoice ${created.id}`,
                                       );
                                     }
                                   } catch (err: any) {
-                                    alert(
+                                    notify(
                                       `Failed: ${err?.message || "Server error. Please try again."}`,
                                     );
                                   } finally {
@@ -1564,12 +1567,12 @@ export const Financials: React.FC<FinancialsProps> = ({
                                           );
                                         if (created) {
                                           setInvoices(getInvoices());
-                                          alert(
+                                          notify(
                                             `Converted to Invoice ${created.id}`,
                                           );
                                         }
                                       } catch (err: any) {
-                                        alert(
+                                        notify(
                                           `Failed: ${err?.message || "Server error. Please try again."}`,
                                         );
                                       } finally {
@@ -1598,7 +1601,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                                     await convertInvoiceType(doc.id, "Invoice");
                                     setInvoices(getInvoices());
                                   } catch (err: any) {
-                                    alert(
+                                    notify(
                                       `Failed: ${err?.message || "Server error. Please try again."}`,
                                     );
                                   }
@@ -1869,7 +1872,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                       {(editingInvoice?.hasPaymentProof ?? Boolean(editingInvoice?.proofPaymentUrl)) && (
                         <button
                           type="button"
-                          onClick={() => openPaymentProof(editingInvoice.id).catch(error => alert(error.message))}
+                          onClick={() => openPaymentProof(editingInvoice.id).catch(error => notify(error.message))}
                           className="mt-2 inline-block text-xs font-bold text-indigo-600 hover:text-indigo-800"
                         >
                           View existing proof
@@ -2437,7 +2440,7 @@ export const Financials: React.FC<FinancialsProps> = ({
               defaultSubject={subject}
               defaultMessage={message}
               onSent={({ to }) => {
-                alert(`${typeLabel} sent to ${to}`);
+                notify(`${typeLabel} sent to ${to}`);
               }}
             />
           );

@@ -10,6 +10,7 @@ import { DataSyncManager } from './DataSyncManager';
 import { LocationSettings } from './settings/LocationSettings';
 import { WebsiteSettings } from './settings/WebsiteSettings';
 import { TwoFactorSettings } from './settings/TwoFactorSettings';
+import { useToast } from './ToastProvider';
 
 const ROLE_OPTIONS = [
   { value: 'Admin', label: 'Administrator' },
@@ -66,6 +67,8 @@ const MinimalSelect = ({ label, value, onChange, options }: any) => (
 );
 
 export const Settings: React.FC = () => {
+  const { showToast } = useToast();
+  const notify = (message: string) => showToast(message, /failed|error|required|unsupported|too large|no logs/i.test(message) ? 'error' : 'success');
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === 'Admin';
 
@@ -137,19 +140,19 @@ export const Settings: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
-        alert(`Unsupported file type: ${file.type || 'unknown'}. Use JPEG, PNG, WebP, GIF, or SVG.`);
+        notify(`Unsupported file type: ${file.type || 'unknown'}. Use JPEG, PNG, WebP, GIF, or SVG.`);
         return;
       }
-      if (file.size > 1024 * 1024) { alert("Image size is too large (Max 1MB)."); return; }
+      if (file.size > 1024 * 1024) { notify("Image size is too large (Max 1MB)."); return; }
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result as string;
         setLogoPreview(base64);
         try {
           await setCompanyLogo(base64);
-          alert("Logo updated and saved successfully.");
+          notify("Logo updated and saved successfully.");
         } catch (err: any) {
-          alert(`Failed to save logo: ${err?.message || 'Server error. Please try again.'}`);
+          notify(`Failed to save logo: ${err?.message || 'Server error. Please try again.'}`);
         }
       };
       reader.readAsDataURL(file);
@@ -160,9 +163,9 @@ export const Settings: React.FC = () => {
     try {
       await updateCompanyProfile(profile);
       initialProfileRef.current = JSON.stringify(profile);
-      alert("Company details updated successfully.");
+      notify("Company details updated successfully.");
     } catch (err: any) {
-      alert(`Failed to save company details: ${err?.message || 'Server error. Please try again.'}`);
+      notify(`Failed to save company details: ${err?.message || 'Server error. Please try again.'}`);
     }
   };
 
@@ -176,7 +179,7 @@ export const Settings: React.FC = () => {
       email: newUser.email!,
       role: (newUser.role as any) || 'Staff',
     });
-    if (error) { alert(`Error: ${error.message}`); }
+    if (error) { notify(`Error: ${error.message}`); }
     else if (user) {
       addLocalUser({ ...user, status: user.status || 'Active' });
       await refreshUsers();
@@ -197,7 +200,7 @@ export const Settings: React.FC = () => {
       await refreshUsers();
       setEditingUser(null);
     } catch (err: any) {
-      alert(`Error: ${err.message || 'Failed to save changes'}`);
+      notify(`Error: ${err.message || 'Failed to save changes'}`);
     }
     setIsUserLoading(false);
   };
@@ -205,7 +208,7 @@ export const Settings: React.FC = () => {
   const handleConfirmDelete = async () => {
     if (!userToDelete) return;
     const { error } = await deleteUserData(userToDelete.id);
-    if (error) { alert(`Error: ${error.message}`); }
+    if (error) { notify(`Error: ${error.message}`); }
     else {
       deleteLocalUser(userToDelete.id);
       await refreshUsers();
@@ -216,14 +219,14 @@ export const Settings: React.FC = () => {
   const handleApproveUser = async (role: 'Admin' | 'Manager' | 'Staff' | 'Sales Agent') => {
     if (!approvalUser) return;
     const { error } = await approveUser(approvalUser.id, role);
-    if (error) { alert(`Error: ${error.message}`); }
+    if (error) { notify(`Error: ${error.message}`); }
     else { await refreshUsers(); setApprovalUser(null); }
   };
 
   const handleRejectUser = async () => {
     if (!approvalUser) return;
     const { error } = await rejectUser(approvalUser.id, false);
-    if (error) { alert(`Error: ${error.message}`); }
+    if (error) { notify(`Error: ${error.message}`); }
     else { await refreshUsers(); setApprovalUser(null); }
   };
 
@@ -233,21 +236,21 @@ export const Settings: React.FC = () => {
     const { error } = user.status === 'Inactive'
       ? await reactivateUser(user.id)
       : await suspendUser(user.id);
-    if (error) { alert(`Error: ${error.message}`); }
+    if (error) { notify(`Error: ${error.message}`); }
     else { await refreshUsers(); }
   };
 
   const handleUnlockUser = async (user: UserType) => {
     const { error } = await unlockUser(user.id);
-    if (error) { alert(`Error: ${error.message}`); }
+    if (error) { notify(`Error: ${error.message}`); }
     else { await refreshUsers(); }
   };
 
   const handleAdminResetPassword = async (user: UserType) => {
     if (!confirm(`Send a password reset email to ${user.firstName} ${user.lastName} (${user.email})?`)) return;
     const { error } = await adminResetPassword(user.id);
-    if (error) { alert(`Error: ${error.message}`); }
-    else { alert(`Password reset email sent to ${user.email}`); }
+    if (error) { notify(`Error: ${error.message}`); }
+    else { notify(`Password reset email sent to ${user.email}`); }
   };
 
   const openPermissionsModal = (user: UserType) => {
@@ -260,7 +263,7 @@ export const Settings: React.FC = () => {
     if (!permissionsUser) return;
     setIsSavingPermissions(true);
     const { error } = await updateUserPermissions(permissionsUser.id, editingPermissions);
-    if (error) { alert(`Error: ${error.message}`); }
+    if (error) { notify(`Error: ${error.message}`); }
     else { await refreshUsers(); setPermissionsUser(null); }
     setIsSavingPermissions(false);
   };
@@ -275,7 +278,7 @@ export const Settings: React.FC = () => {
 
   const handleBulkInvite = async () => {
     const emails = bulkInviteText.split(/[\n,;]+/).map(e => e.trim()).filter(Boolean);
-    if (emails.length === 0) { alert('Enter at least one email address'); return; }
+    if (emails.length === 0) { notify('Enter at least one email address'); return; }
 
     const invites = emails.map(email => {
       const local = email.split('@')[0];
@@ -291,7 +294,7 @@ export const Settings: React.FC = () => {
 
     setIsBulkInviting(true);
     const { results, error } = await bulkInviteUsers(invites);
-    if (error) { alert(`Error: ${error.message}`); }
+    if (error) { notify(`Error: ${error.message}`); }
     else {
       setBulkInviteResults(results);
       await refreshUsers();
@@ -308,7 +311,7 @@ export const Settings: React.FC = () => {
   };
 
   const handleExportAuditLogs = () => {
-    if (auditLogs.length === 0) { alert("No logs to export."); return; }
+    if (auditLogs.length === 0) { notify("No logs to export."); return; }
     const csvRows = auditLogs.map((log: any) => `${log.id},"${sanitizeCsvCell(log.timestamp)}","${sanitizeCsvCell(log.user)}","${sanitizeCsvCell(log.action)}","${sanitizeCsvCell(log.details)}"`).join("\n");
     const blob = new Blob(["ID,Timestamp,User,Action,Details\n" + csvRows], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
