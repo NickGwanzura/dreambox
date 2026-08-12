@@ -10,17 +10,49 @@ import { notifyAdminNewUser } from '../lib/notifyAdmin.js';
 import { log } from '../lib/serverLogger.js';
 import { escapeHtml } from '../lib/htmlEscape.js';
 import { parsePagination } from '../lib/pagination.js';
+import { checkRateLimit } from '../lib/rateLimiter.js';
+import { getClientIp } from '../lib/clientIp.js';
 
 const APP_URL = process.env.APP_URL || 'https://dreamboxadvertising.co.zw';
 const FROM = 'Dreambox CRM <noreply@dreamboxadvertising.co.zw>';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ROLE_VALUES = ['Admin', 'Manager', 'Staff', 'Sales Agent'] as const;
+const STATUS_VALUES = ['Active', 'Inactive', 'Pending', 'Rejected'] as const;
+const PERMISSION_KEYS = ['billboards', 'contracts', 'invoices', 'quotations', 'clients', 'expenses', 'crm', 'reports', 'maintenance', 'printing', 'tasks'] as const;
+const PERMISSION_VALUES = ['none', 'read', 'write'] as const;
+
+const permissionsSchema = z.record(z.enum(PERMISSION_KEYS), z.enum(PERMISSION_VALUES)).superRefine((permissions, ctx) => {
+  if (permissions.reports === 'write') ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Reports permission cannot be write', path: ['reports'] });
+});
+
+const updateUserSchema = z.object({
+  firstName: z.string().trim().min(1).max(100).optional(),
+  lastName: z.string().trim().min(1).max(100).optional(),
+  email: z.string().trim().email().max(320).optional(),
+  role: z.enum(ROLE_VALUES).optional(),
+  status: z.enum(STATUS_VALUES).optional(),
+  permissions: permissionsSchema.nullable().optional(),
+  unlockAccount: z.boolean().optional(),
+}).strict();
+const createUserSchema = z.object({
+  firstName: z.string().trim().min(1).max(100),
+  lastName: z.string().trim().min(1).max(100),
+  email: z.string().trim().email().max(320),
+  role: z.enum(ROLE_VALUES),
+  password: z.string().optional(),
+}).strict();
 
 const USER_SELECT = {
   id: true, firstName: true, lastName: true, email: true,
   username: true, role: true, status: true, mustResetPassword: true,
   lastLoginAt: true, lastLoginIp: true, permissions: true, createdAt: true,
+};
+const AUDIT_USER_SELECT = {
+  id: true, firstName: true, lastName: true, email: true,
+  username: true, role: true, status: true, mustResetPassword: true,
+  lastLoginAt: true, permissions: true, createdAt: true,
 };
 
 export default async function handler(req: HttpRequest, res: HttpResponse) {
@@ -42,6 +74,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     // Return login history for a specific user
     if (loginHistory) {
+      if (!UUID_RE.test(loginHistory as string)) return res.status(400).json({ error: 'Valid user id required' });
       try {
         const history = await prisma.loginHistory.findMany({
           where: { userId: loginHistory as string },
@@ -83,6 +116,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!Array.isArray(invites) || invites.length === 0) {
         return res.status(400).json({ error: 'invites array required' });
       }
+      if (invites.length > 100) return res.status(400).json({ error: 'A maximum of 100 invites can be processed at once' });
 
       const bulkSchema = z.object({
         firstName: z.string().min(1),
@@ -154,6 +188,11 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       if (!userId || !UUID_RE.test(userId)) {
         return res.status(400).json({ error: 'Valid userId required' });
       }
+      const resetLimit = await checkRateLimit(`admin-password-reset:${admin.userId}:${getClientIp(req)}`, { maxAttempts: 10, windowMs: 15 * 60 * 1000 });
+      if (!resetLimit.allowed) {
+        res.setHeader('Retry-After', String(Math.ceil((resetLimit.retryAfterMs ?? 0) / 1000)));
+        return res.status(429).json({ error: 'Too many password reset requests. Please try again later.' });
+      }
 
       try {
         const targetUser = await prisma.user.findUnique({ where: { id: userId } });
@@ -180,12 +219,16 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
         const resetUrl = `${APP_URL}/auth/callback?type=reset&token=${token}`;
 
-        await resend.emails.send({
+        const sent = await resend.emails.send({
           from: FROM,
           to: targetUser.email,
           subject: 'Reset your Dreambox CRM password',
           html: buildResetEmail(targetUser.firstName, resetUrl),
         });
+        if (sent.error) {
+          await prisma.passwordResetToken.updateMany({ where: { token: tokenHash, used: false }, data: { used: true } });
+          return res.status(502).json({ error: 'Unable to send reset email. Please try again later.' });
+        }
 
         await prisma.auditLog.create({
           data: {
@@ -206,10 +249,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     }
 
     // Single user create
-    const { firstName, lastName, email, role, password } = req.body ?? {};
-    if (!firstName || !lastName || !email || !role) {
-      return res.status(400).json({ error: 'firstName, lastName, email, role required' });
-    }
+    const parsedCreate = createUserSchema.safeParse(req.body ?? {});
+    if (!parsedCreate.success) return res.status(400).json({ error: 'Invalid user data', details: parsedCreate.error.flatten() });
+    const { firstName, lastName, email, role, password } = parsedCreate.data;
 
     // Validate provided password if given
     if (password) {
@@ -232,7 +274,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
           email: email.toLowerCase().trim(),
           username: email.split('@')[0],
           passwordHash,
-          role,
+          role: role as any,
           status: 'Active',
           mustResetPassword: !password,
         },
@@ -277,7 +319,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    const { firstName, lastName, email, role, status, permissions, unlockAccount } = req.body ?? {};
+    const parsedUpdate = updateUserSchema.safeParse(req.body ?? {});
+    if (!parsedUpdate.success) return res.status(400).json({ error: 'Invalid user update', details: parsedUpdate.error.flatten() });
+    const { firstName, lastName, email, role, status, permissions, unlockAccount } = parsedUpdate.data;
 
     try {
       // Check email uniqueness if changing email
@@ -317,12 +361,25 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         }
       }
 
+      const before = await prisma.user.findUnique({ where: { id: id as string }, select: AUDIT_USER_SELECT });
       const updated = await prisma.user.update({
         where: { id: id as string },
         data: updateData,
         select: USER_SELECT,
       });
       invalidateUserCache(id as string);
+      await prisma.auditLog.create({
+        data: {
+          action: 'User account updated',
+          details: `Account ${updated.email} updated by administrator ${payload.email}`,
+          userId: payload.userId,
+          userEmail: payload.email,
+          tableName: 'users',
+          recordId: id as string,
+          beforeData: before as any,
+          afterData: updated as any,
+        },
+      }).catch((auditError: any) => log.warn(`[users PUT] audit log write failed: ${auditError?.message}`));
       return res.status(200).json(updated);
     } catch (e: any) {
       log.error('[users PUT]', e);
@@ -347,7 +404,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
     try {
       // Prevent deleting the last admin
-      const target = await prisma.user.findUnique({ where: { id: id as string } });
+      const target = await prisma.user.findUnique({ where: { id: id as string }, select: AUDIT_USER_SELECT });
       if (!target) {
         return res.status(200).json({ success: true, alreadyDeleted: true });
       }
@@ -360,6 +417,17 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       }
 
       await prisma.user.delete({ where: { id: id as string } });
+      await prisma.auditLog.create({
+        data: {
+          action: 'User account deleted',
+          details: `Account ${target.email} deleted by administrator ${payload.email}`,
+          userId: payload.userId,
+          userEmail: payload.email,
+          tableName: 'users',
+          recordId: id as string,
+          beforeData: target as any,
+        },
+      }).catch((auditError: any) => log.warn(`[users DELETE] audit log write failed: ${auditError?.message}`));
       return res.status(200).json({ success: true, alreadyDeleted: false });
     } catch (e: any) {
       log.error('[users DELETE]', e);
