@@ -74,12 +74,12 @@ export const Settings: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState(getAuditLogs());
   const [logoPreview, setLogoPreview] = useState(getCompanyLogo());
   const [profile, setProfile] = useState<CompanyProfile>(getCompanyProfile());
+  const initialProfileRef = useRef(JSON.stringify(profile));
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserType | null>(null);
   const [approvalUser, setApprovalUser] = useState<UserType | null>(null);
-  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [newUser, setNewUser] = useState<Partial<UserType>>({ firstName: '', lastName: '', email: '', username: '', role: 'Staff', status: 'Active' });
   const [isUserLoading, setIsUserLoading] = useState(false);
 
@@ -97,6 +97,18 @@ export const Settings: React.FC = () => {
   const [bulkInviteRole, setBulkInviteRole] = useState<'Staff' | 'Manager' | 'Sales Agent' | 'Admin'>('Staff');
   const [bulkInviteResults, setBulkInviteResults] = useState<{ email: string; status: string }[]>([]);
   const [isBulkInviting, setIsBulkInviting] = useState(false);
+
+  const isProfileDirty = JSON.stringify(profile) !== initialProfileRef.current;
+
+  useEffect(() => {
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (!isProfileDirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [isProfileDirty]);
 
   useEffect(() => {
     const unsubscribe = subscribe(() => { setAuditLogs(getAuditLogs()); });
@@ -147,6 +159,7 @@ export const Settings: React.FC = () => {
   const handleSaveCompanyDetails = async () => {
     try {
       await updateCompanyProfile(profile);
+      initialProfileRef.current = JSON.stringify(profile);
       alert("Company details updated successfully.");
     } catch (err: any) {
       alert(`Failed to save company details: ${err?.message || 'Server error. Please try again.'}`);
@@ -308,8 +321,6 @@ export const Settings: React.FC = () => {
   };
 
   const pendingUsers = users.filter(u => u.status === 'Pending');
-  const activeUsers = users;
-
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
       Active: 'bg-green-50 text-green-700',
@@ -522,7 +533,7 @@ export const Settings: React.FC = () => {
                   <div className="p-6 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-green-50 rounded-xl"><Shield className="w-6 h-6 text-green-600" /></div>
-                      <h3 className="text-lg font-bold text-slate-800">All Team Members <span className="text-sm font-normal text-slate-900">({activeUsers.length})</span></h3>
+                      <h3 className="text-lg font-bold text-slate-800">All Team Members <span className="text-sm font-normal text-slate-900">({users.length})</span></h3>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button onClick={refreshUsers} className="flex items-center gap-1 text-xs text-slate-900 font-bold uppercase tracking-wider hover:bg-slate-50 px-3 py-2 rounded-xl transition-colors border border-slate-200"><RefreshCw size={13} /> Refresh</button>
@@ -543,7 +554,7 @@ export const Settings: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {activeUsers.map(user => (
+                        {users.map(user => (
                           <tr key={user.id} className={`hover:bg-slate-50/50 transition-colors ${user.status === 'Inactive' ? 'opacity-60' : ''}`}>
                             <td className="px-6 py-4 font-medium text-slate-900">
                               <div className="flex items-center gap-2">
@@ -578,7 +589,7 @@ export const Settings: React.FC = () => {
                             </td>
                           </tr>
                         ))}
-                        {activeUsers.length === 0 && (
+                        {users.length === 0 && (
                           <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-900 italic">No users found. Click Refresh to sync from cloud.</td></tr>
                         )}
                       </tbody>

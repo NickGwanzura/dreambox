@@ -103,6 +103,7 @@ export const DataSyncManager: React.FC = () => {
   };
 
   const handlePullFromCloud = async () => {
+    if (!window.confirm('Pull database data into this browser? Local cached records will be replaced.')) return;
     setIsPulling(true);
     showToast('Pulling data from the application database...', 'info');
 
@@ -125,6 +126,7 @@ export const DataSyncManager: React.FC = () => {
   };
 
   const handlePushToCloud = async () => {
+    if (!window.confirm('Push this browser\'s cached records to the application database? Existing matching records may be overwritten.')) return;
     setIsPushing(true);
     showToast('Pushing local data to the application database...', 'info');
 
