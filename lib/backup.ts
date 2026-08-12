@@ -2,6 +2,7 @@ import { prisma } from './prisma';
 import { uploadFile, deleteFile, s3 } from './storage';
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
+import crypto from 'crypto';
 
 const BUCKET = process.env.R2_BUCKET_NAME || '';
 const MANIFEST_KEY = 'backups/manifest.json';
@@ -45,6 +46,7 @@ export interface BackupManifestEntry {
   size: number;
   recordCount: number;
   tables: string[];
+  checksumSha256?: string;
 }
 
 export interface DatabaseBackupEntry {
@@ -226,6 +228,7 @@ export async function createBackup(createdBy = 'system'): Promise<BackupResult> 
 
   const payload = { manifest, data };
   const buffer = Buffer.from(JSON.stringify(payload, null, 2));
+  const checksumSha256 = crypto.createHash('sha256').update(buffer).digest('hex');
   const date = new Date().toISOString().slice(0, 10);
   const timestamp = Date.now();
   const id = `${date}-${timestamp}-${Math.random().toString(36).slice(2, 8)}`;
@@ -248,6 +251,7 @@ export async function createBackup(createdBy = 'system'): Promise<BackupResult> 
     size: buffer.length,
     recordCount,
     tables: Object.keys(data).filter(k => data[k].length > 0),
+    checksumSha256,
   };
 
   await withManifestLock(async () => {
@@ -282,14 +286,6 @@ export async function deleteBackup(id: string): Promise<void> {
   });
 }
 
-async function fetchBackupFromR2(key: string): Promise<BackupRecord> {
-  if (!s3 || !BUCKET) throw new Error('R2 not configured');
-  const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
-  const body = await streamToString(obj.Body as Readable);
-  const parsed = JSON.parse(body);
-  return parsed.data ?? parsed;
-}
-
 function validateBackupPayload(data: unknown): data is BackupRecord {
   if (typeof data !== 'object' || data === null) return false;
   return BACKUP_TABLES.some(({ key }) => Array.isArray((data as BackupRecord)[key]));
@@ -300,7 +296,16 @@ export async function restoreBackup(id: string): Promise<{ restored: number; err
   const entry = manifest.find(b => b.id === id);
   if (!entry) throw new Error('Backup not found');
 
-  const data = await fetchBackupFromR2(entry.key);
+  const object = await getBackupObject(entry.key, entry.key.split('/').pop() || `dreambox-backup-${id}.json`);
+  const chunks: Buffer[] = [];
+  for await (const chunk of object.body) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  const raw = Buffer.concat(chunks);
+  if (entry.checksumSha256) {
+    const actual = crypto.createHash('sha256').update(raw).digest('hex');
+    if (actual !== entry.checksumSha256) throw new Error('Backup integrity check failed: checksum mismatch');
+  }
+  const parsed = JSON.parse(raw.toString('utf-8'));
+  const data = parsed.data ?? parsed;
   if (!validateBackupPayload(data)) throw new Error('Invalid backup file format');
   return restoreFromData(data);
 }

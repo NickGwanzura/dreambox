@@ -18,6 +18,7 @@
 - Run the authenticated `POST /api/cron/backup` endpoint and confirm the object appears in R2.
 - Cron jobs use the `cron_job_runs` table for a lease/idempotency record. If a scheduler is interrupted, wait for the 30-minute lease to expire before retrying the same job key.
 - Download one application backup and verify its manifest/record count.
+- New application backups include a SHA-256 checksum; restore rejects a changed or truncated R2 object before writing data.
 - At least monthly, restore into a disposable Postgres database, run the application health/readiness checks, and record the result.
 - Treat a backup as failed if any table export is incomplete or the restore cannot reach schema readiness.
 
