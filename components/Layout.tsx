@@ -14,9 +14,6 @@ import {
   getExpiringContracts,
   getOverdueInvoices,
   markOverdueInvoices,
-  triggerAutoBackup,
-  runAutoBilling,
-  runMaintenanceCheck,
   subscribe,
   onSyncError
 } from '../services/mockData';
@@ -24,9 +21,6 @@ import { logger } from '../utils/logger';
 import { startAutoSync, useSync, forceSyncNow, type SyncAttemptOutcome } from '../services/databaseSyncManager';
 import {
   ALERT_CHECK_INTERVAL_MS,
-  BACKUP_INTERVAL_MS,
-  BILLING_INTERVAL_MS,
-  MAINTENANCE_INTERVAL_MS,
   APP_VERSION
 } from '../services/constants';
 import { QuickCreate } from './QuickCreate';
@@ -249,10 +243,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   useEffect(() => {
     let isMounted = true;
     setAlertCount(getSystemAlertCount());
-    triggerAutoBackup();
-    runAutoBilling();
     markOverdueInvoices();
-    runMaintenanceCheck();
 
     const initializeDatabaseState = async () => {
       if (!isDatabaseConfigured()) {
@@ -268,10 +259,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     initializeDatabaseState();
 
     const alertInterval     = setInterval(() => setAlertCount(getSystemAlertCount()), ALERT_CHECK_INTERVAL_MS);
-    const backupInterval    = setInterval(() => triggerAutoBackup(), BACKUP_INTERVAL_MS);
-    const billingInterval   = setInterval(() => { runAutoBilling(); markOverdueInvoices(); }, BILLING_INTERVAL_MS);
-    const maintenanceInterval = setInterval(() => runMaintenanceCheck(), MAINTENANCE_INTERVAL_MS);
-    intervalsRef.current = [alertInterval, backupInterval, billingInterval, maintenanceInterval];
+    const overdueInterval = setInterval(() => { markOverdueInvoices(); }, 15 * 60 * 1000);
+    intervalsRef.current = [alertInterval, overdueInterval];
 
     const handleFocus = () => { logger.debug('Window focused - triggering sync'); forceSyncNow(); };
     window.addEventListener('focus', handleFocus);
