@@ -70,7 +70,7 @@ async function fetchAllRemoteRecords(
   }
 }
 
-export const pullAllFromDatabase = async (): Promise<{
+export const pullAllFromDatabase = async (options: { includeCore?: boolean } = {}): Promise<{
   success: boolean;
   results: Record<string, { count: number; error?: string }>;
 }> => {
@@ -104,10 +104,12 @@ export const pullAllFromDatabase = async (): Promise<{
     }
 
     const TABLE_MAP = [
-      { table: 'invoices',   endpoint: '/api/invoices',   storageKey: STORAGE_KEYS.INVOICES },
-      { table: 'billboards', endpoint: '/api/billboards', storageKey: STORAGE_KEYS.BILLBOARDS },
-      { table: 'contracts',  endpoint: '/api/contracts',  storageKey: STORAGE_KEYS.CONTRACTS },
-      { table: 'clients',    endpoint: '/api/clients',    storageKey: STORAGE_KEYS.CLIENTS },
+      ...(options.includeCore === false ? [] : [
+        { table: 'invoices', endpoint: '/api/invoices', storageKey: STORAGE_KEYS.INVOICES },
+        { table: 'billboards', endpoint: '/api/billboards', storageKey: STORAGE_KEYS.BILLBOARDS },
+        { table: 'contracts', endpoint: '/api/contracts', storageKey: STORAGE_KEYS.CONTRACTS },
+        { table: 'clients', endpoint: '/api/clients', storageKey: STORAGE_KEYS.CLIENTS },
+      ]),
     ] as const;
 
     const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
@@ -139,7 +141,7 @@ export const pullAllFromDatabase = async (): Promise<{
     }
 
     const success = Object.values(results).every(result => !result.error);
-    if (success) {
+    if (success && options.includeCore !== false) {
       const records = {
         invoices: JSON.parse(localStorage.getItem(STORAGE_KEYS.INVOICES) || '[]'),
         billboards: JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLBOARDS) || '[]'),
@@ -150,6 +152,8 @@ export const pullAllFromDatabase = async (): Promise<{
       // starts its own hydration.  The loaded store subscribes to this event
       // and updates its in-memory arrays/listeners from this exact snapshot.
       publishPulledRecords(records);
+      lastSyncTime = Date.now();
+    } else if (success) {
       lastSyncTime = Date.now();
     }
     lastSyncOutcome = success ? 'success' : 'failed';
@@ -167,7 +171,7 @@ export const pullAllFromDatabase = async (): Promise<{
 
 export const queueForSync = (_table: string, _data: any) => {};
 
-const performSyncCycle = async (): Promise<boolean> => {
+const performSyncCycle = async (options: { includeCore?: boolean } = {}): Promise<boolean> => {
   if (!isConfigured()) {
     lastSyncOutcome = 'failed';
     notifyListeners();
@@ -178,7 +182,10 @@ const performSyncCycle = async (): Promise<boolean> => {
   lastSyncOutcome = 'running';
   notifyListeners();
   try {
-    const result = await pullAllFromDatabase();
+    // List screens now query their own paginated data. Automatic reconciliation
+    // must not repeatedly download every core financial record in the browser.
+    // Call pullAllFromDatabase({ includeCore: true }) for an explicit full pull.
+    const result = await pullAllFromDatabase({ includeCore: options.includeCore ?? false });
     if (!result.success) logger.error('Sync cycle failed:', result.results);
     return result.success;
   } catch (e) {
@@ -212,7 +219,7 @@ export const stopAutoSync = () => {
 };
 
 export const forceSyncNow = async (): Promise<boolean> => {
-  return performSyncCycle();
+  return performSyncCycle({ includeCore: true });
 };
 
 export const getSyncStatus = () => ({
