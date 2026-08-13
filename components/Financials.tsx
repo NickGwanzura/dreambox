@@ -1251,7 +1251,7 @@ export const Financials: React.FC<FinancialsProps> = ({
         {activeTab !== "Statements" && (
           <>
             {pageError && <div role="alert" className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
-            {isLoadingPage && <div className="py-8 text-center text-sm text-slate-500">Loading documents…</div>}
+            {isLoadingPage && <div className="py-8 text-center text-sm font-medium text-slate-700" role="status">Loading documents…</div>}
             {/* Mobile Cards */}
             <div className="lg:hidden grid grid-cols-1 gap-4">
               {filteredDocs.length > 0 ? (
@@ -2303,19 +2303,19 @@ export const Financials: React.FC<FinancialsProps> = ({
                 </details>
                 <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-900">Subtotal</span>
+                    <span className="text-slate-200">Subtotal</span>
                     <span className="font-semibold">
                       ${subtotal.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-900">Discount</span>
+                    <span className="text-slate-200">Discount</span>
                     <span className="font-semibold">
                       -${discountAmount.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-900">VAT</span>
+                    <span className="text-slate-200">VAT</span>
                     <span className="font-semibold">
                       ${vatAmount.toLocaleString()}
                     </span>

@@ -30,19 +30,19 @@ const NEW_CLIENT_OPTION = '__new_client__';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false, disabled = false }: any) => (
   <div className="group relative">
-    <input type={type} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-900 disabled:cursor-not-allowed" />
+    <input type={type} inputMode={type === 'number' ? 'decimal' : undefined} aria-label={label} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer min-h-11 w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-900 disabled:cursor-not-allowed" />
     <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-2.5 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 const MinimalTextarea = ({ label, value, onChange, rows = 3, required = false, disabled = false }: any) => (
   <div className="group relative">
-    <textarea rows={rows} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer w-full resize-none px-0 py-3 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-900 disabled:cursor-not-allowed" />
+    <textarea rows={rows} aria-label={label} required={required} disabled={disabled} value={value} onChange={onChange} placeholder=" " className="peer min-h-11 w-full resize-none px-0 py-3 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium placeholder-transparent disabled:text-slate-900 disabled:cursor-not-allowed" />
     <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:text-slate-900 peer-placeholder-shown:top-3 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-slate-800 uppercase tracking-wide">{label}</label>
   </div>
 );
 const MinimalSelect = ({ label, value, onChange, options, disabled = false }: any) => (
   <div className="group relative">
-    <select value={value} disabled={disabled} onChange={onChange} className="peer w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer disabled:text-slate-900 disabled:cursor-not-allowed" >
+    <select aria-label={label} value={value} disabled={disabled} onChange={onChange} className="peer min-h-11 w-full px-0 py-2.5 border-b border-slate-200 bg-transparent text-slate-800 focus:border-slate-800 focus:ring-0 outline-none transition-all font-medium appearance-none cursor-pointer disabled:text-slate-900 disabled:cursor-not-allowed" >
       {options.map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
     </select>
     <label className="absolute left-0 -top-2.5 text-xs text-slate-900 font-medium uppercase tracking-wide">{label}</label>
@@ -73,6 +73,7 @@ export const Quotations: React.FC = () => {
   const [sendModal, setSendModal] = useState<{ doc: Invoice; client: Client } | null>(null);
   const [viewingQuotation, setViewingQuotation] = useState<Invoice | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [docTypeFilter, setDocTypeFilter] = useState<'Quotation' | 'Proforma'>('Quotation');
   const convertingToContractRef = useRef(false);
@@ -260,12 +261,14 @@ export const Quotations: React.FC = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!canCreateQuotations(currentUser)) {
       notify('You do not have permission to create quotations.');
       return;
     }
+    setIsSaving(true);
     const clientId = await resolveClientId();
-    if (!clientId) return;
+    if (!clientId) { setIsSaving(false); return; }
     if (editingQuotation) {
       const updated: Invoice = {
         ...editingQuotation,
@@ -289,7 +292,7 @@ export const Quotations: React.FC = () => {
         notify('Quotation Updated Successfully!');
       } catch (err: any) {
         notify(`Failed to update quotation: ${err?.message || 'Server error. Please try again.'}`);
-      }
+      } finally { setIsSaving(false); }
     } else {
       // No client-side id or quoteNumber — server generates both to prevent collisions
       const newDoc = {
@@ -316,7 +319,7 @@ export const Quotations: React.FC = () => {
         notify('Quotation Created Successfully!');
       } catch (err: any) {
         notify(`Failed to save quotation: ${err?.message || 'Server error. Please try again.'}`);
-      }
+      } finally { setIsSaving(false); }
     }
   };
 
@@ -979,15 +982,15 @@ export const Quotations: React.FC = () => {
                 </div>
                 <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-900">Subtotal</span>
+                    <span className="text-slate-200">Subtotal</span>
                     <span className="font-semibold">${subtotal.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-900">Discount</span>
+                    <span className="text-slate-200">Discount</span>
                     <span className="font-semibold">-${discountAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-900">VAT</span>
+                    <span className="text-slate-200">VAT</span>
                     <span className="font-semibold">${vatAmount.toLocaleString()}</span>
                   </div>
                   <div className="pt-2 border-t border-slate-700 flex items-center justify-between">
@@ -995,8 +998,8 @@ export const Quotations: React.FC = () => {
                     <span className="text-xl font-black">${total.toLocaleString()}</span>
                   </div>
                 </div>
-                <button type="submit" className="w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all">
-                  <Save size={18} /> {editingQuotation ? 'Update Quotation' : 'Save Quotation'}
+                <button type="submit" disabled={isSaving} className="min-h-11 w-full py-4 text-white bg-slate-900 rounded-xl hover:bg-slate-800 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 shadow-xl font-bold uppercase tracking-wider transition-all">
+                  <Save size={18} /> {isSaving ? 'Saving…' : editingQuotation ? 'Update Quotation' : 'Save Quotation'}
                 </button>
               </form>
             </div>
