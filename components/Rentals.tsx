@@ -1139,7 +1139,7 @@ export const Rentals: React.FC = () => {
             {filteredRentals.length === 0 && (
                 <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        {searchQuery ? <Search className="text-slate-300" size={32}/> : <FileText className="text-slate-300" size={32}/>}
+                        {searchQuery ? <Search className="text-slate-500" size={32}/> : <FileText className="text-slate-500" size={32}/>}
                     </div>
                     <h3 className="text-lg font-bold text-slate-900 mb-1">{searchQuery ? 'No rentals found' : 'No Active Rentals'}</h3>
                     <p className="text-slate-900 text-sm">{searchQuery ? 'Try adjusting your search terms.' : 'Create a new rental agreement to get started.'}</p>
@@ -1309,14 +1309,14 @@ export const Rentals: React.FC = () => {
                                                     <label key={side} className={`flex-1 relative cursor-pointer rounded-xl border p-3.5 text-center transition-all ${disabled ? 'bg-red-50 border-red-200 cursor-not-allowed' : isSelected ? 'border-slate-900 bg-slate-900 ring-1 ring-slate-900 shadow-sm' : 'border-slate-200 hover:border-slate-400 bg-white'}`}>
                                                         <input type="radio" name="side" className="hidden" disabled={disabled} checked={isSelected} onChange={() => !disabled && setNewRental({ ...newRental, side, monthlyRate: price })} />
                                                         <div className={`font-black text-sm ${disabled ? 'text-red-400' : isSelected ? 'text-white' : 'text-slate-800'}`}>{side === 'Both' ? 'Both A & B' : `Side ${side}`}</div>
-                                                        <div className={`text-xs mt-0.5 font-semibold ${disabled ? 'text-red-300' : isSelected ? 'text-slate-300' : 'text-slate-500'}`}>${price.toLocaleString()}/mo</div>
+                                                        <div className={`text-xs mt-0.5 font-semibold ${disabled ? 'text-red-700' : isSelected ? 'text-slate-300' : 'text-slate-700'}`}>${price.toLocaleString()}/mo</div>
                                                         {disabled ? (
                                                             <div className="mt-2 space-y-0.5">
                                                                 <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase text-red-500"><Lock size={9} /> Booked</div>
                                                                 {blocker && (
                                                                     <>
-                                                                        <div className="text-[9px] font-bold text-slate-500 truncate">{getClientName(blocker.clientId)}</div>
-                                                                        <div className="text-[9px] text-slate-400">until {blocker.endDate}</div>
+                                                                        <div className="text-[9px] font-bold text-slate-700 truncate">{getClientName(blocker.clientId)}</div>
+                                                                        <div className="text-[9px] text-slate-700">until {blocker.endDate}</div>
                                                                     </>
                                                                 )}
                                                             </div>
@@ -1346,7 +1346,7 @@ export const Rentals: React.FC = () => {
                                             </div>
 
                                             {!newRental.startDate ? (
-                                                <p className="px-4 py-5 text-xs text-slate-400 italic text-center">Select dates above to see slot availability.</p>
+                                                <p className="px-4 py-5 text-xs text-slate-700 italic text-center">Select dates above to see slot availability.</p>
                                             ) : (
                                                 <div className="p-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
                                                     {Array.from({ length: totalSlots }, (_, i) => i + 1).map(slot => {
@@ -1372,10 +1372,10 @@ export const Rentals: React.FC = () => {
                                                                     <>
                                                                         <Lock size={9} className="mt-1 text-red-400" />
                                                                         <span className="mt-0.5 w-full truncate text-center text-[8px] font-bold leading-tight text-red-500">{taken.clientName.split(' ')[0]}</span>
-                                                                        <span className="text-[7px] text-slate-400 leading-tight">until {taken.endDate.slice(0, 7)}</span>
+                                                                        <span className="text-[7px] text-slate-700 leading-tight">until {taken.endDate.slice(0, 7)}</span>
                                                                     </>
                                                                 ) : (
-                                                                    <span className={`mt-1 text-[9px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>Free</span>
+                                                                    <span className={`mt-1 text-[9px] ${isSelected ? 'text-slate-300' : 'text-slate-700'}`}>Free</span>
                                                                 )}
                                                                 {isSelected && !taken && (
                                                                     <CheckCircle size={10} className="absolute right-1 top-1 text-white" />
@@ -2110,10 +2110,10 @@ export const Rentals: React.FC = () => {
 
                     {/* Original contract summary */}
                     <div className="bg-slate-900 text-white p-4 rounded-2xl">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">Original Contract</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Original Contract</p>
                         <p className="font-bold text-base">{getClientName(renewRental.clientId)}</p>
-                        <p className="text-slate-300 text-sm mt-0.5">{getBillboardName(renewRental.billboardId)} &bull; {renewRental.details}</p>
-                        <p className="text-xs text-slate-900 mt-1">{renewRental.startDate} — {renewRental.endDate}</p>
+                        <p className="text-slate-200 text-sm mt-0.5">{getBillboardName(renewRental.billboardId)} &bull; {renewRental.details}</p>
+                        <p className="text-xs text-slate-300 mt-1">{renewRental.startDate} — {renewRental.endDate}</p>
                     </div>
 
                     {/* New period (read-only) */}
@@ -2171,7 +2171,7 @@ export const Rentals: React.FC = () => {
                                     <span className="text-sm font-bold uppercase tracking-wider">New Total Value</span>
                                     <span className="text-xl font-black">${gross.toLocaleString()}</span>
                                 </div>
-                                <p className="text-xs text-slate-900">12 months × ${renewRental.monthlyRate.toLocaleString()}{renewRental.installationCost > 0 ? ` + $${renewRental.installationCost} install` : ''}{(renewRental.productionCost || 0) > 0 ? ` + $${renewRental.productionCost} production` : ''}</p>
+                                <p className="text-xs text-slate-300">12 months × ${renewRental.monthlyRate.toLocaleString()}{renewRental.installationCost > 0 ? ` + $${renewRental.installationCost} install` : ''}{(renewRental.productionCost || 0) > 0 ? ` + $${renewRental.productionCost} production` : ''}</p>
                             </div>
                         );
                     })()}

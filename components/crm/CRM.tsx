@@ -404,7 +404,7 @@ export const CRM: React.FC = () => {
       {/* Content */}
       <div className="min-h-[500px]">
         {pageError && <div role="alert" className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
-        {isLoadingPage && <div className="py-12 text-center text-sm text-slate-500">Loading opportunities…</div>}
+        {isLoadingPage && <div className="py-12 text-center text-sm font-medium text-slate-700">Loading opportunities…</div>}
         {view === 'pipeline' && (
           <CRMPipeline 
             opportunities={filteredOpportunities}

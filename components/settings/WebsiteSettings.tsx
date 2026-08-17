@@ -389,7 +389,7 @@ export const WebsiteSettings: React.FC = () => {
         <div className="p-2.5 bg-indigo-50 rounded-xl"><Globe className="w-6 h-6 text-indigo-600" /></div>
         <div>
           <h3 className="text-xl font-bold text-slate-800">Website Content</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Manage public-facing images — hero background and partner logos</p>
+          <p className="text-xs text-slate-700 mt-0.5">Manage public-facing images — hero background and partner logos</p>
         </div>
       </div>
 
@@ -401,7 +401,7 @@ export const WebsiteSettings: React.FC = () => {
           </div>
           <div>
             <h4 className="font-bold text-slate-800">Hero Background Image</h4>
-            <p className="text-xs text-slate-500">Displays as the homepage hero backdrop. If empty, the site uses a depth gradient.</p>
+            <p className="text-xs text-slate-700">Displays as the homepage hero backdrop. If empty, the site uses a depth gradient.</p>
           </div>
         </div>
 
@@ -421,7 +421,7 @@ export const WebsiteSettings: React.FC = () => {
                 className="w-full h-52 object-cover"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center h-52 gap-3 text-slate-400">
+              <div className="flex flex-col items-center justify-center h-52 gap-3 text-slate-700">
                 <div className="p-4 bg-slate-100 rounded-full"><Image size={28} /></div>
                 <p className="text-sm font-semibold">Drop image here or click to upload</p>
                 <p className="text-xs">PNG, JPG, WebP — max 5 MB</p>
@@ -439,10 +439,10 @@ export const WebsiteSettings: React.FC = () => {
 
           {/* Status / URL */}
           {heroUrl && !isDataUrl(heroUrl) && (
-            <p className="text-xs text-slate-500 font-mono truncate">Current: {heroUrl}</p>
+            <p className="text-xs text-slate-700 font-mono truncate">Current: {heroUrl}</p>
           )}
           {!heroUrl && !heroPreview && (
-            <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-slate-700 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
               <CheckCircle size={13} className="text-indigo-400 shrink-0" />
               No hero image set — the depth gradient is displayed on the public site.
             </div>
@@ -504,14 +504,14 @@ export const WebsiteSettings: React.FC = () => {
             </div>
             <div>
               <h4 className="font-bold text-slate-800">Partner / Client Logos</h4>
-              <p className="text-xs text-slate-500">Displayed in the Partners section on the homepage. Drag to reorder.</p>
+            <p className="text-xs text-slate-700">Displayed in the Partners section on the homepage. Drag to reorder.</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={resetLogos}
-              className="px-3 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+              className="px-3 py-2 text-xs font-bold text-slate-800 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
             >
               Reset to Default
             </button>
@@ -532,7 +532,7 @@ export const WebsiteSettings: React.FC = () => {
               <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider">New Partner Logo</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Company name</label>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">Company name</label>
                   <input
                     type="text"
                     value={addName}
@@ -542,7 +542,7 @@ export const WebsiteSettings: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Logo image</label>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1.5">Logo image</label>
                   <div
                     className="relative flex items-center gap-3 px-3 py-2 border border-indigo-200 rounded-xl bg-white cursor-pointer hover:border-indigo-400 transition-colors"
                     onClick={() => addFileRef.current?.click()}
@@ -551,10 +551,10 @@ export const WebsiteSettings: React.FC = () => {
                       <img src={addPreview} alt="preview" className="h-8 w-12 object-contain rounded" />
                     ) : (
                       <div className="h-8 w-12 flex items-center justify-center bg-slate-100 rounded">
-                        <Image size={16} className="text-slate-400" />
+                        <Image size={16} className="text-slate-700" />
                       </div>
                     )}
-                    <span className="text-xs font-semibold text-slate-600">
+                    <span className="text-xs font-semibold text-slate-800">
                       {addUploading ? 'Uploading…' : addPreview ? 'Change image' : 'Select image'}
                     </span>
                     {addUploading && <Loader2 size={14} className="animate-spin text-indigo-500 ml-auto" />}
@@ -571,7 +571,7 @@ export const WebsiteSettings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => { setShowAddForm(false); setAddName(''); setAddPreview(''); setAddError(''); }}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-slate-800 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -589,7 +589,7 @@ export const WebsiteSettings: React.FC = () => {
 
           {/* Logo list */}
           {logos.length === 0 ? (
-            <div className="py-10 text-center text-slate-400">
+            <div className="py-10 text-center text-slate-700">
               <Users2 size={32} className="mx-auto mb-3 opacity-40" />
               <p className="text-sm font-medium">No partner logos. Click &ldquo;Add Logo&rdquo; to get started.</p>
             </div>
@@ -694,7 +694,7 @@ export const WebsiteSettings: React.FC = () => {
             </div>
             <div>
               <h4 className="font-bold text-slate-800">Campaign Gallery</h4>
-              <p className="text-xs text-slate-500">Masonry photo gallery shown in the &ldquo;Previous Campaigns&rdquo; section. Upload multiple images.</p>
+              <p className="text-xs text-slate-700">Masonry photo gallery shown in the &ldquo;Previous Campaigns&rdquo; section. Upload multiple images.</p>
             </div>
           </div>
           <button
@@ -720,7 +720,7 @@ export const WebsiteSettings: React.FC = () => {
             onDragOver={e => e.preventDefault()}
             onDrop={handleGalleryDrop}
             onClick={() => galleryInputRef.current?.click()}
-            className="cursor-pointer rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors flex flex-col items-center justify-center gap-3 py-8 text-slate-400"
+            className="cursor-pointer rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors flex flex-col items-center justify-center gap-3 py-8 text-slate-700"
           >
             {galleryUploading ? (
               <>
@@ -756,7 +756,7 @@ export const WebsiteSettings: React.FC = () => {
           )}
 
           {gallery.length === 0 && !galleryUploading && (
-            <p className="text-center text-xs text-slate-400 py-2">No gallery images yet. Upload photos to populate the campaign gallery section.</p>
+            <p className="text-center text-xs text-slate-700 py-2">No gallery images yet. Upload photos to populate the campaign gallery section.</p>
           )}
 
           {/* Status */}

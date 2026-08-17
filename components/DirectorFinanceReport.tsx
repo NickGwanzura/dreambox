@@ -631,13 +631,13 @@ export const DirectorFinanceReport: React.FC = () => {
           <h1 className="text-3xl font-black text-slate-900 mt-2">
             Director Financial Report
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-slate-700 mt-1">
             Cash, accrual, VAT, aging, evidence exceptions and transaction
             drill-downs.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 items-end print:hidden">
-          <label className="text-[10px] font-bold uppercase text-slate-500">
+          <label className="text-[10px] font-bold uppercase text-slate-700">
             From
             <input
               type="date"
@@ -649,7 +649,7 @@ export const DirectorFinanceReport: React.FC = () => {
               className="block mt-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900"
             />
           </label>
-          <label className="text-[10px] font-bold uppercase text-slate-500">
+          <label className="text-[10px] font-bold uppercase text-slate-700">
             To
             <input
               type="date"
@@ -703,7 +703,7 @@ export const DirectorFinanceReport: React.FC = () => {
             className="bg-white rounded-2xl border border-slate-100 p-5"
           >
             <Icon size={18} className="text-indigo-600" />
-            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mt-4">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-700 mt-4">
               {label}
             </p>
             <p className="text-2xl font-black text-slate-900 mt-1">
@@ -715,7 +715,7 @@ export const DirectorFinanceReport: React.FC = () => {
 
       <div
         aria-label="Outstanding balance methodology"
-        className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600"
+        className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-700"
       >
         <p>
           <span className="font-black text-slate-800">
@@ -747,7 +747,7 @@ export const DirectorFinanceReport: React.FC = () => {
             <span className="block mt-1">Balance is fully settled by valid linked receipts.</span>
           </div>
         </div>
-        <p className="mt-3 text-[11px] leading-4 text-slate-500">
+        <p className="mt-3 text-[11px] leading-4 text-slate-700">
           Alerts do not delete invoices or change revenue. If an overdue invoice is erroneous, void or correct it with an approved reason so the audit trail remains intact.
         </p>
       </section>
@@ -824,7 +824,7 @@ export const DirectorFinanceReport: React.FC = () => {
             <h2 className="font-black text-slate-900">
               Accounts Receivable Aging
             </h2>
-            <span className="text-xs text-slate-500">As of {endDate}</span>
+            <span className="text-xs font-medium text-slate-700">As of {endDate}</span>
           </div>
           <div className="grid grid-cols-5 gap-2 mt-5">
             {Object.entries(data.report.aging as Record<string, number>).map(
@@ -833,7 +833,7 @@ export const DirectorFinanceReport: React.FC = () => {
                   key={bucket}
                   className="bg-slate-50 rounded-xl p-3 text-center"
                 >
-                  <p className="text-[10px] font-bold uppercase text-slate-500">
+                  <p className="text-[10px] font-bold uppercase text-slate-700">
                     {bucket}
                   </p>
                   <p className="font-black text-slate-900 mt-1">{fmt(value)}</p>
@@ -874,7 +874,7 @@ export const DirectorFinanceReport: React.FC = () => {
           <h2 className="font-black text-slate-900">
             Client → invoice → payment drill-down
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-700 mt-1">
             Every balance ties to the source invoice and its payment evidence.
           </p>
         </div>
@@ -967,7 +967,7 @@ export const DirectorFinanceReport: React.FC = () => {
         <div className="p-5 border-b flex justify-between">
           <div>
             <h2 className="font-black text-slate-900">Forensic exceptions</h2>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-700 mt-1">
               Legacy evidence gaps, false statuses, orphan payments and
               duplicate candidates.
             </p>
@@ -1005,7 +1005,7 @@ export const DirectorFinanceReport: React.FC = () => {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[10px] leading-5 text-slate-600">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[10px] leading-5 text-slate-700">
         <p>
           Generated{" "}
           {data.report.generatedAt
@@ -1031,7 +1031,7 @@ const InvoiceEvidence: React.FC<{ invoice: Invoice; receipts: Invoice[] }> = ({
 }) => (
   <div className="border-t p-4 grid lg:grid-cols-2 gap-4 text-xs">
     <div>
-      <h4 className="font-black uppercase text-slate-500 mb-2">
+      <h4 className="font-black uppercase text-slate-700 mb-2">
         Invoice lines
       </h4>
       {invoice.items.map((item, index) => (
@@ -1049,7 +1049,7 @@ const InvoiceEvidence: React.FC<{ invoice: Invoice; receipts: Invoice[] }> = ({
       </div>
     </div>
     <div>
-      <h4 className="font-black uppercase text-slate-500 mb-2">
+      <h4 className="font-black uppercase text-slate-700 mb-2">
         Payment evidence
       </h4>
       {receipts.map((receipt) => (

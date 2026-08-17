@@ -108,14 +108,14 @@ export const TwoFactorSettings: React.FC = () => {
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-bold text-slate-800">Two-Factor Authentication</h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-700">
               {loading ? 'Checking status…' : enabled
                 ? 'Your account is protected by a time-based one-time passcode.'
                 : 'Add a second layer of security with your authenticator app.'}
             </p>
           </div>
           {!loading && (
-            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
               {enabled ? 'Enabled' : 'Disabled'}
             </span>
           )}
@@ -124,7 +124,7 @@ export const TwoFactorSettings: React.FC = () => {
 
       <div className="p-6">
         {loading && (
-          <div className="flex items-center gap-2 text-sm text-slate-400">
+          <div className="flex items-center gap-2 text-sm text-slate-700">
             <Loader2 className="w-4 h-4 animate-spin" /> Checking account status…
           </div>
         )}
@@ -157,7 +157,7 @@ export const TwoFactorSettings: React.FC = () => {
               <Smartphone className="w-5 h-5 text-emerald-600" />
               <div>
                 <p className="text-sm font-semibold text-slate-800">Protection active</p>
-                <p className="text-xs text-slate-500">A code is required on every sign-in.</p>
+                <p className="text-xs text-slate-700">A code is required on every sign-in.</p>
               </div>
             </div>
             <button
@@ -172,7 +172,7 @@ export const TwoFactorSettings: React.FC = () => {
 
         {!loading && secret && (
           <div className="space-y-4 animate-fade-in">
-            <ol className="space-y-2 text-sm text-slate-600">
+                <ol className="space-y-2 text-sm text-slate-800">
               <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">1</span>Open your authenticator app (Google Authenticator, Authy, 1Password…).</li>
               <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">2</span>Add a new account and scan the setup key below (or enter the otpauth URL).</li>
               <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">3</span>Enter the 6-digit code to confirm and activate.</li>
@@ -184,15 +184,15 @@ export const TwoFactorSettings: React.FC = () => {
                 <code className="flex-1 bg-slate-900 text-emerald-300 font-mono text-sm tracking-widest rounded-xl px-4 py-3 select-all break-all">{secret}</code>
                 <button
                   onClick={copySecret}
-                  className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                  className="p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
                   title="Copy secret"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
               <details className="mt-2">
-                <summary className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer">Show otpauth:// URL (manual entry)</summary>
-                <code className="block mt-2 text-[11px] text-slate-500 font-mono break-all bg-slate-50 rounded-lg p-3 border border-slate-100">{otpauthUrl}</code>
+                <summary className="text-xs text-slate-700 hover:text-slate-900 cursor-pointer">Show otpauth:// URL (manual entry)</summary>
+                <code className="block mt-2 text-[11px] text-slate-700 font-mono break-all bg-slate-50 rounded-lg p-3 border border-slate-100">{otpauthUrl}</code>
               </details>
             </div>
 
@@ -216,7 +216,7 @@ export const TwoFactorSettings: React.FC = () => {
               </button>
             </div>
 
-            <button onClick={cancelSetup} className="text-xs text-slate-400 hover:text-slate-700 transition-colors">
+              <button onClick={cancelSetup} className="text-xs text-slate-700 hover:text-slate-900 transition-colors">
               Cancel setup
             </button>
           </div>

@@ -703,25 +703,25 @@ export const BillboardList: React.FC = () => {
                                         {availability.label}
                                     </span>
                                 </div>
-                                <p className="text-xs text-slate-500 flex items-center gap-1.5 truncate mb-3">
+                                <p className="text-xs font-medium text-slate-700 flex items-center gap-1.5 truncate mb-3">
                                     <MapPin size={12} className="shrink-0 text-indigo-400"/> <span className="truncate">{b.location}, {b.town}</span>
                                 </p>
                                 <div className="flex flex-wrap gap-2">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Maximize2 size={11} className="text-slate-400"/> {b.width}×{b.height}m</span>
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Car size={11} className="text-slate-400"/> {formatTraffic(b.dailyTraffic)} Views</span>
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Layers size={11} className="text-slate-400"/> {b.type === BillboardType.LED ? `${availability.openSlots}/${availability.totalSlots} Slots` : `${availability.openSlots}/2 Sides`}</span>
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Maximize2 size={11} className="text-slate-700"/> {b.width}×{b.height}m</span>
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Car size={11} className="text-slate-700"/> {formatTraffic(b.dailyTraffic)} Views</span>
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 uppercase tracking-wide border border-slate-100"><Layers size={11} className="text-slate-700"/> {b.type === BillboardType.LED ? `${availability.openSlots}/${availability.totalSlots} Slots` : `${availability.openSlots}/2 Sides`}</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 sm:border-l sm:border-slate-100 sm:pl-6 pt-4 sm:pt-0 border-t border-slate-100 sm:border-t-0 mt-3 sm:mt-0 w-full sm:w-auto justify-between sm:justify-start">
                                 <div className="flex flex-col items-end">
                                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider mb-1.5 ${b.type === BillboardType.LED ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>{b.type}</span>
-                                    {availability.priceLabel && <span className="text-sm font-extrabold text-slate-900">{availability.priceLabel}{b.type === BillboardType.Static && <span className="text-[10px] font-normal text-slate-500">/mo</span>}</span>}
-                                    <span className="text-[10px] text-slate-400 font-mono mt-0.5">ID: {b.id.slice(-4)}</span>
+                                    {availability.priceLabel && <span className="text-sm font-extrabold text-slate-900">{availability.priceLabel}{b.type === BillboardType.Static && <span className="text-[10px] font-normal text-slate-700">/mo</span>}</span>}
+                                    <span className="text-[10px] text-slate-700 font-mono mt-0.5">ID: {b.id.slice(-4)}</span>
                                 </div>
                                 <div className="flex gap-1.5">
-                                    <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-transparent hover:bg-indigo-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Edit"><Edit2 size={15}/></button>
-                                    <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 bg-transparent hover:bg-indigo-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Share"><Share2 size={15}/></button>
-                                    {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-400 hover:text-red-600 bg-transparent hover:bg-red-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Delete"><Trash2 size={15}/></button>)}
+                                    <button onClick={() => setEditingBillboard(b)} className="p-2.5 text-slate-700 hover:text-indigo-600 bg-transparent hover:bg-indigo-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Edit"><Edit2 size={15}/></button>
+                                    <button onClick={() => shareBillboard(b)} className="p-2.5 text-slate-700 hover:text-indigo-600 bg-transparent hover:bg-indigo-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Share"><Share2 size={15}/></button>
+                                    {canUserDelete && (<button onClick={() => setBillboardToDelete(b)} className="p-2.5 text-slate-700 hover:text-red-600 bg-transparent hover:bg-red-50 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md" title="Delete"><Trash2 size={15}/></button>)}
                                 </div>
                             </div>
                         </div>

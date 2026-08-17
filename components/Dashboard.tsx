@@ -349,9 +349,9 @@ export const Dashboard: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{greeting || `Welcome back${currentUser?.firstName ? `, ${currentUser.firstName}` : ''}`}</h1>
-          <p className="text-slate-500 mt-0.5 text-sm">Here's what's happening with your billboard business today.</p>
+          <p className="text-slate-700 mt-0.5 text-sm">Here's what's happening with your billboard business today.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-400">
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
           <RefreshCw size={12} />
           <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
@@ -462,7 +462,7 @@ export const Dashboard: React.FC = () => {
             <Bell size={16} className="text-amber-600" />
           </div>
           <div className="text-left min-w-0">
-            <p className="text-xs text-slate-400 font-medium leading-none mb-0.5">Alerts</p>
+            <p className="text-xs text-slate-700 font-medium leading-none mb-0.5">Alerts</p>
             <p className="font-black text-slate-900 leading-none">
               {(expiringContracts.length + overdueInvoices.length) > 0
                 ? `${expiringContracts.length + overdueInvoices.length} items`

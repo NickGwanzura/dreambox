@@ -820,7 +820,7 @@ export const Payments: React.FC = () => {
                       <p className="text-sm text-slate-900 mb-4">
                         Inv #{invoice.id} • {invoice.date}
                         {invoice.dueDate && (
-                          <span className="text-slate-500"> • Due {invoice.dueDate}</span>
+                          <span className="text-slate-700"> • Due {invoice.dueDate}</span>
                         )}
                       </p>
                       <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-2">
@@ -1058,7 +1058,7 @@ export const Payments: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         {receipt.isVoided ? (
-                          <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-xl text-xs font-bold uppercase">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase">
                             Voided
                           </span>
                         ) : (
@@ -1503,7 +1503,7 @@ export const Payments: React.FC = () => {
                         }
                         className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:font-bold file:text-white"
                       />
-                      <p className="mt-1 text-[10px] text-slate-600">
+                      <p className="mt-1 text-[10px] text-slate-700">
                         PDF/JPEG/PNG/WebP, up to 7 MB.
                       </p>
                     </div>
@@ -1671,7 +1671,7 @@ export const Payments: React.FC = () => {
                     }
                     className="block w-full text-xs file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:font-bold file:text-white"
                   />
-                  <p className="mt-1 text-[10px] text-slate-600">
+                  <p className="mt-1 text-[10px] text-slate-700">
                     PDF/JPEG/PNG/WebP, up to 7 MB. Recorder and upload time are
                     logged automatically.
                   </p>

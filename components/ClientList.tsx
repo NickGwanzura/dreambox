@@ -325,12 +325,12 @@ export const ClientList: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-400 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-700 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
                   <div className="space-y-6">
                     <MinimalInput label="Street Address" value={editingClient.streetAddress || ''} onChange={(e: any) => setEditingClient({...editingClient, streetAddress: e.target.value})} />
                     <div className="grid grid-cols-2 gap-6">
                       <MinimalInput label="City" value={editingClient.city || ''} onChange={(e: any) => setEditingClient({...editingClient, city: e.target.value})} />
-                      <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-400 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-300">· locked</span></div></div>
+                      <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-700 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-700 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-700">· locked</span></div></div>
                     </div>
                   </div>
                 </div>
@@ -401,7 +401,7 @@ export const ClientList: React.FC = () => {
         {pageError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
         {isLoadingPage ? <div className="py-16 text-center text-sm font-medium text-slate-700">Loading clients…</div> : filteredClients.length === 0 && searchQuery ? (
             <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-                <Search size={32} className="text-slate-300 mx-auto mb-3" />
+                        <Search size={32} className="text-slate-500 mx-auto mb-3" />
                 <p className="text-slate-900 font-medium">No clients found matching "{searchQuery}"</p>
                 <button onClick={() => setSearchQuery('')} className="text-xs font-bold uppercase tracking-wider text-indigo-600 hover:text-indigo-800 mt-3">Clear Search</button>
             </div>
@@ -502,12 +502,12 @@ export const ClientList: React.FC = () => {
 
                     {/* Address */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-400 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-700 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
                         <div className="space-y-6">
                             <MinimalInput label="Street Address" value={newClient.streetAddress || ''} onChange={(e: any) => setNewClient({...newClient, streetAddress: e.target.value})} />
                             <div className="grid grid-cols-2 gap-6">
                                 <MinimalInput label="City" value={newClient.city || ''} onChange={(e: any) => setNewClient({...newClient, city: e.target.value})} />
-                                <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-400 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-300">· locked</span></div></div>
+                                <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-700 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-700 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-700">· locked</span></div></div>
                             </div>
                         </div>
                     </div>
@@ -593,12 +593,12 @@ export const ClientList: React.FC = () => {
 
                     {/* Address */}
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-400 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4">Address <span className="text-slate-700 font-normal normal-case tracking-normal">(appears on contracts)</span></p>
                         <div className="space-y-6">
                             <MinimalInput label="Street Address" value={editingClient.streetAddress || ''} onChange={(e: any) => setEditingClient({...editingClient, streetAddress: e.target.value})} />
                             <div className="grid grid-cols-2 gap-6">
                                 <MinimalInput label="City" value={editingClient.city || ''} onChange={(e: any) => setEditingClient({...editingClient, city: e.target.value})} />
-                                <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-400 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-300">· locked</span></div></div>
+                                <div><label className="block text-[10px] font-black uppercase tracking-[0.15em] text-slate-700 mb-2">Country</label><div className="border-b border-slate-200 py-2 text-sm text-slate-700 flex items-center gap-1.5"><span>Zimbabwe</span><span className="text-[10px] uppercase tracking-wider text-slate-700">· locked</span></div></div>
                             </div>
                         </div>
                     </div>

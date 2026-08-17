@@ -291,7 +291,7 @@ export const FieldOperations: React.FC<FieldOperationsProps> = ({ billboards: su
       <header className="mb-5 pt-2">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-700">Field operations</p>
         <h2 id="field-operations-title" className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">Capture proof from the field</h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Camera evidence and locations are saved to this device first, then submitted when the connection is ready.</p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Camera evidence and locations are saved to this device first, then submitted when the connection is ready.</p>
       </header>
 
       <div
@@ -394,8 +394,8 @@ export const FieldOperations: React.FC<FieldOperationsProps> = ({ billboards: su
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Photo evidence <span className="font-normal text-slate-500">(optional)</span></h3>
-              <p className="mt-1 text-xs leading-5 text-slate-600">Use your camera or choose an image up to 5 MB. It stays on this device until safely uploaded.</p>
+              <h3 className="text-sm font-bold text-slate-900">Photo evidence <span className="font-normal text-slate-700">(optional)</span></h3>
+              <p className="mt-1 text-xs leading-5 text-slate-700">Use your camera or choose an image up to 5 MB. It stays on this device until safely uploaded.</p>
             </div>
             <label htmlFor={fileInputId} className="inline-flex min-h-[48px] cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 hover:bg-slate-50 focus-within:ring-4 focus-within:ring-indigo-200">
               <ImagePlus size={18} aria-hidden="true" />
@@ -420,7 +420,7 @@ export const FieldOperations: React.FC<FieldOperationsProps> = ({ billboards: su
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <label htmlFor="field-note" className="mb-2 block text-sm font-bold text-slate-900">Notes {mode === 'Issue' && <span className="font-normal text-slate-600">(required without a photo)</span>}</label>
+          <label htmlFor="field-note" className="mb-2 block text-sm font-bold text-slate-900">Notes {mode === 'Issue' && <span className="font-normal text-slate-700">(required without a photo)</span>}</label>
           <textarea
             id="field-note"
             value={note}
@@ -430,7 +430,7 @@ export const FieldOperations: React.FC<FieldOperationsProps> = ({ billboards: su
             placeholder={mode === 'Issue' ? 'Describe what needs attention…' : 'Add context for the team (optional)…'}
             className="w-full resize-y rounded-xl border border-slate-300 px-3 py-3 text-base text-slate-950 outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100"
           />
-          <p className="mt-1 text-right text-xs text-slate-500">{note.length}/4000</p>
+          <p className="mt-1 text-right text-xs text-slate-700">{note.length}/4000</p>
         </div>
 
         <div className="sticky bottom-0 z-10 -mx-4 border-t border-slate-200 bg-white/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:-mx-6 sm:px-6">
@@ -451,7 +451,7 @@ export const FieldOperations: React.FC<FieldOperationsProps> = ({ billboards: su
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 id="field-queue-title" className="text-base font-bold text-slate-950">Queued reports</h3>
-            <p className="mt-1 text-sm text-slate-600">{queueState.waiting ? `${queueState.waiting} waiting to submit` : 'Nothing waiting to submit'}{queueState.needsAttention ? ` · ${queueState.needsAttention} need correction` : ''}</p>
+            <p className="mt-1 text-sm text-slate-700">{queueState.waiting ? `${queueState.waiting} waiting to submit` : 'Nothing waiting to submit'}{queueState.needsAttention ? ` · ${queueState.needsAttention} need correction` : ''}</p>
           </div>
           <button
             type="button"
@@ -470,9 +470,9 @@ export const FieldOperations: React.FC<FieldOperationsProps> = ({ billboards: su
                 {item.terminal ? <CircleAlert className="mt-0.5 shrink-0 text-rose-600" size={18} aria-hidden="true" /> : <RefreshCw className="mt-0.5 shrink-0 text-amber-600" size={18} aria-hidden="true" />}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-slate-900">{item.draft.type} · {billboards.find(billboard => billboard.id === item.draft.billboardId)?.name || 'Unknown billboard'}</p>
-                  <p className={`mt-0.5 text-xs ${item.terminal ? 'text-rose-700' : 'text-slate-600'}`}>{item.lastError || `Captured ${readableTime(item.queuedAt)}`}</p>
+                  <p className={`mt-0.5 text-xs ${item.terminal ? 'text-rose-700' : 'text-slate-700'}`}>{item.lastError || `Captured ${readableTime(item.queuedAt)}`}</p>
                 </div>
-                <span className="shrink-0 text-xs font-medium text-slate-500">{item.retryCount ? `${item.retryCount} retry${item.retryCount === 1 ? '' : 'ies'}` : 'Queued'}</span>
+                <span className="shrink-0 text-xs font-medium text-slate-700">{item.retryCount ? `${item.retryCount} retry${item.retryCount === 1 ? '' : 'ies'}` : 'Queued'}</span>
               </li>
             ))}
           </ul>
@@ -488,13 +488,13 @@ export const FieldOperations: React.FC<FieldOperationsProps> = ({ billboards: su
                 <CheckCircle2 className="shrink-0 text-emerald-600" size={19} aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-slate-900">{report.type} · {billboards.find(billboard => billboard.id === report.billboardId)?.name || report.billboardId}</p>
-                  <p className="mt-0.5 text-xs text-slate-600">{readableTime(report.capturedAt)}{report.accuracy != null ? ` · ±${Math.round(report.accuracy)} m` : ''}</p>
+                  <p className="mt-0.5 text-xs text-slate-700">{readableTime(report.capturedAt)}{report.accuracy != null ? ` · ±${Math.round(report.accuracy)} m` : ''}</p>
                 </div>
                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">{report.status}</span>
               </li>
             ))}
           </ul>
-        ) : <p className="mt-3 text-sm text-slate-600">Recent submitted reports will appear here.</p>}
+        ) : <p className="mt-3 text-sm text-slate-700">Recent submitted reports will appear here.</p>}
       </section>
     </section>
   );

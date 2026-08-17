@@ -156,7 +156,7 @@ export const Analytics: React.FC = () => {
                     <p className="text-xs text-slate-900 mt-2 font-medium">
                         Operating expenses + printing jobs not tied to a contract, billboard, or client
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-1">
+                    <p className="text-[11px] text-slate-700 mt-1">
                         MRR forecast: ${recurringMonthlyForecast.toLocaleString()}/mo
                     </p>
                 </div>
@@ -321,7 +321,7 @@ export const Analytics: React.FC = () => {
                                         <td className="px-6 py-4 text-right font-bold text-emerald-600">${Number(c.grossProfit || 0).toLocaleString()}</td>
                                         <td className="px-6 py-4 text-right">
                                             {unassignedRow || rowRevenue <= 0 ? (
-                                                <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">—</span>
+                                                <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">—</span>
                                             ) : (
                                                 <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${c.grossMargin >= 30 ? 'bg-emerald-100 text-emerald-700' : c.grossMargin >= 15 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
                                                     {Number(c.grossMargin || 0).toFixed(1)}%
@@ -337,7 +337,7 @@ export const Analytics: React.FC = () => {
                     </table>
                 </div>
                 <div className="px-6 py-3 bg-slate-50/60 border-t border-slate-100">
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-slate-700">
                         Supplemental printing jobs on a billboard are allocated across its campaigns (by recorded printing cost share) and roll up to clients. Expenses linked to a contract are attributed to that campaign, billboard, and client; expenses linked only to a client appear on the client tab alone, so the client tab can exceed the billboard and campaign totals by that amount. Billboard and campaign tabs show contract-linked revenue only; unlinked and Unassigned revenue appears on the client tab. Unallocated operating expenses and untied printing jobs are excluded from every row.
                     </p>
                 </div>

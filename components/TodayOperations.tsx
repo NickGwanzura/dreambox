@@ -54,7 +54,7 @@ const statusLabel = (value: string): string => value.replace(/[_-]/g, ' ');
 const touchButtonClass = 'min-h-11 touch-manipulation rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
 const EmptyState: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-5 text-slate-600">
+  <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-5 text-slate-700">
     {children}
   </p>
 );
@@ -89,7 +89,7 @@ const SectionCard: React.FC<{
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold tabular-nums text-slate-700">{count}</span>
             )}
           </div>
-          <p className="mt-0.5 text-sm leading-5 text-slate-600">{description}</p>
+          <p className="mt-0.5 text-sm leading-5 text-slate-700">{description}</p>
         </div>
         {actionLabel && onAction && (
           <button type="button" onClick={onAction} className={`${touchButtonClass} shrink-0 bg-slate-100 text-slate-700 hover:bg-slate-200`}>
@@ -111,7 +111,7 @@ const TaskRows: React.FC<{ items: Array<TodayTask<Task | CRMTask>>; source: 'Gen
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="break-words text-sm font-semibold text-slate-900">{task.title}</p>
-              <p className="mt-0.5 text-xs text-slate-600">
+              <p className="mt-0.5 text-xs text-slate-700">
                 {source} · Due {formatDate(task.dueDate)}
               </p>
             </div>
@@ -221,7 +221,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
         <div>
           <p className="text-sm font-semibold text-indigo-700">Operations command center</p>
           <h1 id="today-title" className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Today</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-700">
             Prioritized revenue, contracts, work, payment controls, and quiet high-value opportunities.
           </p>
         </div>
@@ -236,7 +236,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
         </button>
       </header>
 
-      <p className="mb-5 text-xs text-slate-500" aria-live="polite">
+      <p className="mb-5 text-xs font-medium text-slate-700" aria-live="polite">
         Read-only refresh · Updated {new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(snapshot.generatedAt))}
       </p>
 
@@ -252,7 +252,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
           <div key={label} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className={`mb-2 flex h-10 w-10 items-center justify-center rounded-xl ${tone}`} aria-hidden="true"><Icon size={18} /></div>
             <p className="text-xl font-bold tabular-nums text-slate-900">{value}</p>
-            <p className="mt-0.5 text-xs leading-4 text-slate-600">{label}</p>
+            <p className="mt-0.5 text-xs leading-4 text-slate-700">{label}</p>
           </div>
         ))}
       </section>
@@ -274,7 +274,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="break-all text-sm font-semibold text-slate-900">Invoice #{invoice.id.slice(0, 8)}</p>
-                      <p className="mt-0.5 text-xs text-slate-600">Due {formatDate(invoice.dueDate)} · {invoice.daysOverdue}d overdue</p>
+                  <p className="mt-0.5 text-xs text-slate-700">Due {formatDate(invoice.dueDate)} · {invoice.daysOverdue}d overdue</p>
                     </div>
                     <span className="text-sm font-bold tabular-nums text-red-700">{formatMoney(invoice.total)}</span>
                   </div>
@@ -298,7 +298,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
               {snapshot.contractsNeedingAttention.slice(0, 5).map(({ contract, reason }) => (
                 <li key={contract.id} className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-3">
                   <p className="break-words text-sm font-semibold text-slate-900">{contract.details || `Contract ${contract.id.slice(0, 8)}`}</p>
-                  <p className="mt-0.5 text-xs text-slate-600">Ends {formatDate(contract.endDate)} · {reason}</p>
+                  <p className="mt-0.5 text-xs text-slate-700">Ends {formatDate(contract.endDate)} · {reason}</p>
                 </li>
               ))}
             </ul>
@@ -321,7 +321,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="break-words text-sm font-semibold text-slate-900">{contract.details || `Contract ${contract.id.slice(0, 8)}`}</p>
-                      <p className="mt-0.5 text-xs text-slate-600">Active through {formatDate(contract.endDate)}</p>
+                  <p className="mt-0.5 text-xs text-slate-700">Active through {formatDate(contract.endDate)}</p>
                     </div>
                     <span className="text-sm font-bold tabular-nums text-indigo-700">{formatMoney(contract.monthlyRate)}/mo</span>
                   </div>
@@ -360,7 +360,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
           onAction={canReviewPayments && onNavigate ? () => onNavigate('payments') : undefined}
         >
           {paymentReviewState.kind === 'loading' ? (
-            <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600" role="status">Loading open payment reviews…</p>
+            <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700" role="status">Loading open payment reviews…</p>
           ) : paymentReviewState.kind === 'restricted' || paymentReviewState.kind === 'unavailable' ? (
             <EmptyState>{paymentReviewState.message}</EmptyState>
           ) : snapshot.paymentReviews.length === 0 ? <EmptyState>No open payment reviews.</EmptyState> : (
@@ -370,7 +370,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="break-all text-sm font-semibold text-slate-900">Receipt #{review.receiptId.slice(0, 8)}</p>
-                      <p className="mt-0.5 text-xs text-slate-600">
+                      <p className="mt-0.5 text-xs text-slate-700">
                         {review.receipt?.paymentMethod || 'Payment method pending'} · {review.receipt?.approvalStatus || review.status}
                       </p>
                     </div>
@@ -389,7 +389,7 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700" aria-hidden="true"><Clock size={20} /></div>
             <div className="min-w-0">
               <h2 id="quiet-leads-title" className="text-base font-bold text-slate-900">High-value quiet leads</h2>
-              <p className="mt-0.5 text-sm leading-5 text-slate-600">Open opportunities quiet for more than 7 days and qualified by score or deal value.</p>
+              <p className="mt-0.5 text-sm leading-5 text-slate-700">Open opportunities quiet for more than 7 days and qualified by score or deal value.</p>
             </div>
           </div>
           {onNavigate && (
@@ -409,14 +409,14 @@ export const TodayOperations: React.FC<TodayOperationsProps> = ({ onNavigate }) 
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="break-words text-base font-bold text-slate-900">{lead.company?.name || 'Unnamed company'}</h3>
-                      <p className="mt-0.5 text-xs text-slate-600">{lead.primaryContact?.fullName || 'No primary contact recorded'} · {statusLabel(lead.opportunity.stage)}</p>
+                  <p className="mt-0.5 text-xs text-slate-700">{lead.primaryContact?.fullName || 'No primary contact recorded'} · {statusLabel(lead.opportunity.stage)}</p>
                     </div>
                     <span className="rounded-full bg-violet-100 px-2.5 py-1 text-sm font-bold tabular-nums text-violet-800" aria-label={`Lead score ${lead.score} out of 100`}>
                       {lead.score}/100
                     </span>
                   </div>
                   <p className="mt-3 text-sm leading-5 text-slate-700">{lead.reason}</p>
-                  <p className="mt-2 text-xs text-slate-500">Last activity {formatDate(lead.lastActivityAt)} · {lead.daysQuiet} days quiet · {formatMoney(lead.opportunity.estimatedValue)} estimated</p>
+                  <p className="mt-2 text-xs text-slate-700">Last activity {formatDate(lead.lastActivityAt)} · {lead.daysQuiet} days quiet · {formatMoney(lead.opportunity.estimatedValue)} estimated</p>
                   <ol className="mt-3 space-y-1.5 text-sm leading-5 text-slate-700">
                     {lead.nextBestActions.map((action, index) => (
                       <li key={`${lead.opportunity.id}-${index}`} className="flex gap-2">

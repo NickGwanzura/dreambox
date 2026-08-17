@@ -74,13 +74,13 @@ export const VoidDocumentModal: React.FC<Props> = ({ document, onClose, onVoided
               <h3 className="text-lg font-bold text-slate-800">
                 {isPayment ? 'Reverse this payment?' : 'Void this invoice?'}
               </h3>
-              <p className="text-xs text-slate-500">An audit reason is required — this action cannot be undone.</p>
+              <p className="text-xs text-slate-700">An audit reason is required — this action cannot be undone.</p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={saving}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-40"
+            className="p-1.5 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-40"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -93,52 +93,52 @@ export const VoidDocumentModal: React.FC<Props> = ({ document, onClose, onVoided
             <div className="flex flex-col items-center gap-3 py-8 text-center">
               <CheckCircle2 className="w-12 h-12 text-emerald-500" />
               <p className="text-sm font-semibold text-slate-800">{isPayment ? 'Payment reversed' : 'Invoice voided'}</p>
-              <p className="text-xs text-slate-500">The document has been marked void with your reason on the audit trail.</p>
+              <p className="text-xs text-slate-700">The document has been marked void with your reason on the audit trail.</p>
             </div>
           ) : (
             <>
               <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4 space-y-2 text-sm">
                 <div className="flex justify-between gap-4">
-                  <span className="text-slate-500">Document</span>
+                  <span className="text-slate-700">Document</span>
                   <span className="font-mono text-xs font-bold text-slate-800 break-all text-right">{document.id}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-slate-500">Date</span>
+                  <span className="text-slate-700">Date</span>
                   <span className="font-semibold text-slate-800">{document.date}</span>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <span className="text-slate-500">Client</span>
+                  <span className="text-slate-700">Client</span>
                   <span className="font-semibold text-slate-800">{document.clientName || '—'}</span>
                 </div>
                 {document.paymentMethod && (
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-500">Method</span>
+                  <span className="text-slate-700">Method</span>
                     <span className="font-semibold text-slate-800">{document.paymentMethod}</span>
                   </div>
                 )}
                 {document.paymentReference && (
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-500">Reference</span>
+                  <span className="text-slate-700">Reference</span>
                     <span className="font-mono text-xs font-semibold text-slate-800">{document.paymentReference}</span>
                   </div>
                 )}
                 {document.proofExists !== undefined && (
                   <div className="flex justify-between gap-4">
-                    <span className="text-slate-500">Payment proof</span>
+                  <span className="text-slate-700">Payment proof</span>
                     <span className={`font-semibold ${document.proofExists ? "text-emerald-600" : "text-red-500"}`}>
                       {document.proofExists ? "Attached" : "None"}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between gap-4 pt-2 border-t border-slate-100">
-                  <span className="text-slate-500">Amount</span>
+                  <span className="text-slate-700">Amount</span>
                   <span className="font-bold text-red-600">${(document.amount ?? 0).toLocaleString()}</span>
                 </div>
               </div>
 
               <div className="flex items-start gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <ShieldCheck className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <ShieldCheck className="w-4 h-4 text-slate-700 mt-0.5 shrink-0" />
+                <p className="text-xs text-slate-700 leading-relaxed">
                   The original {isPayment ? 'receipt and any payment proof' : 'invoice'} are preserved for audit.
                   {isPayment ? ' The amount is removed from the invoice\u2019s paid total.' : ''}
                 </p>
@@ -160,10 +160,10 @@ export const VoidDocumentModal: React.FC<Props> = ({ document, onClose, onVoided
                   className="w-full bg-slate-50 border border-slate-200 focus:border-red-400 focus:ring-2 focus:ring-red-500/10 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all resize-none"
                 />
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs ${remaining > 0 ? 'text-slate-400' : 'text-emerald-600 font-semibold'}`}>
+                  <span className={`text-xs ${remaining > 0 ? 'text-slate-700' : 'text-emerald-600 font-semibold'}`}>
                     {remaining > 0 ? `${remaining} more character${remaining === 1 ? '' : 's'} needed` : 'Reason looks good'}
                   </span>
-                  <span className="text-[11px] text-slate-400">{reason.trim().length}/300</span>
+                  <span className="text-[11px] text-slate-700">{reason.trim().length}/300</span>
                 </div>
               </div>
 
@@ -182,7 +182,7 @@ export const VoidDocumentModal: React.FC<Props> = ({ document, onClose, onVoided
             <button
               onClick={onClose}
               disabled={saving}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40"
+              className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors disabled:opacity-40"
             >
               Cancel
             </button>

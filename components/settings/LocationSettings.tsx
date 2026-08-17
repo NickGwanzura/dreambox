@@ -278,7 +278,7 @@ export const LocationSettings: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <h4 className="text-lg font-bold text-slate-900">Missing Coordinates</h4>
             <div className="relative w-full sm:w-64">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700" />
               <input
                 type="text"
                 value={search}

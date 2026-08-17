@@ -301,19 +301,19 @@ export const Maintenance: React.FC = () => {
                     ) : (
                         <div className="bg-slate-900 text-white p-5 rounded-2xl flex items-center gap-4">
                             <div className="p-3 bg-slate-700 rounded-xl shrink-0">
-                                <MapPin className="text-slate-300" size={20} />
+                                <MapPin className="text-slate-200" size={20} />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Selected Asset</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Selected Asset</p>
                                 <p className="font-bold text-white">{getBillboardName(selectedBillboardId)}</p>
-                                <p className="text-xs text-slate-900 mt-0.5">
+                                <p className="text-xs text-slate-300 mt-0.5">
                                     {billboards.find(b => b.id === selectedBillboardId)?.location}, {billboards.find(b => b.id === selectedBillboardId)?.town}
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setSelectedBillboardId('')}
-                                className="text-slate-900 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1 shrink-0"
+                                className="text-slate-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1 shrink-0"
                             >
                                 Change <ChevronRight size={12} />
                             </button>

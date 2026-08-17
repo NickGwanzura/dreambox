@@ -159,7 +159,7 @@ export const Tasks: React.FC = () => {
                         </div>
                         <button 
                             onClick={() => setTaskToDelete(task)} 
-                            className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                            className="p-2 text-slate-700 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                             title="Delete Task"
                         >
                             <Trash2 size={18} />
@@ -170,7 +170,7 @@ export const Tasks: React.FC = () => {
             {filteredTasks.length === 0 && (
                 <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-dashed border-slate-200">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        {searchTerm ? <Search className="text-slate-300" size={32}/> : <CheckSquare className="text-slate-300" size={32}/>}
+                        {searchTerm ? <Search className="text-slate-500" size={32}/> : <CheckSquare className="text-slate-500" size={32}/>}
                     </div>
                     <h3 className="text-lg font-bold text-slate-900 mb-1">{searchTerm ? 'No tasks match your search' : 'No Tasks Found'}</h3>
                     <p className="text-slate-900 text-sm">{searchTerm ? 'Try adjusting your search terms.' : 'Create a new task to get started.'}</p>
