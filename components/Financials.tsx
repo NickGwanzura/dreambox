@@ -958,7 +958,7 @@ export const Financials: React.FC<FinancialsProps> = ({
             </p>
           </div>
           {activeTab !== "Statements" && (
-            <div className="flex gap-4 w-full sm:w-auto justify-end">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end items-stretch">
               <div className="relative group w-full sm:w-64">
                 <Search
                   className="absolute left-3 top-3 text-slate-900 group-focus-within:text-slate-800 transition-colors"
@@ -969,21 +969,21 @@ export const Financials: React.FC<FinancialsProps> = ({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search ID, Client, Ref..."
-                  className="min-h-11 w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-full bg-white text-slate-900 placeholder:text-slate-700 outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"
+                  className="min-h-11 w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl sm:rounded-full bg-white text-slate-900 placeholder:text-slate-700 outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all text-sm"
                 />
-                <select aria-label="Filter documents by month" value={invoiceMonth} onChange={(e) => setInvoiceMonth(e.target.value)} className="min-h-11 w-full sm:w-40 px-3 py-2.5 border border-slate-300 rounded-full bg-white text-slate-900 outline-none focus:border-slate-800 text-sm">
-                  <option value="all">All months</option>
-                  {invoiceMonths.map(month => <option key={month} value={month}>{new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</option>)}
-                </select>
-                <select aria-label="Filter documents by status" value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value)} className="min-h-11 w-full sm:w-36 px-3 py-2.5 border border-slate-300 rounded-full bg-white text-slate-900 outline-none focus:border-slate-800 text-sm">
-                  <option value="all">All statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="voided">Voided</option>
-                </select>
               </div>
+              <select aria-label="Filter documents by month" value={invoiceMonth} onChange={(e) => setInvoiceMonth(e.target.value)} className="min-h-11 w-full sm:w-40 px-3 py-2.5 border border-slate-300 rounded-xl sm:rounded-full bg-white text-slate-900 outline-none focus:border-slate-800 text-sm">
+                <option value="all">All months</option>
+                {invoiceMonths.map(month => <option key={month} value={month}>{new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</option>)}
+              </select>
+              <select aria-label="Filter documents by status" value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value)} className="min-h-11 w-full sm:w-36 px-3 py-2.5 border border-slate-300 rounded-xl sm:rounded-full bg-white text-slate-900 outline-none focus:border-slate-800 text-sm">
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="overdue">Overdue</option>
+                <option value="rejected">Rejected</option>
+                <option value="voided">Voided</option>
+              </select>
               {canUserWrite && (
                 <button
                   onClick={() => {
@@ -1283,14 +1283,14 @@ export const Financials: React.FC<FinancialsProps> = ({
                   return (
                     <div
                       key={doc.id}
-                      className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3"
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3"
                     >
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="font-bold text-slate-900">
                             {doc.quoteNumber || doc.id}
                           </p>
-                          <p className="text-xs text-slate-900">
+                          <p className="text-sm font-medium text-slate-800">
                             {client?.companyName || "Unknown"}
                           </p>
                         </div>
@@ -1300,43 +1300,43 @@ export const Financials: React.FC<FinancialsProps> = ({
                           {statusLabel}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-900">Date</span>
-                        <span className="font-medium">{doc.date}</span>
+                      <div className="flex items-center justify-between gap-4 text-sm">
+                        <span className="font-medium text-slate-800">Date</span>
+                        <span className="font-semibold text-slate-900 text-right">{doc.date}</span>
                       </div>
                       {isQuote && doc.expiryDate && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-900">Valid Until</span>
-                          <span className="font-medium text-amber-600">
+                        <div className="flex items-center justify-between gap-4 text-sm">
+                          <span className="font-medium text-slate-800">Valid Until</span>
+                          <span className="font-semibold text-amber-700 text-right">
                             {doc.expiryDate}
                           </span>
                         </div>
                       )}
                       {activeTab === "Receipts" && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-900">Method</span>
-                          <span className="font-medium">
+                        <div className="flex items-center justify-between gap-4 text-sm">
+                          <span className="font-medium text-slate-800">Method</span>
+                          <span className="font-semibold text-slate-900 text-right">
                             {doc.paymentMethod || "-"}
                           </span>
                         </div>
                       )}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-900">Total</span>
-                        <span className="font-bold">
+                      <div className="flex items-center justify-between gap-4 text-sm">
+                        <span className="font-medium text-slate-800">Total</span>
+                        <span className="font-bold text-slate-900 text-right">
                           ${(doc.total ?? 0).toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-2 pt-2">
+                      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 pt-2">
                         <button
                           onClick={() => downloadPDF(doc)}
-                          className="inline-flex min-h-10 items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg"
+                          className="inline-flex min-h-11 w-full sm:w-auto justify-center items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-slate-900 bg-slate-50 hover:bg-slate-200 rounded-lg"
                           title="Download PDF"
                         >
                           <Download size={15} /><span>Download</span>
                         </button>
                         <button
                           onClick={() => handleSendDoc(doc)}
-                          className="inline-flex min-h-10 items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg"
+                          className="inline-flex min-h-11 w-full sm:w-auto justify-center items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg"
                           title="Send Email"
                         >
                           <Send size={15} /><span>Send</span>
@@ -1344,7 +1344,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                         {canUserWrite && (
                           <button
                             onClick={() => handleEdit(doc)}
-                            className="inline-flex min-h-10 items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg"
+                            className="inline-flex min-h-11 w-full sm:w-auto justify-center items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg"
                             title="Edit"
                           >
                             <Edit size={15} /><span>Edit</span>
@@ -1357,7 +1357,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                           ) && (
                             <button
                               onClick={() => initiatePayment(doc)}
-                              className="inline-flex min-h-10 items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg"
+                              className="inline-flex min-h-11 w-full sm:w-auto justify-center items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg"
                               title="Record Payment"
                             >
                               <CreditCard size={15} /><span>Pay</span>
@@ -1395,7 +1395,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                                     convertingToInvoiceRef.current = false;
                                   }
                                 }}
-                                className="inline-flex min-h-10 items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg"
+                                className="inline-flex min-h-11 w-full sm:w-auto justify-center items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg"
                                 title="Convert to Invoice"
                               >
                                 <ArrowRight size={15} /><span>Invoice</span>
@@ -1403,7 +1403,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                             )}
                             <button
                               onClick={() => openConvertToContract(doc)}
-                              className="inline-flex min-h-10 items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg"
+                              className="inline-flex min-h-11 w-full sm:w-auto justify-center items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg"
                               title="Convert to Contract"
                             >
                               <FileText size={15} /><span>Contract</span>
@@ -1413,7 +1413,7 @@ export const Financials: React.FC<FinancialsProps> = ({
                         {canDelete(getCurrentUser()) && (
                           <button
                             onClick={() => handleDelete(doc)}
-                            className="inline-flex min-h-10 items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
+                            className="inline-flex min-h-11 w-full sm:w-auto justify-center items-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg"
                             title="Delete"
                           >
                             <Trash2 size={15} /><span>Delete</span>
