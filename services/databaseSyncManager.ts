@@ -17,7 +17,7 @@ export type SyncAttemptOutcome = 'never' | 'running' | 'success' | 'failed';
 let lastSyncOutcome: SyncAttemptOutcome = 'never';
 let syncIntervalId: ReturnType<typeof setInterval> | null = null;
 let syncListeners: Array<() => void> = [];
-const SYNC_PAGE_SIZE = 500;
+const SYNC_PAGE_SIZE = 100;
 
 function notifyListeners() {
   syncListeners.forEach(fn => fn());
@@ -61,11 +61,17 @@ async function fetchAllRemoteRecords(
     const res = await fetch(pageUrl, { headers });
     if (!res.ok) throw new Error(`Remote ${table} pull failed (HTTP ${res.status})`);
 
-    const page: unknown = await res.json();
-    if (!Array.isArray(page)) throw new Error(`Remote ${table} pull returned an invalid response`);
+    const payload: unknown = await res.json();
+    const page = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === 'object' && Array.isArray((payload as any).data)
+        ? (payload as any).data
+        : null;
+    if (!page) throw new Error(`Remote ${table} pull returned an invalid response`);
 
     remoteRecords.push(...page);
-    if (page.length < SYNC_PAGE_SIZE) return remoteRecords;
+    const hasNextPage = !Array.isArray(payload) && Boolean((payload as any)?.pagination?.hasNextPage);
+    if (Array.isArray(payload) ? page.length < SYNC_PAGE_SIZE : !hasNextPage) return remoteRecords;
     skip += page.length;
   }
 }

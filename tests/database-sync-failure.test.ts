@@ -50,14 +50,14 @@ describe('database sync failure reporting', () => {
   });
 
   it('fetches every remote page before merging a table into local storage', async () => {
-    const firstInvoicePage = Array.from({ length: 500 }, (_, index) => ({ id: `invoice-${index}` }));
-    const finalInvoicePage = [{ id: 'invoice-500' }];
+    const firstInvoicePage = Array.from({ length: 100 }, (_, index) => ({ id: `invoice-${index}` }));
+    const finalInvoicePage = [{ id: 'invoice-100' }];
     globalThis.fetch = vi.fn(async (url: string) => {
-      if (url === '/api/invoices?limit=500&skip=0') {
-        return { ok: true, status: 200, json: async () => firstInvoicePage };
+      if (url === '/api/invoices?limit=100&skip=0') {
+        return { ok: true, status: 200, json: async () => ({ data: firstInvoicePage, pagination: { hasNextPage: true } }) };
       }
-      if (url === '/api/invoices?limit=500&skip=500') {
-        return { ok: true, status: 200, json: async () => finalInvoicePage };
+      if (url === '/api/invoices?limit=100&skip=100') {
+        return { ok: true, status: 200, json: async () => ({ data: finalInvoicePage, pagination: { hasNextPage: false } }) };
       }
       return { ok: true, status: 200, json: async () => [] };
     }) as any;
@@ -65,21 +65,21 @@ describe('database sync failure reporting', () => {
 
     const result = await pullAllFromDatabase();
 
-    expect(result).toMatchObject({ success: true, results: { invoices: { count: 501 } } });
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/invoices?limit=500&skip=0', expect.any(Object));
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/invoices?limit=500&skip=500', expect.any(Object));
+    expect(result).toMatchObject({ success: true, results: { invoices: { count: 101 } } });
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/invoices?limit=100&skip=0', expect.any(Object));
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/invoices?limit=100&skip=100', expect.any(Object));
     expect(JSON.parse(store[STORAGE_KEYS.INVOICES])).toEqual([...firstInvoicePage, ...finalInvoicePage]);
   });
 
   it('keeps a table cache unchanged when a later page fails and marks sync failed', async () => {
     const existingCache = JSON.stringify([{ id: 'local-invoice', amount: 99 }]);
     store[STORAGE_KEYS.INVOICES] = existingCache;
-    const firstInvoicePage = Array.from({ length: 500 }, (_, index) => ({ id: `invoice-${index}` }));
+    const firstInvoicePage = Array.from({ length: 100 }, (_, index) => ({ id: `invoice-${index}` }));
     globalThis.fetch = vi.fn(async (url: string) => {
-      if (url === '/api/invoices?limit=500&skip=0') {
-        return { ok: true, status: 200, json: async () => firstInvoicePage };
+      if (url === '/api/invoices?limit=100&skip=0') {
+        return { ok: true, status: 200, json: async () => ({ data: firstInvoicePage, pagination: { hasNextPage: true } }) };
       }
-      if (url === '/api/invoices?limit=500&skip=500') {
+      if (url === '/api/invoices?limit=100&skip=100') {
         return { ok: false, status: 502, json: async () => [] };
       }
       return { ok: true, status: 200, json: async () => [] };

@@ -9,6 +9,10 @@ import { buildTemplateData, resolveContractTemplate, substituteTemplate, Templat
 import { useGeistSans } from './pdfFonts';
 
 type RGB = [number, number, number];
+const money = (value: unknown): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const luminance = (c: RGB) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
 const saturation = (c: RGB) => {
@@ -26,22 +30,13 @@ type LogoInfo = { pngDataUrl: string; width: number; height: number; primary: RG
 const prepareLogoForPdf = (logoDataUrl?: string | null): Promise<LogoInfo | null> => {
     if (!logoDataUrl) return Promise.resolve(null);
 
-    // If it's a remote URL (R2/CDN), fetch it as a blob and convert to data URL first
-    // so the canvas draw doesn't hit cross-origin taint issues. R2 public buckets
-    // don't send CORS headers, so when the direct fetch fails, fall back to our
-    // same-origin proxy which fetches it server-side.
+    // Remote R2 objects do not expose browser CORS headers. Fetch through the
+    // authenticated same-origin proxy immediately so PDF generation does not
+    // emit a failed cross-origin request before falling back.
     if (!logoDataUrl.startsWith('data:')) {
-        return fetch(logoDataUrl)
-            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
-            .then(blob => new Promise<string>((res, rej) => {
-                const reader = new FileReader();
-                reader.onloadend = () => res(reader.result as string);
-                reader.onerror = rej;
-                reader.readAsDataURL(blob);
-            }))
-            .catch(() => api.get<{ dataUrl: string }>('/api/logo-proxy')
-                .then(r => r?.dataUrl || null)
-                .catch(() => null))
+        return api.get<{ dataUrl: string }>('/api/logo-proxy')
+            .then(r => r?.dataUrl || null)
+            .catch(() => null)
             .then(dataUrl => dataUrl ? prepareLogoForPdf(dataUrl) : null);
     }
 
@@ -341,7 +336,7 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     }
 
     const tableColumn = ["Description", "Amount ($)"];
-    const tableRows = (invoice.items || []).map(item => [item.description, item.amount.toFixed(2)]);
+    const tableRows = (invoice.items || []).map(item => [item.description, money(item.amount).toFixed(2)]);
     
     const tableStartY = metaY + 30 + (detailRow > 3 ? (detailRow - 3) * 5 : 0);
 
@@ -363,14 +358,14 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text(`Subtotal:`, totalsX, finalY + 10);
-    doc.text(`$${(invoice.subtotal || 0).toFixed(2)}`, 195, finalY + 10, { align: 'right' });
+    doc.text(`$${money(invoice.subtotal).toFixed(2)}`, 195, finalY + 10, { align: 'right' });
     
     const discountLabel = invoice.discountDescription ? `Discount (${invoice.discountDescription})` : 'Discount';
     doc.text(discountLabel + ':', totalsX, finalY + 15);
-    doc.text(`-$${(invoice.discountAmount || 0).toFixed(2)}`, 195, finalY + 15, { align: 'right' });
+    doc.text(`-$${money(invoice.discountAmount).toFixed(2)}`, 195, finalY + 15, { align: 'right' });
 
     doc.text(`VAT (${formatVatPercent(getEffectiveVatRate())}):`, totalsX, finalY + 20);
-    doc.text(`$${(invoice.vatAmount || 0).toFixed(2)}`, 195, finalY + 20, { align: 'right' });
+    doc.text(`$${money(invoice.vatAmount).toFixed(2)}`, 195, finalY + 20, { align: 'right' });
     
     doc.setDrawColor(200);
     doc.line(totalsX, finalY + 23, 195, finalY + 23);
@@ -379,7 +374,7 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.setTextColor(15, 23, 42);
     doc.setFont("Geist Sans", "bold");
     doc.text(`Total:`, totalsX, finalY + 31);
-    doc.text(`$${(invoice.total || 0).toFixed(2)}`, 195, finalY + 31, { align: 'right' });
+    doc.text(`$${money(invoice.total).toFixed(2)}`, 195, finalY + 31, { align: 'right' });
 
     // Running Y tracker for the bottom blocks — starts after totals
     const PAGE_H = doc.internal.pageSize.height;
@@ -870,7 +865,7 @@ export const generateExpensesPDF = async (expenses: Expense[]) => {
         doc.setTextColor(100);
         doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, y + 6);
 
-        const rows = expenses.map(e => [e.date, e.category, e.description, `$${e.amount.toFixed(2)}`]);
+        const rows = expenses.map(e => [e.date, e.category, e.description, `$${money(e.amount).toFixed(2)}`]);
         const total = expenses.reduce((acc, curr) => acc + curr.amount, 0);
         rows.push(['', '', 'TOTAL EXPENSES', `$${total.toFixed(2)}`]);
 
