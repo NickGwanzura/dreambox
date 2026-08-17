@@ -304,7 +304,7 @@ export const BillboardList: React.FC = () => {
               await deleteBillboard(billboardToDelete.id);
               setBillboardToDelete(null);
           } catch (err: any) {
-              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+              showToast(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
           }
       }
   };
@@ -326,7 +326,7 @@ export const BillboardList: React.FC = () => {
     try {
       await addBillboard(billboard);
     } catch (err: any) {
-      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+      showToast(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
       return;
     }
     setIsAddModalOpen(false); setPickingLocation(false); setGeocodeResult(null); setGeocodeError(null);
@@ -340,7 +340,7 @@ export const BillboardList: React.FC = () => {
     if (!file) return;
     const MAX_MB = 10;
     if (file.size > MAX_MB * 1024 * 1024) {
-        alert(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please use an image under ${MAX_MB} MB.`);
+        showToast(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please use an image under ${MAX_MB} MB.`, 'error');
         e.target.value = '';
         return;
     }
@@ -373,7 +373,7 @@ export const BillboardList: React.FC = () => {
   };
   const handleAutoAnalyze = async (isEdit: boolean) => {
       const target = isEdit ? editingBillboard : newBillboard;
-      if (!target?.location || !target?.town) { alert("Please enter Location and Town first."); return; }
+      if (!target?.location || !target?.town) { showToast('Please enter Location and Town first.', 'error'); return; }
       
       setIsAnalyzing(true);
       const result = await analyzeBillboardLocation(target.location, target.town);
@@ -393,7 +393,7 @@ export const BillboardList: React.FC = () => {
       }
       
       if(result.coordinates) {
-          alert(`AI Analysis Complete!\nCoordinates found: ${result.coordinates.lat}, ${result.coordinates.lng}`);
+          showToast(`AI analysis complete. Coordinates found: ${result.coordinates.lat}, ${result.coordinates.lng}`, 'success');
       }
   };
 
@@ -432,7 +432,7 @@ export const BillboardList: React.FC = () => {
       const url = `${window.location.origin}/billboard/${slug}`;
       try {
           await navigator.clipboard.writeText(url);
-          alert("Public Share Link copied to clipboard!\nAnyone with this link can view this billboard details.");
+          showToast('Public share link copied to clipboard.', 'success');
       } catch {
           window.prompt("Copy this public share link:", url);
       }
@@ -442,7 +442,7 @@ export const BillboardList: React.FC = () => {
       const url = `${window.location.origin}${window.location.pathname}?public=true&type=map`;
       try {
           await navigator.clipboard.writeText(url);
-          alert("Public Map Link copied to clipboard!\n\nThis link allows read-only access to your full inventory map.");
+          showToast('Public map link copied to clipboard.', 'success');
       } catch {
           window.prompt("Copy this public map link:", url);
       }
@@ -521,7 +521,7 @@ export const BillboardList: React.FC = () => {
                   await addBillboard(newBoard);
                   importedCount++;
               } catch (err: any) {
-                  alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                  showToast(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
                   continue;
               }
 
@@ -544,14 +544,14 @@ export const BillboardList: React.FC = () => {
                           await addClient(newClient);
                           client = newClient;
                       } catch (err: any) {
-                          alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                          showToast(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
                           continue;
                       }
                   } else if (preferredBillingDay && client.billingDay !== preferredBillingDay) {
                       try {
                           await updateClient({ ...client, billingDay: preferredBillingDay });
                       } catch (err: any) {
-                          alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                          showToast(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
                       }
                   }
 
@@ -594,11 +594,11 @@ export const BillboardList: React.FC = () => {
                       await addContract(newContract);
                       contractsCreated++;
                   } catch (err: any) {
-                      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                      showToast(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
                   }
               }
           }
-          alert(`Import Successful!\n• ${importedCount} Billboards added.\n• ${contractsCreated} Contracts created & linked.`);
+          showToast(`Import successful: ${importedCount} billboards added, ${contractsCreated} contracts linked.`, 'success');
           if (importInputRef.current) importInputRef.current.value = '';
       };
       reader.readAsText(file);
@@ -622,14 +622,14 @@ export const BillboardList: React.FC = () => {
                 </div>
                 
                 <div className="flex bg-white/80 backdrop-blur-sm rounded-full border border-slate-200 p-1 shadow-sm items-center">
-                    <button onClick={downloadTemplate} className="p-2.5 rounded-full text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Download CSV Template"><Download size={18}/></button>
-                    <label className="p-2.5 rounded-full text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer" title="Import Billboards CSV">
-                        <Upload size={18}/>
+                    <button onClick={downloadTemplate} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 hover:text-indigo-700 hover:bg-indigo-50 transition-all" title="Download CSV Template"><Download size={16}/><span className="hidden xl:inline">Template</span></button>
+                    <label className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 hover:text-indigo-700 hover:bg-indigo-50 transition-all cursor-pointer" title="Import Billboards CSV">
+                        <Upload size={16}/><span className="hidden xl:inline">Import</span>
                         <input type="file" ref={importInputRef} accept=".csv" className="hidden" onChange={handleImportBillboards} />
                     </label>
-                    <button onClick={handleExportBillboards} className="p-2.5 rounded-full text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 transition-all" title="Export Inventory to CSV"><FileText size={18}/></button>
+                    <button onClick={handleExportBillboards} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-900 hover:text-indigo-700 hover:bg-indigo-50 transition-all" title="Export Inventory to CSV"><FileText size={16}/><span className="hidden xl:inline">Export</span></button>
                     <div className="w-[1px] h-6 bg-slate-200 mx-1"></div>
-                    <button onClick={shareMap} className="p-2.5 rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-all" title="Share Public Map Link"><Globe size={18}/></button>
+                    <button onClick={shareMap} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-all" title="Share Public Map Link"><Globe size={16}/><span className="hidden xl:inline">Share</span></button>
                 </div>
 
                 <button onClick={() => generateAvailabilitySheetPDF(billboards)} className="bg-gradient-to-r from-amber-500 to-amber-600 text-white px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center gap-2" title="Premium PDF of unoccupied sites and prices"><FileDown size={18} /> Availability PDF</button>

@@ -399,7 +399,7 @@ export const ClientList: React.FC = () => {
             </p>
         )}
         {pageError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
-        {isLoadingPage ? <div className="py-16 text-center text-sm text-slate-500">Loading clients…</div> : filteredClients.length === 0 && searchQuery ? (
+        {isLoadingPage ? <div className="py-16 text-center text-sm font-medium text-slate-700">Loading clients…</div> : filteredClients.length === 0 && searchQuery ? (
             <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
                 <Search size={32} className="text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-900 font-medium">No clients found matching "{searchQuery}"</p>
@@ -416,9 +416,9 @@ export const ClientList: React.FC = () => {
                         <div className="flex justify-between items-start mb-4">
                             <div className="w-14 h-14 rounded-full bg-slate-50 text-slate-900 flex items-center justify-center font-bold text-xl group-hover:bg-slate-900 group-hover:text-white transition-colors shadow-sm">{client.companyName.charAt(0)}</div>
                             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => generatePortalLink(client)} className="text-slate-300 hover:text-green-600 transition-colors p-2 hover:bg-green-50 rounded-full" title="Copy Client Portal Link"><Share2 size={18} /></button>
-                                <button onClick={() => setEditingClient(client)} className="text-slate-300 hover:text-indigo-600 transition-colors p-2 hover:bg-indigo-50 rounded-full" title="Edit Client"><Edit2 size={18} /></button>
-                                {canUserDelete && (<button onClick={() => setClientToDelete(client)} className="text-slate-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full" title="Delete Client"><Trash2 size={18} /></button>)}
+                                <button onClick={() => generatePortalLink(client)} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-700 hover:text-green-700 hover:bg-green-50 transition-colors" title="Copy Client Portal Link"><Share2 size={15} /><span>Portal</span></button>
+                                <button onClick={() => setEditingClient(client)} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors" title="Edit Client"><Edit2 size={15} /><span>Edit</span></button>
+                                {canUserDelete && (<button onClick={() => setClientToDelete(client)} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-700 hover:text-red-700 hover:bg-red-50 transition-colors" title="Delete Client"><Trash2 size={15} /><span>Delete</span></button>)}
                             </div>
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-1">{client.companyName}</h3><div className="flex items-center gap-2 text-sm text-slate-900 mb-6 font-medium"><User size={14} className="text-indigo-500"/> {client.contactPerson}</div>
@@ -558,17 +558,17 @@ export const ClientList: React.FC = () => {
                             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-lg">{editingClient.companyName.charAt(0)}</div>
                             <div>
                                 <p className="font-bold text-base leading-tight">{editingClient.companyName}</p>
-                                <p className="text-xs text-slate-900 mt-0.5">{editingClient.contactPerson}</p>
+                                <p className="text-xs text-slate-300 mt-0.5">{editingClient.contactPerson}</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 border-t border-slate-700 pt-3">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Email</p>
-                                <p className="text-sm text-slate-300 truncate">{editingClient.email || '—'}</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Email</p>
+                                <p className="text-sm text-white/90 truncate">{editingClient.email || '—'}</p>
                             </div>
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-1">Phone</p>
-                                <p className="text-sm text-slate-300">{editingClient.phone || '—'}</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Phone</p>
+                                <p className="text-sm text-white/90">{editingClient.phone || '—'}</p>
                             </div>
                         </div>
                     </div>

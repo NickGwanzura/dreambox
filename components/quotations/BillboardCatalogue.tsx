@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, MapPin, Plus, Check } from 'lucide-react';
 import { Billboard, BillboardType } from '../../types';
 import { getBillboards, getContracts } from '../../services/mockData';
+import { notifyApp } from '../../utils/notifications';
 
 interface CatalogueItem {
   description: string;
@@ -96,7 +97,7 @@ export const BillboardCatalogue: React.FC<Props> = ({ onAddItems }) => {
       onAddItems(items);
       setSelectedItems(new Set());
     } else {
-      alert('None of your selected billboards are currently available. Please refresh and try again.');
+      notifyApp('None of the selected billboards are currently available. Please refresh and try again.', 'warning');
       setSelectedItems(new Set());
     }
   };

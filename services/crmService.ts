@@ -233,8 +233,10 @@ const syncRecordToApi = async (stateKey: string, record: any) => {
 // --- Initialize from API (callable after login too) ---
 // Remote is the source of truth; local-only records (e.g. created while
 // offline or while a sync failed) are preserved rather than dropped.
-export const reloadCRMFromApi = async (): Promise<void> => {
+let lastCRMHydrationAt = 0;
+export const reloadCRMFromApi = async (options: { force?: boolean } = {}): Promise<void> => {
   if (!isConfigured()) return;
+  if (!options.force && lastCRMHydrationAt && Date.now() - lastCRMHydrationAt < 60_000) return;
 
   // Retry pending remote deletes first so the merge below doesn't race them
   await flushCRMDeletedQueue();
@@ -288,6 +290,7 @@ export const reloadCRMFromApi = async (): Promise<void> => {
     keys.forEach(key => saveToStorage(storageKeyMap[key], state[key]));
     notifyListeners();
   }
+  lastCRMHydrationAt = Date.now();
 };
 
 if (isConfigured()) {

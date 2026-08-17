@@ -179,6 +179,7 @@ export const getEffectiveVatRate = (): number => {
 // True once the first server hydration has completed — guards actions that
 // must not run against stale localStorage data (e.g. auto-billing).
 let hydratedFromApi = false;
+let lastHydrationAt = 0;
 export const hasHydratedFromApi = (): boolean => hydratedFromApi;
 
 const normalizeInvoiceMoney = (row: any): Invoice => ({
@@ -213,8 +214,12 @@ export const applyPulledRecords = (records: Partial<{
 registerPulledRecordsHandler(applyPulledRecords);
 
 // --- Initialize from API (callable after login too) ---
-export const reloadAllFromApi = async (): Promise<void> => {
+export const reloadAllFromApi = async (options: { force?: boolean } = {}): Promise<void> => {
     if (!isConfigured()) return;
+    // Login and module initialization can both request hydration. Avoid walking
+    // every paginated table twice in a short window; manual callers can force a
+    // fresh reconciliation when needed.
+    if (!options.force && hydratedFromApi && Date.now() - lastHydrationAt < 60_000) return;
     try {
         // Retry pending remote deletes first so re-imports below don't race them
         await flushDeletedQueue();
@@ -273,6 +278,7 @@ export const reloadAllFromApi = async (): Promise<void> => {
             console.warn(`[mockData] ${rejected.length}/${results.length} API initializations failed`);
         }
         hydratedFromApi = true;
+        lastHydrationAt = Date.now();
         notifyListeners();
         // Fresh data is in — safe to flag overdue invoices and expired quotations now
         markOverdueInvoices().catch(e => console.error('[reloadAllFromApi] overdue check failed:', e));

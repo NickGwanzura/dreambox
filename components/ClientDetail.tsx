@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { canDelete } from '../utils/settingsAccess';
 import { getCurrentUser } from '../services/authServiceSecure';
+import { notifyApp } from '../utils/notifications';
 
 interface Props {
   client: Client;
@@ -105,7 +106,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
     e.preventDefault();
     const validItems = newDoc.items.filter(i => i.description.trim() && i.amount > 0);
     if (validItems.length === 0) {
-      alert('Add at least one line item with a description and amount.');
+      notifyApp('Add at least one line item with a description and amount.', 'warning');
       return;
     }
 
@@ -123,7 +124,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
     try {
       await addInvoice(doc);
     } catch (err: any) {
-      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+      notifyApp(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
       return;
     }
     setIsCreateOpen(false);
@@ -135,7 +136,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
       generateInvoicePDF(doc, client);
     } catch (e) {
       console.error(e);
-      alert('Failed to generate PDF.');
+      notifyApp('Failed to generate PDF.', 'error');
     }
   };
 
@@ -267,17 +268,17 @@ export const ClientDetail: React.FC<Props> = ({ client, onBack, onEdit }) => {
                     </td>
                     <td className="px-6 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => downloadPdf(doc)} title="Download PDF" className="p-2 text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors">
-                          <Download size={14} />
+                        <button onClick={() => downloadPdf(doc)} title="Download PDF" aria-label="Download PDF" className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                          <Download size={14} /><span>Download</span>
                         </button>
                         {doc.type === 'Invoice' && doc.status !== 'Paid' && (
-                          <button onClick={() => alert('Open Payments to record this receipt. Receiver, reference, receiving account and bank proof must be captured there.')} title="Record payment with audit evidence" className="p-2 text-slate-900 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors">
-                            <CheckCircle size={14} />
+                          <button onClick={() => notifyApp('Open Payments to record this receipt with receiver, reference, account and proof.', 'info')} title="Record payment with audit evidence" className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-900 hover:text-green-600 hover:bg-green-50 transition-colors">
+                            <CheckCircle size={14} /><span>Payment</span>
                           </button>
                         )}
                         {canUserDelete && (
-                          <button onClick={async () => { const reason = prompt(`Void ${doc.type} ${doc.id}? Enter the audit reason:`); if (reason) { try { await deleteInvoice(doc.id, reason); } catch (e: any) { alert(`Failed: ${e?.message || 'Server error. Please try again.'}`); } } }} title="Void with audit trail" className="p-2 text-slate-900 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors">
-                            <Trash2 size={14} />
+                          <button onClick={async () => { const reason = prompt(`Void ${doc.type} ${doc.id}? Enter the audit reason:`); if (reason) { try { await deleteInvoice(doc.id, reason); } catch (e: any) { notifyApp(`Failed: ${e?.message || 'Server error. Please try again.'}`, 'error'); } } }} title="Void with audit trail" className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-900 hover:text-red-600 hover:bg-red-50 transition-colors">
+                            <Trash2 size={14} /><span>Void</span>
                           </button>
                         )}
                       </div>

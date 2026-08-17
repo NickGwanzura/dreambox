@@ -5,6 +5,7 @@ import { splitInclusiveVat, formatVatPercent } from '../services/constants';
 import { getEffectiveVatRate } from '../services/mockData';
 import { getContractAmendmentsForContract, addContractAmendment, deleteContractAmendment, updateContract, invoices, getContracts, getBillboards, addInvoice, updateInvoice, deleteInvoice, logAction } from '../services/mockData';
 import { getCurrentUser } from '../services/authServiceSecure';
+import { notifyApp } from '../utils/notifications';
 import { X, AlertTriangle, CheckCircle, Calendar, TrendingUp, TrendingDown, FileText, History, ArrowRight, Loader2, Clock, DollarSign, Trash2 } from 'lucide-react';
 
 interface Props {
@@ -259,7 +260,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             } as any);
           } catch (invErr: any) {
             console.error('Failed to create extension invoice:', invErr);
-            alert(`Failed: ${invErr?.message || 'Server error. Please try again.'}`);
+            notifyApp(`Failed: ${invErr?.message || 'Server error. Please try again.'}`, 'error');
           }
         }
       }
@@ -298,7 +299,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             });
           } catch (invErr: any) {
             console.error('Failed to update invoice:', invErr);
-            alert(`Failed: ${invErr?.message || 'Server error. Please try again.'}`);
+            notifyApp(`Failed: ${invErr?.message || 'Server error. Please try again.'}`, 'error');
           }
           if (!wasModified && inv.items.length > 0) {
             unmatchedInvoices.push(inv.id);
@@ -325,7 +326,7 @@ export const ContractAmendmentModal: React.FC<Props> = ({ contract, onClose, onA
             await deleteInvoice(inv.id);
           } catch (invErr: any) {
             console.error('Failed to delete affected invoice:', invErr);
-            alert(`Failed: ${invErr?.message || 'Server error. Please try again.'}`);
+            notifyApp(`Failed: ${invErr?.message || 'Server error. Please try again.'}`, 'error');
           }
         }
         if (affectedInvoices.length > 0) {

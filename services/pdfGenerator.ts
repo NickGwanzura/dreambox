@@ -7,6 +7,7 @@ import { api } from './apiClient';
 import { formatVatPercent } from './constants';
 import { buildTemplateData, resolveContractTemplate, substituteTemplate, TemplateData } from '../utils/contractTemplate';
 import { useGeistSans } from './pdfFonts';
+import { notifyApp } from '../utils/notifications';
 
 type RGB = [number, number, number];
 const money = (value: unknown): number => {
@@ -562,7 +563,7 @@ export const generateInvoicePDF = async (invoice: Invoice, client: Client) => {
     doc.save(`${invoice.type}_${invoice.id}.pdf`);
   } catch (error) {
     console.error("PDF Generation Error:", error);
-    alert("Failed to generate PDF. Please check console for details.");
+        notifyApp('Failed to generate PDF. Please try again.', 'error');
   }
 };
 
@@ -747,7 +748,7 @@ export const generateLegalContractPDF = async (
     doc.save(`Contract_${data.contract_number}_${client.companyName.replace(/[^a-z0-9]+/gi, '_')}.pdf`);
   } catch (error) {
     console.error('Legal Contract PDF Generation Error:', error);
-    alert('Failed to generate legal contract PDF. See console for details.');
+        notifyApp('Failed to generate legal contract PDF. Please try again.', 'error');
   }
 };
 
@@ -847,7 +848,7 @@ export const generateStatementPDF = async (client: Client, transactions: Invoice
         doc.save(`Statement_${client.companyName.replace(/\s/g, '_')}.pdf`);
     } catch (error) {
         console.error("PDF Generation Error:", error);
-        alert("Failed to generate Statement PDF.");
+        notifyApp('Failed to generate statement PDF.', 'error');
     }
 };
 
@@ -881,7 +882,7 @@ export const generateExpensesPDF = async (expenses: Expense[]) => {
         addContactFooter(doc);
         doc.save('Expenses_Report.pdf');
     } catch (e) {
-        alert("Failed to generate Expenses PDF");
+        notifyApp('Failed to generate expenses PDF.', 'error');
     }
 };
 
@@ -915,7 +916,7 @@ export const generatePaymentSchedulePDF = async (schedule: any[]) => {
         addContactFooter(doc);
         doc.save('Payment_Schedule.pdf');
     } catch (e) {
-        alert("Failed to generate Schedule PDF");
+        notifyApp('Failed to generate schedule PDF.', 'error');
     }
 };
 
@@ -962,7 +963,7 @@ export const generateActiveContractsPDF = async (contracts: Contract[], getClien
         addContactFooter(doc);
         doc.save('Active_Contracts_Register.pdf');
     } catch (e) {
-        alert("Failed to generate Contracts PDF");
+        notifyApp('Failed to generate contracts PDF.', 'error');
     }
 };
 
@@ -1001,7 +1002,7 @@ export const generateClientDirectoryPDF = async (clients: Client[]) => {
         addContactFooter(doc);
         doc.save('Client_Directory.pdf');
     } catch (e) {
-        alert("Failed to generate Client PDF");
+        notifyApp('Failed to generate client PDF.', 'error');
     }
 };
 
@@ -1291,7 +1292,7 @@ export const generateAvailabilitySheetPDF = async (billboards: Billboard[]) => {
         doc.save(`Availability_Sheet_${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (e) {
         console.error('Availability PDF Error:', e);
-        alert('Failed to generate Availability PDF.');
+        notifyApp('Failed to generate availability PDF.', 'error');
     }
 };
 
@@ -1337,7 +1338,7 @@ export const generateAppFeaturesPDF = async () => {
         doc.save('Dreambox_Features_List.pdf');
     } catch (e) {
         console.error(e);
-        alert("Failed to generate Features PDF");
+        notifyApp('Failed to generate features PDF.', 'error');
     }
 };
 
@@ -1386,6 +1387,6 @@ export const generateUserManualPDF = async () => {
         addContactFooter(doc);
         doc.save('Dreambox_User_Manual.pdf');
     } catch (e) {
-        alert("Failed to generate Manual PDF");
+        notifyApp('Failed to generate manual PDF.', 'error');
     }
 };

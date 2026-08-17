@@ -1063,7 +1063,7 @@ export const Rentals: React.FC = () => {
         {viewMode === 'gantt' ? renderGanttChart() : (
             <div className="grid gap-4">
             {pageError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div>}
-            {isLoadingPage && <div className="py-12 text-center text-sm text-slate-500">Loading contracts…</div>}
+            {isLoadingPage && <div className="py-12 text-center text-sm font-medium text-slate-700">Loading contracts…</div>}
             {filteredRentals.map(contract => (
                 <div key={contract.id} className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 group hover:-translate-y-0.5 duration-300">
                 <div className="flex items-start gap-4 w-full lg:w-auto">
@@ -1074,17 +1074,17 @@ export const Rentals: React.FC = () => {
                     <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{getClientName(contract.clientId)}</h3>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-900 mt-1">
                         <span className="font-medium text-slate-700 truncate">{getBillboardName(contract.billboardId)}</span>
-                        <span className="hidden sm:inline text-slate-300">•</span>
+                        <span className="hidden sm:inline text-slate-500">•</span>
                         <span className={`font-bold px-2 py-0.5 rounded text-[10px] sm:text-xs w-fit ${contract.side ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
                         {contract.details}
                         </span>
                     </div>
                     <div className="flex items-center gap-3 mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-900 uppercase tracking-wide font-medium flex-wrap">
                         <span className="flex items-center gap-1"><Calendar size={12} /> {contract.startDate} — {contract.endDate}</span>
-                        <span className="text-slate-300">{calculateContractMonthsSafe(contract.startDate, contract.endDate)} mo</span>
+                        <span className="text-slate-700">{calculateContractMonthsSafe(contract.startDate, contract.endDate)} mo</span>
                         <span>ID: {contract.id}</span>
                         {contract.assignedTo && <span className="flex items-center gap-1 text-indigo-400"><UserCircle size={11}/> {contract.assignedTo}</span>}
-                        {contract.lastModifiedDate && <span className="text-slate-300">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
+                        {contract.lastModifiedDate && <span className="text-slate-700">• Edited {new Date(contract.lastModifiedDate).toLocaleDateString()}</span>}
                         {(() => { const daysLeft = Math.ceil((new Date(contract.endDate).getTime() - Date.now()) / 86400000); return daysLeft > 0 && daysLeft <= 30 ? <span className="text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5 rounded">⚠ Expires in {daysLeft}d</span> : null; })()}
                     </div>
                     </div>

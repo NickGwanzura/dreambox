@@ -4,6 +4,7 @@ import { getCompanyProfile, updateCompanyProfile, subscribe } from '../services/
 import { CONTRACT_TEMPLATE_PLACEHOLDERS, DEFAULT_CONTRACT_TEMPLATE } from '../utils/contractTemplate';
 import { FileText, RotateCcw, Save, CheckCircle, Info, Eye } from 'lucide-react';
 import { getCurrentUser } from '../services/authServiceSecure';
+import { notifyApp } from '../utils/notifications';
 
 export const ContractTemplatePage: React.FC = () => {
   const currentUser = getCurrentUser();
@@ -27,7 +28,7 @@ export const ContractTemplatePage: React.FC = () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err: any) {
-      alert(`Failed to save template: ${err?.message || 'Server error. Please try again.'}`);
+      notifyApp(`Failed to save template: ${err?.message || 'Server error. Please try again.'}`, 'error');
     }
   };
 

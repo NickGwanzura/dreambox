@@ -23,6 +23,7 @@ import { api } from "../services/apiClient";
 import { openPaymentProof } from "../services/paymentProof";
 import { jsPDF } from "jspdf";
 import { useGeistSans } from "../services/pdfFonts";
+import { notifyApp } from "../utils/notifications";
 
 const fmt = (value: number) =>
   `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1071,7 +1072,7 @@ const InvoiceEvidence: React.FC<{ invoice: Invoice; receipts: Invoice[] }> = ({
           {(receipt.hasPaymentProof ?? Boolean(receipt.proofPaymentUrl)) ? (
             <button
               type="button"
-              onClick={() => openPaymentProof(receipt.id).catch(error => alert(error.message))}
+              onClick={() => openPaymentProof(receipt.id).catch(error => notifyApp(error?.message || "Unable to open proof of payment.", "error"))}
               className="inline-block mt-2 font-bold text-indigo-600 hover:text-indigo-800"
             >
               Open proof of payment

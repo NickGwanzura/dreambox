@@ -166,6 +166,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (duration > 0) setTimeout(() => removeToast(id), duration);
   }, [removeToast]);
 
+  useEffect(() => {
+    const handleExternalToast = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string; type?: ToastType }>).detail;
+      if (detail?.message) showToast(detail.message, detail.type || 'info');
+    };
+    window.addEventListener('app:toast', handleExternalToast);
+    return () => window.removeEventListener('app:toast', handleExternalToast);
+  }, [showToast]);
+
   const value = useMemo(() => ({ showToast }), [showToast]);
 
   return (

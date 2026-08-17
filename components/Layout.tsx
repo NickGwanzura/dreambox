@@ -547,7 +547,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
                     <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
                       {empty && (
-                        <div className="px-4 py-8 text-center text-sm text-slate-400">
+                        <div className="px-4 py-8 text-center text-sm font-medium text-slate-700">
                           <Bell size={24} className="mx-auto mb-2 opacity-30" />
                           All clear — no alerts right now
                         </div>
@@ -565,11 +565,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                               <span className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
                               <div className="min-w-0">
                                 <p className="text-xs font-semibold text-slate-800 truncate">{inv.id}</p>
-                                <p className="text-[11px] text-slate-400">${(inv.total || 0).toLocaleString()} · overdue</p>
+                                <p className="text-[11px] text-slate-700">${(inv.total || 0).toLocaleString()} · overdue</p>
                               </div>
                             </button>
                           ))}
-                          {overdue.length > 5 && <p className="px-4 pb-2 text-[11px] text-slate-400">+{overdue.length - 5} more</p>}
+                          {overdue.length > 5 && <p className="px-4 pb-2 text-[11px] text-slate-700">+{overdue.length - 5} more</p>}
                         </div>
                       )}
 
@@ -587,12 +587,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                                 <span className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
                                 <div className="min-w-0">
                                   <p className="text-xs font-semibold text-slate-800 truncate">{c.id}</p>
-                                  <p className="text-[11px] text-slate-400">{daysLeft}d left · expires {c.endDate}</p>
+                                  <p className="text-[11px] text-slate-700">{daysLeft}d left · expires {c.endDate}</p>
                                 </div>
                               </button>
                             );
                           })}
-                          {expiring.length > 5 && <p className="px-4 pb-2 text-[11px] text-slate-400">+{expiring.length - 5} more</p>}
+                          {expiring.length > 5 && <p className="px-4 pb-2 text-[11px] text-slate-700">+{expiring.length - 5} more</p>}
                         </div>
                       )}
                     </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Task } from '../types';
 import { getTasks, addTask, updateTask, deleteTask, getUsers, getBillboards, updateBillboard } from '../services/mockData';
 import { CheckSquare, Plus, Trash2, Calendar, User, Clock, X, Save, AlertTriangle, Flag, CheckCircle2, Search } from 'lucide-react';
+import { notifyApp } from '../utils/notifications';
 
 const MinimalInput = ({ label, value, onChange, type = "text", required = false }: any) => (
   <div className="group relative">
@@ -47,7 +48,7 @@ export const Tasks: React.FC = () => {
       setIsModalOpen(false);
       setNewTask({ title: '', description: '', assignedTo: 'Unassigned', priority: 'Medium', status: 'Todo', dueDate: new Date().toISOString().split('T')[0] });
     } catch (err: any) {
-      alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+      notifyApp(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
     }
   };
 
@@ -59,9 +60,9 @@ export const Tasks: React.FC = () => {
               const today = new Date().toISOString().split('T')[0];
               try {
                   await updateBillboard({ ...billboard, lastMaintenanceDate: today });
-                  alert(`Maintenance recorded for ${billboard.name}. Next check due in 3 months.`);
+                  notifyApp(`Maintenance recorded for ${billboard.name}. Next check due in 3 months.`, 'success');
               } catch (err: any) {
-                  alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+                  notifyApp(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
                   return;
               }
           }
@@ -71,7 +72,7 @@ export const Tasks: React.FC = () => {
           await updateTask({ ...task, status: newStatus });
           setTasks(getTasks());
       } catch (err: any) {
-          alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          notifyApp(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
       }
   };
 
@@ -82,7 +83,7 @@ export const Tasks: React.FC = () => {
               setTasks(getTasks());
               setTaskToDelete(null);
           } catch (err: any) {
-              alert(`Failed: ${err?.message || 'Server error. Please try again.'}`);
+          notifyApp(`Failed: ${err?.message || 'Server error. Please try again.'}`, 'error');
           }
       }
   };
