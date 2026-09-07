@@ -4,6 +4,7 @@ import { fetchAllPages } from './pagination';
 import { STORAGE_KEYS, splitInclusiveVat, VAT_RATE } from './constants';
 import { registerPulledRecordsHandler } from './remoteState';
 import { exportAllData } from './storage';
+import { normalizeInvoiceFinancials, finiteMoney } from './invoiceFinancials';
 import {
   createBackup,
   restoreBackupFromData,
@@ -183,19 +184,18 @@ let hydratedFromApi = false;
 let lastHydrationAt = 0;
 export const hasHydratedFromApi = (): boolean => hydratedFromApi;
 
-const normalizeInvoiceMoney = (row: any): Invoice => ({
-    ...row,
-    subtotal: Number(row.subtotal) || 0,
-    discountAmount: row.discountAmount == null ? undefined : Number(row.discountAmount),
-    vatAmount: Number(row.vatAmount) || 0,
-    total: Number(row.total) || 0,
-    items: Array.isArray(row.items) ? row.items.map((item: any) => ({
-        ...item,
-        amount: Number(item.amount) || 0,
-        ...(item.quantity != null && { quantity: Number(item.quantity) }),
-        ...(item.unitPrice != null && { unitPrice: Number(item.unitPrice) }),
-    })) : [],
-});
+const normalizeInvoiceMoney = (row: any): Invoice => {
+    const normalized = normalizeInvoiceFinancials({
+        ...row,
+        items: Array.isArray(row.items) ? row.items.map((item: any) => ({
+            ...item,
+            amount: finiteMoney(item.amount) ?? 0,
+            ...(item.quantity != null && { quantity: finiteMoney(item.quantity) ?? 0 }),
+            ...(item.unitPrice != null && { unitPrice: finiteMoney(item.unitPrice) ?? 0 }),
+        })) : [],
+    });
+    return normalized as Invoice;
+};
 
 const normalizeExpenseMoney = (row: any): Expense => ({ ...row, amount: Number(row.amount) || 0 });
 

@@ -75,6 +75,23 @@ describe('invoice ledger validation', () => {
     expect(mockPrisma.invoice.create.mock.calls[0][0].data.dueDate).toBeNull();
   });
 
+  it('rejects a duplicate monthly invoice inside the write transaction', async () => {
+    mockPrisma.invoice.findMany.mockResolvedValueOnce([{
+      id: 'INV-EXISTING',
+      items: [{ description: 'Monthly Rental — May 2026', amount: 575 }],
+    }]);
+    const response = res();
+    await handler(req({ body: invoiceBody({
+      contractId: 'C-001',
+      date: '2026-05-01',
+      items: [{ description: 'Monthly Rental — May 2026', amount: 575 }],
+    }) }), response);
+
+    expect(response._status).toBe(409);
+    expect(response._json).toMatchObject({ existingId: 'INV-EXISTING' });
+    expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+  });
+
   it('preserves a manually entered due date when an invoice is updated without changing it', async () => {
     mockPrisma.invoice.findUnique.mockResolvedValue({
       id: 'invoice-1',

@@ -10,6 +10,7 @@ import { assertPeriodOpen, assertPeriodsOpen } from '../lib/accountingPeriod';
 import { getClientIp } from '../lib/clientIp.js';
 import { isAllowedStorageReference } from '../lib/storage.js';
 import { PaginationError, paginated, parsePagePagination } from '../lib/pagination.js';
+import { normalizeInvoiceFinancials } from '../services/invoiceFinancials';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const calendarDate = z.string().regex(DATE_RE, 'Date must use YYYY-MM-DD').refine((value) => {
@@ -120,6 +121,20 @@ async function duplicatePaymentReference(tx: any, paymentMethod: string, payment
     },
     select: { id: true },
   });
+}
+
+async function assertNoMonthlyInvoiceDuplicate(tx: any, data: any): Promise<void> {
+  if (data.type !== 'Invoice' || !data.contractId || !String(data.items?.[0]?.description || '').startsWith('Monthly Rental')) return;
+  const monthPrefix = String(data.date).slice(0, 7);
+  if (typeof tx.$queryRaw === 'function') {
+    await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`dreambox-monthly-invoice:${data.contractId}:${monthPrefix}`}))`);
+  }
+  const sameMonth = await tx.invoice.findMany({
+    where: { contractId: data.contractId, type: 'Invoice', isVoided: false, date: { startsWith: monthPrefix } },
+    select: { id: true, items: true },
+  });
+  const duplicate = sameMonth.find((invoice: any) => Array.isArray(invoice.items) && String(invoice.items[0]?.description || '').startsWith('Monthly Rental'));
+  if (duplicate) throw new PaymentIntegrityError('Monthly invoice already exists for this contract and month', 409, duplicate.id);
 }
 
 async function activeAllocationsForRecord(tx: any, recordId: string): Promise<Array<{ invoiceId: string }>> {
@@ -295,7 +310,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
       const { id } = req.query;
       if (id) {
         const row = await prisma.invoice.findUnique({ where: { id: id as string } });
-        return row ? res.status(200).json(withoutProofUrl(row)) : res.status(404).json({ error: 'Not found' });
+        return row ? res.status(200).json(withoutProofUrl(normalizeInvoiceFinancials(row as any))) : res.status(404).json({ error: 'Not found' });
       }
       // Review queue: invoices with no payment logged at all (non-voided,
       // Pending/Overdue). A payment counts as logged when a non-voided receipt
@@ -331,9 +346,9 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         if (flaggedIds.length === 0) return res.status(200).json([]);
         const flagged = await prisma.invoice.findMany({ where: { id: { in: flaggedIds } }, orderBy: { date: 'asc' } });
         return res.status(200).json(flagged.map(row => withoutProofUrl({
-          ...row,
+          ...normalizeInvoiceFinancials(row as any),
           hasPaymentLogged: false,
-          outstanding: Number(row.total || 0),
+          outstanding: Number(normalizeInvoiceFinancials(row as any).total || 0),
           flaggedForReview: true,
         })));
       }
@@ -367,7 +382,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         take,
         skip,
       }), typeof prisma.invoice.count === 'function' ? prisma.invoice.count({ where }) : Promise.resolve(0)]);
-      return res.status(200).json(paginated(rows.map(withoutProofUrl), page, limit, total));
+      return res.status(200).json(paginated(rows.map(row => withoutProofUrl(normalizeInvoiceFinancials(row as any))), page, limit, total));
     } catch (e: any) {
       if (e instanceof PaginationError) return res.status(400).json({ error: e.message });
       handlePrismaError(e, res, 'GET'); return;
@@ -438,13 +453,6 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
         data.quoteNumber = `QT-${today}-${String(count + 1).padStart(3, '0')}`;
       }
 
-      if (data.type === 'Invoice' && data.contractId && String(data.items?.[0]?.description || '').startsWith('Monthly Rental')) {
-        const monthPrefix = String(data.date).slice(0, 7);
-        const sameMonth = await prisma.invoice.findMany({ where: { contractId: data.contractId, type: 'Invoice', date: { startsWith: monthPrefix } }, select: { id: true, items: true } });
-        const duplicate = sameMonth.find(inv => Array.isArray(inv.items) && String((inv.items as any[])[0]?.description || '').startsWith('Monthly Rental'));
-        if (duplicate) return res.status(409).json({ error: 'Monthly invoice already exists for this contract and month', existingId: duplicate.id });
-      }
-
       if (data.type === 'Receipt') {
         const result = await prisma.$transaction(async tx => {
           await assertPeriodOpen(data.date, payload.email, tx);
@@ -464,6 +472,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
 
       const row = await prisma.$transaction(async tx => {
         await assertPeriodOpen(data.date, payload.email, tx);
+        await assertNoMonthlyInvoiceDuplicate(tx, data);
         const created = await tx.invoice.create({ data });
         await tx.auditLog.create({ data: { action: `Finance: ${created.type} Created`, details: `${created.type} ${created.id} ($${created.total})`, userId: payload.userId, userEmail: payload.email, tableName: 'invoices', recordId: created.id, afterData: created as any, ...audit } });
         return created;

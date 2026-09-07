@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { cors, requireManagerOrAdmin } from '../lib/auth';
 import { buildForensicFinanceReport } from '../services/forensicFinance';
 import { createHash, randomUUID } from 'node:crypto';
+import { normalizeInvoiceFinancials } from '../services/invoiceFinancials';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const calendarDate = z.string().regex(DATE_RE).refine(value => {
@@ -37,7 +38,7 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     if (invoiceRows.length > MAX_REPORT_ROWS || clientRows.length > MAX_REPORT_ROWS || expenseRows.length > MAX_REPORT_ROWS) {
       return res.status(413).json({ error: 'Financial report dataset is too large. Narrow the reporting period or run an offline export.' });
     }
-    const invoices = invoiceRows.map(row => ({ ...row, subtotal: Number(row.subtotal), discountAmount: row.discountAmount == null ? undefined : Number(row.discountAmount), vatAmount: Number(row.vatAmount), total: Number(row.total), proofUploadedAt: row.proofUploadedAt?.toISOString(), recordedAt: row.recordedAt?.toISOString(), postedAt: row.postedAt?.toISOString(), voidedAt: row.voidedAt?.toISOString() })) as any;
+    const invoices = invoiceRows.map(row => normalizeInvoiceFinancials({ ...row, proofUploadedAt: row.proofUploadedAt?.toISOString(), recordedAt: row.recordedAt?.toISOString(), postedAt: row.postedAt?.toISOString(), voidedAt: row.voidedAt?.toISOString() })) as any;
     const expenses = expenseRows.map(row => ({ ...row, amount: Number(row.amount) })) as any;
     const report = buildForensicFinanceReport(
       invoices,
