@@ -65,6 +65,7 @@ export const STORAGE_KEYS = {
   BILLBOARDS: 'db_billboards',
   CONTRACTS: 'db_contracts',
   CLIENTS: 'db_clients',
+  TASKS: 'db_tasks',
 
   // CRM — still uses localStorage-based persistence
   CRM_COMPANIES: 'db_crm_companies',

@@ -18,7 +18,27 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
   try {
     const { take, skip } = parsePagination(req.query as any, 500);
     const rows = await prisma.billboard.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take, skip });
-    return res.status(200).json(rows.map(toPublicClient));
+    const today = new Date().toISOString().slice(0, 10);
+    const billboardIds = rows.map((row: any) => row.id);
+    const activeContracts = billboardIds.length
+      ? await prisma.contract.findMany({
+          where: { billboardId: { in: billboardIds }, status: 'Active', startDate: { lte: today }, endDate: { gte: today } },
+          select: { id: true, billboardId: true, startDate: true, endDate: true, status: true, side: true, slotNumber: true },
+        })
+      : [];
+    const contractsByBillboard = new Map<string, any[]>();
+    for (const contract of activeContracts) {
+      const current = contractsByBillboard.get(contract.billboardId) || [];
+      current.push(contract);
+      contractsByBillboard.set(contract.billboardId, current);
+    }
+    return res.status(200).json(rows.map((row: any) => ({
+      ...toPublicClient(row),
+      // Public pages must derive occupancy from the same active contracts as
+      // the authenticated app. No client identity or financial details leave
+      // the server in this payload.
+      activeContracts: contractsByBillboard.get(row.id) || [],
+    })));
   } catch (e: any) {
     log.error('[public-billboards]', e);
     return res.status(500).json({ error: 'Internal server error' });

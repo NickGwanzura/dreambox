@@ -245,16 +245,19 @@ const getAvailableSites = (billboards: Billboard[], contracts: Contract[]): Avai
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
-  const activeContractsFor = (billboardId: string): Contract[] =>
-    contracts.filter(c =>
-      c.billboardId === billboardId &&
+  const activeContractsFor = (board: Billboard): Contract[] => {
+    const serverContracts = (board as Billboard & { activeContracts?: Contract[] }).activeContracts;
+    const source = Array.isArray(serverContracts) ? serverContracts : contracts;
+    return source.filter(c =>
+      c.billboardId === board.id &&
       String(c.status || '').toLowerCase() === 'active' &&
       new Date(c.startDate) <= todayEnd &&
       new Date(c.endDate) >= todayStart
     );
+  };
 
   return billboards.map(board => {
-    const active = activeContractsFor(board.id);
+    const active = activeContractsFor(board);
 
     if (board.type === BillboardType.Static) {
       const sideABooked = active.some(c => c.side === 'A' || c.side === 'Both');
@@ -305,6 +308,8 @@ export const PublicWebsite: React.FC = () => {
   const contracts = getContracts();
   const [logo, setLogo] = useState<string | null>(() => getCompanyLogo());
   const profile = getCompanyProfile();
+  const [publicPhone, setPublicPhone] = useState<string>(() => profile?.phone || '+263 778 018 909');
+  const [publicEmail, setPublicEmail] = useState<string>(() => profile?.email || 'info@dreamboxadvertising.com');
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(() => getHeroImageUrl());
   const [partnerLogos, setPartnerLogos] = useState<{ name: string; src: string }[]>(() => {
     const stored = getPartnerLogos();
@@ -316,6 +321,9 @@ export const PublicWebsite: React.FC = () => {
   useEffect(() => {
     const unsubscribe = subscribe(() => {
       setLogo(getCompanyLogo());
+      const updatedProfile = getCompanyProfile();
+      if (updatedProfile?.phone) setPublicPhone(updatedProfile.phone);
+      if (updatedProfile?.email) setPublicEmail(updatedProfile.email);
       setHeroImageUrl(getHeroImageUrl());
       const stored = getPartnerLogos();
       setPartnerLogos(stored.length ? stored : DEFAULT_PARTNER_LOGOS);
@@ -336,7 +344,10 @@ export const PublicWebsite: React.FC = () => {
     fetch('/api/public-billboards')
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (!cancelled && Array.isArray(data) && data.length) {
+        // Treat an empty successful response as authoritative so deleted or
+        // intentionally empty production inventory cannot fall back to stale
+        // localStorage data.
+        if (!cancelled && Array.isArray(data)) {
           setPublicBillboards(data);
         }
       })
@@ -346,6 +357,12 @@ export const PublicWebsite: React.FC = () => {
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!cancelled && data) {
+          if (data.phone) {
+            setPublicPhone(data.phone);
+          }
+          if (data.email) {
+            setPublicEmail(data.email);
+          }
           if (data.logo) {
             setLogo(data.logo);
           }
@@ -445,8 +462,8 @@ export const PublicWebsite: React.FC = () => {
       : `${PAGE_META[page].title} | Dreambox Advertising`;
   }, [page]);
 
-  const phone = profile?.phone || '+263 778 018 909';
-  const email = profile?.email || 'info@dreamboxadvertising.com';
+  const phone = publicPhone || '+263 778 018 909';
+  const email = publicEmail || 'info@dreamboxadvertising.com';
   const shownAvailability = availableSites;
   const featuredDigitalSites = digitalAvailability.length
     ? digitalAvailability.slice(0, 3)

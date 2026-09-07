@@ -151,9 +151,17 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
             }
 
             const publicBoards = await fetchPublicBillboards();
-            if (cancelled || !publicBoards?.length) return;
+            // A successful empty response is authoritative too; otherwise a
+            // deleted/empty production inventory would be replaced by stale
+            // localStorage records on public pages.
+            if (cancelled || !publicBoards) return;
 
             setAllBillboards(publicBoards);
+            const serverContracts = publicBoards.flatMap(board => {
+                const active = (board as Billboard & { activeContracts?: Contract[] }).activeContracts;
+                return Array.isArray(active) ? active : [];
+            });
+            setContracts(serverContracts);
             if (type === 'billboard' && billboardId) {
                 const bySlug = publicBoards.find(b => billboardLink(b).endsWith('/' + billboardId) || b.id === billboardId);
                 const byId = publicBoards.find(b => b.id === billboardId);
@@ -178,7 +186,8 @@ export const PublicView: React.FC<PublicViewProps> = ({ type, billboardId }) => 
 
     useEffect(() => {
         const boards = allBillboards;
-        setContracts(getContracts());
+        const hasServerAvailability = boards.some(board => Object.prototype.hasOwnProperty.call(board, 'activeContracts'));
+        if (!hasServerAvailability) setContracts(getContracts());
         if (type === 'billboard' && billboardId) {
             // Try to find by slug first (matches at end of slugged ID), then by exact ID
             const bySlug = boards.find(b => billboardLink(b).endsWith('/' + billboardId) || b.id === billboardId);

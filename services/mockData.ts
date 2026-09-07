@@ -120,6 +120,7 @@ const initFromLocalStorage = (): void => {
     try { const raw = localStorage.getItem(STORAGE_KEYS.BILLBOARDS); if (raw) billboards = JSON.parse(raw); } catch {}
     try { const raw = localStorage.getItem(STORAGE_KEYS.CONTRACTS);  if (raw) contracts  = JSON.parse(raw); } catch {}
     try { const raw = localStorage.getItem(STORAGE_KEYS.CLIENTS);    if (raw) clients    = JSON.parse(raw); } catch {}
+    try { const raw = localStorage.getItem(STORAGE_KEYS.TASKS);      if (raw) tasks      = JSON.parse(raw); } catch {}
 };
 
 // Initialize deleted queue on module load
@@ -251,7 +252,16 @@ export const reloadAllFromApi = async (options: { force?: boolean } = {}): Promi
             api.get<any[]>('/api/users').then(d => { if (d) users = d; }),
             api.get<any[]>('/api/printing-jobs').then(d => { if (d) printingJobs = d; }),
             api.get<any[]>('/api/maintenance').then(d => { if (d) maintenanceLogs = d; }),
-            api.get<any[]>('/api/tasks').then(d => { if (d) tasks = d; }),
+            api.get<any[]>('/api/tasks').then(async d => {
+                if (!d) return;
+                tasks = mergeRemoteWithLocal(d, tasks, 'tasks');
+                const remoteIds = new Set(d.map((row: any) => row.id));
+                const localOnly = tasks.filter(task => !remoteIds.has(task.id));
+                for (const task of localOnly) {
+                    try { await api.put('/api/tasks', task, { id: task.id }); } catch (e) { console.warn('[reloadAllFromApi] task retry failed:', e); }
+                }
+                try { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); } catch {}
+            }),
             api.get<any>('/api/company-profile').then(d => {
                 if (d) {
                     // Merge over defaults: profiles saved before new fields existed (e.g. bank
@@ -1265,13 +1275,24 @@ export const addPrintingJob = async (job: PrintingJob) => {
 
 // --- Task CRUD ---
 export const addTask = async (task: Task) => {
+    const tempId = task.id || `T-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const optimistic = { ...task, id: tempId };
+    tasks = [optimistic, ...tasks];
+    try { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); } catch {}
+    notifyListeners();
     if (isConfigured()) {
-        const created = await api.post<Task>('/api/tasks', task);
-        tasks = [created, ...tasks];
-        task = created;
+        try {
+            const created = await api.post<Task>('/api/tasks', optimistic);
+            tasks = tasks.map(item => item.id === tempId ? created : item);
+            task = created;
+        } catch (e) {
+            notifySyncError('Task saved locally — server sync failed and will retry on next reload.');
+            throw e;
+        }
     } else {
-        tasks = [task, ...tasks];
+        task = optimistic;
     }
+    try { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); } catch {}
     logAction('Task Created', `New task: ${task.title}`);
     notifyListeners();
 };
@@ -1279,11 +1300,13 @@ export const addTask = async (task: Task) => {
 export const updateTask = async (updated: Task) => {
     const previous = tasks.find(t => t.id === updated.id);
     tasks = tasks.map(t => t.id === updated.id ? updated : t);
+    try { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); } catch {}
     if (isConfigured()) {
         try {
             await api.put('/api/tasks', updated, { id: updated.id });
         } catch (e) {
             if (previous) tasks = tasks.map(t => t.id === updated.id ? previous : t);
+            try { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); } catch {}
             notifyListeners();
             throw e;
         }
@@ -1295,11 +1318,13 @@ export const deleteTask = async (id: string): Promise<void> => {
     const target = tasks.find(t => t.id === id);
     if (!target) return;
     tasks = tasks.filter(t => t.id !== id);
+    try { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); } catch {}
     if (isConfigured()) {
         try {
             await api.delete('/api/tasks', { id });
         } catch (e) {
             tasks = [target, ...tasks];
+            try { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); } catch {}
             notifyListeners();
             throw e;
         }
