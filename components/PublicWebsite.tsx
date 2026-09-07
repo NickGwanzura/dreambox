@@ -228,6 +228,15 @@ const compactNumber = (value: number): string => {
 
 const money = (value: number): string => `$${Math.round(value || 0).toLocaleString()}`;
 
+const DEFAULT_PUBLIC_PHONE = '+263 778 018 909';
+const publicPhoneValue = (value: unknown): string => {
+  const phone = String(value || '').trim();
+  // A public contact number must be usable as a telephone number. Reject
+  // truncated legacy profile values rather than rendering a misleading number.
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 10 ? phone : DEFAULT_PUBLIC_PHONE;
+};
+
 const getPageFromPath = (): PublicPage => {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   if (path === '/services') return 'services';
@@ -308,7 +317,7 @@ export const PublicWebsite: React.FC = () => {
   const contracts = getContracts();
   const [logo, setLogo] = useState<string | null>(() => getCompanyLogo());
   const profile = getCompanyProfile();
-  const [publicPhone, setPublicPhone] = useState<string>(() => profile?.phone || '+263 778 018 909');
+  const [publicPhone, setPublicPhone] = useState<string>(() => publicPhoneValue(profile?.phone));
   const [publicEmail, setPublicEmail] = useState<string>(() => profile?.email || 'info@dreamboxadvertising.com');
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(() => getHeroImageUrl());
   const [partnerLogos, setPartnerLogos] = useState<{ name: string; src: string }[]>(() => {
@@ -322,7 +331,7 @@ export const PublicWebsite: React.FC = () => {
     const unsubscribe = subscribe(() => {
       setLogo(getCompanyLogo());
       const updatedProfile = getCompanyProfile();
-      if (updatedProfile?.phone) setPublicPhone(updatedProfile.phone);
+      if (updatedProfile?.phone) setPublicPhone(publicPhoneValue(updatedProfile.phone));
       if (updatedProfile?.email) setPublicEmail(updatedProfile.email);
       setHeroImageUrl(getHeroImageUrl());
       const stored = getPartnerLogos();
@@ -358,7 +367,7 @@ export const PublicWebsite: React.FC = () => {
       .then(data => {
         if (!cancelled && data) {
           if (data.phone) {
-            setPublicPhone(data.phone);
+            setPublicPhone(publicPhoneValue(data.phone));
           }
           if (data.email) {
             setPublicEmail(data.email);
@@ -462,7 +471,7 @@ export const PublicWebsite: React.FC = () => {
       : `${PAGE_META[page].title} | Dreambox Advertising`;
   }, [page]);
 
-  const phone = publicPhone || '+263 778 018 909';
+  const phone = publicPhone || DEFAULT_PUBLIC_PHONE;
   const email = publicEmail || 'info@dreamboxadvertising.com';
   const shownAvailability = availableSites;
   const featuredDigitalSites = digitalAvailability.length
