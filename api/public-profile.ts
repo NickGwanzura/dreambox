@@ -16,10 +16,15 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     const row = await prisma.companyProfile.findUnique({ where: { id: 'profile_v1' } });
     if (!row) return res.status(200).json({});
 
+    const configuredPhone = String(row.phone || '').trim();
+    const publicPhone = configuredPhone.replace(/\D/g, '').length >= 10
+      ? configuredPhone
+      : '+263 778 018 909';
+
     return res.status(200).json({
       name: row.name,
       email: row.email,
-      phone: row.phone,
+      phone: publicPhone,
       logo: row.logo || null,
       heroImageUrl: row.heroImageUrl || null,
       partnerLogos: row.partnerLogos || null,
