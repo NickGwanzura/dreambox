@@ -22,7 +22,15 @@ export default async function handler(req: HttpRequest, res: HttpResponse) {
     const billboardIds = rows.map((row: any) => row.id);
     const activeContracts = billboardIds.length
       ? await prisma.contract.findMany({
-          where: { billboardId: { in: billboardIds }, status: 'Active', startDate: { lte: today }, endDate: { gte: today } },
+          // Contract dates are stored as YYYY-MM-DD strings. The year bounds
+          // exclude legacy/imported values such as 0026 or 2927 that would
+          // otherwise compare as active and make public inventory inaccurate.
+          where: {
+            billboardId: { in: billboardIds },
+            status: 'Active',
+            startDate: { gte: '2000-01-01', lte: today },
+            endDate: { gte: today, lte: '2099-12-31' },
+          },
           select: { id: true, billboardId: true, startDate: true, endDate: true, status: true, side: true, slotNumber: true },
         })
       : [];

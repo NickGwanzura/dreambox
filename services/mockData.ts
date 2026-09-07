@@ -928,8 +928,8 @@ const recalcBillboardAvailability = (billboardId: string) => {
     if (b.type === BillboardType.Static) {
         const sideAContract = contracts.find(c => c.billboardId === billboardId && isCurrentlyActive(c) && (c.side === 'A' || c.side === 'Both' || (c.details || '').includes('Side A')));
         const sideBContract = contracts.find(c => c.billboardId === billboardId && isCurrentlyActive(c) && (c.side === 'B' || c.side === 'Both' || (c.details || '').includes('Side B')));
-        const sideAInvoiceHolder = invoices.find(i => String(i.type || '').toLowerCase() === 'invoice' && (i.items || []).some(it => it.billboardId === billboardId && it.side === 'A'));
-        const sideBInvoiceHolder = invoices.find(i => String(i.type || '').toLowerCase() === 'invoice' && (i.items || []).some(it => it.billboardId === billboardId && it.side === 'B'));
+        const sideAInvoiceHolder = invoices.find(i => !i.isVoided && String(i.type || '').toLowerCase() === 'invoice' && (i.items || []).some(it => it.billboardId === billboardId && it.side === 'A'));
+        const sideBInvoiceHolder = invoices.find(i => !i.isVoided && String(i.type || '').toLowerCase() === 'invoice' && (i.items || []).some(it => it.billboardId === billboardId && it.side === 'B'));
         if (b.sideAStatus !== 'Maintenance') {
             if (sideAContract) { b.sideAStatus = 'Rented'; b.sideAClientId = sideAContract.clientId; }
             else if (sideAInvoiceHolder) { b.sideAStatus = 'Rented'; b.sideAClientId = sideAInvoiceHolder.clientId; }
@@ -949,7 +949,7 @@ const recalcBillboardAvailability = (billboardId: string) => {
         );
         const contractSlots = occupiedSlotNumbers.size;
         const invoiceSlots = invoices
-            .filter(i => String(i.type || '').toLowerCase() === 'invoice')
+            .filter(i => !i.isVoided && String(i.type || '').toLowerCase() === 'invoice')
             .reduce((acc, i) => acc + (i.items || [])
                 .filter(it => it.billboardId === billboardId)
                 .reduce((a, it) => a + (it.slots || 0), 0), 0);
