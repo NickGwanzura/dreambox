@@ -22,7 +22,7 @@ function MaintenanceScreen({ until }: { until?: number | null }) {
   const liveLogo = 'https://pub-14569e32d4434e8d9db6cbdfe16b96f4.r2.dev/logos/image-1781703301263-hrjsyr.avif';
 
   return (
-    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" }}
+    <div style={{ fontFamily: "'Geist', -apple-system, BlinkMacSystemFont, sans-serif" }}
          className="relative min-h-screen overflow-hidden bg-slate-950 text-white flex flex-col items-center justify-center px-4">
 
       {/* Animated moving grid */}

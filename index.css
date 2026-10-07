@@ -182,8 +182,8 @@
   --animate-fade-in: fadeIn 0.5s ease-out forwards;
   --animate-float: float 6s ease-in-out infinite;
 
-  --font-sans: 'Helvetica Neue', 'Helvena', Helvetica, Arial, sans-serif;
-  --font-display: 'Helvetica Neue', 'Helvena', Helvetica, Arial, sans-serif;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
   @keyframes blob {
     0% { transform: translate(0px, 0px) scale(1); }
@@ -253,7 +253,7 @@
 
 @layer base {
   html {
-    font-family: 'Helvetica Neue', 'Helvena', Helvetica, Arial, sans-serif;
+    font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
 
   h1,
@@ -262,7 +262,7 @@
   h4,
   h5,
   h6 {
-    font-family: 'Helvetica Neue', 'Helvena', Helvetica, Arial, sans-serif;
+    font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     letter-spacing: -0.02em;
   }
 }
